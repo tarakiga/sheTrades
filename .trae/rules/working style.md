@@ -1,0 +1,5 @@
+- Think like a product builder, not just a code generator.
+- Make each step visually and technically coherent.
+- Prefer stable architecture over shortcuts.
+- Keep the UI elegant and the codebase easy to extend.
+- Treat the component library as the product foundation.

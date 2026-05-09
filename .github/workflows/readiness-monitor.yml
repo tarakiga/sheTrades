@@ -1,0 +1,50 @@
+name: Backend Readiness Monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  monitor-readiness:
+    runs-on: ubuntu-latest
+    env:
+      STAGING_BACKEND_READY_URL: ${{ secrets.STAGING_BACKEND_READY_URL }}
+      OPS_ALERT_WEBHOOK_URL: ${{ secrets.OPS_ALERT_WEBHOOK_URL }}
+    steps:
+      - name: Validate readiness monitor configuration
+        shell: bash
+        run: |
+          if [ -z "$STAGING_BACKEND_READY_URL" ]; then
+            echo "Missing STAGING_BACKEND_READY_URL secret"
+            exit 1
+          fi
+
+      - name: Probe backend readiness
+        shell: bash
+        run: |
+          http_code="$(curl -sS -o readiness.json -w "%{http_code}" "$STAGING_BACKEND_READY_URL" || true)"
+          if [ "$http_code" != "200" ]; then
+            echo "Readiness endpoint returned HTTP $http_code"
+            cat readiness.json || true
+            exit 1
+          fi
+          if ! grep -q '"ok"[[:space:]]*:[[:space:]]*true' readiness.json; then
+            echo "Readiness payload did not return ok=true"
+            cat readiness.json
+            exit 1
+          fi
+
+      - name: Alert on readiness degradation
+        if: failure() && env.OPS_ALERT_WEBHOOK_URL != ''
+        shell: bash
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          payload="$(cat <<EOF
+          {"event":"backend_readiness_degraded","repository":"${{ github.repository }}","workflow":"${{ github.workflow }}","runUrl":"$RUN_URL","ref":"${{ github.ref_name }}","actor":"${{ github.actor }}"}
+          EOF
+          )"
+          curl -sS -X POST "$OPS_ALERT_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload"

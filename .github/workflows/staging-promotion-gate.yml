@@ -1,0 +1,81 @@
+name: Staging Promotion Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_postgres:
+        description: "Run PostgreSQL smoke checks"
+        required: true
+        default: true
+        type: boolean
+      run_firestore:
+        description: "Run Firestore smoke checks"
+        required: true
+        default: true
+        type: boolean
+      analytics_strategy:
+        description: "Analytics strategy for smoke checks"
+        required: true
+        default: live
+        type: choice
+        options:
+          - live
+          - snapshot
+
+jobs:
+  smoke-gate:
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+      FIRESTORE_PROJECT_ID: ${{ secrets.FIRESTORE_PROJECT_ID }}
+      OPS_ALERT_WEBHOOK_URL: ${{ secrets.OPS_ALERT_WEBHOOK_URL }}
+      STAGING_BACKEND_READY_URL: ${{ secrets.STAGING_BACKEND_READY_URL }}
+      SMOKE_RUN_POSTGRES: ${{ inputs.run_postgres }}
+      SMOKE_RUN_FIRESTORE: ${{ inputs.run_firestore }}
+      SMOKE_ANALYTICS_STRATEGY: ${{ inputs.analytics_strategy }}
+      SMOKE_REQUIRE_READY: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run staging smoke gate
+        run: npm run smoke:staging -w @shetrades/backend
+
+      - name: Verify deployed staging readiness endpoint
+        if: success() && env.STAGING_BACKEND_READY_URL != ''
+        shell: bash
+        run: |
+          http_code="$(curl -sS -o readiness.json -w "%{http_code}" "$STAGING_BACKEND_READY_URL")"
+          if [ "$http_code" != "200" ]; then
+            echo "Readiness endpoint returned HTTP $http_code"
+            cat readiness.json
+            exit 1
+          fi
+          if ! grep -q '"ok"[[:space:]]*:[[:space:]]*true' readiness.json; then
+            echo "Readiness payload did not return ok=true"
+            cat readiness.json
+            exit 1
+          fi
+
+      - name: Alert on gate failure
+        if: failure() && env.OPS_ALERT_WEBHOOK_URL != ''
+        shell: bash
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          payload="$(cat <<EOF
+          {"event":"staging_promotion_gate_failed","repository":"${{ github.repository }}","workflow":"${{ github.workflow }}","runUrl":"$RUN_URL","ref":"${{ github.ref_name }}","actor":"${{ github.actor }}"}
+          EOF
+          )"
+          curl -sS -X POST "$OPS_ALERT_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload"

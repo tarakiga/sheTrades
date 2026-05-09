@@ -1,0 +1,14 @@
+.env.local
+docker-compose.local.yml
+connect/*.pem
+connect/*.key
+connect/*.crt
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+node_modules/
+dashboard/.next/
+dist/
+coverage/
+*.tsbuildinfo

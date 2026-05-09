@@ -1,0 +1,1 @@
+The goal is not just to ship features. The goal is to build a premium, scalable, reusable product system that can support the SheTrades Digital platform cleanly over time.

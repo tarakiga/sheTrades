@@ -1,0 +1,1 @@
+generate a hndoff.md file and log your progress after the end of each task as a handoff doc that any developer can follow
