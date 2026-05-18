@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { Badge, Button, Card } from "../../../components/ui";
+import { AdminSessionProvider } from "../../../components/auth/AdminSessionProvider";
 import { AuthPageShell } from "../../../components/auth/AuthPageShell";
 import { LoginFormCard, type LoginFormValue } from "../../../components/auth/LoginFormCard";
+import { RootEntryRedirect } from "../../../components/auth/RootEntryRedirect";
 import {
   ProfileDetailsForm,
   type ProfileDetailsFormValue
@@ -30,6 +32,9 @@ export function AdminAuthPreview() {
     password: "Password123!"
   });
   const [loginState, setLoginState] = useState<"idle" | "loading" | "error" | "help">("idle");
+  const [entryState, setEntryState] = useState<"loading" | "authenticated" | "unauthenticated">(
+    "loading"
+  );
   const [profileValue, setProfileValue] = useState<ProfileDetailsFormValue>({
     fullName: previewUser.fullName,
     avatarUrl: ""
@@ -76,6 +81,38 @@ export function AdminAuthPreview() {
 
   return (
     <div className="preview-card-content">
+      <Card
+        title="Root Entry Redirect"
+        description="Preview the thin production entry handoff before the root route decides between dashboard and login."
+      >
+        <div className="preview-row">
+          <Button
+            variant={entryState === "loading" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setEntryState("loading")}
+          >
+            Loading
+          </Button>
+          <Button
+            variant={entryState === "authenticated" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setEntryState("authenticated")}
+          >
+            Signed In
+          </Button>
+          <Button
+            variant={entryState === "unauthenticated" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setEntryState("unauthenticated")}
+          >
+            Signed Out
+          </Button>
+        </div>
+        <AdminSessionProvider>
+          <RootEntryRedirect statusOverride={entryState} />
+        </AdminSessionProvider>
+      </Card>
+
       <Card
         title="Auth Page Shell"
         description="Executive-premium shell for the dedicated sign-in route, including previewable state quality."

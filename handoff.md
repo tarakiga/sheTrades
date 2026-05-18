@@ -5055,3 +5055,100 @@ psql "sslmode=verify-ca sslrootcert=server-ca.pem sslcert=client-cert.pem sslkey
 - Decide whether a future auth pass should add:
   - recovery or invite entry flows using the same premium shell
   - trust-panel environment or account-readiness indicators
+
+### Task 109 - Root Smart Redirect Design
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define a focused production fix so the deployed root route `/` behaves like a real app entry point instead of rendering the old design-token review surface.
+
+#### Changes Made
+
+- Wrote the design spec:
+  - `docs/superpowers/specs/2026-05-18-root-smart-redirect-design.md`
+- Locked the approved direction:
+  - smart redirect at `/`
+  - authenticated users go to `/dashboard`
+  - unauthenticated users go to `/login`
+- Defined the implementation shape:
+  - replace `dashboard/app/page.tsx`
+  - use a thin entry route with existing session state
+  - show a calm loading handoff while status resolves
+- Explicitly limited scope so this remains a routing fix rather than a dashboard redesign or public-homepage effort.
+
+#### Why
+
+- The current root route still exposes the early design-token review page, which is useful internally but inappropriate as the production homepage.
+- Production users should enter the admin product through a real application entry flow, not an internal design-review artifact.
+- The existing auth/session architecture already supports this behavior cleanly, so the fix can stay minimal and safe.
+
+#### Important Notes
+
+- This pass does not redesign `/dashboard`, `/login`, or the auth backend.
+- The old token review surface can be relocated later if it is still useful internally, but it should no longer be the deployed homepage.
+- The smart redirect should remain a thin decision layer only, with no duplicate auth logic.
+
+#### Next Task
+
+- Task 110: implement the root smart redirect, verify the dashboard build, and update tracking docs.
+
+### Task 110 - Root Smart Redirect Implementation And Verification
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Replace the old design-token homepage at `/` with a production-safe smart entry route that sends authenticated users to `/dashboard` and unauthenticated users to `/login`.
+
+#### Changes Made
+
+- Added a reusable root entry component:
+  - `dashboard/components/auth/RootEntryRedirect.tsx`
+  - Reuses the premium auth shell
+  - Reads session state from `AdminSessionProvider`
+  - Shows a calm loading handoff
+  - Redirects to `/dashboard` or `/login` once session status resolves
+- Replaced the old root page implementation:
+  - `dashboard/app/page.tsx`
+  - Removed the token-review homepage from the production root route
+  - Mounted the new root entry flow inside `AdminSessionProvider`
+- Added preview coverage:
+  - `dashboard/app/previews/components/AdminAuthPreview.tsx`
+  - Added a new preview card for the root entry handoff
+  - Supports loading, signed-in, and signed-out preview states through `statusOverride`
+  - Wrapped the preview instance with `AdminSessionProvider` so the shared auth hook remains valid
+- Updated task tracking:
+  - `docs/task-list.md`
+  - `handoff.md`
+
+#### Why
+
+- The deployed homepage was still showing the internal design-token review surface from the earliest design-system phase.
+- Production users should land in the application, not on an internal review artifact.
+- The existing auth/session architecture already supported a thin entry decision layer, so the fix could stay focused and low-risk.
+
+#### Verification
+
+- Diagnostics:
+  - `dashboard/components/auth/RootEntryRedirect.tsx` -> clean
+  - `dashboard/app/page.tsx` -> clean
+  - `dashboard/app/previews/components/AdminAuthPreview.tsx` -> clean
+- Type validation:
+  - `npm run typecheck -w @shetrades/dashboard` -> PASS
+- Production build:
+  - `npm run build -w @shetrades/dashboard` -> PASS
+  - Confirmed `/` is now emitted as the application root route in the build output
+
+#### Important Notes
+
+- This pass removes the production use of the token-review homepage but does not relocate that review surface elsewhere.
+- The root entry component is intentionally thin and does not duplicate the login or admin-gate logic.
+- Preview coverage was added before route composition so the handoff states remain inspectable in isolation.
+
+#### Next Task
+
+- Perform a focused live review of:
+  - `/`
+  - `/login`
+  - `/dashboard`
+- Decide whether the old design-tokens review surface should later move to a dedicated internal preview route.

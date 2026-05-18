@@ -5,8 +5,8 @@ This document consolidates the implementation task roadmap in one place.
 ## Current Status
 
 - Project phase: CORE DIRECTIVE compliance remediation (Option B phased rollout)
-- Last completed task: Task 108
-- Next task: Focused live review of `/login` and `/previews/components`
+- Last completed task: Task 110
+- Next task: Focused live review of `/`, `/login`, and `/dashboard`
 
 ## Completed Tasks
 
@@ -111,12 +111,14 @@ This document consolidates the implementation task roadmap in one place.
 99. Task 106 - Executive-premium `/login` redesign design
 100. Task 107 - Executive-premium auth shell and login form upgrades plus preview coverage
 101. Task 108 - Executive-premium `/login` page composition and verification
+102. Task 109 - Root smart redirect design
+103. Task 110 - Root smart redirect implementation and verification
 
 ## Planned Next Tasks
 
-- Focused live review of `/login` and `/previews/components`
-- Decide whether the premium login shell should later extend to any future recovery or invite entry flows
-- Decide whether the trust panel should later include live environment or account-status indicators
+- Focused live review of `/`, `/login`, and `/dashboard`
+- Decide whether the old design-tokens review surface should later move to a dedicated internal preview route
+- Decide whether the root entry handoff should later expose environment-aware messaging for staging versus production
 
 ## Option B Rollout Notes
 
