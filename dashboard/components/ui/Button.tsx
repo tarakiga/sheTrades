@@ -45,7 +45,12 @@ export function Button({
     .join(" ");
 
   return (
-    <button className={computedClassName} disabled={disabled || loading} {...props}>
+    <button
+      className={computedClassName}
+      disabled={disabled || loading}
+      suppressHydrationWarning
+      {...props}
+    >
       {loading ? <span className="ui-button__spinner" aria-hidden="true" /> : null}
       <span>{children}</span>
     </button>

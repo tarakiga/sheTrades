@@ -34,8 +34,8 @@ This document defines the runtime environment variables for deploying the backen
 | `PG_SSL_ENABLED`             | `true`  | Enables TLS options for PostgreSQL connections.                                     |
 | `PG_SSL_REJECT_UNAUTHORIZED` | `true`  | Enforces certificate validation. `false` is blocked when `NODE_ENV=production`.     |
 | `PG_SSL_CA_CERT`             | none    | PEM CA certificate content for custom trust chain (supports `\n` escaped newlines). |
-| `PG_SSL_CLIENT_CERT`         | none    | Optional PEM client certificate for mTLS PostgreSQL endpoints.                       |
-| `PG_SSL_CLIENT_KEY`          | none    | Optional PEM client private key for mTLS PostgreSQL endpoints.                       |
+| `PG_SSL_CLIENT_CERT`         | none    | Optional PEM client certificate for mTLS PostgreSQL endpoints.                      |
+| `PG_SSL_CLIENT_KEY`          | none    | Optional PEM client private key for mTLS PostgreSQL endpoints.                      |
 
 ## PostgreSQL Mapping Variables
 

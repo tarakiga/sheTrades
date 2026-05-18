@@ -1441,3 +1441,3617 @@ psql "sslmode=verify-ca sslrootcert=server-ca.pem sslcert=client-cert.pem sslkey
 
 - Quality gate remains blocked by staging readiness smoke.
 - Current release decision remains **NO-GO** until Postgres trust chain issue is resolved in Node runtime path.
+
+### Task 026 - PostgreSQL Config Platform Schema + Typed API Contracts Baseline
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Establish the CORE DIRECTIVE foundation by defining a PostgreSQL-first config data model and strongly typed API contracts before any new admin management UI work.
+
+#### Changes Made
+
+- Added config-platform typed contract module:
+  - `backend/src/config-platform/contracts.ts`
+  - Includes:
+    - namespace/type/state enums (`content`, `options`, `legal`; document/version states)
+    - payload contracts for:
+      - option sets (add/edit/disable/reorder capable)
+      - legal blocks (language-aware rich-text payload fields)
+      - lesson/content blocks
+    - admin request contracts:
+      - create document
+      - update draft
+      - publish
+      - rollback
+      - list/filter documents
+    - public read contracts:
+      - single published config response
+      - published config bundle response with version tagging
+- Added PostgreSQL schema artifact:
+  - `backend/src/config-platform/schema.sql`
+  - Includes:
+    - enum types for namespace, document type, version state, actor role, and audit action
+    - `config_documents` (document identity and ownership metadata)
+    - `config_versions` (draft/published versioned JSON payloads with one-draft constraint)
+    - `config_publish_events` (publish/rollback lineage)
+    - `config_audit_log` (actor-attributed immutable audit trail)
+    - indexes for version lookups, JSONB search, and audit history queries
+- Updated consolidated progress tracker:
+  - `docs/task-list.md`
+  - Marked Task 026 complete and advanced next task to Task 027.
+
+#### Why
+
+- Satisfies build-order and CORE DIRECTIVE requirements that schema/contracts must exist before admin UI implementation.
+- Creates a single source of truth for mutable content/options/legal blocks in PostgreSQL.
+- Enables JWT-protected admin workflows and public read-only runtime consumption to be implemented with stable contracts in the next tasks.
+
+#### Verification
+
+- Artifacts created and committed to codebase paths above.
+- `GetDiagnostics` on modified docs returned no issues.
+- Task sequencing updated in `docs/task-list.md` for next execution step (Task 027).
+
+#### Next Task
+
+- Task 027: Implement JWT authentication and RBAC guardrails for admin config platform APIs, then wire protected routes to the Task 026 contracts.
+
+### Task 027 - JWT Authentication + RBAC Guardrails for Config Admin APIs
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Add JWT-based authentication and role-based authorization guardrails for config admin API surfaces before Task 028 service logic implementation.
+
+#### Changes Made
+
+- Added JWT + RBAC middleware module:
+  - `backend/src/auth/jwt-rbac.ts`
+  - Includes:
+    - HS256 JWT verification with timing-safe signature check
+    - claim validation (`sub`, `role`, optional `exp`/`iat`/`iss`/`aud`)
+    - env-driven auth config:
+      - `ADMIN_CONFIG_JWT_SECRET` (required)
+      - `ADMIN_CONFIG_JWT_ISSUER` (optional)
+      - `ADMIN_CONFIG_JWT_AUDIENCE` (optional)
+    - role guard helper for route-level authorization (`admin` / `editor` / `viewer`)
+- Added protected config admin router scaffold:
+  - `backend/src/routes/config-admin.ts`
+  - Mounted under `/api/config/admin`
+  - Guarded endpoints:
+    - `GET /session` (`viewer|editor|admin`)
+    - `GET /documents` (`viewer|editor|admin`) - contract validated query
+    - `POST /documents` (`editor|admin`) - contract validated body
+    - `PUT /documents/:documentId/draft` (`editor|admin`) - contract validated body
+    - `POST /documents/:documentId/publish` (`admin`) - contract validated body
+    - `POST /documents/:documentId/rollback` (`admin`) - contract validated body
+  - Task 028 placeholder responses currently return `501` for service-layer methods not yet implemented.
+  - Added request validation error handling (`400`) for malformed contract payloads.
+- Wired router into backend app bootstrap:
+  - `backend/src/app.ts`
+  - Added `app.use("/api/config/admin", configAdminRouter)`.
+- Added focused auth/RBAC integration tests:
+  - `backend/src/routes/config-admin-auth.test.ts`
+  - Covers:
+    - `401` when missing bearer token
+    - `403` on insufficient role
+    - `200` session response for valid token
+    - `400` on invalid payload shape for guarded route
+
+#### Why
+
+- Establishes mandatory security baseline before implementing mutable config CRUD workflows.
+- Prevents unauthorized edits/publish/rollback operations on compliance-sensitive config domains.
+- Locks API contracts and role intent now so Task 028 can focus on service logic only.
+
+#### Verification
+
+- `npm run test -w @shetrades/backend` passed (`56/56` tests), including new config-admin auth/RBAC tests.
+- Existing backend route tests remained green after router/middleware integration.
+- No diagnostics errors reported on modified TypeScript/doc files.
+
+#### Next Task
+
+- Task 028: Implement config service layer for draft storage, publish validation, version graph transitions, rollback execution, and audit logging against Task 026 schema.
+
+### Task 028 - Config Service Layer (Draft/Publish/Rollback/Audit)
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Implement the config platform service layer with draft lifecycle, publish validation, version transitions, rollback primitives, and audit history support.
+
+#### Changes Made
+
+- Added config platform service implementation:
+  - `backend/src/config-platform/service.ts`
+  - Includes:
+    - document creation with initial draft version
+    - paginated document listing with draft/published pointers
+    - draft update flow using monotonic version numbers
+    - publish flow:
+      - expected-draft validation
+      - non-empty payload guard
+      - published->archived transition semantics
+    - rollback flow:
+      - rollback target validation
+      - new published rollback version creation
+      - lineage tracking via `rolledBackFromVersionId`
+    - immutable audit event capture for:
+      - `document_created`
+      - `draft_created`
+      - `draft_updated`
+      - `published`
+      - `rolled_back`
+    - history retrieval and published bundle generation
+    - `resetForTests()` utility for deterministic integration test isolation
+- Wired service into config admin routes:
+  - `backend/src/routes/config-admin.ts`
+  - Replaced Task 027 `501` placeholders with service-backed handlers:
+    - `GET /documents` -> `200`
+    - `POST /documents` -> `201`
+    - `PUT /documents/:documentId/draft` -> `200`
+    - `POST /documents/:documentId/publish` -> `200`
+    - `POST /documents/:documentId/rollback` -> `200`
+    - `GET /documents/:documentId/history` -> `200`
+  - Existing JWT + RBAC role guards retained.
+- Expanded config-admin auth/integration coverage:
+  - `backend/src/routes/config-admin-auth.test.ts`
+  - Added workflow test covering:
+    - create -> draft update -> publish -> rollback -> history
+  - Existing `401/403/200/400` auth/validation tests retained and passing.
+
+#### Why
+
+- Delivers the core domain workflow required before moving to richer CRUD/API coverage and UI integration.
+- Ensures publish/rollback semantics are explicit and testable prior to PostgreSQL persistence wiring in upcoming tasks.
+- Preserves secure-by-default route access while replacing placeholder behavior with functional service logic.
+
+#### Verification
+
+- `npm run test -w @shetrades/backend` passed (`57/57` tests).
+- New config-admin workflow test passes with deterministic state resets.
+- Existing backend route tests remained green after service integration.
+- No diagnostics errors on modified files.
+
+#### Next Task
+
+- Task 029: Expand/administer full config CRUD endpoints for content/options/legal blocks and add dedicated version history endpoints aligned to service operations.
+
+### Task 029 - Admin Config CRUD Endpoints by Domain + History APIs
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Deliver admin config CRUD operations by domain (`content`, `options`, `legal`) and dedicated history endpoints while preserving JWT RBAC controls.
+
+#### Changes Made
+
+- Expanded config admin contracts:
+  - `backend/src/config-platform/contracts.ts`
+  - Added:
+    - `isActive` on config document contract
+    - `archiveDocumentRequestSchema` for soft-delete/archive flow
+- Extended config service behaviors:
+  - `backend/src/config-platform/service.ts`
+  - Added:
+    - `getDocumentByNamespaceKey(namespace, key)`
+    - `getHistoryByNamespaceKey(namespace, key)`
+    - `archiveDocument(actor, documentId, input)`
+    - `archiveDocumentByNamespaceKey(actor, namespace, key, input)`
+  - Updated:
+    - New documents start with `isActive=true`
+    - published config bundle excludes archived/inactive documents
+- Added domain-scoped admin endpoints in:
+  - `backend/src/routes/config-admin.ts`
+  - New endpoints:
+    - `GET /api/config/admin/:namespace/documents`
+    - `POST /api/config/admin/:namespace/documents`
+    - `GET /api/config/admin/:namespace/documents/:key`
+    - `PUT /api/config/admin/:namespace/documents/:key/draft`
+    - `POST /api/config/admin/:namespace/documents/:key/publish`
+    - `POST /api/config/admin/:namespace/documents/:key/rollback`
+    - `POST /api/config/admin/:namespace/documents/:key/archive`
+    - `GET /api/config/admin/:namespace/documents/:key/history`
+  - Added generic archive endpoint:
+    - `POST /api/config/admin/documents/:documentId/archive`
+  - Enforced namespace/type compatibility:
+    - `content` allows `lesson_content | ui_copy`
+    - `options` allows `option_set`
+    - `legal` allows `legal_block`
+  - Added conflict-oriented error mapping for domain workflow violations.
+- Expanded integration tests:
+  - `backend/src/routes/config-admin-auth.test.ts`
+  - Added:
+    - namespace/type compatibility rejection test
+    - history lookup by namespace+key after publish workflow
+
+#### Verification
+
+- Test suite command:
+  - `npm run test -w @shetrades/backend`
+- Result:
+  - Pass (`59/59` tests), including new domain CRUD/history tests.
+- Lint/diagnostics:
+  - No diagnostics errors on modified files.
+
+#### Next Task
+
+- Task 030: Implement public read-only published config endpoints plus cache-version tagging/invalidation strategy for frontend runtime consumption.
+
+### Task 030 - Public Read-Only Published Config APIs + Cache Versioning
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Expose public read-only published config endpoints with deterministic cache/version-tag behavior for frontend runtime consumption.
+
+#### Changes Made
+
+- Added public config router:
+  - `backend/src/routes/config-public.ts`
+  - Endpoints:
+    - `GET /api/config/public/bundle` (all published docs across namespaces)
+    - `GET /api/config/public/:namespace` (published docs for namespace)
+    - `GET /api/config/public/:namespace/:key` (single published document)
+  - Behavior:
+    - read-only, no auth required
+    - response contract parsing via:
+      - `publicConfigBundleResponseSchema`
+      - `publicConfigResponseSchema`
+    - cache headers:
+      - `Cache-Control: public, max-age=60, stale-while-revalidate=300`
+      - `ETag: "<versionTag>"`
+    - conditional request support:
+      - if `If-None-Match` matches current version tag -> `304 Not Modified`
+    - `404` for missing namespace/key published document lookups
+- Mounted public config router in app bootstrap:
+  - `backend/src/app.ts`
+  - Added `app.use("/api/config/public", configPublicRouter)`
+- Added public API test coverage:
+  - `backend/src/routes/config-public.test.ts`
+  - Scenarios:
+    - empty published bundle response + cache headers
+    - namespace-scoped published retrieval
+    - missing key returns `404`
+    - ETag round-trip with `304` behavior
+
+#### Why
+
+- Enables frontend consumers to move away from hardcoded mutable config values and read published config dynamically.
+- Establishes contract-safe and cache-efficient read APIs needed for Task 033 runtime migration.
+- Provides stable version-tag semantics for immediate cache invalidation after publish transitions.
+
+#### Verification
+
+- Command:
+  - `npm run test -w @shetrades/backend`
+- Result:
+  - Pass (`63/63` tests), including new config public route tests.
+- Diagnostics:
+  - No diagnostics issues reported on modified files.
+
+#### Next Task
+
+- Task 031: Build config management component library additions and preview surfaces before admin page composition work.
+
+### Task 031 - Config Management Component Library + Preview Surface Expansion
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Add reusable config-management UI components and render them in isolated preview surface before Task 032 page composition.
+
+#### Changes Made
+
+- Added reusable UI components:
+  - `dashboard/components/ui/ConfigDocumentCard.tsx`
+    - document state card with key metadata, status badge, version label, and action slots
+  - `dashboard/components/ui/OptionSetEditor.tsx`
+    - option list management primitive with add/reorder/enable-disable control surfaces
+  - `dashboard/components/ui/PublishWorkflowPanel.tsx`
+    - draft vs published workflow summary with preview/publish/rollback action controls
+- Exported new component APIs:
+  - `dashboard/components/ui/index.ts`
+- Expanded existing component preview page:
+  - `dashboard/app/previews/components/page.tsx`
+  - Added isolated preview sections for:
+    - config document card state
+    - option set editing state
+    - publish workflow state
+  - Existing component previews retained.
+- Added token-based styling support for new components:
+  - `dashboard/app/globals.css`
+  - Added scoped class blocks:
+    - `.config-doc-card*`
+    - `.option-set-editor*`
+    - `.publish-panel*`
+
+#### Why
+
+- Satisfies component-first + preview-first quality gate before composing admin config pages.
+- Provides reusable building blocks for Task 032 without page-level one-off markup duplication.
+- Keeps visual behavior and states reviewable in isolation for stakeholder approval.
+
+#### Verification
+
+- Command:
+  - `npm run typecheck -w @shetrades/dashboard`
+- Result:
+  - Pass (no TypeScript errors)
+- Diagnostics:
+  - No diagnostics issues reported on modified dashboard files.
+- Preview surface:
+  - `dashboard/app/previews/components/page.tsx` now includes dedicated config-management component previews.
+
+#### Next Task
+
+- Task 032: Compose admin management pages for options/legal/content and draft-preview-publish-rollback flows using the new component library primitives.
+
+### Task 032 - Admin Config Management Page Composition
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Compose admin config management pages from shared component library primitives and wire them to public config APIs.
+
+#### Changes Made
+
+- Added config API client contracts and fetch helpers:
+  - `dashboard/lib/config/contracts.ts`
+  - `dashboard/lib/config/api.ts`
+  - Public consumption methods:
+    - `getPublicConfigBundle()`
+    - `getPublicConfigNamespace(namespace)`
+  - Safe empty-state fallback when API is unavailable.
+- Extended admin navigation to expose config workspace routes:
+  - `dashboard/components/layout/AdminShell.tsx`
+  - Added links:
+    - `/config/content`
+    - `/config/options`
+    - `/config/legal`
+- Composed admin config pages (thin composition layer only):
+  - `dashboard/app/(admin)/config/content/page.tsx`
+  - `dashboard/app/(admin)/config/options/page.tsx`
+  - `dashboard/app/(admin)/config/legal/page.tsx`
+  - Uses shared components exclusively:
+    - `SectionHeader`
+    - `Badge`
+    - `EmptyState`
+    - `ConfigDocumentCard`
+    - `OptionSetEditor`
+    - `PublishWorkflowPanel`
+  - Data source:
+    - `GET /api/config/public/:namespace` via config API helper.
+- Added loading surfaces for each new route:
+  - `dashboard/app/(admin)/config/content/loading.tsx`
+  - `dashboard/app/(admin)/config/options/loading.tsx`
+  - `dashboard/app/(admin)/config/legal/loading.tsx`
+
+#### Why
+
+- Satisfies Task 032 requirement to compose config admin pages from reusable component library building blocks.
+- Keeps pages thin and API-driven while preserving component-first and preview-first implementation order.
+- Provides route-level user experience (loading/empty/read states) for the new config workspace.
+
+#### Verification
+
+- Command:
+  - `npm run typecheck -w @shetrades/dashboard`
+- Result:
+  - Pass (no TypeScript errors).
+- Diagnostics:
+  - No diagnostics issues in modified dashboard files.
+
+#### Next Task
+
+- Task 033: Migrate existing dashboard runtime data paths to dynamic published config API usage and remove hardcoded mutable fallback business content.
+
+### Task 033 - Runtime Migration to Dynamic Published Config + Safe Fallbacks
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Remove hardcoded mutable fallback business content from dashboard runtime paths and shift content runtime reads to published config API contracts.
+
+#### Changes Made
+
+- Updated admin runtime API adapter:
+  - `dashboard/lib/admin/api.ts`
+  - Changes:
+    - Removed hardcoded business fallback datasets for:
+      - users
+      - rewards
+      - reports
+      - content
+    - Replaced with safe empty defaults only (`[]` / neutral strings), preserving app stability when config is unpopulated.
+    - Migrated content runtime fetch from legacy `/api/admin/content` to published config endpoint:
+      - `GET /api/config/public/content`
+    - Added runtime mapper from published config documents to `ContentPageData` lesson rows.
+- Migrated dashboard overview page composition to API-driven runtime data:
+  - `dashboard/app/(admin)/dashboard/page.tsx`
+  - Changes:
+    - Removed hardcoded overview reward and at-risk arrays.
+    - Composed metrics/tables from:
+      - `getUsersPageData()`
+      - `getRewardsPageData()`
+      - `getAnalyticsPageData()`
+    - Added safe empty-state rendering where dynamic data is unavailable.
+    - Preserved reusable component composition only (`StatCard`, `Table`, `EmptyState`, `Tabs`, `Badge`).
+
+#### Why
+
+- Aligns runtime behavior with CORE DIRECTIVE by avoiding hardcoded mutable business datasets in frontend fallback code.
+- Ensures content page data comes from published configuration source-of-truth endpoint.
+- Maintains safe failure behavior without breaking UI when management config is empty/unavailable.
+
+#### Verification
+
+- Command:
+  - `npm run typecheck -w @shetrades/dashboard`
+- Result:
+  - Pass (no TypeScript errors).
+- Diagnostics:
+  - No diagnostics issues in modified files.
+
+#### Next Task
+
+- Task 034: Run full end-to-end CORE DIRECTIVE compliance validation and prepare release/governance closure artifacts.
+
+### Task 034 - End-to-End Compliance Validation + Governance Closure
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Close Task 034 by fixing quality-gate blockers, validating end-to-end checks, and documenting governance completion state.
+
+#### Changes Made
+
+- Resolved backend lint/typecheck blockers:
+  - `backend/src/auth/jwt-rbac.ts`
+    - Replaced namespace-based request augmentation with module augmentation for Express request typing.
+    - Hardened JWT token-part parsing for strict TypeScript safety.
+  - `backend/src/routes/config-admin.ts`
+    - Added required route-param parser helper to eliminate `string | string[] | undefined` route param risks.
+    - Added list-query normalization helper to satisfy `exactOptionalPropertyTypes` constraints for service inputs.
+- Removed remaining hardcoded backend fallback business content:
+  - `backend/src/admin/fixtures.ts`
+  - Replaced seeded users/content/rewards/reports arrays and analytics strings with safe empty defaults (`[]` and neutral `"0%"`/no-data text).
+- Applied repository formatting updates through Prettier on touched files.
+- Updated progress tracking index:
+  - `docs/task-list.md`
+  - Marked Task 034 complete and next task as TBD.
+
+#### Why
+
+- Eliminates final lint/typecheck blockers that were preventing Task 034 closure.
+- Reduces CORE DIRECTIVE risk by removing hardcoded mutable business fallback data from backend fixture paths.
+- Produces clean, reproducible quality-gate evidence for governance signoff.
+
+#### Verification
+
+- `npm run format:check` -> PASS
+- `npm run lint` -> PASS (backend + dashboard + shared)
+- `npm run typecheck` -> PASS (backend + dashboard + shared)
+- `npm run test -w @shetrades/backend` -> PASS (`63/63`)
+- `GetDiagnostics` on edited backend files -> no diagnostics issues
+
+#### Next Task
+
+- TBD: Await next directive for additional CORE DIRECTIVE hardening or release closure steps.
+
+### Task 035 - Option A Admin/Dashboard UI Copy Externalization
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Externalize admin/dashboard UI labels and messages (Option A) to dynamic config-managed runtime keys with safe fallback behavior.
+
+#### Changes Made
+
+- Added reusable admin UI copy resolver:
+  - `dashboard/lib/config/admin-ui-copy.ts`
+  - Behavior:
+    - Reads published config documents from `/api/config/public/content`.
+    - Uses `admin.ui.*` key prefix convention for managed UI copy.
+    - Resolves first available non-empty string from config payload data.
+    - Provides `t(key, fallback)` helper with safe default fallback behavior.
+- Wired copy resolver into admin shell composition:
+  - `dashboard/app/(admin)/layout.tsx`
+  - `dashboard/components/layout/AdminShell.tsx`
+  - Nav labels, brand label, ARIA labels, and route-label prefix now support config-driven values.
+- Externalized page-level copy in admin surfaces:
+  - `dashboard/app/(admin)/dashboard/page.tsx`
+  - `dashboard/app/(admin)/users/page.tsx`
+  - `dashboard/app/(admin)/analytics/page.tsx`
+  - `dashboard/app/(admin)/content/page.tsx`
+  - `dashboard/app/(admin)/rewards/page.tsx`
+  - `dashboard/app/(admin)/reports/page.tsx`
+  - `dashboard/app/(admin)/config/content/page.tsx`
+  - `dashboard/app/(admin)/config/options/page.tsx`
+  - `dashboard/app/(admin)/config/legal/page.tsx`
+  - Externalized labels include section headers, card titles/descriptions, action button text, table headers, tab labels/content text, empty-state copy, and badge text where applicable.
+- Maintained preview compatibility:
+  - `AdminShell` `copy` prop made optional with safe default map to prevent preview type errors.
+- Updated progress index:
+  - `docs/task-list.md` marked Task 035 complete.
+
+#### Why
+
+- Advances CORE DIRECTIVE compliance by moving mutable UI text from hardcoded page strings to runtime-managed config keys.
+- Preserves resilient UX using safe defaults when config data is empty or not yet published.
+- Establishes a repeatable naming convention (`admin.ui.<key>`) that admin workflows can manage without code changes.
+
+#### Verification
+
+- `npm run format` -> PASS
+- `npm run format:check` -> PASS
+- `npm run lint` -> PASS (backend + dashboard + shared)
+- `npm run typecheck` -> PASS (backend + dashboard + shared)
+- `npm run test -w @shetrades/backend` -> PASS (`63/63`)
+- `GetDiagnostics` on edited dashboard files -> no diagnostics issues
+
+#### Next Task
+
+- TBD: Continue with deeper copy externalization coverage (loading/error/previews/backend response text) or seed/publish initial `admin.ui.*` config content documents.
+
+### Task 036 - Admin UI Copy Seed Pack + Publish Automation
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Enable fast, repeatable publishing of baseline `admin.ui.*` runtime copy keys without manual endpoint-by-endpoint operations.
+
+#### Changes Made
+
+- Added backend seed automation command:
+  - `backend/package.json`
+  - New script:
+    - `seed:admin-ui-copy` -> `tsx src/config-platform/seed-admin-ui-copy.ts`
+- Added seeding automation script:
+  - `backend/src/config-platform/seed-admin-ui-copy.ts`
+  - Features:
+    - Reads seed entries from JSON file (default: `docs/config-seeds/admin-ui-copy.seed.json`)
+    - Generates admin JWT token using `ADMIN_CONFIG_JWT_SECRET`
+    - Upserts each copy key through admin config APIs in `content` namespace as `ui_copy`
+    - Updates draft then publishes each key
+    - Safety check blocks overwrite when existing key type is not `ui_copy`
+  - Runtime env controls:
+    - `ADMIN_CONFIG_JWT_SECRET` (required)
+    - `ADMIN_UI_COPY_SEED_BASE_URL` (default `http://localhost:8080`)
+    - `ADMIN_UI_COPY_SEED_FILE` (optional custom seed path)
+    - `ADMIN_UI_COPY_SEED_SUBJECT` (optional audit actor label)
+- Added baseline seed pack:
+  - `docs/config-seeds/admin-ui-copy.seed.json`
+  - Includes initial shell/navigation/common labels and core page titles/actions for admin routes.
+- Added operator guide:
+  - `docs/admin-ui-copy-seeding.md`
+  - Includes command usage, env overrides, seed schema contract, and verification steps.
+- Updated task tracker:
+  - `docs/task-list.md`
+  - Marked Task 036 complete.
+
+#### Why
+
+- Converts admin UI copy rollout from manual API calls to a repeatable, auditable operation.
+- Reduces risk of missing/partial key publication across environments.
+- Supports zero-code copy updates by pairing seed baseline with ongoing admin config management workflows.
+
+#### Verification
+
+- `npm run format` -> PASS
+- `npm run format:check` -> PASS
+- `npm run lint` -> PASS (backend + dashboard + shared)
+- `npm run typecheck` -> PASS (backend + dashboard + shared)
+- `npm run test -w @shetrades/backend` -> PASS (`63/63`)
+- `GetDiagnostics` on new script file -> no diagnostics issues
+
+#### Next Task
+
+- TBD: Expand Option A externalization coverage to loading/error/previews and publish environment-specific localized copy packs (EN/PCM/IG) through the same seed pipeline.
+
+### Task 037 - Loading/Error/Preview Copy Externalization + Localized Seed Schema
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Execute both requested tracks in one pass:
+  - externalize loading/error/previews copy through runtime config keys
+  - upgrade admin UI seed workflow to localized payloads (`en`, `pcm`, `ig`)
+
+#### Changes Made
+
+- Added shared admin UI copy parser utilities:
+  - `dashboard/lib/config/admin-ui-copy-parser.ts`
+  - Extracts `admin.ui.*` keys from published content documents with language preference order (`en` -> `pcm` -> `ig`).
+- Refactored server copy resolver to use shared parser:
+  - `dashboard/lib/config/admin-ui-copy.ts`
+- Added client runtime copy hook for client-only surfaces:
+  - `dashboard/lib/config/admin-ui-copy-client.ts`
+  - Fetches `/api/config/public/content` and resolves `t(key, fallback)` dynamically.
+- Added reusable admin route loading composition primitive:
+  - `dashboard/components/layout/AdminRouteLoading.tsx`
+  - Centralizes dynamic loading surface rendering via runtime copy keys.
+- Migrated all admin loading routes to runtime copy keys:
+  - `dashboard/app/(admin)/users/loading.tsx`
+  - `dashboard/app/(admin)/analytics/loading.tsx`
+  - `dashboard/app/(admin)/content/loading.tsx`
+  - `dashboard/app/(admin)/rewards/loading.tsx`
+  - `dashboard/app/(admin)/reports/loading.tsx`
+  - `dashboard/app/(admin)/config/content/loading.tsx`
+  - `dashboard/app/(admin)/config/options/loading.tsx`
+  - `dashboard/app/(admin)/config/legal/loading.tsx`
+- Externalized admin error surface copy:
+  - `dashboard/app/(admin)/error.tsx`
+  - Titles, descriptions, and action labels now resolve from runtime `admin.ui.*` keys.
+- Externalized preview/workshop surface copy (primary labels):
+  - `dashboard/app/previews/components/page.tsx`
+  - Section header, preview card headings/descriptions, and shell slot labels now support runtime config.
+- Upgraded seed automation contract for localization:
+  - `backend/src/config-platform/seed-admin-ui-copy.ts`
+  - Supports new seed schema:
+    - `content.en` required
+    - `content.pcm` optional
+    - `content.ig` optional
+  - Maintains backward compatibility with legacy `value` -> mapped to `content.en`.
+- Updated baseline seed pack:
+  - `docs/config-seeds/admin-ui-copy.seed.json`
+  - Converted entries to `content` object shape and added keys for loading/error/preview copy.
+- Updated operator runbook:
+  - `docs/admin-ui-copy-seeding.md`
+  - Reflects localized seed contract and legacy compatibility.
+- Updated task index:
+  - `docs/task-list.md`
+  - Marked Task 037 complete.
+
+#### Why
+
+- Completes requested Option A extension for remaining UX states (loading/error/previews).
+- Makes copy management locale-ready without requiring code changes for language-specific text updates.
+- Preserves resilience with safe in-code fallbacks when config is unpopulated.
+
+#### Verification
+
+- `npm run format` -> PASS
+- `npm run format:check` -> PASS
+- `npm run lint` -> PASS (backend + dashboard + shared)
+- `npm run typecheck` -> PASS (backend + dashboard + shared)
+- `npm run test -w @shetrades/backend` -> PASS (`63/63`)
+- `GetDiagnostics` on newly added/edited core files -> no diagnostics issues
+
+#### Next Task
+
+- TBD: Seed real translated values (non-placeholder) for `pcm` and `ig`, then validate locale-specific rendering behavior in admin/public surfaces.
+
+### Task 038 - Runtime Blocker Remediation (Wave 1)
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Resolve highest-severity runtime blockers identified in strict compliance sweep and prepare repository for absolute-scope closure.
+
+#### Changes Made
+
+- Added backend runtime config resolver:
+  - `backend/src/config-platform/runtime-config.ts`
+  - Capabilities:
+    - `getRuntimeText` for content-backed text keys
+    - `getRuntimeLocalizedText` for locale payload resolution
+    - `getRuntimeOptionSet` for options-backed selectors
+    - `getRuntimeNumericPolicy` for numeric policy values
+- Externalized WhatsApp runtime behavior to config-first resolution:
+  - `backend/src/whatsapp/handler.ts`
+  - Language option parsing now supports options config key `bot.language_options`.
+  - Core prompt/reply copy now resolves from content keys with safe fallbacks.
+- Externalized automated reward amount policy:
+  - `backend/src/routes/learning.ts`
+  - Reward amount now resolves from options policy key:
+    - `policy.rewards.module_completion_amount`
+  - Falls back safely when config is unpopulated.
+- Removed hardcoded seeded lesson content from runtime service:
+  - `backend/src/content/service.ts`
+  - Deleted in-code seed lessons to eliminate mutable business content embedded in service logic.
+- Updated content route tests for seedless runtime:
+  - `backend/src/routes/content.test.ts`
+  - Tests now create explicit lesson fixtures where needed instead of relying on implicit hardcoded seeds.
+- Reduced hardcoded analytics fallback copy in backend fixture path:
+  - `backend/src/admin/fixtures.ts`
+  - Fallback funnel text now resolves through runtime config keys.
+- Upgraded admin config pages from read-only preview to protected CRUD manager:
+  - Added `dashboard/components/config/ConfigAdminManager.tsx`
+  - Replaced read-only config page internals:
+    - `dashboard/app/(admin)/config/content/page.tsx`
+    - `dashboard/app/(admin)/config/options/page.tsx`
+    - `dashboard/app/(admin)/config/legal/page.tsx`
+  - Implemented token-based protected calls to `/api/config/admin/*` for:
+    - create document
+    - update draft
+    - publish
+    - history lookup
+    - rollback
+    - archive
+- Improved component library label externalization readiness:
+  - `dashboard/components/ui/OptionSetEditor.tsx`
+  - `dashboard/components/ui/PublishWorkflowPanel.tsx`
+  - `dashboard/components/ui/ConfigDocumentCard.tsx`
+  - Added optional label maps so parent layers can inject config-managed copy.
+- Extended preview/token pages toward config-managed labels:
+  - `dashboard/app/previews/components/page.tsx` (expanded key-based copy usage)
+  - `dashboard/app/page.tsx` (token page labels now resolved via runtime copy keys)
+- Metadata moved to config-first generation:
+  - `dashboard/app/layout.tsx`
+  - `generateMetadata()` now resolves `admin.ui.meta.title` and `admin.ui.meta.description` with safe fallback.
+- Added governance baseline files:
+  - `.env.example`
+  - `docker-compose.yml`
+  - updated local override `docker-compose.local.yml`
+
+#### Verification
+
+- `npm run format` -> PASS
+- `npm run lint` -> PASS (backend + dashboard + shared)
+- `npm run typecheck` -> PASS (backend + dashboard + shared)
+- `npm run test -w @shetrades/backend` -> PASS (`63/63`)
+
+#### Remaining Work For True Absolute PASS
+
+- Complete repository-wide hardcoded mutable label sweep across all preview/component/demo surfaces.
+- Replace remaining fallback/default label constants where strict policy requires full config injection.
+- Run final strict compliance scan report with file-level PASS/FAIL and zero critical findings.
+
+#### Next Task
+
+- Task 039: Absolute-scope compliance closure + final strict PASS sweep report.
+
+### Task 039 - Absolute Scope Compliance Closure and Final Strict Sweep
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Execute repository-wide strict compliance sweep and close remaining blockers to reach final PASS.
+
+#### Changes Made
+
+- Closed remaining preview/demos label gaps:
+  - `dashboard/app/previews/components/page.tsx`
+  - Externalized remaining button labels, sample learner rows, and language option labels through `t(key, fallback)`.
+- Tightened runtime bot localization coverage:
+  - `backend/src/whatsapp/handler.ts`
+  - Language names (`English`, `Pidgin`, `Igbo`) now resolve via runtime config keys.
+  - Unsupported inbound payload reason now resolves via runtime config key.
+- Produced final strict compliance report artifact:
+  - `docs/core-directive-compliance-report-task-039.md`
+  - Includes gate criteria, file-level evidence, fallback policy treatment, and final decision.
+
+#### Verification
+
+- `npm run format` -> PASS
+- `npm run format:check` -> PASS
+- `npm run lint` -> PASS (backend + dashboard + shared)
+- `npm run typecheck` -> PASS (backend + dashboard + shared)
+- `npm run test -w @shetrades/backend` -> PASS (`63/63`)
+- `GetDiagnostics` on newly edited files -> no diagnostics issues
+
+#### Compliance Decision
+
+- Final strict sweep result: PASS for absolute repository scope under approved resilience fallback policy.
+- Report source of truth:
+  - `docs/core-directive-compliance-report-task-039.md`
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 041 - Unified Settings Workspace
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Replace dedicated `/config/content`, `/config/options`, and `/config/legal` pages with one human-readable `/settings` workspace using horizontal tabs and deep-linking.
+
+#### Changes Made
+
+- Added consolidated settings page:
+  - `dashboard/app/(admin)/settings/page.tsx`
+  - Features:
+    - Horizontal tab navigation with query-param deep links:
+      - `/settings?tab=content`
+      - `/settings?tab=options`
+      - `/settings?tab=legal`
+    - Default/fallback tab handling to `content` for invalid or missing tab values.
+    - Single simplified workflow language for usability while preserving existing namespace-specific manager behavior.
+    - Reuses `ConfigAdminManager` and switches `namespace/defaultType` by active tab.
+- Added settings loading surface:
+  - `dashboard/app/(admin)/settings/loading.tsx`
+- Updated admin shell navigation:
+  - `dashboard/components/layout/AdminShell.tsx`
+  - Removed separate config nav links and introduced a single `Settings` nav item.
+- Consolidated old config routes into redirects:
+  - `dashboard/app/(admin)/config/content/page.tsx` -> redirect to `/settings?tab=content`
+  - `dashboard/app/(admin)/config/options/page.tsx` -> redirect to `/settings?tab=options`
+  - `dashboard/app/(admin)/config/legal/page.tsx` -> redirect to `/settings?tab=legal`
+- Added styling for premium, readable horizontal tabs:
+  - `dashboard/app/globals.css`
+  - New classes:
+    - `.settings-tabs`
+    - `.settings-tabs__link`
+    - `.settings-tabs__link--active`
+    - `.settings-tabs__title`
+    - `.settings-tabs__hint`
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `npm run format:check` -> PASS
+- `GetDiagnostics` on updated files -> no diagnostics issues
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 040 - Config Namespace UX Differentiation
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Resolve review blocker where `/config/content`, `/config/options`, and `/config/legal` appeared visually identical despite different namespaces.
+
+#### Changes Made
+
+- Enhanced shared admin config manager with namespace profiles:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - Added per-namespace profile metadata for:
+    - key placeholder patterns
+    - payload placeholders and defaults
+    - namespace-specific create-card titles/descriptions
+    - namespace-specific guide-card titles/descriptions
+    - template button sets that inject valid starter JSON payloads
+- Added a namespace guide card in the manager that shows:
+  - active namespace
+  - default document type
+  - loaded document count
+- Added namespace-aware template quick actions:
+  - Content templates (`UI Copy`, `Lesson Block`)
+  - Options templates (`Language Options`, `Numeric Policy`)
+  - Legal templates (`Consent`, `Marketing Notice`)
+- Kept the component architecture reusable (single manager) while making each namespace route clearly distinct for stakeholder review.
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `npm run format:check` -> PASS
+- `GetDiagnostics` on updated manager file -> no diagnostics
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 042 - Non-Technical Settings Copy Rewrite
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Make the `/settings` admin experience understandable for non-technical users by replacing technical wording with plain language and short descriptions.
+
+#### Changes Made
+
+- Updated settings manager copy across all tabs:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - Rewrote section titles and descriptions to non-technical language:
+    - auth card now uses sign-in/access-key wording
+    - create card wording simplified for content/options/legal item creation
+    - workflow card rewritten for draft/publish/restore/hide actions
+    - status card rewritten as clear activity updates
+  - Simplified labels and actions:
+    - field labels (`Document Key` -> `Internal Name`, etc.)
+    - button labels (`Update Draft` -> `Save Draft`, etc.)
+    - table headers (`Published` -> `Live`, `Active` -> `Visible`)
+  - Updated namespace template button labels to human-readable starter names.
+- Updated progress index:
+  - `docs/task-list.md`
+  - Marked Task 042 complete and updated current-status pointer.
+
+#### Why
+
+- Aligns the settings workspace with the requirement that non-technical admins can use the dashboard without engineering jargon.
+- Improves clarity while preserving existing secure draft/publish/rollback behavior and API contracts.
+- Keeps runtime-copy key structure intact for future externalized copy overrides.
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `npm run format:check` -> PASS
+- `GetDiagnostics` on updated file -> no diagnostics
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 043 - Backend CORS Enablement For Local Admin Dashboard
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Fix blocked browser requests from dashboard to backend config admin routes by adding explicit CORS handling for local origins.
+
+#### Changes Made
+
+- Added CORS middleware in backend app bootstrap:
+  - `backend/src/app.ts`
+  - Added:
+    - allowed-origins resolver using env var `BACKEND_CORS_ALLOWED_ORIGINS`
+    - local-safe defaults (`localhost/127.0.0.1` on ports `3000` and `3001`)
+    - response headers for allowed origins:
+      - `Access-Control-Allow-Origin`
+      - `Access-Control-Allow-Headers`
+      - `Access-Control-Allow-Methods`
+      - `Access-Control-Allow-Credentials`
+      - `Vary: Origin`
+    - preflight handling for `OPTIONS` requests with `204` response
+- Updated environment example contract:
+  - `.env.example`
+  - Added `BACKEND_CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
+- Updated progress index:
+  - `docs/task-list.md`
+  - Marked Task 043 complete and updated current-status pointer.
+
+#### Why
+
+- The browser blocked `Save New Item` calls even though backend returned `200`, because CORS headers were missing.
+- This adds secure, origin-allowlisted browser access for local dashboard usage without opening unrestricted cross-origin access.
+
+#### Verification
+
+- `npm run lint -w @shetrades/backend` -> PASS
+- `npm run typecheck -w @shetrades/backend` -> PASS
+- `GetDiagnostics` on `backend/src/app.ts` -> no diagnostics
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 044 - Development-Mode CORS Fallback For Local Origins
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Resolve persistent CORS blocks when dashboard origin is not explicitly present in allowlist during local development.
+
+#### Changes Made
+
+- Updated backend CORS behavior:
+  - `backend/src/app.ts`
+  - New behavior:
+    - In non-production, any provided browser `Origin` is echoed to `Access-Control-Allow-Origin`.
+    - In production, strict allowlist via `BACKEND_CORS_ALLOWED_ORIGINS` remains enforced.
+- Performed clean backend restart to ensure runtime picks up CORS behavior update.
+- Updated progress index:
+  - `docs/task-list.md`
+  - Marked Task 044 complete and updated current-status pointer.
+
+#### Why
+
+- Some local dashboard hosts/ports can vary (tooling preview URLs, alternate localhost ports), causing strict local allowlist mismatches.
+- Dev-mode permissive CORS eliminates local origin mismatch friction while keeping production strict.
+
+#### Verification
+
+- `npm run lint -w @shetrades/backend` -> PASS
+- `npm run typecheck -w @shetrades/backend` -> PASS
+- `GetDiagnostics` on `backend/src/app.ts` -> no diagnostics
+- Backend restarted and listening on `8080`.
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 045 - Settings Access Feedback States
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Make `Save Key` and `Reload` in `/settings` visibly responsive so admins can tell when access actions are working, loading, or failing.
+
+#### Changes Made
+
+- Improved settings access UX in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - Added dedicated access feedback state with:
+    - success confirmation after saving a key
+    - warning when key field is empty
+    - loading state during reload/access check
+    - clear success/error result after reload completes
+  - Updated request helper so auth checks can validate against an explicit access token when needed.
+  - Added inline helper copy under the access controls.
+  - Reused existing shared `Button` loading state and `Badge` variants for visible premium feedback.
+- Formatted touched files:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - `backend/src/app.ts`
+- Updated progress index:
+  - `docs/task-list.md`
+  - Marked Task 045 complete and updated current-status pointer.
+
+#### Why
+
+- The previous experience gave almost no visual feedback after clicking `Save Key` or `Reload`, which made the settings flow feel broken even when it was working.
+- This closes a usability gap for non-technical admins by making access actions explicit and understandable.
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `GetDiagnostics` on updated dashboard/backend files -> no diagnostics
+- `npm run format:check` -> repository check still reports local temp helper file `make-admin-jwt.cjs` only
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 046 - Workflow Action Feedback States
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Ensure every settings workflow action gives visible feedback so admins can clearly see loading, success, warning, and error states for content management operations.
+
+#### Changes Made
+
+- Expanded workflow feedback handling in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - Added action-specific state coverage for:
+    - `Save New Item`
+    - `Save Draft`
+    - `Publish Live`
+    - `View History`
+    - `Restore Previous`
+    - `Hide Item`
+  - Added:
+    - per-action button loading states
+    - persistent inline feedback badges in create/manage sections
+    - warning feedback for blocked actions (for example no selected item, no draft to publish, no history to restore)
+  - Adjusted refresh flow so action success messages are not immediately overwritten by generic reload text.
+- Formatted touched dashboard file:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+- Updated progress index:
+  - `docs/task-list.md`
+  - Marked Task 046 complete and updated current-status pointer.
+
+#### Why
+
+- Admin actions like `Save Draft` and `Publish Live` previously felt unresponsive because users had no local visual confirmation that an action had started or finished.
+- This closes that premium UX gap and makes the settings flow trustworthy for non-technical admins.
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `GetDiagnostics` on updated dashboard file -> no diagnostics
+- `npm run format:check` -> repository check still reports local temp helper file `make-admin-jwt.cjs` only
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 047 - Hide/Show Item Workflow
+
+- Date: 2026-05-10
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Add a clear way to show hidden items again by introducing backend reactivation support and a matching settings UI toggle.
+
+#### Changes Made
+
+- Extended config platform contracts:
+  - `backend/src/config-platform/contracts.ts`
+  - Added:
+    - `reactivated` audit action
+    - `reactivateDocumentRequestSchema`
+- Extended config platform service:
+  - `backend/src/config-platform/service.ts`
+  - Updated hide behavior to deactivate the document without rewriting version states.
+  - Added:
+    - `reactivateDocument()`
+    - `reactivateDocumentByNamespaceKey()`
+  - Reactivation restores visibility and, when needed, recreates a published version from the latest previously live version.
+- Extended config admin routes:
+  - `backend/src/routes/config-admin.ts`
+  - Added:
+    - `POST /api/config/admin/documents/:documentId/reactivate`
+    - `POST /api/config/admin/:namespace/documents/:key/reactivate`
+  - Updated conflict mapping for already-hidden/already-visible/reactivation edge cases.
+- Added backend workflow coverage:
+  - `backend/src/routes/config-admin-auth.test.ts`
+  - New test covers publish -> hide -> show again lifecycle.
+- Updated settings UI:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - `Hide Item` now switches to `Show Item Again` when the selected item is hidden.
+  - The same button uses the new reactivation endpoint and shows matching feedback.
+- Updated progress index:
+  - `docs/task-list.md`
+  - Marked Task 047 complete and updated current-status pointer.
+
+#### Why
+
+- Hidden items previously had no clear path back to a visible state in the UI.
+- This makes the admin workflow reversible, understandable, and safer for non-technical users.
+
+#### Verification
+
+- `npm run test -w @shetrades/backend -- config-admin-auth.test.ts` -> PASS
+- `npm run lint -w @shetrades/backend` -> PASS
+- `npm run typecheck -w @shetrades/backend` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `GetDiagnostics` on touched backend/dashboard files -> no diagnostics
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 048 - Hydration Mismatch Hardening
+
+- Date: 2026-05-16
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Reduce noisy Next.js hydration mismatch warnings caused by browser extensions mutating root and admin navigation markup before React hydration.
+
+#### Changes Made
+
+- Added design spec:
+  - `docs/superpowers/specs/2026-05-16-hydration-mismatch-admin-shell-design.md`
+- Hardened root layout:
+  - `dashboard/app/layout.tsx`
+  - Added `suppressHydrationWarning` to:
+    - `html`
+    - `body`
+- Hardened admin shell navigation:
+  - `dashboard/components/layout/AdminShell.tsx`
+  - Added `suppressHydrationWarning` on admin navigation links rendered by `Link`.
+- Updated progress index:
+  - `docs/task-list.md`
+  - Marked Task 048 complete and updated current-status pointer.
+
+#### Why
+
+- Browser extensions were injecting attributes into the document root and admin nav links, which caused hydration warnings even though the app was otherwise working.
+- This applies narrow suppression at the known mutation points instead of changing SSR behavior or routing logic.
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `GetDiagnostics` on touched dashboard files -> no diagnostics
+- `npm run format:check` -> repository check still reports local temp helper file `make-admin-jwt.cjs` only
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 049 - Hydration Mismatch Hardening For Shared UI Primitives
+
+- Date: 2026-05-16
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Reduce recurring extension-driven hydration warnings by hardening the shared UI primitives implicated in the latest browser trace.
+
+#### Changes Made
+
+- Added design spec:
+  - `docs/superpowers/specs/2026-05-16-hydration-mismatch-ui-primitives-design.md`
+- Hardened shared UI primitives:
+  - `dashboard/components/ui/Button.tsx`
+    - Added `suppressHydrationWarning` to the root `button`
+  - `dashboard/components/ui/EmptyState.tsx`
+    - Added `suppressHydrationWarning` to the root `section`
+  - `dashboard/components/ui/SectionHeader.tsx`
+    - Added `suppressHydrationWarning` to the root `header`
+- Updated progress index:
+  - `docs/task-list.md`
+  - Marked Task 049 complete and updated current-status pointer.
+
+#### Why
+
+- Browser extensions were still injecting attributes into shared primitives like buttons and status sections after the earlier root/admin-shell hardening pass.
+- This moves the hydration-noise fix to the reusable component layer so multiple pages benefit without page-specific patches.
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `GetDiagnostics` on touched primitive files -> no diagnostics
+- `npm run format:check` -> repository check still reports local temp helper file `make-admin-jwt.cjs` only
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 050 - Settings Management Card Layout Expansion
+
+- Date: 2026-05-16
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Give the `Review And Publish Changes` section more horizontal space so the management table is easier to scan and use.
+
+#### Changes Made
+
+- Updated `dashboard/components/config/ConfigAdminManager.tsx`
+  - Wrapped the `Review And Publish Changes` card in a dedicated grid item:
+    - `config-admin__manage-card`
+- Updated `dashboard/app/globals.css`
+  - Added a responsive rule so `config-admin__manage-card` spans 2 columns on larger screens (`min-width: 1100px`)
+  - Kept the existing single-column stacking behavior on smaller screens
+
+#### Why
+
+- The management table was constrained by the default auto-fit card grid and did not have enough width for comfortable review.
+- Expanding only this section preserves the rest of the settings layout while maximizing table space where it matters most.
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `GetDiagnostics` on:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - `dashboard/app/globals.css`
+  - no diagnostics reported
+- `npx prettier --write "dashboard/components/config/ConfigAdminManager.tsx" "dashboard/app/globals.css"` -> unchanged
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 051 - Settings Table Row Actions, Preview Drawer, And Safe Trash Workflow
+
+- Date: 2026-05-16
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Turn the settings review table into a safer management surface with preview, edit handoff, and recoverable remove/restore behavior.
+
+#### Changes Made
+
+- Added new reusable UI primitives:
+  - `dashboard/components/ui/SideDrawer.tsx`
+  - `dashboard/components/ui/ConfirmationModal.tsx`
+- Updated shared exports:
+  - `dashboard/components/ui/index.ts`
+- Added shared overlay and preview styles:
+  - `dashboard/app/globals.css`
+  - includes drawer, modal, payload preview, and action-row styling
+- Added interactive preview coverage:
+  - `dashboard/app/previews/components/OverlayPreviewDemo.tsx`
+  - `dashboard/app/previews/components/page.tsx`
+  - preview now demonstrates the read-only drawer and warning confirmation flow before production use
+- Upgraded settings management workflow:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - added row action column with:
+    - `Preview`
+    - `Edit`
+    - `Move To Trash` / `Restore`
+  - added read-only side drawer that loads document detail + recent history from admin APIs
+  - added `Edit` handoff from drawer/table into the existing main draft editor
+  - replaced hide/show wording with safer trash/restore language
+  - added confirmation modal before moving active items to trash
+  - improved status display with badges and wider item metadata in the table/drawer
+- Updated progress index:
+  - `docs/task-list.md`
+  - marked Task 051 complete and advanced the current-status pointer
+
+#### Why
+
+- Non-technical admins needed a safer and more understandable way to inspect items before acting on them.
+- A read-only drawer keeps inspection separate from editing, while the main editor remains the single editing surface.
+- Trash/restore language is clearer and safer than raw archive/reactivate wording.
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `npx prettier --write "dashboard/components/ui/SideDrawer.tsx" "dashboard/components/ui/ConfirmationModal.tsx" "dashboard/app/previews/components/OverlayPreviewDemo.tsx" "dashboard/app/previews/components/page.tsx" "dashboard/components/config/ConfigAdminManager.tsx" "dashboard/app/globals.css"` -> PASS
+- `GetDiagnostics` on all touched dashboard files -> no diagnostics
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 052 - Premium Icon Action Rail And Settings Tabs Hydration Hardening
+
+- Date: 2026-05-16
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Upgrade settings table row actions to a denser, more premium enterprise treatment and harden the remaining `/settings` tab hydration warning at the exact affected nodes.
+
+#### Changes Made
+
+- Added a new shared UI primitive:
+  - `dashboard/components/ui/IconActionButton.tsx`
+  - compact icon-only action control with:
+    - accessible label
+    - tooltip text via shared styling
+    - neutral/primary/danger/success tones
+    - loading support
+- Updated shared UI exports:
+  - `dashboard/components/ui/index.ts`
+- Expanded shared styling in:
+  - `dashboard/app/globals.css`
+  - added:
+    - icon-action button styles
+    - tooltip behavior
+    - premium dense action-rail spacing
+    - refined settings table title hierarchy classes
+- Added preview coverage:
+  - `dashboard/app/previews/components/OverlayPreviewDemo.tsx`
+  - now demonstrates the compact action rail alongside the existing drawer/modal preview
+- Upgraded settings table interactions:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - replaced row text buttons with a compact icon-only action rail for:
+    - preview
+    - edit
+    - move to trash / restore
+  - refined title and status cell rendering for a denser enterprise table presentation
+  - preserved the existing workflow semantics and drawer/modal behavior
+- Applied targeted hydration hardening:
+  - `dashboard/app/(admin)/settings/page.tsx`
+  - added narrow suppression on the settings tab links only
+- Updated progress index:
+  - `docs/task-list.md`
+  - marked Task 052 complete and advanced the current-status pointer
+
+#### Why
+
+- Full text buttons in the row action column wasted horizontal space and visually lowered the quality of the admin table.
+- A compact icon rail with tooltips is more appropriate for a premium dense-data interface.
+- The remaining hydration warning was isolated to the settings tab links and required a similarly isolated fix.
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `npx prettier --write "dashboard/components/ui/IconActionButton.tsx" "dashboard/app/previews/components/OverlayPreviewDemo.tsx" "dashboard/components/config/ConfigAdminManager.tsx" "dashboard/app/(admin)/settings/page.tsx" "dashboard/app/globals.css"` -> PASS
+- `GetDiagnostics` on all touched dashboard files -> no diagnostics
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 053 - Premium Settings Table Density Pass And Drawer Footer Refinement
+
+- Date: 2026-05-16
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Remove redundant table structure, eliminate normal horizontal scroll pressure in the settings table, and improve the preview drawer footer hierarchy.
+
+#### Changes Made
+
+- Extended the shared table primitive:
+  - `dashboard/components/ui/Table.tsx`
+  - Added optional:
+    - `wrapperClassName`
+    - `tableClassName`
+  - This keeps shared table behavior intact while allowing settings-specific layout tuning.
+- Refined the settings management table in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - Removed the redundant `Type` column
+  - Merged `Status` into the main item cell under title/key
+  - Reduced the visible column set to:
+    - `Item`
+    - `Draft`
+    - `Live`
+    - `Actions`
+  - Kept compact action rail behavior unchanged
+- Refined the preview drawer footer in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - Added clearer action grouping:
+    - utility group: `Close`, `View History`
+    - primary group: `Move To Trash` / `Restore`, `Edit`
+  - Made `Edit` remain the strongest forward action
+- Added settings-specific layout and hierarchy styling in:
+  - `dashboard/app/globals.css`
+  - Added:
+    - `config-table-wrap`
+    - `config-table`
+    - `config-table__item`
+    - `config-table__status`
+    - `config-table__version`
+    - `config-drawer__footer`
+    - `config-drawer__footer-group`
+  - Rebalanced widths to let the item column wrap naturally and avoid normal desktop horizontal scrolling
+- Updated progress index:
+  - `docs/task-list.md`
+  - marked Task 053 complete and advanced the current-status pointer
+
+#### Why
+
+- `Type` repeated information already implied by the selected settings tab.
+- `Status` was more useful as supporting context beneath the item title than as a standalone column.
+- The generic wide table baseline created unnecessary horizontal pressure for this settings workflow.
+- The drawer footer needed clearer visual hierarchy to feel more premium and intentional.
+
+#### Verification
+
+- `npm run lint -w @shetrades/dashboard` -> PASS
+- `npm run typecheck -w @shetrades/dashboard` -> PASS
+- `npx prettier --write "dashboard/components/ui/Table.tsx" "dashboard/components/config/ConfigAdminManager.tsx" "dashboard/app/globals.css"` -> PASS
+- `GetDiagnostics` on touched files -> no diagnostics
+
+#### Next Task
+
+- TBD (awaiting next directive)
+
+### Task 054 - Guided Settings Workspace Revamp Design Spec
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define the approved premium redesign for `/settings` so each tab becomes a guided, table-first workspace with lighter guidance and drawer-based create/edit/preview flows before implementation begins.
+
+#### Changes Made
+
+- Added design spec:
+  - `docs/superpowers/specs/2026-05-17-guided-settings-workspace-design.md`
+- Captured approved product direction:
+  - `Guided workspace`
+  - `table-first workspace`
+  - `all items` shown by default
+  - bulky tips card removed from the main tab layout
+  - `Add New`, `Edit`, and `Preview` moved into side drawers
+- Defined reusable component strategy for the revamp:
+  - `SettingsWorkspaceHeader`
+  - `SettingsWorkspaceToolbar`
+  - `ConfigManagementTable`
+  - `ConfigEditorDrawer`
+  - `ConfigPreviewDrawer`
+  - `SettingsEmptyState`
+- Defined premium UX expectations:
+  - restrained gesture-like drawer motion
+  - strong action feedback
+  - clearer visual hierarchy
+  - contextual guidance instead of permanent bulky support cards
+- Updated consolidated task tracker:
+  - `docs/task-list.md`
+  - marked Task 054 complete and advanced the current-status pointer
+
+#### Why
+
+- The current settings tabs had become functionally strong but visually fragmented, with the table competing against cards and inline forms.
+- The approved redesign makes the table the clear focal point while keeping the workspace understandable for non-technical admins.
+- Writing the spec first preserves the project rule order: reusable design direction and component planning are locked before implementation.
+
+#### Verification
+
+- `GetDiagnostics` on:
+  - `docs/superpowers/specs/2026-05-17-guided-settings-workspace-design.md`
+  - returned no diagnostics
+- Spec self-review completed:
+  - no placeholders
+  - no contradictory scope
+  - no ambiguous direction around layout, drawers, or guidance placement
+
+#### Next Task
+
+- Await user review of:
+  - `docs/superpowers/specs/2026-05-17-guided-settings-workspace-design.md`
+- After approval, convert the spec into an implementation plan and then build the reusable workspace components and previews before refactoring the production `/settings` tabs.
+
+### Task 055 - Guided Settings Workspace Implementation
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Implement the approved premium guided-workspace redesign so each `/settings` tab becomes table-first, non-technical, drawer-driven, and component-based with preview coverage.
+
+#### Changes Made
+
+- Added reusable shared UI primitives:
+  - `dashboard/components/ui/Textarea.tsx`
+  - `dashboard/components/ui/FilterChipGroup.tsx`
+  - updated `dashboard/components/ui/index.ts`
+- Extended the shared table primitive:
+  - `dashboard/components/ui/Table.tsx`
+  - added optional row-level class support for selection and feedback styling
+- Added reusable settings workspace components:
+  - `dashboard/components/config/SettingsWorkspaceHeader.tsx`
+  - `dashboard/components/config/SettingsWorkspaceToolbar.tsx`
+  - `dashboard/components/config/ConfigEditorDrawer.tsx`
+  - `dashboard/components/config/ConfigPreviewDrawer.tsx`
+- Refactored the production settings manager:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - removed the bulky tips-card-first structure
+  - made the table the dominant workspace surface
+  - moved `Add New` into a drawer
+  - moved `Edit Draft` into a drawer
+  - kept `Preview` as a dedicated read-only drawer
+  - added search and status filters
+  - added a slimmer access-key bar
+  - preserved visible workflow feedback
+- Fixed two functional workflow issues during the refactor:
+  - rollback now skips the current live version and targets the previous restorable version
+  - edit drawer payload now hydrates from the selected item detail instead of relying on stale/default editor state
+- Added preview coverage for the new guided workspace:
+  - `dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx`
+  - updated `dashboard/app/previews/components/page.tsx`
+- Expanded token-based styling:
+  - `dashboard/app/globals.css`
+  - added textarea, filter-chip, workspace header, toolbar, access bar, selected-row, and drawer motion styles
+  - added missing semantic token variables already referenced by the UI
+- Updated tracking:
+  - `docs/task-list.md`
+
+#### Why
+
+- The settings tabs needed the table to become the clear management focal point instead of competing with bulky helper cards and inline forms.
+- Drawer-based create/edit flows keep admins anchored in context and feel more premium for repetitive operations.
+- Reusable workspace components and preview coverage preserve the project rules around component-first implementation and inspectable isolated surfaces.
+- The refactor also closed two workflow correctness issues uncovered during the earlier QA pass.
+
+#### Verification
+
+- `npx prettier --write "dashboard/components/ui/Textarea.tsx" "dashboard/components/ui/FilterChipGroup.tsx" "dashboard/components/ui/Table.tsx" "dashboard/components/ui/index.ts" "dashboard/components/config/SettingsWorkspaceHeader.tsx" "dashboard/components/config/SettingsWorkspaceToolbar.tsx" "dashboard/components/config/ConfigEditorDrawer.tsx" "dashboard/components/config/ConfigPreviewDrawer.tsx" "dashboard/components/config/ConfigAdminManager.tsx" "dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx" "dashboard/app/previews/components/page.tsx" "dashboard/app/globals.css"`
+- `npm run lint -w @shetrades/dashboard`
+- `npm run typecheck -w @shetrades/dashboard`
+- `GetDiagnostics` returned clean results on all newly added and edited dashboard files involved in the workspace revamp.
+
+#### Next Task
+
+- Perform focused browser QA on:
+  - `/settings?tab=content`
+  - `/settings?tab=options`
+  - `/settings?tab=legal`
+  - `/previews/components`
+- Collect UX feedback on the new guided workspace and refine any spacing, copy, motion, or drawer workflow details requested by the user.
+
+### Task 056 - Settings Table Status-Column Restoration And Right-Aligned Actions Refinement
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Refine the guided settings table by moving `Status` back into its own dedicated column and aligning the `Actions` header with the right-floating icon rail.
+
+#### Changes Made
+
+- Updated the production settings table in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - removed the merged status badge from the `Item` cell
+  - added a dedicated `Status` column directly after `Item`
+  - kept `Item` focused on title plus internal key only
+  - continued using the premium icon-only action rail
+- Updated the guided workspace preview in:
+  - `dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx`
+  - mirrored the new `Item`, `Status`, `Draft`, `Live`, `Actions` structure
+- Refined table layout styling in:
+  - `dashboard/app/globals.css`
+  - rebalanced the five-column width distribution
+  - right-aligned the `Actions` header and cell content
+  - made the action rail fill the cell and justify to the far right
+- Updated project tracking:
+  - `docs/task-list.md`
+
+#### Why
+
+- Once title and key were already consolidated inside the `Item` cell, restoring `Status` to its own column improved scan clarity without reintroducing clutter.
+- Right-aligning both the `Actions` header and the icon rail makes the table feel more deliberate and visually balanced.
+- This keeps the table premium while taking advantage of the available space.
+
+#### Verification
+
+- `npx prettier --write "dashboard/components/config/ConfigAdminManager.tsx" "dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx" "dashboard/app/globals.css"`
+- `npm run lint -w @shetrades/dashboard`
+- `npm run typecheck -w @shetrades/dashboard`
+- `GetDiagnostics` returned clean results for:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - `dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx`
+  - `dashboard/app/globals.css`
+
+#### Next Task
+
+- Perform live browser review of the refined settings table across:
+  - `/settings?tab=content`
+  - `/settings?tab=options`
+  - `/settings?tab=legal`
+- Capture any additional premium table rhythm feedback from the user and iterate if needed.
+
+### Task 057 - Guided Internal-Name Builder Design
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define a premium, non-technical naming-builder flow for new config items so admins no longer have to type full internal names manually.
+
+#### Changes Made
+
+- Added design spec:
+  - `docs/superpowers/specs/2026-05-17-guided-internal-name-builder-design.md`
+- Captured approved product decisions:
+  - guided builder applies to `new items` only
+  - existing keys remain read-only in edit flows
+  - namespace is read-only from the active tab
+  - category is a dropdown
+  - slug is the only manual text input
+  - helper note appears directly under the builder
+  - namespace-specific examples are shown
+  - live full-key preview is shown
+  - helper notification appears when dropdown fields are empty or unavailable
+- Documented the managed-data dependency:
+  - category dropdown values should come from config-managed data, not hardcoded frontend arrays
+- Updated tracking:
+  - `docs/task-list.md`
+
+#### Why
+
+- The free-text internal-name field is too open-ended for non-technical admins and invites inconsistent naming.
+- A guided builder makes the naming structure teachable, safer, and more premium.
+- Writing the spec first keeps the project aligned with the approved brainstorming flow before implementation begins.
+
+#### Verification
+
+- `GetDiagnostics` on:
+  - `docs/superpowers/specs/2026-05-17-guided-internal-name-builder-design.md`
+  - returned no diagnostics
+- Spec self-review completed:
+  - no placeholders
+  - no ambiguity around create-only behavior
+  - no contradictory direction on empty-dropdown messaging or managed-data sourcing
+
+#### Next Task
+
+- Await user review of:
+  - `docs/superpowers/specs/2026-05-17-guided-internal-name-builder-design.md`
+- After approval, move into implementation planning and then build the guided builder into the create drawer.
+
+### Task 058 - Guided Internal-Name Builder Implementation
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Replace the free-text create-time internal-name field with a premium guided builder that helps non-technical admins construct safe, consistent keys.
+
+#### Changes Made
+
+- Added a reusable guided builder component:
+  - `dashboard/components/config/GuidedInternalNameBuilder.tsx`
+  - namespace is shown as read-only
+  - category is selected from a dropdown
+  - slug is the only manual input
+  - helper note, namespace-specific examples, live full-key preview, and empty-dropdown helper notification are built into the component
+- Extended the shared create/edit drawer:
+  - `dashboard/components/config/ConfigEditorDrawer.tsx`
+  - supports a custom key-field surface for guided builders
+  - supports disabled primary actions for incomplete create flows
+- Updated the production settings manager:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - create drawer now uses the guided internal-name builder
+  - category options source from managed config first using namespace-specific option-set documents:
+    - `options.settings.content_categories`
+    - `options.settings.options_categories`
+    - `options.settings.legal_categories`
+  - if managed category options are not yet available, the UI safely falls back to deriving categories from existing document keys in the current namespace
+  - if neither source exists, the drawer shows a helper notification explaining why creation is blocked
+  - slug input is normalized to the existing backend-safe format
+  - create is blocked until category and slug are valid
+- Updated the component preview:
+  - `dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx`
+  - demonstrates the guided create drawer pattern
+- Added the premium styling layer:
+  - `dashboard/app/globals.css`
+  - builder card, namespace lock segment, helper notification states, example lines, and live preview styling
+- Updated tracking:
+  - `docs/task-list.md`
+
+#### Why
+
+- Non-technical admins should not have to guess or memorize the internal naming format.
+- Locking the namespace and guiding the remaining structure reduces typos and improves consistency.
+- The helper notification prevents confusion when category dropdown data is not ready yet.
+- Managed-data-first sourcing keeps the builder aligned with the project’s zero-hardcode direction while still preventing dead-end create flows through a safe fallback.
+
+#### Verification
+
+- `npx prettier --write "dashboard/components/config/GuidedInternalNameBuilder.tsx" "dashboard/components/config/ConfigEditorDrawer.tsx" "dashboard/components/config/ConfigAdminManager.tsx" "dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx" "dashboard/app/globals.css"`
+- `npm run lint -w @shetrades/dashboard`
+- `npm run typecheck -w @shetrades/dashboard`
+- `GetDiagnostics` returned clean results for:
+  - `dashboard/components/config/GuidedInternalNameBuilder.tsx`
+  - `dashboard/components/config/ConfigEditorDrawer.tsx`
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - `dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx`
+  - `dashboard/app/globals.css`
+
+#### Next Task
+
+- Perform live review of the guided builder in:
+  - `/settings?tab=content`
+  - `/settings?tab=options`
+  - `/settings?tab=legal`
+- Decide whether to keep the managed-data fallback from existing keys, or tighten the builder later to managed category documents only once those option sets are fully established.
+
+### Task 059 - In-Tab Category Management And Premium Dropdown Design
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define the next-step UX and data design for managing builder categories from inside each settings tab, seeding real managed category defaults, replacing the native dropdown with a premium shared component, and fixing the slug-field focus bug.
+
+#### Changes Made
+
+- Added design spec:
+  - `docs/superpowers/specs/2026-05-17-in-tab-category-management-and-premium-dropdown-design.md`
+- Captured approved product decisions:
+  - each tab gets an in-context `Manage Categories` action
+  - categories are stored as real managed option-set documents
+  - starter categories are seeded as real managed defaults, not UI fallback data
+  - the native category `<select>` is replaced with a premium shared dropdown/listbox
+  - the shared drawer focus behavior is fixed so typing in the slug field remains stable
+- Defined managed category document keys:
+  - `options.settings.content_categories`
+  - `options.settings.options_categories`
+  - `options.settings.legal_categories`
+- Defined starter managed defaults:
+  - content: `lesson`, `message`, `ui`
+  - options: `language`, `profile`, `business_sector`
+  - legal: `privacy`, `terms`, `marketing`
+- Defined category management drawer scope:
+  - add
+  - rename
+  - disable / re-enable
+  - reorder
+- Updated tracking:
+  - `docs/task-list.md`
+
+#### Why
+
+- Admins should not need to guess where categories are managed.
+- Real managed seeded defaults keep the workflow compliant with the project’s zero-hardcode direction.
+- The current native dropdown and focus bug both weaken the premium feel of the guided builder.
+- Writing the design first keeps the project aligned with the component-first and preview-first workflow before implementation begins.
+
+#### Verification
+
+- `GetDiagnostics` on:
+  - `docs/superpowers/specs/2026-05-17-in-tab-category-management-and-premium-dropdown-design.md`
+  - returned no diagnostics
+- Spec self-review completed:
+  - no placeholders
+  - no ambiguity around seeded defaults versus managed data
+  - no contradiction between in-tab management and shared option-set storage
+  - focus fix scope is explicitly component-level, not local-only
+
+#### Next Task
+
+- Await user review of:
+  - `docs/superpowers/specs/2026-05-17-in-tab-category-management-and-premium-dropdown-design.md`
+- After approval, move into implementation planning and then build:
+  - in-tab category management
+  - managed category seed path
+  - premium dropdown component and preview
+  - drawer focus fix
+
+### Task 060 - In-Tab Category Management Implementation, Premium Dropdown Upgrade, And Drawer Focus Fix
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Implement the approved category-management workflow inside each settings tab, replace the native category dropdown with a premium shared component, seed real managed category defaults, and fix the slug-field focus loss inside drawers.
+
+#### Changes Made
+
+- Fixed the shared drawer focus bug in:
+  - `dashboard/components/ui/SideDrawer.tsx`
+  - changed the focus/escape effect to depend only on `open`, while keeping a ref to the latest `onClose`
+  - this prevents the drawer from re-focusing on every render and breaking slug typing
+- Rebuilt the shared select control as a premium custom dropdown/listbox in:
+  - `dashboard/components/ui/Select.tsx`
+  - added:
+    - custom trigger
+    - premium menu surface
+    - keyboard navigation
+    - selected-state checkmark
+    - empty-state handling
+    - click-outside close behavior
+- Updated the guided internal-name builder to consume the shared dropdown in:
+  - `dashboard/components/config/GuidedInternalNameBuilder.tsx`
+- Added in-tab category management drawer component in:
+  - `dashboard/components/config/CategoryManagementDrawer.tsx`
+  - supports:
+    - add category
+    - edit display label
+    - edit internal value
+    - hide/show
+    - reorder
+    - save draft
+    - publish live
+- Extended the settings workspace toolbar to support a secondary action in:
+  - `dashboard/components/config/SettingsWorkspaceToolbar.tsx`
+  - used for `Manage Categories`
+- Implemented the settings integration in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - added:
+    - `Manage Categories` button beside `Add New`
+    - managed category document loading from `options.settings.*_categories`
+    - category validation
+    - category draft save and publish flow
+    - auto-seed call path for missing category documents in admin sessions
+    - category drawer wiring per namespace
+- Added real managed seed data in:
+  - `docs/config-seeds/settings-category-option-sets.seed.json`
+  - seeded documents:
+    - `options.settings.content_categories`
+    - `options.settings.options_categories`
+    - `options.settings.legal_categories`
+- Added backend seed helper and ensure route in:
+  - `backend/src/config-platform/category-option-set-seeds.ts`
+  - `backend/src/routes/config-admin.ts`
+  - route:
+    - `POST /api/config/admin/category-seeds/ensure`
+  - behavior:
+    - loads tracked seed JSON
+    - creates missing `option_set` documents
+    - publishes them immediately as managed defaults
+- Updated preview coverage in:
+  - `dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx`
+  - `dashboard/app/previews/components/page.tsx`
+  - preview now shows:
+    - premium dropdown usage
+    - `Manage Categories` action
+    - category drawer state
+- Added visual styling in:
+  - `dashboard/app/globals.css`
+  - includes:
+    - premium dropdown trigger/menu/option states
+    - toolbar action-row support
+    - category drawer layout and card styling
+
+#### Why
+
+- Admins asked where categories should be managed and wanted that workflow to be obvious inside each tab.
+- The native browser dropdown did not meet the premium UX standard requested for the settings workspace.
+- The slug field focus bug made the guided builder frustrating and unreliable.
+- Seeded managed defaults ensure each tab starts with usable real data instead of empty or hardcoded UI-only fallbacks.
+
+#### Verification
+
+- Formatting:
+  - `npx prettier --write "dashboard/components/ui/SideDrawer.tsx" "dashboard/components/ui/Select.tsx" "dashboard/components/config/SettingsWorkspaceToolbar.tsx" "dashboard/components/config/GuidedInternalNameBuilder.tsx" "dashboard/components/config/CategoryManagementDrawer.tsx" "dashboard/components/config/ConfigAdminManager.tsx" "dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx" "dashboard/app/previews/components/page.tsx" "dashboard/app/globals.css" "backend/src/config-platform/category-option-set-seeds.ts" "backend/src/routes/config-admin.ts" "docs/config-seeds/settings-category-option-sets.seed.json"`
+- Dashboard validation:
+  - `npm run lint -w @shetrades/dashboard`
+  - `npm run typecheck -w @shetrades/dashboard`
+- Backend validation:
+  - `npm run lint -w @shetrades/backend`
+  - `npm run typecheck -w @shetrades/backend`
+- Diagnostics:
+  - clean on all touched dashboard and backend files after implementation
+
+#### Important Notes
+
+- Category defaults are now sourced from tracked seed data, not from frontend fallback arrays.
+- Admin refresh now auto-ensures missing category seed documents for the current settings namespace when needed.
+- Category management documents remain in the `options` namespace even when managed from `content` or `legal` tabs.
+- Existing item keys remain read-only in edit flows; only new-item creation uses the guided name builder.
+
+#### Next Task
+
+- Perform focused live review on:
+  - `/settings?tab=content`
+  - `/settings?tab=options`
+  - `/settings?tab=legal`
+  - `/previews/components`
+- Specifically verify:
+  - slug input no longer loses focus while typing
+  - `Manage Categories` opens correctly from each tab
+  - missing category docs auto-seed for admin sessions
+  - category save/publish flow updates the guided builder dropdown
+  - premium dropdown behavior feels polished with keyboard and mouse interaction
+
+### Task 061 - Content Type Auto-Mapping And Friendly Content-Kind Labeling In Settings
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Remove raw backend type labels like `ui_copy` from the content settings experience and automatically choose the correct backend content type from the guided category selection.
+
+#### Changes Made
+
+- Wrote and approved the design spec in:
+  - `docs/superpowers/specs/2026-05-17-content-type-labeling-and-category-mapping-design.md`
+- Implemented content category to backend type mapping in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - added:
+    - `lesson` -> `lesson_content`
+    - `message` -> `ui_copy`
+    - `ui` -> `ui_copy`
+    - safe fallback to the existing default content type for unknown future categories
+- Updated content create behavior in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - new content items in the `Content` tab now resolve backend type from the selected guided category instead of always sending the tab default blindly
+- Added friendly admin-facing type labels in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - labels now humanize persisted types as:
+    - `lesson_content` -> `Lesson Content`
+    - `ui_copy` -> `Message Content`
+    - `option_set` -> `Option Set`
+    - `legal_block` -> `Legal Block`
+    - unknown types -> `Saved Item`
+- Updated the preview drawer presentation in:
+  - `dashboard/components/config/ConfigPreviewDrawer.tsx`
+  - added configurable type-field and type-value formatting so the drawer no longer exposes raw backend type strings
+  - content preview now presents the field label as `Content Kind`
+- Updated preview coverage in:
+  - `dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx`
+  - the preview drawer example now uses the new friendly labeling hooks
+- Updated project tracking in:
+  - `docs/task-list.md`
+
+#### Why
+
+- Admins should not have to interpret storage-oriented backend labels like `ui_copy`.
+- The guided internal-name builder already captures the admin's intent through category selection, so the create flow should honor that intent automatically.
+- This keeps the backend contract stable while making the settings experience more premium, more consistent, and easier for non-technical users.
+
+#### Verification
+
+- Diagnostics:
+  - clean on:
+    - `dashboard/components/config/ConfigAdminManager.tsx`
+    - `dashboard/components/config/ConfigPreviewDrawer.tsx`
+    - `dashboard/app/previews/components/GuidedSettingsWorkspacePreview.tsx`
+- Type validation:
+  - `npm run typecheck`
+
+#### Important Notes
+
+- Backend schemas and allowed namespace/type rules were not changed.
+- This mapping currently targets the approved managed content categories and safely falls back for unknown future categories.
+- Existing stored content items benefit from the new friendly labeling immediately because the presentation layer now humanizes their persisted type values.
+
+#### Next Task
+
+- Perform focused live review on:
+  - `/settings?tab=content`
+  - `/previews/components`
+- Specifically verify:
+  - creating `content.lesson.onboarding` stores `lesson_content`
+  - creating `content.message.welcome` stores `ui_copy`
+  - creating `content.ui.banner` stores `ui_copy`
+  - preview drawer shows `Content Kind` with friendly values instead of raw backend type strings
+
+### Task 062 - Settings Request Parser Hardening For Non-JSON Upstream Responses
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Prevent the settings workspace from crashing with `Unexpected token '<'` when an upstream request returns HTML instead of JSON, and surface actionable diagnostics instead.
+
+#### Changes Made
+
+- Hardened the settings admin request helper in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+- Added:
+  - `Accept: application/json` request header
+  - content-type inspection before parsing response bodies
+  - explicit non-JSON failure handling with:
+    - response URL
+    - status code
+    - returned content type
+    - short body preview
+- Kept existing JSON success and JSON error handling behavior intact for valid backend responses.
+- Updated project tracking in:
+  - `docs/task-list.md`
+
+#### Why
+
+- The reported error `Unexpected token '<', "<!DOCTYPE "... is not valid JSON` means the dashboard received HTML and attempted to parse it as JSON.
+- The backend health and admin config route checks showed `localhost:8080` is up and returning JSON, so the UI needed stronger diagnostics to reveal the real upstream mismatch instead of failing with a low-value parser error.
+
+#### Verification
+
+- Runtime probes:
+  - `http://localhost:8080/health` returned JSON successfully
+  - `http://localhost:8080/api/config/admin/content/documents` returned JSON semantics on auth failure
+- Diagnostics:
+  - clean on `dashboard/components/config/ConfigAdminManager.tsx`
+- Type validation:
+  - `npm run typecheck -w @shetrades/dashboard`
+
+#### Important Notes
+
+- This fix improves failure handling and observability; it does not assume the upstream HTML source.
+- If the issue reappears in the browser, the new message should now reveal the exact URL and content type that responded with HTML, which will make the remaining root cause straightforward to isolate.
+
+#### Next Task
+
+- Retry content creation in `/settings?tab=content`.
+- If the request still fails, capture the new full error message from the UI.
+- Use the surfaced URL and content type to determine whether the dashboard is calling the wrong origin, a stale dev server, or another HTML-producing endpoint.
+
+### Task 063 - Filter Chip Hydration Hardening For Extension-Injected Attributes
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Remove the noisy hydration mismatch on the settings toolbar filter chips when the browser DOM is mutated before React hydrates.
+
+#### Changes Made
+
+- Updated:
+  - `dashboard/components/ui/FilterChipGroup.tsx`
+- Added `suppressHydrationWarning` to:
+  - the chip-group toolbar wrapper
+  - each chip button
+
+#### Why
+
+- The reported mismatch showed an extra `rtrvr-ro` attribute on the chip buttons.
+- That attribute does not come from the application code and is consistent with browser-extension DOM injection before hydration.
+- The dashboard already uses targeted hydration hardening in other shared UI primitives, so applying the same strategy here keeps the settings workspace stable without changing behavior.
+
+#### Verification
+
+- Diagnostics:
+  - clean on `dashboard/components/ui/FilterChipGroup.tsx`
+- Type validation:
+  - `npm run typecheck -w @shetrades/dashboard`
+
+#### Important Notes
+
+- This fix suppresses the hydration warning for this extension-mutated surface.
+- If the same warning appears on a different component with a different injected attribute, that new surface should be hardened separately rather than broadening suppression indiscriminately.
+
+#### Next Task
+
+- Retry `/settings` in the same browser profile.
+- Confirm the filter chip hydration warning no longer appears.
+- If other extension-injected attributes surface on different controls, capture the exact component stack and attribute name.
+
+### Task 065 - Content Page Premium Parity Implementation With Shared Managed Content Workspace Reuse
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Bring the premium `/settings` content workspace feel to `/content` while reusing the same managed content drawers, table actions, and content document workflows.
+
+#### Changes Made
+
+- Wrote and approved the design spec in:
+  - `docs/superpowers/specs/2026-05-17-content-page-premium-parity-design.md`
+- Extended the shared content/config workspace presentation layer in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - added optional route-level presentation overrides for:
+    - workspace title
+    - workspace description
+    - summary mode
+    - primary action label and hint
+    - secondary action label
+    - table title and description
+    - empty-state title and description
+- Added content-specific summary behavior in:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - the content route now shows summary chips for:
+    - total items
+    - drafts
+    - live items
+- Replaced the old `/content` two-card page with the shared premium managed content workspace in:
+  - `dashboard/app/(admin)/content/page.tsx`
+  - the route now:
+    - uses the shared `ConfigAdminManager`
+    - reuses the same settings-backed create, edit, preview, publish, rollback, and trash drawers
+    - uses content-native copy such as `Content Workspace`, `Create Content`, and `Review Content`
+- Kept a smaller supporting operations surface in:
+  - `dashboard/app/(admin)/content/page.tsx`
+  - retained the translation queue as a secondary support card below the dominant main workspace
+- Added layout support styling in:
+  - `dashboard/app/globals.css`
+  - added `.content-page__support` so the supporting panel stays visually secondary
+- Updated project tracking in:
+  - `docs/task-list.md`
+
+#### Why
+
+- `/settings?tab=content` had already reached the premium operational quality the user wanted, while `/content` still looked like an older equal-card dashboard page.
+- Reusing the same managed content workspace preserves consistency and prevents a second, duplicated content-management implementation.
+- This keeps `/content` as a focused content-operations route while using the exact same underlying content document system and drawer behavior already approved for settings.
+
+#### Verification
+
+- Diagnostics:
+  - clean on:
+    - `dashboard/components/config/ConfigAdminManager.tsx`
+    - `dashboard/app/(admin)/content/page.tsx`
+- Type validation:
+  - `npm run typecheck -w @shetrades/dashboard`
+
+#### Important Notes
+
+- `/content` no longer relies on the older simplified lesson-row table as its primary management surface.
+- The route now composes the shared managed content workspace rather than maintaining a second content-management experience.
+- Content-specific differences are presentation-level only; underlying create/edit/preview flows stay shared with settings.
+
+#### Next Task
+
+- Perform focused live review on:
+  - `/content`
+  - `/settings?tab=content`
+- Specifically verify:
+  - `/content` now feels visually aligned with the premium settings workspace
+  - `Create Content` opens the shared content create drawer
+  - preview and edit actions from `/content` open the shared settings-backed drawers
+  - the translation queue card reads as a secondary support surface, not a competing primary panel
+
+### Task 067 - Settings Scope Reduction Implementation And Legacy Content-Link Redirect Cleanup
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Remove the `Content` tab from `/settings`, keep only `Options` and `Legal`, and redirect older content-tab settings links to the dedicated `/content` route.
+
+#### Changes Made
+
+- Wrote and approved the design spec in:
+  - `docs/superpowers/specs/2026-05-17-settings-scope-reduction-after-content-split-design.md`
+- Updated the settings route in:
+  - `dashboard/app/(admin)/settings/page.tsx`
+  - changed:
+    - tab union from `content | options | legal` to `options | legal`
+    - allowed tab list to only `Options` and `Legal`
+    - default settings tab from `content` to `options`
+    - settings header copy to remove content ownership language
+    - tab card description to describe only option-list and legal management
+- Added legacy redirect behavior in:
+  - `dashboard/app/(admin)/settings/page.tsx`
+  - `/settings?tab=content` now redirects directly to `/content`
+- Updated the legacy content config redirect in:
+  - `dashboard/app/(admin)/config/content/page.tsx`
+  - now redirects directly to `/content` instead of routing through the removed settings content tab
+- Updated project tracking in:
+  - `docs/task-list.md`
+
+#### Why
+
+- `/content` is now the dedicated premium content workspace.
+- Leaving a visible `Content` tab in `/settings` would keep two competing entry points for the same content system.
+- The new route ownership is clearer:
+  - `/content` owns content
+  - `/settings` owns options and legal
+
+#### Verification
+
+- Diagnostics:
+  - clean on:
+    - `dashboard/app/(admin)/settings/page.tsx`
+    - `dashboard/app/(admin)/config/content/page.tsx`
+- Type validation:
+  - `npm run typecheck -w @shetrades/dashboard`
+
+#### Important Notes
+
+- This is a full scope reduction, not just a hidden tab.
+- Old `?tab=content` links still work by sending users to the correct dedicated content route.
+- Unknown settings tab values now safely fall back to `options`.
+
+#### Next Task
+
+- Perform focused live review on:
+  - `/settings`
+  - `/settings?tab=options`
+  - `/settings?tab=legal`
+  - `/settings?tab=content`
+  - `/config/content`
+- Specifically verify:
+  - only `Options` and `Legal` tabs remain visible in `/settings`
+  - `/settings?tab=content` redirects to `/content`
+  - `/config/content` redirects to `/content`
+  - the settings page copy no longer says content is managed there
+
+### Task 068 - Internal Translation Request Flow Design
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define a real internal translation request workflow for `/content` so the inactive support-panel action can become a production-ready drawer and queue.
+
+#### Changes Made
+
+- Wrote and validated the translation workflow design spec:
+  - `docs/superpowers/specs/2026-05-17-internal-translation-request-flow-design.md`
+- Locked the approved scope:
+  - internal request drawer
+  - internal persistence
+  - queue rendering on `/content`
+  - statuses limited to `Pending`, `In Review`, and `Completed`
+- Explicitly excluded:
+  - notifications
+  - assignments
+  - external integrations
+  - full translation-operations tooling
+
+#### Verification
+
+- Spec self-review completed for ambiguity, scope, and consistency.
+- Diagnostics: clean on the spec file.
+
+#### Next Task
+
+- Task 069: Implement the protected backend request flow, managed option sourcing, premium drawer/panel components, preview coverage, and `/content` integration.
+
+### Task 069 - Internal Translation Request Workflow Implementation
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Turn the `/content` translation support panel into a real managed workflow backed by protected APIs, premium drawer UX, and live queue rendering.
+
+#### Changes Made
+
+- Added backend translation request contracts and service:
+  - `backend/src/translation-requests/contracts.ts`
+  - `backend/src/translation-requests/service.ts`
+- Added protected admin translation request routes:
+  - `backend/src/routes/translation-requests.ts`
+  - mounted in `backend/src/app.ts`
+  - new endpoints:
+    - `GET /api/content/admin/translation-requests/bootstrap`
+    - `POST /api/content/admin/translation-requests`
+- Added focused backend test coverage:
+  - `backend/src/routes/translation-requests.test.ts`
+- Expanded managed option-set seeds so translation choices are config-managed instead of hardcoded:
+  - `docs/config-seeds/settings-category-option-sets.seed.json`
+  - added:
+    - `options.settings.translation_request_languages`
+    - `options.settings.translation_request_priorities`
+- Added reusable premium content workflow components:
+  - `dashboard/components/content/TranslationRequestDrawer.tsx`
+  - `dashboard/components/content/TranslationRequestQueuePanel.tsx`
+  - `dashboard/components/content/ContentTranslationQueuePanel.tsx`
+- Wired the live translation panel into `/content`:
+  - `dashboard/app/(admin)/content/page.tsx`
+  - replaced the inactive placeholder card/button with the real queue + drawer flow
+- Added preview coverage before production use:
+  - `dashboard/app/previews/components/TranslationRequestWorkflowPreview.tsx`
+  - `dashboard/app/previews/components/page.tsx`
+- Added premium queue/drawer styling:
+  - `dashboard/app/globals.css`
+- Improved same-page token synchronization for content-side admin flows:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - dispatches `admin-config-token-updated` after saving the access key so the translation panel can react without a full reload
+- Updated project tracking:
+  - `docs/task-list.md`
+
+#### Why
+
+- The previous `Request Translation` control looked actionable but did nothing, which undermined trust in the content workspace.
+- This implementation keeps the content table as the dominant surface while making the support panel operational and useful.
+- Translation languages and priorities now follow the config-managed pattern instead of introducing new hardcoded dropdown values.
+
+#### Verification
+
+- Diagnostics:
+  - clean on newly edited backend and dashboard files
+- Backend validation:
+  - `npm run typecheck -w @shetrades/backend`
+  - `npm run test -w @shetrades/backend -- src/routes/translation-requests.test.ts`
+- Dashboard validation:
+  - `npm run typecheck -w @shetrades/dashboard`
+
+#### Important Notes
+
+- The queue is intentionally a lightweight internal workflow:
+  - create requests
+  - list requests
+  - start new items in `Pending`
+- There is no assignment, notification, or external vendor integration in this pass.
+- If translation option-set docs are missing and the current user is an admin, the panel attempts to ensure the managed seeds before reloading the drawer choices.
+
+#### Next Task
+
+- Perform focused live review on `/content`:
+  - verify `Request Translation` opens the drawer
+  - verify submitting a valid request closes the drawer and updates the queue
+  - verify managed language/priority options appear from config-backed seeds
+
+### Task 074 - Translation Queue Single-Action Cleanup Design
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define the cleanup needed to remove the duplicate `Request Translation` action from the translation queue empty state.
+
+#### Changes Made
+
+- Wrote and validated the cleanup spec:
+  - `docs/superpowers/specs/2026-05-17-translation-queue-single-action-cleanup-design.md`
+- Locked the approved direction:
+  - keep the card-header action
+  - remove the empty-state duplicate
+  - keep the empty state informational only
+
+#### Verification
+
+- Spec self-review completed for scope and consistency.
+- Diagnostics: clean on the spec file.
+
+#### Next Task
+
+- Task 075: Remove the empty-state duplicate action, verify the queue shows a single entry-point action, and update tracking docs.
+
+### Task 075 - Translation Queue Single-Action Cleanup Implementation
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Refine the translation queue so the empty state no longer repeats the same `Request Translation` action already present in the card header.
+
+#### Changes Made
+
+- Updated the translation queue component:
+  - `dashboard/components/content/TranslationRequestQueuePanel.tsx`
+  - removed the empty-state `Request Translation` action
+  - kept the header button as the single queue action
+- Updated project tracking:
+  - `docs/task-list.md`
+
+#### Why
+
+- The duplicate action made the queue feel less intentional and visually noisier than the surrounding premium workspace.
+- The header action already provides a consistent queue entry point in both empty and populated states.
+
+#### Verification
+
+- Diagnostics:
+  - clean on `dashboard/components/content/TranslationRequestQueuePanel.tsx`
+- Dashboard validation:
+  - `npm run typecheck -w @shetrades/dashboard`
+
+#### Important Notes
+
+- This is a visual/interaction cleanup only.
+- No backend behavior, drawer logic, or request validation changed.
+
+#### Next Task
+
+- Perform focused live review on `/content`:
+  - verify only one `Request Translation` button appears when the queue is empty
+  - verify the header action still opens the drawer
+  - verify saving still adds a queued request successfully
+
+### Task 076 - Dual-Path Translation Method Design
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define the dual-path translation workflow so admins can choose between sending an internal request or queueing an integration job from one drawer.
+
+#### Changes Made
+
+- Wrote and validated the design spec:
+  - `docs/superpowers/specs/2026-05-17-dual-path-translation-method-design.md`
+- Locked the approved direction:
+  - one `Translation Method` selector
+  - one method-aware submit action
+  - two paths:
+    - `Send Internal Request`
+    - `Translate With Integration`
+  - integration path queues an internal job instead of calling the provider immediately
+
+#### Verification
+
+- Spec self-review completed for scope, consistency, and ambiguity.
+- Diagnostics: clean on the spec file.
+
+#### Next Task
+
+- Task 077: Extend the backend contracts and the shared content translation workflow so both methods are supported in the queue and preview surfaces.
+
+### Task 077 - Dual-Path Translation Workflow Implementation
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Implement one premium translation drawer with method selection, support queued integration jobs, and surface both paths clearly in the `/content` queue.
+
+#### Changes Made
+
+- Extended backend translation contracts:
+  - `backend/src/translation-requests/contracts.ts`
+  - added:
+    - `method`
+    - expanded status set including `queued_for_integration`
+    - optional integration metadata fields
+- Updated translation request service behavior:
+  - `backend/src/translation-requests/service.ts`
+  - internal requests now create `pending` records
+  - integration submissions now create `queued_for_integration` records with queued integration state
+- Updated admin translation routes:
+  - `backend/src/routes/translation-requests.ts`
+  - bootstrap now returns managed method options
+  - create route accepts method-aware payloads
+- Expanded backend test coverage:
+  - `backend/src/routes/translation-requests.test.ts`
+  - added integration-job assertions
+- Expanded managed config seeds:
+  - `docs/config-seeds/settings-category-option-sets.seed.json`
+  - added `options.settings.translation_request_methods`
+- Updated the shared translation drawer:
+  - `dashboard/components/content/TranslationRequestDrawer.tsx`
+  - added:
+    - `Translation Method` selector
+    - method-aware submit label
+- Updated the queue presentation:
+  - `dashboard/components/content/TranslationRequestQueuePanel.tsx`
+  - queue items now show:
+    - method badge
+    - status badge
+- Updated the `/content` client workflow:
+  - `dashboard/components/content/ContentTranslationQueuePanel.tsx`
+  - added method state, queue mapping, method-aware success copy, and seed-aware blocking guidance
+- Updated preview coverage:
+  - `dashboard/app/previews/components/TranslationRequestWorkflowPreview.tsx`
+  - now shows both internal and integration queue states
+- Added small styling support for the new badge group:
+  - `dashboard/app/globals.css`
+- Updated project tracking:
+  - `docs/task-list.md`
+
+#### Why
+
+- The product now supports both human follow-up and future automated translation processing.
+- One selector keeps the drawer premium and understandable for non-technical admins.
+- Queueing integration jobs internally prepares the product for a future provider without overbuilding provider execution now.
+
+#### Verification
+
+- Diagnostics:
+  - clean on edited backend and dashboard files
+- Backend validation:
+  - `npm run typecheck -w @shetrades/backend`
+  - `npm run test -w @shetrades/backend -- src/routes/translation-requests.test.ts`
+- Dashboard validation:
+  - `npm run typecheck -w @shetrades/dashboard`
+
+#### Important Notes
+
+- `Translate With Integration` currently queues an internal job only.
+- No external provider call, retry engine, callback handling, or provider-specific settings UI is implemented in this pass.
+- Method labels are sourced from managed option-set seeds, while the behavior values remain typed backend enums.
+
+#### Next Task
+
+- Perform focused live review on `/content`:
+  - verify the drawer shows `Translation Method`
+  - verify the submit button changes between `Send Request` and `Queue Integration`
+  - verify integration submissions appear in the queue with integration-specific method/status presentation
+
+### Task 081 - Post-Translation Completion And Review Workflow Design
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define what happens after translation work is finished so output lands in a managed content draft instead of stopping at queue tracking.
+
+#### Changes Made
+
+- Wrote and validated the approved design spec:
+  - `docs/superpowers/specs/2026-05-17-post-translation-completion-review-flow-design.md`
+- Defined the approved workflow:
+  - completion happens from the translation queue
+  - translated output writes into the linked content item as a draft
+  - the queue item moves to `ready_for_review`
+  - final publish remains in the existing content workflow
+
+#### Verification
+
+- Spec self-review completed for scope, consistency, and ambiguity.
+- Diagnostics: clean on the spec file.
+
+#### Next Task
+
+- Task 082: Implement the backend completion route, managed draft write-back behavior, and focused tests.
+
+### Task 082 - Translation Completion Backend Implementation
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Accept finished translation output, write it into the linked content draft, and move the queue into a review-ready state.
+
+#### Changes Made
+
+- Extended translation request contracts:
+  - `backend/src/translation-requests/contracts.ts`
+  - added:
+    - `ready_for_review` status
+    - completion payload schema
+    - completion metadata fields on queue records
+- Extended translation request service behavior:
+  - `backend/src/translation-requests/service.ts`
+  - added request lookup and completion mutation
+  - completion now records:
+    - `completionNote`
+    - `completedAt`
+    - `completedBy`
+    - `reviewDraftVersionId`
+- Added managed draft write-back completion route:
+  - `backend/src/routes/translation-requests.ts`
+  - added `POST /api/content/admin/translation-requests/:requestId/complete`
+  - route now:
+    - loads the linked content document
+    - patches translated output into the correct language container
+    - reuses `configService.updateDraft(...)`
+    - marks the queue item `ready_for_review`
+- Added focused backend test coverage:
+  - `backend/src/routes/translation-requests.test.ts`
+  - added:
+    - lesson-content completion test
+    - ui-copy completion test
+
+#### Why
+
+- Translation output now re-enters the governed content workflow instead of creating a side path outside versioning and review.
+- The existing draft engine remains the single source of truth for publish and rollback.
+
+#### Verification
+
+- `npm run typecheck -w @shetrades/backend`
+- `npm run test -w @shetrades/backend -- src/routes/translation-requests.test.ts`
+
+#### Next Task
+
+- Task 083: Add the completion drawer, queue actions, and review-ready follow-up behavior in `/content`.
+
+### Task 083 - Translation Completion UI Workflow
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Give admins a premium way to complete translation work from the queue and move directly into content review.
+
+#### Changes Made
+
+- Added a reusable completion drawer component:
+  - `dashboard/components/content/TranslationCompletionDrawer.tsx`
+  - supports:
+    - request summary
+    - translated content entry
+    - optional completion note
+    - success/warning/error feedback
+- Expanded queue presentation:
+  - `dashboard/components/content/TranslationRequestQueuePanel.tsx`
+  - queue items now support:
+    - `Complete Translation`
+    - `Open Content Draft`
+    - ready-for-review metadata display
+- Wired the `/content` translation workflow to the new completion path:
+  - `dashboard/components/content/ContentTranslationQueuePanel.tsx`
+  - added:
+    - completion drawer state
+    - completion submit flow
+    - `ready_for_review` mapping
+    - content-workspace handoff action
+- Added a lightweight page bridge so the queue can open the managed content editor:
+  - `dashboard/components/config/ConfigAdminManager.tsx`
+  - listens for a content-document open event and opens the linked item in the existing editor drawer
+
+#### Why
+
+- Admins can now finish translation work and immediately hand off to the governed content review workflow without leaving `/content`.
+- The queue remains the operational tracker, while the content workspace remains the publishing authority.
+
+#### Verification
+
+- Diagnostics: clean on edited dashboard files.
+- `npm run typecheck`
+
+#### Next Task
+
+- Task 084: Update the component preview to show completion and ready-for-review states.
+
+### Task 084 - Translation Completion Preview Coverage
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Ensure the new completion workflow is inspectable in isolation before relying on it in the production page.
+
+#### Changes Made
+
+- Updated translation workflow preview coverage:
+  - `dashboard/app/previews/components/TranslationRequestWorkflowPreview.tsx`
+  - added:
+    - completion drawer preview
+    - ready-for-review queue item
+    - completion/open-draft row actions
+- Added styling support for the new states:
+  - `dashboard/app/globals.css`
+  - added queue action, queue note, and completion summary styles
+
+#### Verification
+
+- Diagnostics: clean on the preview and styling files.
+- `npm run typecheck`
+
+#### Next Task
+
+- Task 085: Run final verification and update task tracking artifacts.
+
+### Task 085 - Translation Completion Verification And Tracking
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Verify the new completion workflow across backend and dashboard packages and update the project tracking artifacts.
+
+#### Changes Made
+
+- Updated project tracker:
+  - `docs/task-list.md`
+  - advanced the task list through Tasks 081-085
+- Recorded this handoff:
+  - `handoff.md`
+
+#### Verification
+
+- `npm run typecheck -w @shetrades/backend`
+- `npm run test -w @shetrades/backend -- src/routes/translation-requests.test.ts`
+- `npm run typecheck`
+- Diagnostics: clean on all edited backend and dashboard files
+
+#### Important Notes
+
+- Completing a translation creates or updates a managed draft and marks the queue item `Ready for Review`.
+- Final publish is still intentionally performed from the content workspace, not from the translation queue.
+- `Open Content Draft` relies on an in-page event bridge to focus the existing content editor drawer for the linked content item.
+
+#### Next Task
+
+- Perform focused live review on `/content`:
+  - verify `Complete Translation` opens with the correct request summary
+  - verify saving translated output adds the target language to the managed draft
+  - verify `Open Content Draft` opens the linked content item in the content workspace
+
+### Task 086 - Settings Integration Workspace Design
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define the managed `/settings` Integration workspace for WhatsApp and Notification providers before implementation.
+
+#### Changes Made
+
+- Wrote and approved the design spec:
+  - `docs/superpowers/specs/2026-05-17-settings-integration-workspace-design.md`
+- Locked the approved product shape:
+  - new top-level `Integration` tab in `/settings`
+  - nested `WhatsApp` and `Notification` provider tabs
+  - full managed draft/publish/history/rollback workflow
+  - connection testing for both providers
+  - access-key panel relocation into Integration
+  - direct `/settings` editing for all provider values, including secrets
+
+#### Next Task
+
+- Task 087: extend the backend config platform and runtime foundation for the new `integration` namespace and provider test endpoints.
+
+### Task 087 - Integration Backend Foundation
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Extend the config platform, admin APIs, runtime helpers, and backend tests for admin-managed integration documents and provider connection tests.
+
+#### Changes Made
+
+- Extended config-platform contracts:
+  - `backend/src/config-platform/contracts.ts`
+  - added `integration` namespace
+  - added `integration_config` document type
+  - added typed payload schemas for:
+    - `meta_whatsapp_cloud`
+    - `smtp`
+- Hardened config-platform service:
+  - `backend/src/config-platform/service.ts`
+  - admin-only handling for integration namespace via route layer
+  - added published integration document lookup for runtime use
+  - kept public config bundles scoped away from integration secrets
+- Extended admin routes:
+  - `backend/src/routes/config-admin.ts`
+  - added integration namespace compatibility and admin-only access enforcement
+- Kept public config secret-safe:
+  - `backend/src/routes/config-public.ts`
+  - public namespace parsing now excludes `integration`
+- Added runtime integration lookup:
+  - `backend/src/config-platform/runtime-config.ts`
+  - added managed integration helpers for WhatsApp and Notification
+- Switched webhook verification to managed runtime config with env fallback:
+  - `backend/src/routes/webhook.ts`
+- Added integration test contracts and provider test logic:
+  - `backend/src/integrations/contracts.ts`
+  - `backend/src/integrations/connection-tests.ts`
+  - added real SMTP verification via `nodemailer`
+- Added protected admin provider test routes:
+  - `backend/src/routes/integrations-admin.ts`
+  - mounted in `backend/src/app.ts`
+- Added focused backend coverage:
+  - `backend/src/routes/config-admin-auth.test.ts`
+  - `backend/src/routes/integrations-admin.test.ts`
+  - `backend/src/integrations/connection-tests.test.ts`
+  - `backend/src/routes/webhook.test.ts`
+
+#### Important Notes
+
+- Integration documents are stored in the managed config platform but are intentionally excluded from the public config API.
+- WhatsApp webhook verification now checks published managed integration config first, then falls back to `WHATSAPP_VERIFY_TOKEN` if no published config exists.
+- SMTP connection testing uses `nodemailer.verify()` for a real provider-auth check.
+
+#### Next Task
+
+- Task 088: build the reusable integration workspace component library and premium provider drawers.
+
+### Task 088 - Integration Workspace Components
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Build the reusable component layer required for the new Integration workspace before page composition.
+
+#### Changes Made
+
+- Added reusable admin access-key panel:
+  - `dashboard/components/config/AdminAccessKeyPanel.tsx`
+  - extracted token save/reload UI so it can live in Integration instead of repeating across every settings workspace
+- Added shared admin auth helper:
+  - `dashboard/lib/admin-config-auth.ts`
+- Added reusable integration types and state helpers:
+  - `dashboard/components/integration/types.ts`
+- Added premium provider edit drawer:
+  - `dashboard/components/integration/IntegrationConfigDrawer.tsx`
+  - provider-specific fields
+  - reveal/hide secret controls
+  - inline validation feedback
+  - connection-test results
+- Added read-only provider preview drawer:
+  - `dashboard/components/integration/IntegrationPreviewDrawer.tsx`
+  - masked secret presentation
+  - version-history summary
+- Added main reusable provider workspace composition:
+  - `dashboard/components/integration/IntegrationSettingsWorkspace.tsx`
+  - nested tabs
+  - single-row review table
+  - publish/rollback workflow panel
+  - trash/restore confirmation
+
+#### Important Notes
+
+- `ConfigAdminManager` now supports hiding its old access-key bar so `Options` and `Legal` remain clean while the shared access control surface lives in Integration.
+- Integration UI remains provider-specific instead of reusing the generic JSON editor, which keeps the experience non-technical and premium.
+
+#### Next Task
+
+- Task 089: add isolated preview coverage for the new integration components before using them on `/settings`.
+
+### Task 089 - Integration Preview Coverage
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Add preview coverage for the new Integration component library before page composition.
+
+#### Changes Made
+
+- Added a new isolated preview:
+  - `dashboard/app/previews/components/IntegrationWorkspacePreview.tsx`
+  - covers:
+    - access-key panel
+    - nested provider tabs
+    - WhatsApp drawer and preview
+    - Notification drawer and preview
+    - success and failure connection states
+- Registered the preview on the component previews page:
+  - `dashboard/app/previews/components/page.tsx`
+
+#### Next Task
+
+- Task 090: compose the real `/settings` Integration tab from the new reusable component layer.
+
+### Task 090 - Settings Integration Composition
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Add the top-level Integration tab to `/settings`, move the access-key component there, and compose the nested provider workspaces.
+
+#### Changes Made
+
+- Updated `/settings` top-level tabs:
+  - `dashboard/app/(admin)/settings/page.tsx`
+  - added `Integration` beside `Options` and `Legal`
+  - render `IntegrationSettingsWorkspace` when selected
+  - keep `Options` and `Legal` on `ConfigAdminManager` with access controls hidden
+- Added premium styling for the new Integration workspace:
+  - `dashboard/app/globals.css`
+  - access panel styling
+  - nested integration tab shell
+  - provider table styling
+  - drawer and preview presentation
+
+#### Important Notes
+
+- The access-key component now lives in the Integration workspace as requested.
+- `Options` and `Legal` still read the saved token from local storage, so the moved access key remains effective across the rest of settings.
+
+#### Next Task
+
+- Task 091: run final verification and update the tracker and handoff records.
+
+### Task 091 - Integration Verification And Tracking
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Verify the new Integration workspace across backend and dashboard packages, then update project tracking artifacts.
+
+#### Changes Made
+
+- Updated project tracker:
+  - `docs/task-list.md`
+  - advanced the task list through Tasks 086-091
+- Recorded this handoff:
+  - `handoff.md`
+- Fixed preview-surface production build blockers discovered during verification:
+  - moved the interactive `Select + Tabs` preview into `dashboard/app/previews/components/PreviewSelectTabsDemo.tsx`
+  - kept `dashboard/app/previews/components/page.tsx` server-rendered while removing direct interactive handler props from the page
+  - marked interactive shared UI components as client components:
+    - `dashboard/components/ui/ConfigDocumentCard.tsx`
+    - `dashboard/components/ui/OptionSetEditor.tsx`
+    - `dashboard/components/ui/PublishWorkflowPanel.tsx`
+
+#### Verification
+
+- `npm run typecheck -w @shetrades/backend`
+- `npm run test -w @shetrades/backend -- src/routes/config-admin-auth.test.ts src/routes/integrations-admin.test.ts src/integrations/connection-tests.test.ts src/routes/webhook.test.ts`
+- `npm run typecheck`
+- `npm run build -w @shetrades/dashboard`
+- Diagnostics: clean on all edited backend and dashboard files
+
+#### Important Notes
+
+- Integration configs are admin-managed, versioned, and draft/published like the rest of settings, but remain excluded from the public config API to avoid leaking secrets.
+- WhatsApp verification can now run from published managed config instead of relying only on environment variables.
+- SMTP connection tests now use a real transport verify flow.
+- The component preview route now builds cleanly in production mode, which protects the component-preview approval workflow required by project rules.
+
+#### Next Task
+
+- Perform focused live review on `/settings`:
+  - verify the top-level `Integration` tab appears
+  - verify nested `WhatsApp` and `Notification` tabs load correctly
+  - verify the access key panel works from Integration
+  - verify draft save, publish, rollback, and trash/restore flows
+  - verify provider connection tests surface clear success and failure feedback
+
+### Task 092 - Admin Login And Profile Experience Design
+
+- Date: 2026-05-17
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define the premium replacement for the manual JWT paste workflow with a real admin login flow, profile page, and sidebar identity card.
+
+#### Changes Made
+
+- Wrote the design spec:
+  - `docs/superpowers/specs/2026-05-17-admin-login-and-profile-design.md`
+- Captured the approved product direction:
+  - seeded admin accounts with `email + password`
+  - premium `/login` page
+  - premium `/profile` page
+  - sidebar profile card with avatar, name, and email linking to `/profile`
+  - backend-issued session model replacing normal manual JWT pasting
+- Defined implementation order before any UI build:
+  - database schema and API contracts first
+  - backend auth/session foundation next
+  - component library and previews before page composition
+
+#### Verification
+
+- Spec self-review complete
+- Placeholder scan complete:
+  - no `TBD`
+  - no `TODO`
+  - no ambiguous implementation placeholders left in the spec
+- Scope check complete:
+  - focused on auth/profile foundation only
+  - explicitly excludes forgot-password, invites, MFA, SSO, and self-registration
+
+#### Important Notes
+
+- The design keeps the project aligned with the component-first and preview-first rules by requiring reusable auth/profile components and preview coverage before page composition.
+- The design also aligns with the user directive to output database schema and API contracts before UI implementation by making those the first implementation phase.
+- Mutable auth and profile UI copy should continue through the managed admin UI copy strategy instead of introducing a new hardcoded copy island.
+
+#### Next Task
+
+- Task 093: implement the backend admin auth foundation with seeded admin accounts, password hashing, sessions, and typed auth/profile endpoints.
+
+### Task 093 - Backend Admin Auth Foundation
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Implement the backend account, session, token, and typed route foundation required for the new admin login and profile flow before any UI work begins.
+
+#### Changes Made
+
+- Added shared token utilities:
+  - `backend/src/auth/token.ts`
+  - centralized HS256 signing/parsing, bearer token parsing, standard claim validation, and role/claim typing
+- Added typed auth contracts:
+  - `backend/src/auth/contracts.ts`
+  - request/response schemas for login, logout, current session, profile update, and password change
+- Added backend auth service:
+  - `backend/src/auth/service.ts`
+  - seeded bootstrap admin loading from environment
+  - password hashing with `scrypt`
+  - revocable in-memory admin session store for runtime and tests
+  - session-backed JWT issuance for the new login flow
+- Extended existing JWT middleware:
+  - `backend/src/auth/jwt-rbac.ts`
+  - preserves existing role checks
+  - adds session-backed authentication context for new login tokens
+  - adds `requireAuthenticatedSession` for true signed-in admin routes
+- Added new admin auth routes:
+  - `backend/src/routes/admin-auth.ts`
+  - `POST /api/admin/auth/login`
+  - `GET /api/admin/auth/me`
+  - `POST /api/admin/auth/logout`
+  - `PATCH /api/admin/auth/profile`
+  - `POST /api/admin/auth/change-password`
+- Mounted auth routes in:
+  - `backend/src/app.ts`
+- Added explicit PostgreSQL schema output:
+  - `backend/src/auth/schema.sql`
+  - `admin_users`
+  - `admin_sessions`
+- Added bootstrap environment placeholders:
+  - `.env.example`
+- Added focused backend coverage:
+  - `backend/src/routes/admin-auth.test.ts`
+
+#### Verification
+
+- `npm run typecheck -w @shetrades/backend`
+- `npm run test -w @shetrades/backend -- src/routes/admin-auth.test.ts src/routes/config-admin-auth.test.ts src/routes/integrations-admin.test.ts src/routes/translation-requests.test.ts`
+- Diagnostics: clean on all edited backend files
+
+#### Important Notes
+
+- Existing protected admin routes remain compatible with role-only bearer tokens while now also accepting session-backed login tokens from the new auth service.
+- The new auth foundation is intentionally implemented before any login/profile UI so the project continues to follow the required build order.
+- Bootstrap admin creation is environment-driven and no real credentials are committed to the repository.
+- The runtime session store is currently in-memory, while the explicit PostgreSQL schema is now defined for the durable persistence phase of the auth rollout.
+
+#### Next Task
+
+- Task 094: build the reusable auth and profile component library plus preview coverage before composing `/login` and `/profile`.
+
+### Task 094 - Auth And Profile Component Library
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Build the reusable auth/profile component layer and preview surfaces before composing any live auth pages.
+
+#### Changes Made
+
+- Added new shared auth components:
+  - `dashboard/components/auth/AuthPageShell.tsx`
+  - `dashboard/components/auth/AuthStatusBanner.tsx`
+  - `dashboard/components/auth/PasswordField.tsx`
+  - `dashboard/components/auth/LoginFormCard.tsx`
+  - `dashboard/components/auth/ProfileSidebarCard.tsx`
+  - `dashboard/components/auth/ProfileSummaryCard.tsx`
+  - `dashboard/components/auth/ProfileDetailsForm.tsx`
+  - `dashboard/components/auth/ProfilePasswordForm.tsx`
+  - `dashboard/components/auth/types.ts`
+- Added preview coverage:
+  - `dashboard/app/previews/components/AdminAuthPreview.tsx`
+  - registered in `dashboard/app/previews/components/page.tsx`
+- Added premium auth/profile styling:
+  - `dashboard/app/globals.css`
+- Kept the component APIs prop-driven so labels, hints, errors, feedback messages, and state remain externally controlled rather than hardwired inside the components.
+
+#### Verification
+
+- `npm run typecheck -w @shetrades/dashboard`
+- `npm run build -w @shetrades/dashboard`
+- Diagnostics: clean on all edited auth component and preview files
+
+#### Important Notes
+
+- This stage intentionally stops at the component library and preview boundary to preserve the required implementation order before page composition.
+- The preview includes:
+  - sign-in shell
+  - sign-in form states
+  - sidebar profile card
+  - profile summary
+  - profile details form
+  - password form
+
+#### Next Task
+
+- Task 095: compose `/login`, `/profile`, sidebar profile integration, and route guards from the shared auth/profile component layer.
+
+### Task 095 - Auth Page Composition And Route Guards
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Replace the manual token-first entry flow with live premium `/login` and `/profile` routes, shared session state, and protected admin route composition.
+
+#### Changes Made
+
+- Added a shared dashboard auth client:
+  - `dashboard/lib/admin-auth.ts`
+  - stores the new session token
+  - mirrors the token to legacy `admin_config_jwt` storage for backward-compatible admin workspace access during migration
+  - provides shared JSON request handling for auth endpoints
+- Updated the legacy config auth helper to use the new shared storage:
+  - `dashboard/lib/admin-config-auth.ts`
+- Added shared admin session state and guard components:
+  - `dashboard/components/auth/AdminSessionProvider.tsx`
+  - `dashboard/components/auth/AdminAuthGate.tsx`
+- Added live auth pages:
+  - `dashboard/app/login/page.tsx`
+  - `dashboard/app/(admin)/profile/page.tsx`
+- Added thin page clients:
+  - `dashboard/components/auth/LoginPageClient.tsx`
+  - `dashboard/components/auth/ProfilePageClient.tsx`
+- Updated the authenticated admin layout:
+  - `dashboard/app/(admin)/layout.tsx`
+  - now wraps admin routes in the session provider and route guard
+- Updated the admin shell:
+  - `dashboard/components/layout/AdminShell.tsx`
+  - now renders the live sidebar profile card linked to `/profile`
+- Updated the preview shell example so it renders under the session provider too:
+  - `dashboard/app/previews/components/page.tsx`
+- Extended premium layout styles for:
+  - login route
+  - profile page grid
+  - sidebar footer card integration
+  - auth route loading/fallback composition
+
+#### Verification
+
+- `npm run typecheck -w @shetrades/dashboard`
+- `npm run build -w @shetrades/dashboard`
+- Diagnostics: clean on all edited auth/session/layout files
+
+#### Important Notes
+
+- The admin route guard is client-side because the current dashboard auth token is browser-managed; the provider verifies `/api/admin/auth/me` and redirects unauthenticated users to `/login`.
+- The new login flow is compatible with existing protected admin surfaces because the session token is mirrored into the legacy admin token storage used by current settings/content/integration clients.
+- `/login` is wrapped in `Suspense` to satisfy Next.js prerender requirements around `useSearchParams()`.
+
+#### Next Task
+
+- Task 096: finalize verification and append auth/profile rollout tracking.
+
+### Task 096 - Auth/Profile Verification And Tracking
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Close the auth/profile rollout with verification and updated project tracking.
+
+#### Verification
+
+- Backend:
+  - `npm run typecheck -w @shetrades/backend`
+  - `npm run test -w @shetrades/backend -- src/routes/admin-auth.test.ts src/routes/config-admin-auth.test.ts src/routes/integrations-admin.test.ts src/routes/translation-requests.test.ts`
+- Dashboard:
+  - `npm run typecheck -w @shetrades/dashboard`
+  - `npm run build -w @shetrades/dashboard`
+- Diagnostics:
+  - clean on edited backend and dashboard files
+
+#### Tracking Updates
+
+- Updated:
+  - `docs/task-list.md`
+  - `handoff.md`
+- Recorded completed tasks:
+  - Task 094
+  - Task 095
+  - Task 096
+
+#### Next Suggested Review
+
+- Perform a focused live review of:
+  - `/login`
+  - `/profile`
+  - admin-route redirect behavior
+  - seeded admin sign-in flow
+  - sidebar profile card updates after profile edits
+
+### Task 097 - Overview And Users Premium Workspace Redesign Design
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define the premium parity redesign for `/overview` and `/users` so both routes align structurally and visually with `/settings` and `/content`.
+
+#### Changes Made
+
+- Wrote the design spec:
+  - `docs/superpowers/specs/2026-05-18-overview-users-workspace-redesign.md`
+- Captured the approved direction:
+  - full workspace parity, not visual-only parity
+  - one shared reusable workspace pattern for both routes
+  - `/users` redesigned with a preview-ready action rail direction
+- Defined the target composition model:
+  - shared premium review workspace
+  - summary strip
+  - dominant table shell
+  - support panel zone
+  - thin page composition for `/overview` and `/users`
+- Kept scope intentionally bounded:
+  - no new backend APIs
+  - no real user moderation workflow in this pass
+  - no user preview drawer implementation in this pass
+
+#### Verification
+
+- Spec self-review complete
+- Placeholder scan complete:
+  - no `TBD`
+  - no `TODO`
+  - no unresolved placeholders
+- Scope check complete:
+  - focused enough for one implementation plan
+  - implementation order remains aligned with component-first and preview-first rules
+
+#### Important Notes
+
+- The redesign is intentionally based on the newer `/settings` and `/content` workspace language, not the older equal-weight dashboard card model.
+- The shared workspace pattern should be built before touching `/overview` or `/users` page composition.
+- `/users` should become structurally ready for future preview drawers and moderation actions even if those actions are not implemented in this pass.
+
+#### Next Task
+
+- Task 098: implement shared overview/users workspace primitives and preview coverage before composing the two routes.
+
+### Task 098 - Shared Overview/Users Workspace Primitives And Preview Coverage
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Build the shared premium workspace layer and isolated preview coverage before touching `/dashboard` and `/users`.
+
+#### Changes Made
+
+- Added new shared UI primitives:
+  - `dashboard/components/ui/AdminWorkspaceMetricStrip.tsx`
+  - `dashboard/components/ui/AdminReviewTableShell.tsx`
+  - `dashboard/components/ui/AdminReviewWorkspace.tsx`
+  - `dashboard/components/ui/AdminActionRail.tsx`
+- Updated barrel exports:
+  - `dashboard/components/ui/index.ts`
+- Added preview coverage:
+  - `dashboard/app/previews/components/OverviewUsersWorkspacePreview.tsx`
+  - registered on `dashboard/app/previews/components/page.tsx`
+- Added premium workspace styling:
+  - `dashboard/app/globals.css`
+
+#### Why
+
+- Establishes one reusable premium workspace pattern instead of creating more route-specific layout fragments.
+- Keeps the implementation aligned with the component-first and preview-before-page rules.
+- Prepares the `/users` directory for future row preview and moderation flows with a compact action rail.
+
+#### Verification
+
+- VS Code diagnostics clean on new component and preview files.
+- Preview registration completed successfully.
+
+#### Next Task
+
+- Task 099: compose `/dashboard` on the new shared workspace pattern.
+
+### Task 099 - `/overview` Premium Workspace Composition
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Rebuild the overview route (`/dashboard`, labeled Overview in navigation) on the shared premium workspace system.
+
+#### Changes Made
+
+- Reworked:
+  - `dashboard/app/(admin)/dashboard/page.tsx`
+- Replaced the earlier equal-weight dashboard card layout with:
+  - shared premium workspace shell
+  - compact metric strip
+  - dominant operational review table
+  - quieter support panels for reward activity, at-risk learners, funnel snapshot, and milestones
+- Preserved current data sources from:
+  - users API
+  - rewards API
+  - analytics API
+
+#### Why
+
+- Makes the overview route match the calmer, table-first, premium admin language introduced in `/settings` and `/content`.
+- Creates a clearer top-down reading order for operators.
+- Keeps the page composition thin and reusable.
+
+#### Verification
+
+- Diagnostics clean on `dashboard/app/(admin)/dashboard/page.tsx`
+
+#### Next Task
+
+- Task 100: compose `/users` on the shared workspace with a preview-ready action rail.
+
+### Task 100 - `/users` Premium Workspace Composition With Preview-Ready Action Rail
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Rebuild `/users` so it aligns with the shared premium workspace pattern and reserves structure for future row actions.
+
+#### Changes Made
+
+- Reworked:
+  - `dashboard/app/(admin)/users/page.tsx`
+- Added:
+  - compact metric strip for directory health
+  - dominant learner-directory table shell
+  - right-aligned preview-ready icon action rail per row
+  - calmer support panels for directory coverage and future action staging
+- Kept current page behavior read-only while making the row structure ready for future preview drawers and moderation actions.
+
+#### Why
+
+- Aligns `/users` visually and structurally with the rest of the premium admin system.
+- Avoids another redesign later when row-level actions become real.
+- Improves scanability by merging identity, progress context, and status into a stronger table rhythm.
+
+#### Verification
+
+- Diagnostics clean on `dashboard/app/(admin)/users/page.tsx`
+
+#### Next Task
+
+- Task 101: run verification, update tracking docs, and log parity handoff details.
+
+### Task 101 - Overview/Users Verification, Tracking, And Parity Handoff
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Verify the overview/users redesign and capture enough detail for the next agent or review pass.
+
+#### Verification
+
+- `npm run typecheck -w @shetrades/dashboard`
+- `npm run build -w @shetrades/dashboard`
+- VS Code diagnostics clean on all edited overview/users files
+
+#### Important Notes
+
+- The shared workspace preview lives on `/previews/components` and should be reviewed before additional admin route parity work.
+- The `/users` action rail is intentionally disabled-but-ready in this pass; it preserves space and hierarchy for future preview drawers and moderation actions without implying unfinished live behavior.
+- The navigation route remains `/dashboard`, but the design work was executed as the requested “overview” parity pass.
+
+#### Next Suggested Review
+
+- Perform a focused live review of:
+  - `/dashboard`
+  - `/users`
+  - `/previews/components`
+- Decide whether the next pass should activate the user action rail with a read-only side drawer.
+
+### Task 102 - Analytics, Rewards, And Reports Premium Workspace Redesign Design
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define the premium parity redesign for `/analytics`, `/rewards`, and `/reports` so all three routes align with the newer workspace system already used by `/settings`, `/content`, `/dashboard`, and `/users`.
+
+#### Changes Made
+
+- Wrote and approved the design spec:
+  - `docs/superpowers/specs/2026-05-18-analytics-rewards-reports-workspace-redesign.md`
+- Locked the shared product direction:
+  - all three routes move onto the shared premium workspace language
+  - `/analytics` remains insight-led
+  - `/rewards` and `/reports` remain table-led
+- Defined the shared-system extension strategy:
+  - reuse `AdminReviewWorkspace`
+  - reuse `AdminWorkspaceMetricStrip`
+  - reuse `AdminReviewTableShell`
+  - add only the missing shared analytics insight surface needed for parity
+- Captured route-level composition guidance for:
+  - `/analytics`
+  - `/rewards`
+  - `/reports`
+- Recorded strict implementation order:
+  - shared primitives
+  - preview coverage
+  - `/analytics`
+  - `/rewards`
+  - `/reports`
+  - verification and tracking updates
+
+#### Why
+
+- Keeps the admin product consistent without forcing every route into the same layout shape.
+- Preserves the correct emphasis for each route:
+  - analytics as interpretation-first
+  - rewards as operations-first
+  - reports as governance-first
+- Avoids bespoke page implementations by extending the shared workspace system instead.
+
+#### Important Notes
+
+- This pass is intentionally presentation- and hierarchy-focused; it does not introduce new backend contracts.
+- The only new shared primitive expected from the spec is an insight-led analytics primary surface that matches the premium language of the existing review-table shell.
+- Preview coverage remains mandatory before any of the three routes consume new shared components.
+
+#### Next Task
+
+- Task 103: implement the shared analytics/rewards/reports workspace additions and preview coverage before composing the three routes.
+
+### Task 103 - Shared Analytics/Rewards/Reports Workspace Additions And Preview Coverage
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Extend the premium workspace system with the missing shared analytics surface and preview the new parity patterns before route composition.
+
+#### Changes Made
+
+- Added shared insight-led workspace primitives:
+  - `dashboard/components/ui/AdminInsightSurface.tsx`
+  - `dashboard/components/ui/AdminInsightPanel.tsx`
+- Exported the new shared primitives from:
+  - `dashboard/components/ui/index.ts`
+- Added preview coverage for the new parity system:
+  - `dashboard/app/previews/components/AnalyticsRewardsReportsWorkspacePreview.tsx`
+- Registered the preview in:
+  - `dashboard/app/previews/components/page.tsx`
+- Extended premium workspace styling in:
+  - `dashboard/app/globals.css`
+
+#### Why
+
+- Gives analytics a reusable premium primary surface without creating a bespoke route-only layout.
+- Preserves the component-first and preview-first rules before composing `/analytics`, `/rewards`, and `/reports`.
+- Keeps the newer admin workspace system expandable rather than fragmenting across routes.
+
+#### Verification
+
+- VS Code diagnostics clean on all new shared component, preview, and style files.
+
+#### Next Task
+
+- Task 104: compose `/analytics` on the shared workspace using the new insight-led surface.
+
+### Task 104 - `/analytics` Premium Workspace Composition
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Rebuild `/analytics` on the shared premium workspace system while keeping the route insight-led.
+
+#### Changes Made
+
+- Replaced the older stat-card-plus-grid layout in:
+  - `dashboard/app/(admin)/analytics/page.tsx`
+- Composed the route using:
+  - `AdminReviewWorkspace`
+  - `AdminInsightSurface`
+  - `AdminInsightPanel`
+- Added:
+  - compact metrics strip
+  - dominant analytics review canvas
+  - grouped funnel tabs
+  - performance signal stack
+  - calmer support panels for interpretation notes, source health, and publishing readiness
+
+#### Why
+
+- Keeps analytics aligned with the premium admin system without forcing it into a table-first page model.
+- Makes the strongest interpretive signals visually dominant and easier to review.
+- Moves lower-priority notes and readiness states into calmer secondary panels.
+
+#### Verification
+
+- Diagnostics clean on `dashboard/app/(admin)/analytics/page.tsx`
+
+#### Next Task
+
+- Task 105: compose `/rewards` and `/reports` on the shared premium workspace system, then run full verification and update tracking docs.
+
+### Task 105 - `/rewards` And `/reports` Premium Workspace Composition Plus Verification
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Rebuild `/rewards` and `/reports` on the shared premium workspace system, verify the dashboard app, and capture the new parity handoff.
+
+#### Changes Made
+
+- Rebuilt `dashboard/app/(admin)/rewards/page.tsx` on `AdminReviewWorkspace` with:
+  - compact summary metrics
+  - dominant reward log table shell
+  - calmer secondary panels for exceptions, delivery gaps, and automation health
+- Rebuilt `dashboard/app/(admin)/reports/page.tsx` on `AdminReviewWorkspace` with:
+  - compact summary metrics
+  - dominant export history table shell
+  - calmer secondary panels for presets, scheduled jobs, and governance notes
+- Kept both routes on current backend contracts without introducing new API dependencies.
+- Updated tracking in:
+  - `docs/task-list.md`
+  - `handoff.md`
+
+#### Why
+
+- Extends the newer premium workspace language consistently across the remaining admin routes.
+- Preserves route-appropriate hierarchy by keeping rewards and reports table-led.
+- Improves review clarity while keeping page files thin and component-first.
+
+#### Verification
+
+- `npm run typecheck -w @shetrades/dashboard`
+- `npm run build -w @shetrades/dashboard`
+- VS Code diagnostics clean on all edited analytics/rewards/reports, preview, shared UI, and tracking files
+
+#### Important Notes
+
+- The analytics route now depends on the new shared insight surface rather than route-specific card grids.
+- Rewards and reports intentionally stay table-led; no row action rails were introduced in this pass.
+- The new preview for analytics/rewards/reports parity should be reviewed on `/previews/components` before any future drill-down or action-layer expansion.
+
+#### Next Suggested Review
+
+- Perform a focused live review of:
+  - `/analytics`
+  - `/rewards`
+  - `/reports`
+  - `/previews/components`
+- Decide whether a future pass should add:
+  - analytics drill-down or cohort-comparison views
+  - compact row action rails for rewards or reports
+
+### Task 106 - Executive-Premium `/login` Redesign Design
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define a sharper executive-premium redesign for `/login` so the sign-in experience better matches the quality, hierarchy, and trust level of the newer admin workspaces.
+
+#### Changes Made
+
+- Wrote the design spec:
+  - `docs/superpowers/specs/2026-05-18-executive-premium-login-redesign.md`
+- Locked the approved redesign direction:
+  - executive-premium tone
+  - full redesign rather than a visual-only uplift
+  - split-workspace composition
+- Defined the page structure:
+  - dominant sign-in panel
+  - quieter trust panel
+  - refined support/footer region
+- Defined shared component scope before page composition:
+  - extend `AuthPageShell`
+  - extend `LoginFormCard`
+  - update preview coverage before touching the live route
+- Defined state-quality expectations for:
+  - idle
+  - loading
+  - invalid credentials
+  - authenticated redirect
+  - help/support affordance
+
+#### Why
+
+- The existing `/login` page is functionally solid but still reads as too utility-first for the current premium admin quality bar.
+- The redesign keeps the working auth flow while upgrading trust, hierarchy, and perceived product maturity.
+- Treating this as a focused follow-on redesign avoids reopening the broader auth/profile foundation already completed in Tasks 092-096.
+
+#### Important Notes
+
+- This pass is intentionally limited to the login experience; it does not reopen backend auth contracts or the `/profile` workspace.
+- The redesign remains component-first and preview-first, with shared auth primitives upgraded before route composition.
+- The trust panel should stay operational and executive, not marketing-heavy or brand-campaign styled.
+
+#### Next Task
+
+- Task 107: implement the executive-premium auth shell and login form upgrades, then add preview coverage before recomposing `/login`.
+
+### Task 107 - Executive-Premium Auth Shell And Login Form Upgrades Plus Preview Coverage
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Upgrade the shared auth shell and login form to an executive-premium quality level, then preview the redesigned login states before rolling the live route.
+
+#### Changes Made
+
+- Extended the shared auth shell in:
+  - `dashboard/components/auth/AuthPageShell.tsx`
+  - added hero badge/highlights support
+  - added trust-panel highlights
+  - added structured support region support
+- Upgraded the shared login form in:
+  - `dashboard/components/auth/LoginFormCard.tsx`
+  - added stronger executive header treatment
+  - added clearer CTA zone and submit hint
+  - added recovery/help action slot
+- Updated the auth preview in:
+  - `dashboard/app/previews/components/AdminAuthPreview.tsx`
+  - added executive-premium idle, loading, error, and help states
+- Expanded auth styling in:
+  - `dashboard/app/globals.css`
+  - upgraded split-workspace hierarchy
+  - upgraded trust-panel presentation
+  - upgraded login-card and field styling
+  - added responsive collapse behavior for the new auth layout
+
+#### Why
+
+- Keeps the redesign reusable by upgrading shared auth primitives before touching the live page.
+- Makes the login experience feel materially more premium instead of simply better decorated.
+- Preserves preview-first review for the new auth states before the route rollout.
+
+#### Verification
+
+- VS Code diagnostics clean on all edited auth component, preview, and style files.
+
+#### Next Task
+
+- Task 108: recompose the live `/login` route with the upgraded shared auth system, run verification, and update tracking docs.
+
+### Task 108 - Executive-Premium `/login` Page Composition And Verification
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Roll the upgraded executive-premium auth system into the live `/login` route, verify the dashboard app, and capture the handoff.
+
+#### Changes Made
+
+- Recomposed the live login experience in:
+  - `dashboard/components/auth/LoginPageClient.tsx`
+  - added premium hero highlights, trust metrics, support messaging, and help affordance behavior
+- Upgraded the loading fallback for `/login` in:
+  - `dashboard/app/login/page.tsx`
+  - kept the loading path on the same executive auth shell rather than dropping to a plain utility state
+- Updated tracking in:
+  - `docs/task-list.md`
+  - `handoff.md`
+
+#### Why
+
+- Aligns the live login route with the stronger premium standards already established across the newer admin workspaces.
+- Improves both trust and flow by keeping the sign-in surface dominant while moving operational reassurance into a structured secondary panel.
+- Preserves the working auth/session model while materially improving the perceived product quality of the entry experience.
+
+#### Verification
+
+- `npm run typecheck -w @shetrades/dashboard`
+- `npm run build -w @shetrades/dashboard`
+- VS Code diagnostics clean on all edited login, auth, preview, style, and tracking files
+
+#### Important Notes
+
+- The support/help affordance now lives inside the login experience as a controlled feedback state instead of a loose generic footer action.
+- The redesign is intentionally limited to `/login`; `/profile` and backend auth contracts remain unchanged in this pass.
+- The preview surface should be reviewed on `/previews/components` before extending this executive auth shell to future recovery or invite flows.
+
+#### Next Suggested Review
+
+- Perform a focused live review of:
+  - `/login`
+  - `/previews/components`
+- Decide whether a future auth pass should add:
+  - recovery or invite entry flows using the same premium shell
+  - trust-panel environment or account-readiness indicators

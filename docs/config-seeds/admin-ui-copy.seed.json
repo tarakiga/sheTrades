@@ -1,0 +1,911 @@
+[
+  {
+    "key": "admin.ui.analytics.actions.downloadCsv",
+    "title": "Analytics Download Button",
+    "content": {
+      "en": "Download Analytics CSV",
+      "pcm": "Download Analytics CSV",
+      "ig": "Download Analytics CSV"
+    }
+  },
+  {
+    "key": "admin.ui.analytics.description",
+    "title": "Analytics Page Description",
+    "content": {
+      "en": "Track registration, progression, and quiz performance across modules.",
+      "pcm": "Track registration, progression, and quiz performance across modules.",
+      "ig": "Track registration, progression, and quiz performance across modules."
+    }
+  },
+  {
+    "key": "admin.ui.analytics.title",
+    "title": "Analytics Page Title",
+    "content": {
+      "en": "Analytics",
+      "pcm": "Analytics",
+      "ig": "Analytics"
+    }
+  },
+  {
+    "key": "admin.ui.common.columns.amount",
+    "title": "Common Column Amount",
+    "content": {
+      "en": "Amount",
+      "pcm": "Amount",
+      "ig": "Amount"
+    }
+  },
+  {
+    "key": "admin.ui.common.columns.completion",
+    "title": "Common Column Completion",
+    "content": {
+      "en": "Completion",
+      "pcm": "Completion",
+      "ig": "Completion"
+    }
+  },
+  {
+    "key": "admin.ui.common.columns.format",
+    "title": "Common Column Format",
+    "content": {
+      "en": "Format",
+      "pcm": "Format",
+      "ig": "Format"
+    }
+  },
+  {
+    "key": "admin.ui.common.columns.learner",
+    "title": "Common Column Learner",
+    "content": {
+      "en": "Learner",
+      "pcm": "Learner",
+      "ig": "Learner"
+    }
+  },
+  {
+    "key": "admin.ui.common.columns.location",
+    "title": "Common Column Location",
+    "content": {
+      "en": "Location",
+      "pcm": "Location",
+      "ig": "Location"
+    }
+  },
+  {
+    "key": "admin.ui.common.columns.module",
+    "title": "Common Column Module",
+    "content": {
+      "en": "Module",
+      "pcm": "Module",
+      "ig": "Module"
+    }
+  },
+  {
+    "key": "admin.ui.common.columns.owner",
+    "title": "Common Column Owner",
+    "content": {
+      "en": "Owner",
+      "pcm": "Owner",
+      "ig": "Owner"
+    }
+  },
+  {
+    "key": "admin.ui.common.columns.report",
+    "title": "Common Column Report",
+    "content": {
+      "en": "Report",
+      "pcm": "Report",
+      "ig": "Report"
+    }
+  },
+  {
+    "key": "admin.ui.common.columns.status",
+    "title": "Common Column Status",
+    "content": {
+      "en": "Status",
+      "pcm": "Status",
+      "ig": "Status"
+    }
+  },
+  {
+    "key": "admin.ui.common.fallbackData",
+    "title": "Common Fallback Data Label",
+    "content": {
+      "en": "Fallback Data",
+      "pcm": "Fallback Data",
+      "ig": "Fallback Data"
+    }
+  },
+  {
+    "key": "admin.ui.common.liveData",
+    "title": "Common Live Data Label",
+    "content": {
+      "en": "Live Data",
+      "pcm": "Live Data",
+      "ig": "Live Data"
+    }
+  },
+  {
+    "key": "admin.ui.common.safeEmptyFallback",
+    "title": "Common Safe Empty Fallback Label",
+    "content": {
+      "en": "Safe Empty Fallback",
+      "pcm": "Safe Empty Fallback",
+      "ig": "Safe Empty Fallback"
+    }
+  },
+  {
+    "key": "admin.ui.configContent.title",
+    "title": "Config Content Page Title",
+    "content": {
+      "en": "Config - Content",
+      "pcm": "Config - Content",
+      "ig": "Config - Content"
+    }
+  },
+  {
+    "key": "admin.ui.configLegal.title",
+    "title": "Config Legal Page Title",
+    "content": {
+      "en": "Config - Legal",
+      "pcm": "Config - Legal",
+      "ig": "Config - Legal"
+    }
+  },
+  {
+    "key": "admin.ui.configOptions.title",
+    "title": "Config Options Page Title",
+    "content": {
+      "en": "Config - Options",
+      "pcm": "Config - Options",
+      "ig": "Config - Options"
+    }
+  },
+  {
+    "key": "admin.ui.content.actions.createLesson",
+    "title": "Content Create Lesson Button",
+    "content": {
+      "en": "Create Lesson",
+      "pcm": "Create Lesson",
+      "ig": "Create Lesson"
+    }
+  },
+  {
+    "key": "admin.ui.content.description",
+    "title": "Content Page Description",
+    "content": {
+      "en": "Manage lesson text, audio variants, and quiz structures.",
+      "pcm": "Manage lesson text, audio variants, and quiz structures.",
+      "ig": "Manage lesson text, audio variants, and quiz structures."
+    }
+  },
+  {
+    "key": "admin.ui.content.title",
+    "title": "Content Page Title",
+    "content": {
+      "en": "Content",
+      "pcm": "Content",
+      "ig": "Content"
+    }
+  },
+  {
+    "key": "admin.ui.dashboard.actions.exportSummary",
+    "title": "Dashboard Export Summary Button",
+    "content": {
+      "en": "Export Summary",
+      "pcm": "Export Summary",
+      "ig": "Export Summary"
+    }
+  },
+  {
+    "key": "admin.ui.dashboard.description",
+    "title": "Dashboard Description",
+    "content": {
+      "en": "Live view of learner performance, module funnel, and reward operations.",
+      "pcm": "Live view of learner performance, module funnel, and reward operations.",
+      "ig": "Live view of learner performance, module funnel, and reward operations."
+    }
+  },
+  {
+    "key": "admin.ui.dashboard.title",
+    "title": "Dashboard Title",
+    "content": {
+      "en": "Dashboard Overview",
+      "pcm": "Dashboard Overview",
+      "ig": "Dashboard Overview"
+    }
+  },
+  {
+    "key": "admin.ui.error.adminWorkspace.cardDescription",
+    "title": "Admin Error Card Description",
+    "content": {
+      "en": "Try reloading the route or return later.",
+      "pcm": "Try reloading the route or return later.",
+      "ig": "Try reloading the route or return later."
+    }
+  },
+  {
+    "key": "admin.ui.error.adminWorkspace.cardTitle",
+    "title": "Admin Error Card Title",
+    "content": {
+      "en": "Unable to load this section",
+      "pcm": "Unable to load this section",
+      "ig": "Unable to load this section"
+    }
+  },
+  {
+    "key": "admin.ui.error.adminWorkspace.description",
+    "title": "Admin Error Description",
+    "content": {
+      "en": "An unexpected error occurred.",
+      "pcm": "An unexpected error occurred.",
+      "ig": "An unexpected error occurred."
+    }
+  },
+  {
+    "key": "admin.ui.error.adminWorkspace.returnToDashboard",
+    "title": "Admin Error Return Button",
+    "content": {
+      "en": "Return To Dashboard",
+      "pcm": "Return To Dashboard",
+      "ig": "Return To Dashboard"
+    }
+  },
+  {
+    "key": "admin.ui.error.adminWorkspace.title",
+    "title": "Admin Error Title",
+    "content": {
+      "en": "Admin Workspace Error",
+      "pcm": "Admin Workspace Error",
+      "ig": "Admin Workspace Error"
+    }
+  },
+  {
+    "key": "admin.ui.error.adminWorkspace.tryAgain",
+    "title": "Admin Error Try Again Button",
+    "content": {
+      "en": "Try Again",
+      "pcm": "Try Again",
+      "ig": "Try Again"
+    }
+  },
+  {
+    "key": "admin.ui.loading.analytics.cardDescription",
+    "title": "Analytics Loading Card Description",
+    "content": {
+      "en": "Preparing latest analytics snapshots.",
+      "pcm": "Preparing latest analytics snapshots.",
+      "ig": "Preparing latest analytics snapshots."
+    }
+  },
+  {
+    "key": "admin.ui.loading.analytics.headerDescription",
+    "title": "Analytics Loading Header Description",
+    "content": {
+      "en": "Loading analytics modules...",
+      "pcm": "Loading analytics modules...",
+      "ig": "Loading analytics modules..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.analytics.label",
+    "title": "Analytics Loading Label",
+    "content": {
+      "en": "Loading analytics...",
+      "pcm": "Loading analytics...",
+      "ig": "Loading analytics..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.configContent.cardDescription",
+    "title": "Config Content Loading Card Description",
+    "content": {
+      "en": "Fetching latest published config documents.",
+      "pcm": "Fetching latest published config documents.",
+      "ig": "Fetching latest published config documents."
+    }
+  },
+  {
+    "key": "admin.ui.loading.configContent.cardTitle",
+    "title": "Config Content Loading Card Title",
+    "content": {
+      "en": "Published Content Config",
+      "pcm": "Published Content Config",
+      "ig": "Published Content Config"
+    }
+  },
+  {
+    "key": "admin.ui.loading.configContent.headerDescription",
+    "title": "Config Content Loading Header Description",
+    "content": {
+      "en": "Loading content configuration...",
+      "pcm": "Loading content configuration...",
+      "ig": "Loading content configuration..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.configContent.label",
+    "title": "Config Content Loading Label",
+    "content": {
+      "en": "Loading content config...",
+      "pcm": "Loading content config...",
+      "ig": "Loading content config..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.configLegal.cardDescription",
+    "title": "Config Legal Loading Card Description",
+    "content": {
+      "en": "Fetching compliance document configuration.",
+      "pcm": "Fetching compliance document configuration.",
+      "ig": "Fetching compliance document configuration."
+    }
+  },
+  {
+    "key": "admin.ui.loading.configLegal.cardTitle",
+    "title": "Config Legal Loading Card Title",
+    "content": {
+      "en": "Published Legal Blocks",
+      "pcm": "Published Legal Blocks",
+      "ig": "Published Legal Blocks"
+    }
+  },
+  {
+    "key": "admin.ui.loading.configLegal.headerDescription",
+    "title": "Config Legal Loading Header Description",
+    "content": {
+      "en": "Loading legal configuration...",
+      "pcm": "Loading legal configuration...",
+      "ig": "Loading legal configuration..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.configLegal.label",
+    "title": "Config Legal Loading Label",
+    "content": {
+      "en": "Loading legal config...",
+      "pcm": "Loading legal config...",
+      "ig": "Loading legal config..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.configOptions.cardDescription",
+    "title": "Config Options Loading Card Description",
+    "content": {
+      "en": "Fetching option set documents.",
+      "pcm": "Fetching option set documents.",
+      "ig": "Fetching option set documents."
+    }
+  },
+  {
+    "key": "admin.ui.loading.configOptions.cardTitle",
+    "title": "Config Options Loading Card Title",
+    "content": {
+      "en": "Published Option Sets",
+      "pcm": "Published Option Sets",
+      "ig": "Published Option Sets"
+    }
+  },
+  {
+    "key": "admin.ui.loading.configOptions.headerDescription",
+    "title": "Config Options Loading Header Description",
+    "content": {
+      "en": "Loading option set configuration...",
+      "pcm": "Loading option set configuration...",
+      "ig": "Loading option set configuration..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.configOptions.label",
+    "title": "Config Options Loading Label",
+    "content": {
+      "en": "Loading options config...",
+      "pcm": "Loading options config...",
+      "ig": "Loading options config..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.content.cardDescription",
+    "title": "Content Loading Card Description",
+    "content": {
+      "en": "Fetching content metadata.",
+      "pcm": "Fetching content metadata.",
+      "ig": "Fetching content metadata."
+    }
+  },
+  {
+    "key": "admin.ui.loading.content.headerDescription",
+    "title": "Content Loading Header Description",
+    "content": {
+      "en": "Loading lesson content...",
+      "pcm": "Loading lesson content...",
+      "ig": "Loading lesson content..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.content.label",
+    "title": "Content Loading Label",
+    "content": {
+      "en": "Loading lessons...",
+      "pcm": "Loading lessons...",
+      "ig": "Loading lessons..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.reports.cardDescription",
+    "title": "Reports Loading Card Description",
+    "content": {
+      "en": "Fetching recent report jobs.",
+      "pcm": "Fetching recent report jobs.",
+      "ig": "Fetching recent report jobs."
+    }
+  },
+  {
+    "key": "admin.ui.loading.reports.headerDescription",
+    "title": "Reports Loading Header Description",
+    "content": {
+      "en": "Loading reporting workspace...",
+      "pcm": "Loading reporting workspace...",
+      "ig": "Loading reporting workspace..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.reports.label",
+    "title": "Reports Loading Label",
+    "content": {
+      "en": "Loading reports...",
+      "pcm": "Loading reports...",
+      "ig": "Loading reports..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.rewards.cardDescription",
+    "title": "Rewards Loading Card Description",
+    "content": {
+      "en": "Fetching reward transaction history.",
+      "pcm": "Fetching reward transaction history.",
+      "ig": "Fetching reward transaction history."
+    }
+  },
+  {
+    "key": "admin.ui.loading.rewards.headerDescription",
+    "title": "Rewards Loading Header Description",
+    "content": {
+      "en": "Loading reward operations...",
+      "pcm": "Loading reward operations...",
+      "ig": "Loading reward operations..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.rewards.label",
+    "title": "Rewards Loading Label",
+    "content": {
+      "en": "Loading rewards...",
+      "pcm": "Loading rewards...",
+      "ig": "Loading rewards..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.users.cardDescription",
+    "title": "Users Loading Card Description",
+    "content": {
+      "en": "Fetching latest user state.",
+      "pcm": "Fetching latest user state.",
+      "ig": "Fetching latest user state."
+    }
+  },
+  {
+    "key": "admin.ui.loading.users.headerDescription",
+    "title": "Users Loading Header Description",
+    "content": {
+      "en": "Loading user records...",
+      "pcm": "Loading user records...",
+      "ig": "Loading user records..."
+    }
+  },
+  {
+    "key": "admin.ui.loading.users.label",
+    "title": "Users Loading Label",
+    "content": {
+      "en": "Loading users...",
+      "pcm": "Loading users...",
+      "ig": "Loading users..."
+    }
+  },
+  {
+    "key": "admin.ui.nav.analytics",
+    "title": "Nav Analytics",
+    "content": {
+      "en": "Analytics",
+      "pcm": "Analytics",
+      "ig": "Analytics"
+    }
+  },
+  {
+    "key": "admin.ui.nav.configContent",
+    "title": "Nav Config Content",
+    "content": {
+      "en": "Config Content",
+      "pcm": "Config Content",
+      "ig": "Config Content"
+    }
+  },
+  {
+    "key": "admin.ui.nav.configLegal",
+    "title": "Nav Config Legal",
+    "content": {
+      "en": "Config Legal",
+      "pcm": "Config Legal",
+      "ig": "Config Legal"
+    }
+  },
+  {
+    "key": "admin.ui.nav.configOptions",
+    "title": "Nav Config Options",
+    "content": {
+      "en": "Config Options",
+      "pcm": "Config Options",
+      "ig": "Config Options"
+    }
+  },
+  {
+    "key": "admin.ui.nav.content",
+    "title": "Nav Content",
+    "content": {
+      "en": "Content",
+      "pcm": "Content",
+      "ig": "Content"
+    }
+  },
+  {
+    "key": "admin.ui.nav.overview",
+    "title": "Nav Overview",
+    "content": {
+      "en": "Overview",
+      "pcm": "Overview",
+      "ig": "Overview"
+    }
+  },
+  {
+    "key": "admin.ui.nav.reports",
+    "title": "Nav Reports",
+    "content": {
+      "en": "Reports",
+      "pcm": "Reports",
+      "ig": "Reports"
+    }
+  },
+  {
+    "key": "admin.ui.nav.rewards",
+    "title": "Nav Rewards",
+    "content": {
+      "en": "Rewards",
+      "pcm": "Rewards",
+      "ig": "Rewards"
+    }
+  },
+  {
+    "key": "admin.ui.nav.users",
+    "title": "Nav Users",
+    "content": {
+      "en": "Users",
+      "pcm": "Users",
+      "ig": "Users"
+    }
+  },
+  {
+    "key": "admin.ui.preview.adminShell.description",
+    "title": "Preview Admin Shell Description",
+    "content": {
+      "en": "Reusable sidebar + topbar shell used across all admin routes.",
+      "pcm": "Reusable sidebar + topbar shell used across all admin routes.",
+      "ig": "Reusable sidebar + topbar shell used across all admin routes."
+    }
+  },
+  {
+    "key": "admin.ui.preview.adminShell.slotDescription",
+    "title": "Preview Admin Shell Slot Description",
+    "content": {
+      "en": "Child pages render into this content region.",
+      "pcm": "Child pages render into this content region.",
+      "ig": "Child pages render into this content region."
+    }
+  },
+  {
+    "key": "admin.ui.preview.adminShell.slotTitle",
+    "title": "Preview Admin Shell Slot Title",
+    "content": {
+      "en": "Shell Content Slot",
+      "pcm": "Shell Content Slot",
+      "ig": "Shell Content Slot"
+    }
+  },
+  {
+    "key": "admin.ui.preview.adminShell.title",
+    "title": "Preview Admin Shell Title",
+    "content": {
+      "en": "Admin Shell Layout",
+      "pcm": "Admin Shell Layout",
+      "ig": "Admin Shell Layout"
+    }
+  },
+  {
+    "key": "admin.ui.preview.badges.description",
+    "title": "Preview Badges Description",
+    "content": {
+      "en": "Semantic and neutral status labels for analytics and workflow state.",
+      "pcm": "Semantic and neutral status labels for analytics and workflow state.",
+      "ig": "Semantic and neutral status labels for analytics and workflow state."
+    }
+  },
+  {
+    "key": "admin.ui.preview.badges.title",
+    "title": "Preview Badges Title",
+    "content": {
+      "en": "Badges",
+      "pcm": "Badges",
+      "ig": "Badges"
+    }
+  },
+  {
+    "key": "admin.ui.preview.buttons.description",
+    "title": "Preview Buttons Description",
+    "content": {
+      "en": "Primary, secondary, ghost, danger, loading, and disabled states.",
+      "pcm": "Primary, secondary, ghost, danger, loading, and disabled states.",
+      "ig": "Primary, secondary, ghost, danger, loading, and disabled states."
+    }
+  },
+  {
+    "key": "admin.ui.preview.buttons.title",
+    "title": "Preview Buttons Title",
+    "content": {
+      "en": "Buttons",
+      "pcm": "Buttons",
+      "ig": "Buttons"
+    }
+  },
+  {
+    "key": "admin.ui.preview.components.badge",
+    "title": "Preview Components Badge",
+    "content": {
+      "en": "Preview v1",
+      "pcm": "Preview v1",
+      "ig": "Preview v1"
+    }
+  },
+  {
+    "key": "admin.ui.preview.components.description",
+    "title": "Preview Components Description",
+    "content": {
+      "en": "Review reusable component states before they are composed into product pages.",
+      "pcm": "Review reusable component states before they are composed into product pages.",
+      "ig": "Review reusable component states before they are composed into product pages."
+    }
+  },
+  {
+    "key": "admin.ui.preview.components.title",
+    "title": "Preview Components Title",
+    "content": {
+      "en": "Component Library Preview",
+      "pcm": "Component Library Preview",
+      "ig": "Component Library Preview"
+    }
+  },
+  {
+    "key": "admin.ui.preview.configCard.description",
+    "title": "Preview Config Card Description",
+    "content": {
+      "en": "Preview card used for content/options/legal documents in management lists.",
+      "pcm": "Preview card used for content/options/legal documents in management lists.",
+      "ig": "Preview card used for content/options/legal documents in management lists."
+    }
+  },
+  {
+    "key": "admin.ui.preview.configCard.sampleTitle",
+    "title": "Preview Config Card Sample Title",
+    "content": {
+      "en": "Onboarding Intro Copy",
+      "pcm": "Onboarding Intro Copy",
+      "ig": "Onboarding Intro Copy"
+    }
+  },
+  {
+    "key": "admin.ui.preview.configCard.title",
+    "title": "Preview Config Card Title",
+    "content": {
+      "en": "Config Document Card",
+      "pcm": "Config Document Card",
+      "ig": "Config Document Card"
+    }
+  },
+  {
+    "key": "admin.ui.preview.emptyLoading.description",
+    "title": "Preview Empty Loading Description",
+    "content": {
+      "en": "Graceful empty and loading placeholders.",
+      "pcm": "Graceful empty and loading placeholders.",
+      "ig": "Graceful empty and loading placeholders."
+    }
+  },
+  {
+    "key": "admin.ui.preview.emptyLoading.title",
+    "title": "Preview Empty Loading Title",
+    "content": {
+      "en": "Empty + Loading States",
+      "pcm": "Empty + Loading States",
+      "ig": "Empty + Loading States"
+    }
+  },
+  {
+    "key": "admin.ui.preview.optionSetEditor.description",
+    "title": "Preview Option Set Editor Description",
+    "content": {
+      "en": "Manage mutable option sets with reorder and enable/disable controls.",
+      "pcm": "Manage mutable option sets with reorder and enable/disable controls.",
+      "ig": "Manage mutable option sets with reorder and enable/disable controls."
+    }
+  },
+  {
+    "key": "admin.ui.preview.optionSetEditor.title",
+    "title": "Preview Option Set Editor Title",
+    "content": {
+      "en": "Option Set Editor",
+      "pcm": "Option Set Editor",
+      "ig": "Option Set Editor"
+    }
+  },
+  {
+    "key": "admin.ui.preview.selectTabs.description",
+    "title": "Preview Select Tabs Description",
+    "content": {
+      "en": "Form selection and tab navigation primitives.",
+      "pcm": "Form selection and tab navigation primitives.",
+      "ig": "Form selection and tab navigation primitives."
+    }
+  },
+  {
+    "key": "admin.ui.preview.selectTabs.title",
+    "title": "Preview Select Tabs Title",
+    "content": {
+      "en": "Select + Tabs",
+      "pcm": "Select + Tabs",
+      "ig": "Select + Tabs"
+    }
+  },
+  {
+    "key": "admin.ui.preview.tableStat.description",
+    "title": "Preview Table Stat Description",
+    "content": {
+      "en": "Data display primitives for dashboard analytics pages.",
+      "pcm": "Data display primitives for dashboard analytics pages.",
+      "ig": "Data display primitives for dashboard analytics pages."
+    }
+  },
+  {
+    "key": "admin.ui.preview.tableStat.title",
+    "title": "Preview Table Stat Title",
+    "content": {
+      "en": "Table + StatCard",
+      "pcm": "Table + StatCard",
+      "ig": "Table + StatCard"
+    }
+  },
+  {
+    "key": "admin.ui.reports.actions.generateReport",
+    "title": "Reports Generate Button",
+    "content": {
+      "en": "Generate Report",
+      "pcm": "Generate Report",
+      "ig": "Generate Report"
+    }
+  },
+  {
+    "key": "admin.ui.reports.description",
+    "title": "Reports Page Description",
+    "content": {
+      "en": "Generate donor-ready exports and monitor report pipeline health.",
+      "pcm": "Generate donor-ready exports and monitor report pipeline health.",
+      "ig": "Generate donor-ready exports and monitor report pipeline health."
+    }
+  },
+  {
+    "key": "admin.ui.reports.title",
+    "title": "Reports Page Title",
+    "content": {
+      "en": "Reports",
+      "pcm": "Reports",
+      "ig": "Reports"
+    }
+  },
+  {
+    "key": "admin.ui.rewards.actions.issueManualReward",
+    "title": "Rewards Issue Manual Button",
+    "content": {
+      "en": "Issue Manual Reward",
+      "pcm": "Issue Manual Reward",
+      "ig": "Issue Manual Reward"
+    }
+  },
+  {
+    "key": "admin.ui.rewards.description",
+    "title": "Rewards Page Description",
+    "content": {
+      "en": "Monitor reward issuance, failures, and manual intervention workflows.",
+      "pcm": "Monitor reward issuance, failures, and manual intervention workflows.",
+      "ig": "Monitor reward issuance, failures, and manual intervention workflows."
+    }
+  },
+  {
+    "key": "admin.ui.rewards.title",
+    "title": "Rewards Page Title",
+    "content": {
+      "en": "Rewards",
+      "pcm": "Rewards",
+      "ig": "Rewards"
+    }
+  },
+  {
+    "key": "admin.ui.shell.brand",
+    "title": "Admin Shell Brand",
+    "content": {
+      "en": "SheTrades Admin",
+      "pcm": "SheTrades Admin",
+      "ig": "SheTrades Admin"
+    }
+  },
+  {
+    "key": "admin.ui.shell.currentRoute",
+    "title": "Admin Shell Current Route Label",
+    "content": {
+      "en": "Current route",
+      "pcm": "Current route",
+      "ig": "Current route"
+    }
+  },
+  {
+    "key": "admin.ui.shell.navigation",
+    "title": "Admin Shell Navigation Label",
+    "content": {
+      "en": "Admin navigation",
+      "pcm": "Admin navigation",
+      "ig": "Admin navigation"
+    }
+  },
+  {
+    "key": "admin.ui.shell.navigationSidebar",
+    "title": "Admin Shell Sidebar Label",
+    "content": {
+      "en": "Admin navigation sidebar",
+      "pcm": "Admin navigation sidebar",
+      "ig": "Admin navigation sidebar"
+    }
+  },
+  {
+    "key": "admin.ui.users.actions.exportUsers",
+    "title": "Users Export Button",
+    "content": {
+      "en": "Export Users",
+      "pcm": "Export Users",
+      "ig": "Export Users"
+    }
+  },
+  {
+    "key": "admin.ui.users.description",
+    "title": "Users Page Description",
+    "content": {
+      "en": "Manage learner records, engagement status, and language distribution.",
+      "pcm": "Manage learner records, engagement status, and language distribution.",
+      "ig": "Manage learner records, engagement status, and language distribution."
+    }
+  },
+  {
+    "key": "admin.ui.users.title",
+    "title": "Users Page Title",
+    "content": {
+      "en": "Users",
+      "pcm": "Users",
+      "ig": "Users"
+    }
+  }
+]

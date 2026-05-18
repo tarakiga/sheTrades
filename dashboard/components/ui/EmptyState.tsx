@@ -8,7 +8,7 @@ export type EmptyStateProps = {
 
 export function EmptyState({ title, description, action }: EmptyStateProps) {
   return (
-    <section className="ui-empty-state" role="status" aria-live="polite">
+    <section className="ui-empty-state" role="status" aria-live="polite" suppressHydrationWarning>
       <h3 className="ui-empty-state__title">{title}</h3>
       <p className="ui-empty-state__description">{description}</p>
       {action ? <div>{action}</div> : null}

@@ -1,12 +1,18 @@
-import { Card, LoadingState, SectionHeader } from "../../../components/ui";
+import { AdminRouteLoading } from "../../../components/layout/AdminRouteLoading";
 
 export default function ContentLoading() {
   return (
-    <main className="admin-dashboard-page">
-      <SectionHeader title="Content" description="Loading lesson content..." />
-      <Card title="Lesson Library" description="Fetching content metadata.">
-        <LoadingState label="Loading lessons..." />
-      </Card>
-    </main>
+    <AdminRouteLoading
+      headerTitleKey="content.title"
+      headerTitleFallback="Content"
+      headerDescriptionKey="loading.content.headerDescription"
+      headerDescriptionFallback="Loading lesson content..."
+      cardTitleKey="content.cards.library.title"
+      cardTitleFallback="Lesson Library"
+      cardDescriptionKey="loading.content.cardDescription"
+      cardDescriptionFallback="Fetching content metadata."
+      loadingLabelKey="loading.content.label"
+      loadingLabelFallback="Loading lessons..."
+    />
   );
 }

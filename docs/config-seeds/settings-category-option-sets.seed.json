@@ -1,0 +1,55 @@
+[
+  {
+    "key": "options.settings.content_categories",
+    "title": "Content Categories",
+    "items": [
+      { "value": "lesson", "label": "Lesson" },
+      { "value": "message", "label": "Message" },
+      { "value": "ui", "label": "UI" }
+    ]
+  },
+  {
+    "key": "options.settings.options_categories",
+    "title": "Options Categories",
+    "items": [
+      { "value": "language", "label": "Language" },
+      { "value": "profile", "label": "Profile" },
+      { "value": "business_sector", "label": "Business Sector" }
+    ]
+  },
+  {
+    "key": "options.settings.legal_categories",
+    "title": "Legal Categories",
+    "items": [
+      { "value": "privacy", "label": "Privacy" },
+      { "value": "terms", "label": "Terms" },
+      { "value": "marketing", "label": "Marketing" }
+    ]
+  },
+  {
+    "key": "options.settings.translation_request_methods",
+    "title": "Translation Request Methods",
+    "items": [
+      { "value": "internal_request", "label": "Send Internal Request" },
+      { "value": "integration_job", "label": "Translate With Integration" }
+    ]
+  },
+  {
+    "key": "options.settings.translation_request_languages",
+    "title": "Translation Request Languages",
+    "items": [
+      { "value": "en", "label": "English" },
+      { "value": "pcm", "label": "Pidgin" },
+      { "value": "ig", "label": "Igbo" }
+    ]
+  },
+  {
+    "key": "options.settings.translation_request_priorities",
+    "title": "Translation Request Priorities",
+    "items": [
+      { "value": "low", "label": "Low" },
+      { "value": "normal", "label": "Normal" },
+      { "value": "high", "label": "High" }
+    ]
+  }
+]

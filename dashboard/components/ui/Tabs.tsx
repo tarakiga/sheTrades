@@ -23,7 +23,7 @@ export function Tabs({ items, activeId }: TabsProps) {
 
   return (
     <section className="ui-tabs">
-      <div className="ui-tabs__list" role="tablist" aria-label="Tabs">
+      <div className="ui-tabs__list" role="tablist" aria-label="Tabs" suppressHydrationWarning>
         {items.map((item) => (
           <button
             key={item.id}
@@ -34,6 +34,7 @@ export function Tabs({ items, activeId }: TabsProps) {
             aria-selected={item.id === activeItem?.id}
             aria-controls={getPanelId(item.id)}
             onClick={() => setSelectedId(item.id)}
+            suppressHydrationWarning
           >
             {item.label}
           </button>
@@ -45,6 +46,7 @@ export function Tabs({ items, activeId }: TabsProps) {
           id={getPanelId(activeItem.id)}
           role="tabpanel"
           aria-labelledby={getTabId(activeItem.id)}
+          suppressHydrationWarning
         >
           {activeItem.content}
         </div>

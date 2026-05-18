@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test src/**/*.test.ts",
     "smoke:staging": "tsx src/smoke/staging-smoke.ts",
-    "validate:reliability": "tsx src/validation/reliability-check.ts"
+    "validate:reliability": "tsx src/validation/reliability-check.ts",
+    "seed:admin-ui-copy": "tsx src/config-platform/seed-admin-ui-copy.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.5.0",

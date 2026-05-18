@@ -4,7 +4,7 @@ export type LoadingStateProps = {
 
 export function LoadingState({ label = "Loading content..." }: LoadingStateProps) {
   return (
-    <div className="ui-loading-state" role="status" aria-live="polite">
+    <div className="ui-loading-state" role="status" aria-live="polite" suppressHydrationWarning>
       <span className="ui-loading-state__spinner" aria-hidden="true" />
       <span>{label}</span>
     </div>

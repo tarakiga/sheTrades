@@ -2,9 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { createApp } from "../app.js";
+import { getConfigPlatformService } from "../config-platform/service.js";
 import { resetWhatsAppState } from "../whatsapp/handler.js";
 
 const app = createApp();
+const configService = getConfigPlatformService();
 
 async function withEnv(
   env: Record<string, string | undefined>,
@@ -56,6 +58,7 @@ function makeWebhookPayload(messageId: string, from: string, body: string) {
 
 test("GET /webhook/whatsapp verifies webhook challenge", { concurrency: false }, async () => {
   resetWhatsAppState();
+  configService.resetForTests();
   await withEnv({ WHATSAPP_VERIFY_TOKEN: "abc123" }, async () => {
     const response = await request(app)
       .get("/webhook/whatsapp")
@@ -70,8 +73,59 @@ test("GET /webhook/whatsapp verifies webhook challenge", { concurrency: false },
   });
 });
 
+test(
+  "GET /webhook/whatsapp uses published integration config before env fallback",
+  { concurrency: false },
+  async () => {
+    resetWhatsAppState();
+    configService.resetForTests();
+
+    const created = configService.createDocument(
+      { id: "admin-1", role: "admin" },
+      {
+        namespace: "integration",
+        key: "integration.whatsapp.primary",
+        type: "integration_config",
+        title: "Primary WhatsApp Integration",
+        initialPayload: {
+          title: "Primary WhatsApp Integration",
+          provider: "meta_whatsapp_cloud",
+          enabled: true,
+          verifyToken: "managed-token",
+          accessToken: "access-token",
+          appSecret: "app-secret",
+          phoneNumberId: "123456789",
+          businessAccountId: "987654321",
+          webhookPath: "/webhook/whatsapp",
+          apiVersion: "v23.0",
+          notes: ""
+        }
+      }
+    );
+    configService.publishDocument(
+      { id: "admin-1", role: "admin" },
+      created.document.id,
+      { expectedDraftVersionId: created.draft.id }
+    );
+
+    await withEnv({ WHATSAPP_VERIFY_TOKEN: "env-token" }, async () => {
+      const response = await request(app)
+        .get("/webhook/whatsapp")
+        .query({
+          "hub.mode": "subscribe",
+          "hub.verify_token": "managed-token",
+          "hub.challenge": "challenge-token"
+        })
+        .expect(200);
+
+      assert.equal(response.text, "challenge-token");
+    });
+  }
+);
+
 test("POST /webhook/whatsapp transitions onboarding to language step", async () => {
   resetWhatsAppState();
+  configService.resetForTests();
   const response = await request(app)
     .post("/webhook/whatsapp")
     .send(makeWebhookPayload("m1", "+234800000001", "Amaka Obi"))
@@ -84,6 +138,7 @@ test("POST /webhook/whatsapp transitions onboarding to language step", async () 
 
 test("POST /webhook/whatsapp applies language and routes to main menu", async () => {
   resetWhatsAppState();
+  configService.resetForTests();
   await request(app)
     .post("/webhook/whatsapp")
     .send(makeWebhookPayload("m1", "+234800000002", "Ruth Okon"))
@@ -102,6 +157,7 @@ test("POST /webhook/whatsapp applies language and routes to main menu", async ()
 
 test("POST /webhook/whatsapp ignores duplicate message ids", async () => {
   resetWhatsAppState();
+  configService.resetForTests();
   await request(app)
     .post("/webhook/whatsapp")
     .send(makeWebhookPayload("dup-1", "+234800000003", "Ifeoma"))
@@ -118,6 +174,7 @@ test("POST /webhook/whatsapp ignores duplicate message ids", async () => {
 
 test("POST /webhook/whatsapp returns ignored for unsupported payload", async () => {
   resetWhatsAppState();
+  configService.resetForTests();
   const response = await request(app)
     .post("/webhook/whatsapp")
     .send({ object: "whatsapp" })

@@ -1,0 +1,13 @@
+services:
+  backend:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev -w @shetrades/backend"
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      ADMIN_CONFIG_JWT_SECRET: ${ADMIN_CONFIG_JWT_SECRET}
+    volumes:
+      - ./:/app:ro

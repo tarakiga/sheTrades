@@ -105,53 +105,7 @@ function normalizeLanguagePatch(input: {
   };
 }
 
-function ensureSeedData() {
-  if (lessonStore.size > 0) return;
-  const seedA: LessonRecord = {
-    id: "lesson-001",
-    moduleId: 1,
-    title: "Pricing Basics",
-    languages: {
-      en: "How to calculate cost and margin.",
-      pcm: "How to calculate your cost and gain."
-    },
-    audioUrls: {},
-    quiz: [
-      {
-        question: "What is profit?",
-        options: ["Revenue minus cost", "Revenue plus cost"],
-        answerIndex: 0
-      }
-    ],
-    status: "Published",
-    createdAt: nowIso(),
-    updatedAt: nowIso()
-  };
-  const seedB: LessonRecord = {
-    id: "lesson-002",
-    moduleId: 2,
-    title: "Record Keeping",
-    languages: {
-      en: "Track daily sales and expenses."
-    },
-    audioUrls: {},
-    quiz: [
-      {
-        question: "Why keep records?",
-        options: ["To guess performance", "To track business health"],
-        answerIndex: 1
-      }
-    ],
-    status: "Draft",
-    createdAt: nowIso(),
-    updatedAt: nowIso()
-  };
-  lessonStore.set(seedA.id, seedA);
-  lessonStore.set(seedB.id, seedB);
-}
-
 export function listLessons() {
-  ensureSeedData();
   return Array.from(lessonStore.values()).sort((a, b) => {
     if (a.moduleId !== b.moduleId) return a.moduleId - b.moduleId;
     return a.title.localeCompare(b.title);

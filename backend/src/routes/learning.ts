@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { applyProgressUpdate, getUserLearningState } from "../learning/engine.js";
 import { hasIssuedRewardForModule, issueReward } from "../rewards/service.js";
+import { getRuntimeNumericPolicy } from "../config-platform/runtime-config.js";
 
 export const learningRouter = Router();
 
@@ -23,11 +24,15 @@ learningRouter.post("/progress", async (req, res, next) => {
       const moduleId = event.event.moduleId;
       const module = result.state.modules[`module${moduleId}`];
       if (module?.passed && !hasIssuedRewardForModule(event.phone, moduleId)) {
+        const rewardAmount = getRuntimeNumericPolicy(
+          "policy.rewards.module_completion_amount",
+          200
+        );
         await issueReward({
           issueId: `${event.phone}:module:${moduleId}:auto`,
           phone: event.phone,
           moduleId,
-          amount: 200,
+          amount: rewardAmount,
           mode: "automated",
           channel: "airtime_api",
           reason: "module_completion"

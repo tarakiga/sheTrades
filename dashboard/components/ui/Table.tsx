@@ -10,20 +10,26 @@ export type TableProps<T extends Record<string, unknown>> = {
   columns: Array<TableColumn<T>>;
   rows: Array<T>;
   emptyMessage?: string;
+  wrapperClassName?: string;
+  tableClassName?: string;
+  rowClassName?: (row: T) => string;
 };
 
 export function Table<T extends Record<string, unknown>>({
   columns,
   rows,
-  emptyMessage = "No data available."
+  emptyMessage = "No data available.",
+  wrapperClassName,
+  tableClassName,
+  rowClassName
 }: TableProps<T>) {
   if (!rows.length) {
     return <p className="ui-table__empty">{emptyMessage}</p>;
   }
 
   return (
-    <div className="ui-table-wrap">
-      <table className="ui-table">
+    <div className={["ui-table-wrap", wrapperClassName ?? ""].filter(Boolean).join(" ")}>
+      <table className={["ui-table", tableClassName ?? ""].filter(Boolean).join(" ")}>
         <thead>
           <tr>
             {columns.map((column) => (
@@ -33,7 +39,7 @@ export function Table<T extends Record<string, unknown>>({
         </thead>
         <tbody>
           {rows.map((row, rowIndex) => (
-            <tr key={`row-${rowIndex}`}>
+            <tr key={`row-${rowIndex}`} className={rowClassName ? rowClassName(row) : undefined}>
               {columns.map((column) => {
                 const rawValue = row[column.key];
                 return (

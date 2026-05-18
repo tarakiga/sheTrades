@@ -16,7 +16,13 @@ export function Input({ id, label, hint, error, className, ...props }: InputProp
       <label className="ui-input-field__label" htmlFor={id}>
         {label}
       </label>
-      <input id={id} className={computedClassName} aria-invalid={Boolean(error)} {...props} />
+      <input
+        id={id}
+        className={computedClassName}
+        aria-invalid={Boolean(error)}
+        suppressHydrationWarning
+        {...props}
+      />
       {error ? <p className="ui-input-field__error">{error}</p> : null}
       {!error && hint ? <p className="ui-input-field__hint">{hint}</p> : null}
     </div>

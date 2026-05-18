@@ -1,12 +1,18 @@
-import { Card, LoadingState, SectionHeader } from "../../../components/ui";
+import { AdminRouteLoading } from "../../../components/layout/AdminRouteLoading";
 
 export default function RewardsLoading() {
   return (
-    <main className="admin-dashboard-page">
-      <SectionHeader title="Rewards" description="Loading reward operations..." />
-      <Card title="Reward Log" description="Fetching reward transaction history.">
-        <LoadingState label="Loading rewards..." />
-      </Card>
-    </main>
+    <AdminRouteLoading
+      headerTitleKey="rewards.title"
+      headerTitleFallback="Rewards"
+      headerDescriptionKey="loading.rewards.headerDescription"
+      headerDescriptionFallback="Loading reward operations..."
+      cardTitleKey="rewards.cards.log.title"
+      cardTitleFallback="Reward Log"
+      cardDescriptionKey="loading.rewards.cardDescription"
+      cardDescriptionFallback="Fetching reward transaction history."
+      loadingLabelKey="loading.rewards.label"
+      loadingLabelFallback="Loading rewards..."
+    />
   );
 }

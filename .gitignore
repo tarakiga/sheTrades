@@ -1,5 +1,7 @@
 .env.local
 docker-compose.local.yml
+admin-jwt.txt
+pg-ca.pem
 connect/*.pem
 connect/*.key
 connect/*.crt

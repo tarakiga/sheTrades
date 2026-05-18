@@ -8,7 +8,7 @@ export type SectionHeaderProps = {
 
 export function SectionHeader({ title, description, actions }: SectionHeaderProps) {
   return (
-    <header className="ui-section-header">
+    <header className="ui-section-header" suppressHydrationWarning>
       <div>
         <h2 className="ui-section-header__title">{title}</h2>
         {description ? <p className="ui-section-header__description">{description}</p> : null}

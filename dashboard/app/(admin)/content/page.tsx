@@ -1,60 +1,62 @@
-﻿import { getContentPageData } from "../../../lib/admin/api";
-import { Badge, Button, Card, EmptyState, SectionHeader, Table } from "../../../components/ui";
+import { ConfigAdminManager } from "../../../components/config/ConfigAdminManager";
+import { ContentTranslationQueuePanel } from "../../../components/content/ContentTranslationQueuePanel";
+import { Badge, SectionHeader } from "../../../components/ui";
+import { getAdminUiCopy } from "../../../lib/config/admin-ui-copy";
 
 export default async function ContentPage() {
-  const { data, meta } = await getContentPageData();
+  const copy = await getAdminUiCopy();
+  const t = copy.t;
 
   return (
     <main className="admin-dashboard-page">
       <SectionHeader
-        title="Content"
-        description="Manage lesson text, audio variants, and quiz structures."
+        title={t("content.title", "Content")}
+        description={t(
+          "content.description",
+          "Manage lessons, message copy, and learning content from one premium workspace."
+        )}
         actions={
-          <div className="preview-row">
-            <Badge variant={meta.source === "live" ? "success" : "warning"}>
-              {meta.source === "live" ? "Live Data" : "Fallback Data"}
-            </Badge>
-            <Button>Create Lesson</Button>
-          </div>
+          <Badge variant={copy.source === "live" ? "success" : "warning"}>
+            {copy.source === "live"
+              ? t("common.liveData", "Live Data")
+              : t("common.fallbackData", "Fallback Data")}
+          </Badge>
         }
       />
-      {meta.message ? <p className="admin-inline-note">{meta.message}</p> : null}
+      {copy.message ? <p className="admin-inline-note">{copy.message}</p> : null}
 
-      <section className="admin-dashboard-grid">
-        <Card
-          title="Lesson Library"
-          description="Current content inventory by module and readiness."
-        >
-          <Table
-            columns={[
-              { key: "module", header: "Module" },
-              { key: "lesson", header: "Lesson" },
-              { key: "language", header: "Languages" },
-              { key: "quiz", header: "Quiz" },
-              {
-                key: "status",
-                header: "Status",
-                render: (value) => (
-                  <Badge variant={value === "Published" ? "success" : "neutral"}>
-                    {String(value)}
-                  </Badge>
-                )
-              }
-            ]}
-            rows={data.lessons}
-          />
-        </Card>
+      <ConfigAdminManager
+        namespace="content"
+        defaultType="ui_copy"
+        copy={copy.map}
+        presentation={{
+          workspaceTitle: t("content.workspace.title", "Content Workspace"),
+          workspaceDescription: t(
+            "content.workspace.description",
+            "Review, update, and publish lesson and message content from one focused workspace."
+          ),
+          summaryMode: "content",
+          actionLabel: t("content.actions.createContent", "Create Content"),
+          actionHint: t(
+            "content.workspace.actionHint",
+            "Add lessons and message content without leaving the main review table."
+          ),
+          secondaryActionLabel: t("content.actions.manageCategories", "Manage Categories"),
+          tableTitle: t("content.workspace.tableTitle", "Review Content"),
+          tableDescription: t(
+            "content.workspace.tableDescription",
+            "Open any content item to preview it, update the draft, publish changes, or move it to trash."
+          ),
+          emptyTitle: t("content.workspace.emptyTitle", "No Content Yet"),
+          emptyDescription: t(
+            "content.workspace.emptyDescription",
+            "Create your first content item to start building the content library."
+          )
+        }}
+      />
 
-        <Card
-          title="Translation Queue"
-          description="No translation jobs are currently waiting for review."
-        >
-          <EmptyState
-            title="No translation queue items"
-            description="New translation tasks appear here when source content is updated."
-            action={<Button variant="secondary">Request Translation</Button>}
-          />
-        </Card>
+      <section className="content-page__support">
+        <ContentTranslationQueuePanel />
       </section>
     </main>
   );
