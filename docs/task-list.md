@@ -5,8 +5,8 @@ This document consolidates the implementation task roadmap in one place.
 ## Current Status
 
 - Project phase: CORE DIRECTIVE compliance remediation (Option B phased rollout)
-- Last completed task: Task 110
-- Next task: Focused live review of `/`, `/login`, and `/dashboard`
+- Last completed task: Task 115
+- Next task: Focused visual verification of the recalibrated primary brand color across dashboard preview and live admin surfaces
 
 ## Completed Tasks
 
@@ -113,12 +113,17 @@ This document consolidates the implementation task roadmap in one place.
 101. Task 108 - Executive-premium `/login` page composition and verification
 102. Task 109 - Root smart redirect design
 103. Task 110 - Root smart redirect implementation and verification
+104. Task 111 - Cloud Run backend build remediation for notification integration dependency types
+105. Task 112 - `/login` desktop no-scroll refinement design
+106. Task 113 - `/login` desktop no-scroll shared-component implementation and verification
+107. Task 114 - `/login` desktop focus rebalance refinement
+108. Task 115 - Primary brand color recalibration to `#334E58`
 
 ## Planned Next Tasks
 
-- Focused live review of `/`, `/login`, and `/dashboard`
-- Decide whether the old design-tokens review surface should later move to a dedicated internal preview route
-- Decide whether the root entry handoff should later expose environment-aware messaging for staging versus production
+- Focused visual verification of the recalibrated primary brand color across `/previews/components` and live admin surfaces
+- Decide whether the refreshed slate-steel primary should later extend into any additional marketing or external-facing surfaces
+- Redeploy `shetrades-backend-staging` from the updated backend manifests and verify production auth against Cloud Run
 
 ## Option B Rollout Notes
 

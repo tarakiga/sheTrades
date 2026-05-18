@@ -1,16 +1,16 @@
 export const designTokens = {
   color: {
     brand: {
-      50: "#f7f2ff",
-      100: "#ebe0ff",
-      200: "#d8c1ff",
-      300: "#be99ff",
-      400: "#a06bff",
-      500: "#7f3dff",
-      600: "#6928d9",
-      700: "#5420ad",
-      800: "#401985",
-      900: "#2e125f"
+      50: "#f0f3f5",
+      100: "#dbe3e6",
+      200: "#bdccd1",
+      300: "#9fb4bc",
+      400: "#708a93",
+      500: "#334e58",
+      600: "#2b434c",
+      700: "#253941",
+      800: "#1a282d",
+      900: "#111a1d"
     },
     accent: {
       50: "#fff9e8",
@@ -121,7 +121,7 @@ export const designTokens = {
       md: "40px",
       lg: "48px"
     },
-    focusRing: "0 0 0 3px rgba(127, 61, 255, 0.24)"
+    focusRing: "0 0 0 3px rgba(51, 78, 88, 0.24)"
   }
 } as const;
 

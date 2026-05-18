@@ -5152,3 +5152,249 @@ psql "sslmode=verify-ca sslrootcert=server-ca.pem sslcert=client-cert.pem sslkey
   - `/login`
   - `/dashboard`
 - Decide whether the old design-tokens review surface should later move to a dedicated internal preview route.
+
+### Task 111 - Cloud Run Backend Build Remediation For Notification Integration Types
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Resolve the backend container-build failures blocking Cloud Run redeploys for the staging service used by the live Vercel frontend.
+
+#### Changes Made
+
+- Confirmed the original Cloud Run build failure from `errorlog.txt`:
+  - backend TypeScript compilation could not resolve `nodemailer`
+- Confirmed local manifest state after package installation:
+  - `backend/package.json`
+  - `package-lock.json`
+  - `nodemailer` added under backend runtime dependencies
+  - `@types/nodemailer` added under backend dev dependencies
+- Verified the backend now compiles locally from the repo state used for deployment:
+  - `npm run build -w @shetrades/backend` -> PASS
+- Protected the local-only Cloud Run staging env file from git:
+  - `.gitignore`
+  - added `cloudrun-staging-env.yaml`
+
+#### Why
+
+- Cloud Run source deploys build the backend inside a clean container, so undeclared runtime packages and missing TypeScript declaration packages fail even if local state had partially masked the issue.
+- The live frontend on Vercel now points at Cloud Run correctly, and CORS preflight is returning `204`, so the remaining blocker shifted from frontend/CORS configuration to backend image-build correctness.
+- Protecting `cloudrun-staging-env.yaml` keeps staging secrets and deployment-only config out of source control.
+
+#### Verification
+
+- Local backend build:
+  - `npm run build -w @shetrades/backend` -> PASS
+- Cloud Run preflight status after env correction:
+  - `OPTIONS /api/admin/auth/login` -> `204 No Content`
+  - `Access-Control-Allow-Origin` present for `https://she-trades.vercel.app`
+
+#### Important Notes
+
+- At this point the repo contains the manifest-level dependency fix, but the updated backend code still needs a successful Cloud Run redeploy.
+- The local-only files `cloudrun-staging-env.yaml`, `errorlog.txt`, and `make-admin-jwt.cjs` should remain outside production commits unless explicitly intended otherwise.
+- Because the Vercel frontend is live, only the backend service should be redeployed on Cloud Run; the frontend remains on Vercel and should only be redeployed if `NEXT_PUBLIC_API_BASE_URL` changes again.
+
+#### Next Task
+
+- Commit the backend manifest fix if desired.
+- Redeploy `shetrades-backend-staging` from the updated repo.
+- Re-apply `cloudrun-staging-env.yaml`.
+- Retest production login on `https://she-trades.vercel.app`.
+
+### Task 112 - `/login` Desktop No-Scroll Refinement Design
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define a focused UX refinement so the premium `/login` page fits within the desktop viewport without vertical scrolling while keeping the executive split-workspace identity intact.
+
+#### Changes Made
+
+- Captured the approved design direction:
+  - strict no-scroll desktop behavior
+  - tighter desktop rhythm instead of content collapse
+  - shared-component-first refinement
+- Wrote the design spec:
+  - `docs/superpowers/specs/2026-05-18-login-desktop-no-scroll-refinement.md`
+- Defined the implementation boundaries:
+  - `AuthPageShell` gets a viewport-fit desktop mode
+  - `LoginFormCard` gets a compact density mode
+  - `/login` and preview surfaces consume those shared modes
+
+#### Why
+
+- The executive-premium login redesign looked strong visually, but the desktop idle state still required vertical scrolling on common screen heights.
+- The refinement needed to preserve premium quality and shared architecture rather than introducing one-off page-level compression rules.
+
+#### Next Task
+
+- Task 113: implement the shared auth shell and login card density refinements, verify desktop-fit behavior, and update tracking docs.
+
+### Task 113 - `/login` Desktop No-Scroll Shared-Component Implementation And Verification
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Implement the approved shared-component refinements so the desktop `/login` experience fits within the viewport without vertical scrolling in the idle state.
+
+#### Changes Made
+
+- Updated the shared auth shell:
+  - `dashboard/components/auth/AuthPageShell.tsx`
+  - added `desktopMode?: "default" | "viewport-fit"`
+  - introduced a shared class hook for viewport-fit desktop composition
+- Updated the shared login card:
+  - `dashboard/components/auth/LoginFormCard.tsx`
+  - added `density?: "default" | "compact"`
+  - introduced a shared compact card mode for desktop auth use
+- Wired the desktop-fit mode into the live login route:
+  - `dashboard/components/auth/LoginPageClient.tsx`
+  - `dashboard/app/login/page.tsx`
+- Updated preview coverage:
+  - `dashboard/app/previews/components/AdminAuthPreview.tsx`
+  - preview now exercises the same viewport-fit shell and compact login card mode
+- Extended auth styling:
+  - `dashboard/app/globals.css`
+  - added desktop-only viewport-fit rules for the shell
+  - tightened hero, support, aside, and footnote rhythm
+  - added compact login-card density rules
+  - preserved existing mobile/tablet responsive behavior
+- Updated tracking:
+  - `docs/task-list.md`
+  - `handoff.md`
+
+#### Why
+
+- The desktop scroll issue was driven by stacked shell regions and generous vertical spacing, not by a single oversized element.
+- Solving it in `AuthPageShell` and `LoginFormCard` preserves consistency and keeps future auth-entry surfaces extensible.
+
+#### Verification
+
+- Diagnostics clean for:
+  - `dashboard/components/auth/AuthPageShell.tsx`
+  - `dashboard/components/auth/LoginFormCard.tsx`
+  - `dashboard/components/auth/LoginPageClient.tsx`
+  - `dashboard/app/login/page.tsx`
+  - `dashboard/app/previews/components/AdminAuthPreview.tsx`
+  - `dashboard/app/globals.css`
+- Type validation:
+  - `npm run typecheck -w @shetrades/dashboard` -> PASS
+- Production build:
+  - `npm run build -w @shetrades/dashboard` -> PASS
+
+#### Important Notes
+
+- The refinement is desktop-focused and intentionally leaves smaller breakpoints on the existing document-flow behavior.
+- Shared props now control desktop-fit behavior instead of adding login-only structural hacks.
+- The spec artifact for this refinement now exists in the documented spec location and matches the implemented approach.
+
+#### Next Task
+
+- Perform a focused live review of:
+  - `/login`
+  - `/previews/components`
+- Decide whether the compact desktop auth mode should later extend to any future recovery or invite entry flows.
+
+### Task 114 - `/login` Desktop Focus Rebalance Refinement
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Make the sign-in card the clear primary surface in desktop viewport-fit mode by removing the desktop hero metrics and tightening the right-panel reassurance list.
+
+#### Changes Made
+
+- Added a focused follow-up spec:
+  - `docs/superpowers/specs/2026-05-18-login-desktop-focus-rebalance.md`
+- Refined desktop viewport-fit auth CSS:
+  - `dashboard/app/globals.css`
+  - removed the desktop hero metrics strip inside `.auth-shell--viewport-fit`
+  - tightened `.auth-shell__aside-points` spacing
+  - reduced desktop right-panel list typography and line-height slightly
+  - kept the compact login-card mode unchanged so recovered height benefits the sign-in card directly
+- Updated tracking:
+  - `docs/task-list.md`
+  - `handoff.md`
+
+#### Why
+
+- The earlier no-scroll pass improved density, but the desktop hero metrics still competed with the main sign-in card and consumed height that should have belonged to the primary action surface.
+- The right reassurance panel still had more vertical looseness than needed for a support role.
+
+#### Verification
+
+- Diagnostics:
+  - `dashboard/app/globals.css` -> clean
+  - `docs/superpowers/specs/2026-05-18-login-desktop-focus-rebalance.md` -> clean
+  - `docs/task-list.md` -> clean
+  - `handoff.md` -> clean
+- Type validation:
+  - `npm run typecheck -w @shetrades/dashboard` -> PASS
+- Production build:
+  - `npm run build -w @shetrades/dashboard` -> PASS
+
+#### Important Notes
+
+- This refinement is intentionally limited to desktop viewport-fit mode and does not alter smaller-breakpoint behavior.
+- The sign-in card remains the dominant surface without introducing any new page-only component APIs.
+
+#### Next Task
+
+- Perform a focused live review of `/login` desktop behavior.
+- Decide whether the backend deploy fixes should now be committed and pushed alongside the recent login UX refinements.
+
+### Task 115 - Primary Brand Color Recalibration To `#334E58`
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Rebuild the primary brand token family around `#334E58` so the design-system source of truth, CSS token bridge, and live dashboard interaction states all align.
+
+#### Changes Made
+
+- Added the approved design spec:
+  - `docs/superpowers/specs/2026-05-18-primary-color-recalibration-design.md`
+- Recalibrated the typed token source:
+  - `shared/src/design-tokens.ts`
+  - replaced the previous purple `brand` family with a slate-steel scale anchored at `brand.500 = #334E58`
+  - updated the shared `focusRing` token to match the new primary family
+- Expanded and updated the dashboard CSS token bridge:
+  - `dashboard/app/globals.css`
+  - added the full exposed `brand` variable range from `50` through `900`
+  - updated primary-driven hover, selected, border, gradient, and focus states to the new brand family
+  - removed remaining direct uses of the old purple primary values from the live stylesheet
+- Updated token documentation:
+  - `docs/design-tokens.md`
+  - documented the brand family as the slate-steel scale anchored at `#334E58`
+- Updated tracking:
+  - `docs/task-list.md`
+  - `handoff.md`
+
+#### Why
+
+- A direct primary-color change without recalibrating the rest of the brand family would have left mixed purple and slate interaction states across focus, hover, selection, and auth surfaces.
+- Expanding the CSS bridge to the full brand family closes an existing gap where intermediate brand shades were already referenced by the UI.
+
+#### Verification
+
+- Diagnostics:
+  - `shared/src/design-tokens.ts` -> clean
+  - `dashboard/app/globals.css` -> clean
+  - `docs/design-tokens.md` -> clean
+  - `docs/task-list.md` -> clean
+  - `handoff.md` -> clean
+  - `docs/superpowers/specs/2026-05-18-primary-color-recalibration-design.md` -> clean
+- Type validation:
+  - `npm run typecheck -w @shetrades/dashboard` -> PASS
+- Production build:
+  - `npm run build -w @shetrades/dashboard` -> PASS
+
+#### Important Notes
+
+- The `accent` family remains unchanged.
+- This pass intentionally focuses on the shared primary brand system and its live dashboard usage rather than introducing structural UI changes.
+
+#### Next Task
+
+- Perform a focused visual verification of the recalibrated primary brand color across `/previews/components` and live admin surfaces.

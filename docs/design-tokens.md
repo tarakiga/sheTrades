@@ -13,7 +13,7 @@ This document defines the approved baseline tokens used by the SheTrades dashboa
 ## Token Categories
 
 - Color palette:
-  - Brand (purple scale)
+  - Brand (slate-steel scale anchored at `#334E58`)
   - Accent (gold scale)
   - Neutral (gray scale)
   - Semantic (success, warning, danger, info)
