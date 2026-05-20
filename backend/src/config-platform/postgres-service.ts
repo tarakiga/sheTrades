@@ -72,6 +72,13 @@ type ListDocumentsOptions = { includeIntegration?: boolean };
 // Row → Domain mappers
 // ---------------------------------------------------------------------------
 
+function formatTimestamp(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return String(value);
+}
+
 function toDocument(row: Record<string, unknown>): ConfigDocument {
   return {
     id: String(row.id),
@@ -80,9 +87,9 @@ function toDocument(row: Record<string, unknown>): ConfigDocument {
     type: row.type as ConfigDocumentType,
     title: String(row.title),
     isActive: Boolean(row.is_active),
-    createdAt: String(row.created_at),
+    createdAt: formatTimestamp(row.created_at),
     createdBy: String(row.created_by),
-    updatedAt: String(row.updated_at),
+    updatedAt: formatTimestamp(row.updated_at),
     updatedBy: String(row.updated_by)
   };
 }
@@ -96,9 +103,9 @@ function toVersion(row: Record<string, unknown>): ConfigVersion {
     payload: row.payload as ConfigPayload,
     schemaVersion: Number(row.schema_version ?? 1),
     ...(row.change_summary ? { changeSummary: String(row.change_summary) } : {}),
-    createdAt: String(row.created_at),
+    createdAt: formatTimestamp(row.created_at),
     createdBy: String(row.created_by),
-    ...(row.published_at ? { publishedAt: String(row.published_at) } : {}),
+    ...(row.published_at ? { publishedAt: formatTimestamp(row.published_at) } : {}),
     ...(row.published_by ? { publishedBy: String(row.published_by) } : {}),
     ...(row.rolled_back_from_version_id
       ? { rolledBackFromVersionId: String(row.rolled_back_from_version_id) }

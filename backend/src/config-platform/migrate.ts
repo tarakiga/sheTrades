@@ -71,8 +71,14 @@ CREATE INDEX IF NOT EXISTS config_audit_log_document_id_idx
   ON config_audit_log (document_id);
 `;
 
-async function main() {
-  const connectionString = getEnv("POSTGRES_URL");
+import { fileURLToPath } from "url";
+
+export async function runMigrations() {
+  const connectionString = process.env.POSTGRES_URL;
+  if (!connectionString) {
+    console.log("POSTGRES_URL not set; skipping migrations.");
+    return;
+  }
   const pool = new Pool({
     connectionString,
     ssl: getPostgresSslConfig()
@@ -92,8 +98,17 @@ async function main() {
   }
 }
 
-main().catch((err: unknown) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error(`Migration failed: ${message}`);
-  process.exitCode = 1;
-});
+// Check if this script is executed directly
+const isMain = process.argv[1] && (
+  process.argv[1] === fileURLToPath(import.meta.url) ||
+  process.argv[1].endsWith("migrate.ts") ||
+  process.argv[1].endsWith("migrate.js")
+);
+
+if (isMain) {
+  runMigrations().catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Migration failed: ${message}`);
+    process.exitCode = 1;
+  });
+}
