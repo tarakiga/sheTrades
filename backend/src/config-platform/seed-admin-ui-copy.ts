@@ -1,6 +1,5 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 
 type SeedEntry = {
@@ -31,15 +30,7 @@ function getSeedPath() {
   if (configured) {
     return path.resolve(configured);
   }
-  return path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "..",
-    "..",
-    "..",
-    "docs",
-    "config-seeds",
-    "admin-ui-copy.seed.json"
-  );
+  return path.resolve(process.cwd(), "..", "docs", "config-seeds", "admin-ui-copy.seed.json");
 }
 
 async function loadSeedEntries(seedPath: string) {
@@ -127,7 +118,7 @@ async function ensureDocument(
     return existing.body;
   }
 
-  if (existing.status !== 404) {
+  if (existing.status !== 404 && existing.status !== 409) {
     const message =
       existing.body && typeof existing.body === "object" && "message" in existing.body
         ? String(existing.body.message)

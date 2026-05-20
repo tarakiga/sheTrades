@@ -15,6 +15,3 @@ dashboard/.next/
 dist/
 coverage/
 *.tsbuildinfo
-errorlog.txt
-make-admin-jwt.cjs
-

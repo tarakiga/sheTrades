@@ -145,11 +145,11 @@ export default async function AdminDashboardOverviewPage() {
       title={t("dashboard.title", "Dashboard Overview")}
       description={t(
         "dashboard.description",
-        "Overview of platform operations, learner progress, and reward fulfillment."
+        "Review the clearest learner, funnel, and rewards signals first, then use the support panels for detail."
       )}
       actions={
         <div className="preview-row">
-          <Badge variant={statsSource === "live" ? "success" : "neutral"}>
+          <Badge variant={statsSource === "live" ? "success" : "warning"}>
             {statsSource === "live"
               ? t("common.liveData", "Live Data")
               : t("common.safeEmptyFallback", "Safe Empty Fallback")}
@@ -209,7 +209,7 @@ export default async function AdminDashboardOverviewPage() {
           title={t("dashboard.workspace.primary.title", "Operational Review")}
           description={t(
             "dashboard.workspace.primary.description",
-            "High-level summary of system health and operational readiness."
+            "Start with the strongest operating signals, then open the support panels below when you need context."
           )}
         >
           <Table
@@ -284,7 +284,6 @@ export default async function AdminDashboardOverviewPage() {
               />
             ) : (
               <EmptyState
-                icon="rewards"
                 title={t("dashboard.empty.rewardActivity.title", "No reward activity available")}
                 description={t(
                   "dashboard.empty.rewardActivity.description",
@@ -321,7 +320,6 @@ export default async function AdminDashboardOverviewPage() {
               />
             ) : (
               <EmptyState
-                icon="users"
                 title={t("dashboard.empty.atRisk.title", "No at-risk learner data")}
                 description={t(
                   "dashboard.empty.atRisk.description",
@@ -366,11 +364,10 @@ export default async function AdminDashboardOverviewPage() {
             title={t("dashboard.cards.milestones.title", "Upcoming Milestones")}
             description={t(
               "dashboard.cards.milestones.description",
-              "Track learners approaching reward thresholds and engagement milestones."
+              "Use this support area to track the next threshold learners are approaching."
             )}
           >
             <EmptyState
-              icon="analytics"
               title={t("dashboard.empty.milestones.title", "No upcoming milestone events")}
               description={t(
                 "dashboard.empty.milestones.description",

@@ -16,7 +16,7 @@ export default async function ContentPage() {
           "Manage lessons, message copy, and learning content from one premium workspace."
         )}
         actions={
-          <Badge variant={copy.source === "live" ? "success" : "danger"}>
+          <Badge variant={copy.source === "live" ? "success" : "warning"}>
             {copy.source === "live"
               ? t("common.liveData", "Live Data")
               : t("common.fallbackData", "Fallback Data")}
@@ -29,7 +29,6 @@ export default async function ContentPage() {
         namespace="content"
         defaultType="ui_copy"
         copy={copy.map}
-        showAccessControls={false}
         presentation={{
           workspaceTitle: t("content.workspace.title", "Content Workspace"),
           workspaceDescription: t(

@@ -28,7 +28,7 @@ export default async function RewardsPage() {
       )}
       actions={
         <div className="preview-row">
-          <Badge variant={meta.source === "live" ? "success" : "danger"}>
+          <Badge variant={meta.source === "live" ? "success" : "warning"}>
             {meta.source === "live"
               ? t("common.liveData", "Live Data")
               : t("common.fallbackData", "Fallback Data")}
@@ -87,24 +87,7 @@ export default async function RewardsPage() {
           <Table
             wrapperClassName="admin-review-table-wrap"
             tableClassName="admin-review-table"
-            emptyState={
-              <EmptyState
-                icon="rewards"
-                title={t("rewards.empty.log.title", "Issue a reward to get started")}
-                description={t(
-                  "rewards.empty.log.description",
-                  "Configure reward triggers and link an airtime provider to automate fulfillment."
-                )}
-                action={
-                  <Button 
-                    variant="primary" 
-                    style={{ background: "var(--color-warning)", borderColor: "var(--color-warning-500)", color: "#ffffff" }}
-                  >
-                    {t("rewards.actions.issueFirstReward", "Issue a reward to get started")}
-                  </Button>
-                }
-              />
-            }
+            emptyMessage={t("rewards.empty.log", "No reward activity is available yet.")}
             columns={[
               { key: "learner", header: t("common.columns.learner", "Learner") },
               { key: "module", header: t("common.columns.module", "Module") },
@@ -134,7 +117,7 @@ export default async function RewardsPage() {
             title={t("rewards.cards.exceptions.title", "Exceptions")}
             description={t(
               "rewards.cards.exceptions.description",
-              "Track and manage failed or disputed rewards requiring manual follow-up."
+              "Keep failed or disputed rewards in a quieter support zone for focused follow-up."
             )}
           >
             {failedRows.length > 0 ? (
@@ -155,7 +138,6 @@ export default async function RewardsPage() {
               />
             ) : (
               <EmptyState
-                icon="rewards"
                 title={t("rewards.empty.exceptions.title", "No unresolved exceptions")}
                 description={t(
                   "rewards.empty.exceptions.description",
@@ -174,7 +156,7 @@ export default async function RewardsPage() {
             title={t("rewards.support.deliveryGaps.title", "Delivery Gaps")}
             description={t(
               "rewards.support.deliveryGaps.description",
-              "Monitor transactions that are currently pending fulfillment."
+              "Pending transactions remain visible without competing with the main reward log."
             )}
           >
             {pendingRows.length > 0 ? (
@@ -207,7 +189,7 @@ export default async function RewardsPage() {
             title={t("rewards.support.automation.title", "Automation Health")}
             description={t(
               "rewards.support.automation.description",
-              "Overview of overall fulfillment health and channel distribution."
+              "Summarize fulfillment behavior and channel spread in one calmer panel."
             )}
           >
             <div className="admin-review-support-stack">
