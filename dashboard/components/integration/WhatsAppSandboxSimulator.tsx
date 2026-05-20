@@ -1,0 +1,381 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { ADMIN_CONFIG_API_BASE_URL } from "../../lib/admin-config-auth";
+import { Badge, Button } from "../ui";
+
+type Message = {
+  id: string;
+  sender: "user" | "bot" | "system";
+  text: string;
+  timestamp: string;
+};
+
+type SessionInfo = {
+  phone: string;
+  state: string;
+  name?: string;
+  language?: string;
+  lastUpdatedAt?: string;
+};
+
+export function WhatsAppSandboxSimulator() {
+  const [phone, setPhone] = useState("+2348031234567");
+  const [inputText, setInputText] = useState("");
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "init-1",
+      sender: "system",
+      text: "WhatsApp Webhook Sandbox initiated. Send any message from the simulated phone to begin onboarding.",
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    }
+  ]);
+  const [session, setSession] = useState<SessionInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [isFetchingSession, setIsFetchingSession] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const fetchSessionDetails = async (phoneNum: string) => {
+    if (!phoneNum.trim()) return;
+    try {
+      setIsFetchingSession(true);
+      const res = await fetch(
+        `${ADMIN_CONFIG_API_BASE_URL}/webhook/whatsapp/session/${encodeURIComponent(phoneNum.trim())}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setSession(data);
+      } else {
+        setSession(null);
+      }
+    } catch (err) {
+      console.error("Failed to fetch session:", err);
+    } finally {
+      setIsFetchingSession(false);
+    }
+  };
+
+  useEffect(() => {
+    if (phone.trim()) {
+      const timer = setTimeout(() => {
+        void fetchSessionDetails(phone.trim());
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [phone]);
+
+  const handleSend = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const textToSend = inputText.trim();
+    if (!textToSend || isLoading) return;
+
+    setInputText("");
+    const userMsgId = `msg-${Date.now()}`;
+    const userMsg: Message = {
+      id: userMsgId,
+      sender: "user",
+      text: textToSend,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setIsLoading(true);
+    setFeedback(null);
+
+    const payload = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  {
+                    id: userMsgId,
+                    from: phone.trim(),
+                    text: { body: textToSend }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    };
+
+    try {
+      const res = await fetch(`${ADMIN_CONFIG_API_BASE_URL}/webhook/whatsapp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        throw new Error(`Webhook responded with status ${res.status}`);
+      }
+
+      const result = await res.json();
+
+      if (result.status === "processed" && result.reply) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: result.messageId || `bot-${Date.now()}`,
+            sender: "bot",
+            text: result.reply,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          }
+        ]);
+      } else if (result.status === "duplicate") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-err-${Date.now()}`,
+            sender: "system",
+            text: `⚠️ Message ignored by backend because it's a duplicate ID. State: ${result.state}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          }
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-err-${Date.now()}`,
+            sender: "system",
+            text: `⚠️ Webhook payload was ignored/unprocessed by backend. Reason: ${result.reason || "N/A"}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          }
+        ]);
+      }
+
+      await fetchSessionDetails(phone.trim());
+    } catch (err) {
+      console.error(err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          sender: "system",
+          text: `❌ Error communicating with WhatsApp webhook endpoint: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        }
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetSession = async () => {
+    setIsResetting(true);
+    setFeedback(null);
+    try {
+      const res = await fetch(`${ADMIN_CONFIG_API_BASE_URL}/webhook/whatsapp/reset`, {
+        method: "POST"
+      });
+      if (res.ok) {
+        setSession(null);
+        setMessages([
+          {
+            id: `reset-${Date.now()}`,
+            sender: "system",
+            text: "✅ Chatbot database sessions reset successfully. All phone memory states cleared on the backend.",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          }
+        ]);
+        setFeedback({ type: "success", message: "Sandbox session states reset successfully." });
+      } else {
+        throw new Error(`Reset failed with status ${res.status}`);
+      }
+    } catch (err) {
+      console.error(err);
+      setFeedback({
+        type: "error",
+        message: `Failed to reset session states: ${err instanceof Error ? err.message : String(err)}`
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  return (
+    <section className="whatsapp-sandbox-section">
+      <div className="whatsapp-sandbox-grid">
+        {/* Smartphone Mockup */}
+        <div className="whatsapp-phone-mockup">
+          <div className="whatsapp-phone-bezel">
+            {/* Speaker & Camera notch */}
+            <div className="phone-notch"></div>
+
+            {/* Chat Screen */}
+            <div className="whatsapp-phone-screen">
+              {/* Phone Header */}
+              <div className="whatsapp-phone-header">
+                <div className="phone-header-left">
+                  <div className="bot-avatar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="11" width="18" height="10" rx="2" />
+                      <circle cx="12" cy="5" r="2" />
+                      <path d="M12 7v4" />
+                      <line x1="8" y1="16" x2="8" y2="16.01" />
+                      <line x1="16" y1="16" x2="16" y2="16.01" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h5 className="bot-name">SheTrades Bot</h5>
+                    <span className="bot-status">
+                      <span className="pulse-dot"></span>
+                      Online (Sandbox)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chat Message Logs */}
+              <div className="whatsapp-phone-chatbox">
+                {messages.map((msg) => (
+                  <div key={msg.id} className={`chat-message-row chat-message-row--${msg.sender}`}>
+                    {msg.sender === "system" ? (
+                      <div className="chat-bubble chat-bubble--system">{msg.text}</div>
+                    ) : (
+                      <div className={`chat-bubble chat-bubble--${msg.sender}`}>
+                        <div className="chat-bubble-text">{msg.text}</div>
+                        <div className="chat-bubble-time">{msg.timestamp}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Chat Input Footer */}
+              <form onSubmit={handleSend} className="whatsapp-phone-input-bar">
+                <input
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder="Type a message..."
+                  disabled={isLoading}
+                  className="whatsapp-phone-input"
+                />
+                <button type="submit" disabled={!inputText.trim() || isLoading} className="whatsapp-send-button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        {/* Diagnostics Inspector */}
+        <div className="sandbox-diagnostics-panel">
+          <div className="diagnostics-header">
+            <h4 className="diagnostics-title">Active Session Diagnostics</h4>
+            <p className="diagnostics-desc">
+              Inspect raw user state values saved in the backend runtime chatbot database.
+            </p>
+          </div>
+
+          {feedback ? (
+            <div className="diagnostics-feedback">
+              <Badge variant={feedback.type === "success" ? "success" : "danger"}>{feedback.message}</Badge>
+            </div>
+          ) : null}
+
+          <div className="diagnostics-card">
+            <table className="diagnostics-table">
+              <tbody>
+                <tr>
+                  <td>Simulated Phone</td>
+                  <td>
+                    <input
+                      type="text"
+                      className="phone-editor-input"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="e.g. +234800000000"
+                    />
+                    <small className="phone-input-hint">Edit to simulate different phone numbers</small>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Session Status</td>
+                  <td>
+                    {isFetchingSession ? (
+                      <span className="status-fetch-indicator animate-pulse">Checking...</span>
+                    ) : session ? (
+                      <Badge variant="success">Active</Badge>
+                    ) : (
+                      <Badge variant="neutral">Uninitialized (Onboarding)</Badge>
+                    )}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Dialogue State</td>
+                  <td>
+                    <code className="state-badge-code">{session?.state || "awaiting_name (Default)"}</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Registered Name</td>
+                  <td>
+                    <span className="state-value-text">{session?.name || "n/a"}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Selected Language</td>
+                  <td>
+                    {session?.language ? (
+                      <Badge variant="info">{session.language.toUpperCase()}</Badge>
+                    ) : (
+                      <span className="state-value-text">n/a</span>
+                    )}
+                  </td>
+                </tr>
+                {session?.lastUpdatedAt ? (
+                  <tr>
+                    <td>Last Synced</td>
+                    <td>
+                      <span className="state-value-text text-xs">
+                        {new Date(session.lastUpdatedAt).toLocaleTimeString()}
+                      </span>
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="diagnostics-actions">
+            <Button variant="danger" size="sm" loading={isResetting} onClick={handleResetSession}>
+              Reset Session State
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={isFetchingSession}
+              onClick={() => void fetchSessionDetails(phone.trim())}
+            >
+              Refresh Diagnostics
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

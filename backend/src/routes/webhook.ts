@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getRuntimeWhatsAppConfig } from "../config-platform/runtime-config.js";
-import { handleWhatsAppWebhook } from "../whatsapp/handler.js";
+import { handleWhatsAppWebhook, resetWhatsAppState, getWhatsAppSession } from "../whatsapp/handler.js";
 
 export const webhookRouter = Router();
 
@@ -28,4 +28,18 @@ webhookRouter.get("/whatsapp", (req, res) => {
 webhookRouter.post("/whatsapp", (req, res) => {
   const result = handleWhatsAppWebhook(req.body);
   res.status(200).json(result);
+});
+
+webhookRouter.post("/whatsapp/reset", (req, res) => {
+  resetWhatsAppState();
+  res.status(200).json({ message: "WhatsApp sandbox sessions have been reset." });
+});
+
+webhookRouter.get("/whatsapp/session/:phone", (req, res) => {
+  const session = getWhatsAppSession(req.params.phone);
+  if (!session) {
+    res.status(404).json({ message: "Session not found." });
+    return;
+  }
+  res.status(200).json(session);
 });

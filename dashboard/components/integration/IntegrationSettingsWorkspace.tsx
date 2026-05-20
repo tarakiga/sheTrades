@@ -12,6 +12,7 @@ import {
   Tabs
 } from "../ui";
 import { SettingsWorkspaceHeader } from "../config/SettingsWorkspaceHeader";
+import { WhatsAppSandboxSimulator } from "./WhatsAppSandboxSimulator";
 import {
   ADMIN_CONFIG_API_BASE_URL,
   ADMIN_CONFIG_TOKEN_UPDATED_EVENT,
@@ -792,6 +793,9 @@ function IntegrationProviderWorkspace({
             onPublish={() => void publish()}
             onRollback={() => void rollback()}
           />
+          {provider.id === "whatsapp" && (
+            <WhatsAppSandboxSimulator />
+          )}
         </>
       )}
 

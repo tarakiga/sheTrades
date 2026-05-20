@@ -5913,5 +5913,31 @@ psql "sslmode=verify-ca sslrootcert=server-ca.pem sslcert=client-cert.pem sslkey
 - **Compilation Check:** Ran monorepo-wide TypeScript verification (`npm run typecheck`) and verified a 100% clean compilation status.
 
 #### Next Task
+- Task 062: WhatsApp Webhook Sandbox & Simulator
+
+### Task 062: WhatsApp Webhook Sandbox & Simulator
+
+- Date: 2026-05-20
+- Owner: Antigravity AI Coding Agent
+- Status: Completed
+- Goal: Implement a premium, interactive WhatsApp Webhook Sandbox/Simulator to facilitate offline and staging developer testing of chatbot onboarding, language selection, menus, and user session state transitions.
+
+#### Changes Made
+- **Backend Session Reset & Get Endpoints:**
+  - Registered `POST /webhook/whatsapp/reset` in `backend/src/routes/webhook.ts` which calls `resetWhatsAppState()` to purge active session memory map.
+  - Added `GET /webhook/whatsapp/session/:phone` inside `backend/src/routes/webhook.ts` and exported `getWhatsAppSession()` from `backend/src/whatsapp/handler.ts` to allow live front-end retrieval of the active server-side chatbot session variables.
+- **WhatsApp Webhook Sandbox React Component:**
+  - Implemented `dashboard/components/integration/WhatsAppSandboxSimulator.tsx` featuring an interactive smartphone mockup with WhatsApp green header, online pulse indicator, and scrolling chat dialogue bubbles (formatted with pre-wrap).
+  - Developed the **Active Session Diagnostics Panel** displaying dynamic session fields (Dialogue State, Selected Language, Registered Name, and Sync Times) synced directly via backend endpoint queries.
+  - Added "Reset Session State" to purge chat memory and restart conversation trees.
+- **UI Integration & Layout Mounting:**
+  - Imported and rendered `WhatsAppSandboxSimulator` in `dashboard/components/integration/IntegrationSettingsWorkspace.tsx` under the WhatsApp provider settings tab layout.
+- **Premium CSS Styling:**
+  - Appended layout grid, glassmorphic phone frame mockup with camera notch, dialogue bubble formatting (user vs bot), green glow animations, and diagnostics table properties to `dashboard/app/globals.css`.
+- **Validation Sweep:**
+  - Verified monorepo-wide test suite (`npm run test -w @shetrades/backend`), completing with 82/82 passing tests.
+  - Performed workspace-wide TypeScript verification check (`npm run typecheck`), producing 0 errors.
+
+#### Next Task
 - Ready for final review.
 

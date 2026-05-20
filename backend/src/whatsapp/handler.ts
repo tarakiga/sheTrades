@@ -296,3 +296,8 @@ export function resetWhatsAppState() {
   sessions.clear();
   processedMessageIds.clear();
 }
+
+export function getWhatsAppSession(phone: string) {
+  return sessions.get(phone);
+}
+
