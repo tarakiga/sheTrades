@@ -12,9 +12,6 @@ export type LoginFormValue = {
 };
 
 export type LoginFormCardProps = {
-  eyebrow?: string;
-  title: string;
-  description: string;
   density?: "default" | "compact";
   emailLabel: string;
   emailHint?: string;
@@ -23,6 +20,7 @@ export type LoginFormCardProps = {
   submitLabel: string;
   loadingLabel: string;
   submitHint?: string;
+  forgotPasswordAction?: ReactNode;
   recoveryAction?: ReactNode;
   value: LoginFormValue;
   errors: Partial<Record<keyof LoginFormValue, string>>;
@@ -33,9 +31,6 @@ export type LoginFormCardProps = {
 };
 
 export function LoginFormCard({
-  eyebrow,
-  title,
-  description,
   density = "default",
   emailLabel,
   emailHint,
@@ -44,6 +39,7 @@ export function LoginFormCard({
   submitLabel,
   loadingLabel,
   submitHint,
+  forgotPasswordAction,
   recoveryAction,
   value,
   errors,
@@ -64,16 +60,10 @@ export function LoginFormCard({
       ]
         .filter(Boolean)
         .join(" ")}
+      suppressHydrationWarning
     >
-      <header className="auth-login-card__header">
-        {eyebrow ? <p className="auth-login-card__eyebrow">{eyebrow}</p> : null}
-        <div>
-          <h3 className="auth-login-card__title">{title}</h3>
-          <p className="auth-login-card__description">{description}</p>
-        </div>
-      </header>
-      <div className="auth-login-card__content">
-        <div className="profile-form auth-login-card__form">
+      <div className="auth-login-card__content" suppressHydrationWarning>
+        <div className="profile-form auth-login-card__form" suppressHydrationWarning>
           <AuthStatusBanner message={status} />
           <Input
             id="login-email"
@@ -94,15 +84,23 @@ export function LoginFormCard({
             {...withError(errors.password)}
             onChange={(nextValue) => onChange({ ...value, password: nextValue })}
           />
+          {forgotPasswordAction ? (
+            <div className="auth-login-card__forgot-password">{forgotPasswordAction}</div>
+          ) : null}
           <div className="auth-login-card__cta">
             <Button onClick={onSubmit} loading={submitting} fullWidth size="lg">
               {submitting ? loadingLabel : submitLabel}
             </Button>
             {submitHint ? <p className="auth-login-card__submit-hint">{submitHint}</p> : null}
           </div>
-          {recoveryAction ? <div className="auth-login-card__recovery">{recoveryAction}</div> : null}
         </div>
       </div>
+      {recoveryAction ? (
+        <footer className="auth-login-card__footer" suppressHydrationWarning>
+          <hr className="auth-login-card__divider" />
+          <div className="auth-login-card__recovery">{recoveryAction}</div>
+        </footer>
+      ) : null}
     </section>
   );
 }

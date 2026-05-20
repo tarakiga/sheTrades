@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, Button, Card } from "../../../components/ui";
+import { Button, Card } from "../../../components/ui";
 import { AdminSessionProvider } from "../../../components/auth/AdminSessionProvider";
 import { AuthPageShell } from "../../../components/auth/AuthPageShell";
 import { LoginFormCard, type LoginFormValue } from "../../../components/auth/LoginFormCard";
@@ -136,23 +136,6 @@ export function AdminAuthPreview() {
           eyebrow="SheTrades Admin"
           title="Welcome back"
           description="Sign in with your admin account to manage content, integrations, and operational settings."
-          heroBadge={<Badge variant="info">Executive admin access</Badge>}
-          heroHighlights={
-            <div className="auth-shell__hero-strip">
-              <div className="auth-shell__hero-metric">
-                <strong className="auth-shell__hero-metric-value">Role-aware</strong>
-                <span className="auth-shell__hero-metric-label">Access control</span>
-              </div>
-              <div className="auth-shell__hero-metric">
-                <strong className="auth-shell__hero-metric-value">3 core</strong>
-                <span className="auth-shell__hero-metric-label">Managed workspaces</span>
-              </div>
-              <div className="auth-shell__hero-metric">
-                <strong className="auth-shell__hero-metric-value">Session-backed</strong>
-                <span className="auth-shell__hero-metric-label">Secure continuity</span>
-              </div>
-            </div>
-          }
           asideLabel="Secure admin access"
           asideTitle="Trusted operational control"
           asideDescription="This experience is designed for calm, secure admin access with role-aware protections."
@@ -181,9 +164,6 @@ export function AdminAuthPreview() {
         >
           <LoginFormCard
             density="compact"
-            eyebrow="Secure sign-in"
-            title="Admin sign in"
-            description="Enter your assigned credentials to continue into the SheTrades control workspace."
             emailLabel="Email address"
             emailHint="Use the email assigned to your admin account."
             passwordLabel="Password"
@@ -191,6 +171,15 @@ export function AdminAuthPreview() {
             submitLabel="Sign in"
             loadingLabel="Signing in..."
             submitHint="Your session stays role-aware and protected as you move across the dashboard."
+            forgotPasswordAction={
+              <button
+                type="button"
+                className="auth-login-card__forgot-link"
+                onClick={() => setLoginState("help")}
+              >
+                Forgot password?
+              </button>
+            }
             recoveryAction={
               <Button variant="ghost" size="sm" onClick={() => setLoginState("help")}>
                 Get sign-in help

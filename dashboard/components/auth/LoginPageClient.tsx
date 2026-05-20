@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAdminUiCopyClient } from "../../lib/config/admin-ui-copy-client";
-import { Badge, Button } from "../ui";
+import { Button, LoadingState } from "../ui";
 import { AuthPageShell } from "./AuthPageShell";
 import { LoginFormCard, type LoginFormValue } from "./LoginFormCard";
 import { useAdminSession } from "./AdminSessionProvider";
 import type { AuthStatusMessage } from "./types";
+import { LoginPageFallback } from "./LoginPageFallback";
 
 function validateLogin(value: LoginFormValue) {
   return {
@@ -17,6 +18,11 @@ function validateLogin(value: LoginFormValue) {
 }
 
 export function LoginPageClient() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { t } = useAdminUiCopyClient();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,6 +47,17 @@ export function LoginPageClient() {
       description: t(
         "auth.login.support.description",
         "Use the admin account assigned to your team. If access still fails, confirm that your account is active and your secure sign-in details are up to date."
+      )
+    });
+  }
+
+  function handleForgotPassword() {
+    setFeedback({
+      tone: "info",
+      title: t("auth.login.forgotPassword.title", "Reset your password"),
+      description: t(
+        "auth.login.forgotPassword.description",
+        "Contact your system administrator to reset your admin password. For security, password resets are handled through your organisation's IT team or the platform owner."
       )
     });
   }
@@ -98,8 +115,12 @@ export function LoginPageClient() {
     }
   }
 
+  if (!mounted) {
+    return <LoginPageFallback />;
+  }
+
   return (
-    <main className="auth-page">
+    <main className="auth-page" suppressHydrationWarning>
       <AuthPageShell
         desktopMode="viewport-fit"
         eyebrow={t("auth.login.eyebrow", "SheTrades Admin")}
@@ -108,35 +129,6 @@ export function LoginPageClient() {
           "auth.login.pageDescription",
           "Sign in with your admin account to manage content, integrations, and operational settings."
         )}
-        heroBadge={<Badge variant="info">{t("auth.login.badge", "Executive admin access")}</Badge>}
-        heroHighlights={
-          <div className="auth-shell__hero-strip" aria-label={t("auth.login.heroHighlights", "Login highlights")}>
-            <div className="auth-shell__hero-metric">
-              <strong className="auth-shell__hero-metric-value">
-                {t("auth.login.hero.accessValue", "Role-aware")}
-              </strong>
-              <span className="auth-shell__hero-metric-label">
-                {t("auth.login.hero.accessLabel", "Access control")}
-              </span>
-            </div>
-            <div className="auth-shell__hero-metric">
-              <strong className="auth-shell__hero-metric-value">
-                {t("auth.login.hero.workspacesValue", "3 core")}
-              </strong>
-              <span className="auth-shell__hero-metric-label">
-                {t("auth.login.hero.workspacesLabel", "Managed workspaces")}
-              </span>
-            </div>
-            <div className="auth-shell__hero-metric">
-              <strong className="auth-shell__hero-metric-value">
-                {t("auth.login.hero.sessionValue", "Session-backed")}
-              </strong>
-              <span className="auth-shell__hero-metric-label">
-                {t("auth.login.hero.sessionLabel", "Secure continuity")}
-              </span>
-            </div>
-          </div>
-        }
         asideLabel={t("auth.login.asideLabel", "Secure admin access")}
         asideTitle={t("auth.login.asideTitle", "Trusted operational control")}
         asideDescription={t(
@@ -183,12 +175,6 @@ export function LoginPageClient() {
       >
         <LoginFormCard
           density="compact"
-          eyebrow={t("auth.login.form.eyebrow", "Secure sign-in")}
-          title={t("auth.login.form.title", "Admin sign in")}
-          description={t(
-            "auth.login.form.description",
-            "Enter your assigned credentials to continue into the SheTrades control workspace."
-          )}
           emailLabel={t("auth.login.form.email.label", "Email address")}
           emailHint={t(
             "auth.login.form.email.hint",
@@ -209,6 +195,15 @@ export function LoginPageClient() {
             <Button variant="ghost" size="sm" type="button" onClick={handleSupport}>
               {t("auth.login.form.recovery", "Get sign-in help")}
             </Button>
+          }
+          forgotPasswordAction={
+            <button
+              type="button"
+              className="auth-login-card__forgot-link"
+              onClick={handleForgotPassword}
+            >
+              {t("auth.login.form.forgotPassword", "Forgot password?")}
+            </button>
           }
           value={value}
           errors={errors}

@@ -11,7 +11,6 @@ export type AuthPageShellProps = {
   description: string;
   desktopMode?: "default" | "viewport-fit";
   heroBadge?: ReactNode;
-  heroHighlights?: ReactNode;
   asideLabel?: string;
   asideTitle: string;
   asideDescription: string;
@@ -30,7 +29,6 @@ export function AuthPageShell({
   description,
   desktopMode = "default",
   heroBadge,
-  heroHighlights,
   asideLabel = "Secure admin access",
   asideTitle,
   asideDescription,
@@ -50,31 +48,17 @@ export function AuthPageShell({
       ]
         .filter(Boolean)
         .join(" ")}
+      suppressHydrationWarning
     >
-      <div className="auth-shell__panel">
-        <div className="auth-shell__hero">
+      <div className="auth-shell__panel" suppressHydrationWarning>
+        <div className="auth-shell__hero" suppressHydrationWarning>
           {heroBadge ? <div className="auth-shell__hero-badge">{heroBadge}</div> : null}
           <p className="auth-shell__eyebrow">{eyebrow}</p>
           <h1 className="auth-shell__title">{title}</h1>
-          <p className="auth-shell__description">{description}</p>
-          {heroHighlights ? <div className="auth-shell__hero-highlights">{heroHighlights}</div> : null}
+          <p className="auth-shell__description" suppressHydrationWarning>{description}</p>
         </div>
 
-        <div className="auth-shell__card">{children}</div>
-
-        {supportTitle || supportDescription || supportAction ? (
-          <div className="auth-shell__support">
-            <div className="auth-shell__support-copy">
-              {supportTitle ? <p className="auth-shell__support-title">{supportTitle}</p> : null}
-              {supportDescription ? (
-                <p className="auth-shell__support-description">{supportDescription}</p>
-              ) : null}
-            </div>
-            {supportAction ? <div className="auth-shell__support-action">{supportAction}</div> : null}
-          </div>
-        ) : null}
-
-        {footer ? <div className="auth-shell__footer">{footer}</div> : null}
+        <div className="auth-shell__card" suppressHydrationWarning>{children}</div>
       </div>
 
       <aside className="auth-shell__aside" aria-label={asideTitle}>
@@ -104,6 +88,20 @@ export function AuthPageShell({
               </li>
             ))}
           </ul>
+
+          {supportTitle || supportDescription || supportAction ? (
+            <div className="auth-shell__support">
+              <div className="auth-shell__support-copy">
+                {supportTitle ? <p className="auth-shell__support-title">{supportTitle}</p> : null}
+                {supportDescription ? (
+                  <p className="auth-shell__support-description">{supportDescription}</p>
+                ) : null}
+              </div>
+              {supportAction ? <div className="auth-shell__support-action">{supportAction}</div> : null}
+            </div>
+          ) : null}
+
+          {footer ? <div className="auth-shell__footer">{footer}</div> : null}
         </div>
       </aside>
     </section>

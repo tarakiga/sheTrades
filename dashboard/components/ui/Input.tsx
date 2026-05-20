@@ -12,7 +12,7 @@ export function Input({ id, label, hint, error, className, ...props }: InputProp
     .join(" ");
 
   return (
-    <div className="ui-input-field">
+    <div className="ui-input-field" suppressHydrationWarning>
       <label className="ui-input-field__label" htmlFor={id}>
         {label}
       </label>
@@ -23,8 +23,8 @@ export function Input({ id, label, hint, error, className, ...props }: InputProp
         suppressHydrationWarning
         {...props}
       />
-      {error ? <p className="ui-input-field__error">{error}</p> : null}
-      {!error && hint ? <p className="ui-input-field__hint">{hint}</p> : null}
+      {error ? <p className="ui-input-field__error" suppressHydrationWarning>{error}</p> : null}
+      {!error && hint ? <p className="ui-input-field__hint" suppressHydrationWarning>{hint}</p> : null}
     </div>
   );
 }

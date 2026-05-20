@@ -26,7 +26,7 @@ export function PasswordField({
   const [revealed, setRevealed] = useState(false);
 
   return (
-    <div className="auth-password-field">
+    <div className="auth-password-field" suppressHydrationWarning>
       <label className="ui-input-field__label" htmlFor={id}>
         {label}
       </label>
@@ -55,8 +55,8 @@ export function PasswordField({
           {revealed ? "Hide" : "Show"}
         </button>
       </div>
-      {error ? <p className="ui-input-field__error">{error}</p> : null}
-      {!error && hint ? <p className="ui-input-field__hint">{hint}</p> : null}
+      {error ? <p className="ui-input-field__error" suppressHydrationWarning>{error}</p> : null}
+      {!error && hint ? <p className="ui-input-field__hint" suppressHydrationWarning>{hint}</p> : null}
     </div>
   );
 }
