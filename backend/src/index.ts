@@ -2,11 +2,23 @@ import { createApp } from "./app.js";
 import { runMigrations } from "./config-platform/migrate.js";
 import { ensureCacheInitialized } from "./config-platform/runtime-config.js";
 
-// Run config platform database migrations on boot if configured
-await runMigrations();
+try {
+  await runMigrations();
+} catch (error) {
+  console.warn(
+    "Startup migrations failed; continuing with in-memory config fallback.",
+    error instanceof Error ? error.message : error
+  );
+}
 
-// Initialize runtime config cache before booting Express
-await ensureCacheInitialized();
+try {
+  await ensureCacheInitialized();
+} catch (error) {
+  console.warn(
+    "Runtime config cache could not be warmed; continuing with in-memory fallback.",
+    error instanceof Error ? error.message : error
+  );
+}
 
 const port = Number(process.env.PORT ?? 8080);
 const app = createApp();
