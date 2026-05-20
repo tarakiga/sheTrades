@@ -111,7 +111,7 @@ export const configDocumentSchema = z.object({
     .string()
     .min(1)
     .max(120)
-    .regex(/^[a-z0-9_.-]+$/),
+    .regex(/^[a-zA-Z0-9_.-]+$/),
   type: configDocumentTypeSchema,
   title: z.string().min(1).max(160),
   isActive: z.boolean().default(true),
@@ -165,7 +165,7 @@ export const createDocumentRequestSchema = z.object({
     .string()
     .min(1)
     .max(120)
-    .regex(/^[a-z0-9_.-]+$/),
+    .regex(/^[a-zA-Z0-9_.-]+$/),
   type: configDocumentTypeSchema,
   title: z.string().min(1).max(160),
   initialPayload: configPayloadSchema

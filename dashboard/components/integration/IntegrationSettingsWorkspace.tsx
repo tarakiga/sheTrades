@@ -691,108 +691,113 @@ function IntegrationProviderWorkspace({
         <div className="integration-workspace__loading">
           <Badge variant="info">Loading provider settings...</Badge>
         </div>
-      ) : !detail ? (
-        <EmptyState
-          title={provider.emptyTitle}
-          description={provider.emptyDescription}
-          action={<Button onClick={openCreate}>Create Draft</Button>}
-        />
       ) : (
         <>
-          <section className="integration-workspace__table-shell">
-            <div className="integration-workspace__table-header">
-              <div>
-                <h4 className="integration-workspace__table-title">Review And Publish Changes</h4>
-                <p className="integration-workspace__table-description">
-                  Review the live connection, check its health, and open the drawer to adjust the managed provider settings.
-                </p>
-              </div>
-            </div>
-
-            <Table
-              wrapperClassName="integration-table-wrap"
-              tableClassName="integration-table"
-              columns={[
-                {
-                  key: "title",
-                  header: "Integration",
-                  render: (value, currentRow) => (
-                    <div className="integration-table__identity">
-                      <span className="integration-table__title">{String(value)}</span>
-                      <span className="integration-table__meta">{currentRow.identifier}</span>
-                    </div>
-                  )
-                },
-                {
-                  key: "statusLabel",
-                  header: "Status",
-                  render: (value, currentRow) => (
-                    <Badge variant={currentRow.statusVariant}>{String(value)}</Badge>
-                  )
-                },
-                {
-                  key: "healthLabel",
-                  header: "Health",
-                  render: (value, currentRow) => (
-                    <Badge variant={currentRow.healthVariant}>{String(value)}</Badge>
-                  )
-                },
-                {
-                  key: "updatedAt",
-                  header: "Updated",
-                  render: (value) => <span className="integration-table__meta">{String(value)}</span>
-                },
-                {
-                  key: "actionKey",
-                  header: "Actions",
-                  render: () => (
-                    <div className="integration-table__actions">
-                      <IconActionButton icon={<PreviewIcon />} label="Preview" onClick={() => setPreviewOpen(true)} />
-                      <IconActionButton icon={<EditIcon />} label="Edit" tone="primary" onClick={openEdit} />
-                      <IconActionButton
-                        icon={<TestIcon />}
-                        label="Test Connection"
-                        tone="success"
-                        loading={isTesting}
-                        onClick={() => void runConnectionTest(detailToForm(provider.id, detail))}
-                      />
-                      <IconActionButton
-                        icon={<ArchiveIcon />}
-                        label={detail.document.isActive ? "Move To Trash" : "Restore"}
-                        tone={detail.document.isActive ? "danger" : "success"}
-                        onClick={() => setConfirmArchiveOpen(true)}
-                      />
-                    </div>
-                  )
-                }
-              ]}
-              rows={row ? [row] : []}
+          {!detail ? (
+            <EmptyState
+              title={provider.emptyTitle}
+              description={provider.emptyDescription}
+              action={<Button onClick={openCreate}>Create Draft</Button>}
             />
-          </section>
+          ) : (
+            <>
+              <section className="integration-workspace__table-shell">
+                <div className="integration-workspace__table-header">
+                  <div>
+                    <h4 className="integration-workspace__table-title">Review And Publish Changes</h4>
+                    <p className="integration-workspace__table-description">
+                      Review the live connection, check its health, and open the drawer to adjust the managed provider settings.
+                    </p>
+                  </div>
+                </div>
 
-          <PublishWorkflowPanel
-            draftVersionLabel={detail.draft ? `v${detail.draft.versionNumber}` : "No draft"}
-            publishedVersionLabel={detail.published ? `v${detail.published.versionNumber}` : "Not live"}
-            lastPublishedBy={detail.published?.publishedBy ?? "n/a"}
-            lastPublishedAt={formatTimestamp(detail.published?.publishedAt)}
-            hasChanges={Boolean(detail.draft)}
-            labels={{
-              title: "Draft And Publish Workflow",
-              description:
-                "Run connection checks on the draft, publish approved changes, or restore a previous live version when needed.",
-              currentDraft: "Current Draft",
-              publishedVersion: "Published Version",
-              unpublishedChanges: "Draft Ready",
-              noChanges: "No Draft Pending",
-              previewDraft: "Preview",
-              publish: "Publish Live",
-              rollback: "Restore Previous",
-              by: "by"
-            }}
-            onPreviewDraft={() => setPreviewOpen(true)}
-            onPublish={() => void publish()}
-            onRollback={() => void rollback()}
-          />
+                <Table
+                  wrapperClassName="integration-table-wrap"
+                  tableClassName="integration-table"
+                  columns={[
+                    {
+                      key: "title",
+                      header: "Integration",
+                      render: (value, currentRow) => (
+                        <div className="integration-table__identity">
+                          <span className="integration-table__title">{String(value)}</span>
+                          <span className="integration-table__meta">{currentRow.identifier}</span>
+                        </div>
+                      )
+                    },
+                    {
+                      key: "statusLabel",
+                      header: "Status",
+                      render: (value, currentRow) => (
+                        <Badge variant={currentRow.statusVariant}>{String(value)}</Badge>
+                      )
+                    },
+                    {
+                      key: "healthLabel",
+                      header: "Health",
+                      render: (value, currentRow) => (
+                        <Badge variant={currentRow.healthVariant}>{String(value)}</Badge>
+                      )
+                    },
+                    {
+                      key: "updatedAt",
+                      header: "Updated",
+                      render: (value) => <span className="integration-table__meta">{String(value)}</span>
+                    },
+                    {
+                      key: "actionKey",
+                      header: "Actions",
+                      render: () => (
+                        <div className="integration-table__actions">
+                          <IconActionButton icon={<PreviewIcon />} label="Preview" onClick={() => setPreviewOpen(true)} />
+                          <IconActionButton icon={<EditIcon />} label="Edit" tone="primary" onClick={openEdit} />
+                          <IconActionButton
+                            icon={<TestIcon />}
+                            label="Test Connection"
+                            tone="success"
+                            loading={isTesting}
+                            onClick={() => void runConnectionTest(detailToForm(provider.id, detail))}
+                          />
+                          <IconActionButton
+                            icon={<ArchiveIcon />}
+                            label={detail.document.isActive ? "Move To Trash" : "Restore"}
+                            tone={detail.document.isActive ? "danger" : "success"}
+                            onClick={() => setConfirmArchiveOpen(true)}
+                          />
+                        </div>
+                      )
+                    }
+                  ]}
+                  rows={row ? [row] : []}
+                />
+              </section>
+
+              <PublishWorkflowPanel
+                draftVersionLabel={detail.draft ? `v${detail.draft.versionNumber}` : "No draft"}
+                publishedVersionLabel={detail.published ? `v${detail.published.versionNumber}` : "Not live"}
+                lastPublishedBy={detail.published?.publishedBy ?? "n/a"}
+                lastPublishedAt={formatTimestamp(detail.published?.publishedAt)}
+                hasChanges={Boolean(detail.draft)}
+                labels={{
+                  title: "Draft And Publish Workflow",
+                  description:
+                    "Run connection checks on the draft, publish approved changes, or restore a previous live version when needed.",
+                  currentDraft: "Current Draft",
+                  publishedVersion: "Published Version",
+                  unpublishedChanges: "Draft Ready",
+                  noChanges: "No Draft Pending",
+                  previewDraft: "Preview",
+                  publish: "Publish Live",
+                  rollback: "Restore Previous",
+                  by: "by"
+                }}
+                onPreviewDraft={() => setPreviewOpen(true)}
+                onPublish={() => void publish()}
+                onRollback={() => void rollback()}
+              />
+            </>
+          )}
+
           {provider.id === "whatsapp" && (
             <WhatsAppSandboxSimulator />
           )}

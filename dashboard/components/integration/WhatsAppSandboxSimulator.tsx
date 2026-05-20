@@ -21,12 +21,12 @@ type SessionInfo = {
 
 export function WhatsAppSandboxSimulator() {
   const [phone, setPhone] = useState("+2348031234567");
-  const [inputText, setInputText] = useState("");
+  const [inputText, setInputText] = useState("Hello SheTrades");
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "init-1",
       sender: "system",
-      text: "WhatsApp Webhook Sandbox initiated. Send any message from the simulated phone to begin onboarding.",
+      text: "ℹ️ Simulator Ready. In a real-world flow, a user clicks a QR code or link which pre-fills their chat with 'Hello SheTrades'. Click Send to simulate this initial ping and trigger the name prompt.",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     }
   ]);
@@ -81,7 +81,7 @@ export function WhatsAppSandboxSimulator() {
     if (!textToSend || isLoading) return;
 
     setInputText("");
-    const userMsgId = `msg-${Date.now()}`;
+    const userMsgId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const userMsg: Message = {
       id: userMsgId,
       sender: "user",
@@ -132,7 +132,7 @@ export function WhatsAppSandboxSimulator() {
         setMessages((prev) => [
           ...prev,
           {
-            id: result.messageId || `bot-${Date.now()}`,
+            id: result.messageId ? `bot-${result.messageId}` : `bot-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             sender: "bot",
             text: result.reply,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -142,7 +142,7 @@ export function WhatsAppSandboxSimulator() {
         setMessages((prev) => [
           ...prev,
           {
-            id: `bot-err-${Date.now()}`,
+            id: `bot-err-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             sender: "system",
             text: `⚠️ Message ignored by backend because it's a duplicate ID. State: ${result.state}`,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -152,7 +152,7 @@ export function WhatsAppSandboxSimulator() {
         setMessages((prev) => [
           ...prev,
           {
-            id: `bot-err-${Date.now()}`,
+            id: `bot-err-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             sender: "system",
             text: `⚠️ Webhook payload was ignored/unprocessed by backend. Reason: ${result.reason || "N/A"}`,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -166,7 +166,7 @@ export function WhatsAppSandboxSimulator() {
       setMessages((prev) => [
         ...prev,
         {
-          id: `err-${Date.now()}`,
+          id: `err-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           sender: "system",
           text: `❌ Error communicating with WhatsApp webhook endpoint: ${
             err instanceof Error ? err.message : String(err)
@@ -190,12 +190,13 @@ export function WhatsAppSandboxSimulator() {
         setSession(null);
         setMessages([
           {
-            id: `reset-${Date.now()}`,
+            id: `reset-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             sender: "system",
             text: "✅ Chatbot database sessions reset successfully. All phone memory states cleared on the backend.",
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           }
         ]);
+        setInputText("Hello SheTrades");
         setFeedback({ type: "success", message: "Sandbox session states reset successfully." });
       } else {
         throw new Error(`Reset failed with status ${res.status}`);
@@ -213,6 +214,12 @@ export function WhatsAppSandboxSimulator() {
 
   return (
     <section className="whatsapp-sandbox-section">
+      <div className="whatsapp-sandbox-section-header">
+        <h4 className="whatsapp-sandbox-section-title">Whatsapp Sandbox</h4>
+        <p className="whatsapp-sandbox-section-desc">
+          Simulate real WhatsApp interactions using your live dynamic content and dialogue configurations.
+        </p>
+      </div>
       <div className="whatsapp-sandbox-grid">
         {/* Smartphone Mockup */}
         <div className="whatsapp-phone-mockup">
@@ -235,10 +242,10 @@ export function WhatsAppSandboxSimulator() {
                     </svg>
                   </div>
                   <div>
-                    <h5 className="bot-name">SheTrades Bot</h5>
+                    <h5 className="bot-name">SheTrades Assistant</h5>
                     <span className="bot-status">
                       <span className="pulse-dot"></span>
-                      Online (Sandbox)
+                      Active Sandbox Session
                     </span>
                   </div>
                 </div>

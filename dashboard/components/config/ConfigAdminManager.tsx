@@ -8,6 +8,7 @@ import {
   EmptyState,
   IconActionButton,
   Input,
+  Select,
   Table
 } from "../ui";
 import { CategoryManagementDrawer, type CategoryManagerItem } from "./CategoryManagementDrawer";
@@ -174,8 +175,68 @@ function normalizeSlug(value: string) {
     .replace(/[^a-z0-9_.-]/g, "");
 }
 
+function getContentCategory(key: string, type: string) {
+  const normalizedKey = key.toLowerCase();
+
+  if (type === "lesson_content" || normalizedKey.startsWith("content.lesson.")) {
+    return {
+      id: "lessons",
+      label: "Lessons & Modules",
+      badgeVariant: "success" as const
+    };
+  }
+
+  if (normalizedKey.startsWith("bot.language.") || normalizedKey === "bot.language") {
+    return {
+      id: "languages",
+      label: "Language Settings",
+      badgeVariant: "teal" as const
+    };
+  }
+
+  if (normalizedKey.startsWith("bot.")) {
+    return {
+      id: "chatbot",
+      label: "Chatbot Prompts",
+      badgeVariant: "purple" as const
+    };
+  }
+
+  if (normalizedKey.startsWith("admin.ui.") || type === "ui_copy") {
+    return {
+      id: "system",
+      label: "Admin UI Copy",
+      badgeVariant: "neutral" as const
+    };
+  }
+
+  return {
+    id: "other",
+    label: "Other Copy",
+    badgeVariant: "neutral" as const
+  };
+}
+
+// Categories that produce bot.* keys instead of content.* keys
+const CHATBOT_CATEGORY_VALUES = new Set([
+  "awaiting_name",
+  "awaiting_language",
+  "main_menu",
+  "module",
+  "progress",
+  "webhook"
+]);
+
+function resolveKeyRoot(namespace: ConfigNamespace, category: string): string {
+  if (namespace === "content" && CHATBOT_CATEGORY_VALUES.has(normalizeCategoryValue(category))) {
+    return "bot";
+  }
+  return namespace;
+}
+
 function buildInternalName(namespace: ConfigNamespace, category: string, slug: string) {
-  const segments = [namespace, category.trim(), slug.trim()].filter(Boolean);
+  const root = resolveKeyRoot(namespace, category);
+  const segments = [root, category.trim(), slug.trim()].filter(Boolean);
   return segments.join(".");
 }
 
@@ -232,7 +293,11 @@ function resolveContentDocumentType(
     return "lesson_content" as const;
   }
 
-  if (normalizedCategory === "message" || normalizedCategory === "ui") {
+  if (
+    normalizedCategory === "message" ||
+    normalizedCategory === "ui" ||
+    CHATBOT_CATEGORY_VALUES.has(normalizedCategory)
+  ) {
     return "ui_copy" as const;
   }
 
@@ -466,11 +531,14 @@ export function ConfigAdminManager({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
   const [trashTarget, setTrashTarget] = useState<DocumentRow | null>(null);
+  const [purgeTrashOpen, setPurgeTrashOpen] = useState(false);
+  const [isPurgingTrash, setIsPurgingTrash] = useState(false);
   const [categoryDrawerOpen, setCategoryDrawerOpen] = useState(false);
   const [categoryItems, setCategoryItems] = useState<Array<CategoryManagerItem>>([]);
   const [categoryFeedback, setCategoryFeedback] = useState<WorkflowFeedback | null>(null);
   const [searchValue, setSearchValue] = useState("");
   const [activeFilter, setActiveFilter] = useState<TableFilter>("all");
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
   const hasAttemptedCategorySeedRef = useRef(false);
   const profile = NAMESPACE_PROFILES[namespace];
@@ -618,18 +686,50 @@ export function ConfigAdminManager({
       }
 
       if (activeFilter === "draft") {
-        return item.draft !== null;
+        if (item.draft === null) return false;
+      } else if (activeFilter === "live") {
+        if (!item.document.isActive || item.published === null) return false;
+      } else if (activeFilter === "trash") {
+        if (item.document.isActive) return false;
       }
-      if (activeFilter === "live") {
-        return item.document.isActive && item.published !== null;
-      }
-      if (activeFilter === "trash") {
-        return !item.document.isActive;
+
+      if (namespace === "content" && activeCategoryFilter !== "all") {
+        const catMeta = getContentCategory(item.document.key, item.document.type);
+        if (catMeta.id !== activeCategoryFilter) {
+          return false;
+        }
       }
 
       return true;
     });
-  }, [activeFilter, docs, searchValue]);
+  }, [activeFilter, activeCategoryFilter, docs, searchValue, namespace]);
+
+  async function purgeTrash() {
+    setIsPurgingTrash(true);
+    try {
+      await request("/api/config/admin/documents/purge-trash", {
+        method: "POST",
+        body: JSON.stringify({ namespace })
+      });
+      setPurgeTrashOpen(false);
+      setActiveFilter("all");
+      setWorkflowFeedback({
+        tone: "success",
+        text: t(
+          "configAdmin.purgeTrash.success",
+          "All trashed items were permanently deleted."
+        )
+      });
+      await refresh();
+    } catch (error) {
+      setWorkflowFeedback({
+        tone: "danger",
+        text: error instanceof Error ? error.message : String(error)
+      });
+    } finally {
+      setIsPurgingTrash(false);
+    }
+  }
 
   async function request(path: string, init?: RequestInit, accessToken = token) {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -1539,6 +1639,47 @@ export function ConfigAdminManager({
     { id: "trash", label: t("configAdmin.filter.trash", "Trash"), count: filterCounts.trash }
   ];
 
+  const categoryFilterOptions = useMemo(() => [
+    { value: "all", label: t("configAdmin.categoryFilter.all", "All Types") },
+    { value: "lessons", label: t("configAdmin.categoryFilter.lessons", "Lessons & Modules") },
+    { value: "chatbot", label: t("configAdmin.categoryFilter.chatbot", "Chatbot Prompts") },
+    { value: "languages", label: t("configAdmin.categoryFilter.languages", "Language Settings") },
+    { value: "system", label: t("configAdmin.categoryFilter.system", "Admin UI Copy") },
+    { value: "other", label: t("configAdmin.categoryFilter.other", "Other") }
+  ], [t]);
+
+  const trashCount = filterCounts.trash;
+
+  const categoryFilter = namespace === "content" ? (
+    <div className="settings-workspace-toolbar__category-filter-row">
+      <Select
+        id="content-category-filter"
+        label={t("configAdmin.categoryFilter.label", "Content Type")}
+        value={activeCategoryFilter}
+        options={categoryFilterOptions}
+        onChange={setActiveCategoryFilter}
+      />
+      {trashCount > 0 ? (
+        <button
+          type="button"
+          className="config-purge-trash-btn"
+          onClick={() => setPurgeTrashOpen(true)}
+          title={t("configAdmin.purgeTrash.buttonTitle", "Permanently delete all trashed items")}
+        >
+          <svg aria-hidden="true" viewBox="0 0 20 20" width="14" height="14" fill="none">
+            <path d="M4.5 6H15.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            <path d="M7.5 6V4.6C7.5 4.27 7.77 4 8.1 4H11.9C12.23 4 12.5 4.27 12.5 4.6V6" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M6.2 6L6.8 14.4C6.84 14.97 7.31 15.4 7.88 15.4H12.12C12.69 15.4 13.16 14.97 13.2 14.4L13.8 6" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M8.5 8.2V12.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            <path d="M11.5 8.2V12.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+          {t("configAdmin.purgeTrash.button", "Empty Trash")}
+          <span className="config-purge-trash-btn__badge">{trashCount}</span>
+        </button>
+      ) : null}
+    </div>
+  ) : undefined;
+
   return (
     <section className="settings-workspace">
       <SettingsWorkspaceHeader
@@ -1610,6 +1751,7 @@ export function ConfigAdminManager({
         activeFilter={activeFilter}
         onFilterChange={(id) => setActiveFilter(id as TableFilter)}
         filterAriaLabel={t("configAdmin.filter.aria", "Item filters")}
+        categoryFilter={categoryFilter}
       />
 
       {workflowFeedback ? (
@@ -1652,7 +1794,7 @@ export function ConfigAdminManager({
           </div>
           <Table
             wrapperClassName="config-table-wrap"
-            tableClassName="config-table"
+            tableClassName={`config-table ${namespace === "content" ? "config-table--has-category" : ""}`}
             rowClassName={(row) =>
               row.key === selectedKey
                 ? "config-table__row config-table__row--selected"
@@ -1666,7 +1808,7 @@ export function ConfigAdminManager({
               {
                 key: "title",
                 header: t("configAdmin.table.key", "Item"),
-                render: (value, row) => (
+                render: (value: any, row: any) => (
                   <div className="config-table__item">
                     <div className="config-table__title">
                       <span className="config-table__title-text">{String(value)}</span>
@@ -1675,10 +1817,28 @@ export function ConfigAdminManager({
                   </div>
                 )
               },
+              ...(namespace === "content"
+                ? [
+                    {
+                      key: "category",
+                      header: t("configAdmin.table.category", "Category"),
+                      render: (_value: unknown, row: Record<string, unknown>) => {
+                        const catMeta = getContentCategory(String(row.key), String(row.type));
+                        return (
+                          <div className="config-table__category">
+                            <Badge variant={catMeta.badgeVariant}>
+                              {catMeta.label}
+                            </Badge>
+                          </div>
+                        );
+                      }
+                    }
+                  ]
+                : []),
               {
                 key: "status",
                 header: t("configAdmin.table.status", "Status"),
-                render: (value, row) => (
+                render: (value: any, row: any) => (
                   <div className="config-table__status">
                     <Badge variant={getVisibilityVariant(row.active === true)}>
                       {String(value)}
@@ -1689,17 +1849,17 @@ export function ConfigAdminManager({
               {
                 key: "draft",
                 header: t("configAdmin.table.draft", "Draft"),
-                render: (value) => <span className="config-table__version">{String(value)}</span>
+                render: (value: any) => <span className="config-table__version">{String(value)}</span>
               },
               {
                 key: "published",
                 header: t("configAdmin.table.published", "Live"),
-                render: (value) => <span className="config-table__version">{String(value)}</span>
+                render: (value: any) => <span className="config-table__version">{String(value)}</span>
               },
               {
                 key: "actions",
                 header: t("configAdmin.table.actions", "Actions"),
-                render: (_value, row) => (
+                render: (_value: any, row: any) => (
                   <div className="config-table__action-rail">
                     <IconActionButton
                       icon={<PreviewIcon />}
@@ -1729,10 +1889,12 @@ export function ConfigAdminManager({
                   </div>
                 )
               }
-            ]}
+            ] as any}
             rows={filteredDocs.map((item) => ({
               key: item.document.key,
               title: item.document.title,
+              type: item.document.type,
+              category: getContentCategory(item.document.key, item.document.type).label,
               status: getVisibilityLabel(item.document.isActive),
               draft: item.draft ? `v${item.draft.versionNumber}` : "-",
               published: item.published ? `v${item.published.versionNumber}` : "-",
@@ -1975,6 +2137,29 @@ export function ConfigAdminManager({
             void archive(trashTarget.document.key);
           }
         }}
+      />
+
+      <ConfirmationModal
+        open={purgeTrashOpen}
+        title={t("configAdmin.purgeTrash.title", "Permanently Delete All Trash?")}
+        description={t(
+          "configAdmin.purgeTrash.description",
+          `You are about to permanently delete all ${trashCount} trashed item(s) in this workspace. This cannot be undone — there is no way to recover them after this action.`
+        )}
+        confirmLabel={t("configAdmin.purgeTrash.confirm", "Yes, Delete Forever")}
+        cancelLabel={t("configAdmin.purgeTrash.cancel", "Cancel")}
+        tone="danger"
+        loading={isPurgingTrash}
+        confirmHint={t(
+          "configAdmin.purgeTrash.hint",
+          "⚠ This action is permanent and irreversible. All version history for these items will also be destroyed."
+        )}
+        onCancel={() => {
+          if (!isPurgingTrash) {
+            setPurgeTrashOpen(false);
+          }
+        }}
+        onConfirm={() => void purgeTrash()}
       />
     </section>
   );

@@ -4,6 +4,7 @@ import request from "supertest";
 import { createApp } from "../app.js";
 import { getConfigPlatformService } from "../config-platform/service.js";
 import { resetWhatsAppState } from "../whatsapp/handler.js";
+import { refreshRuntimeConfigCache } from "../config-platform/runtime-config.js";
 
 const app = createApp();
 const configService = getConfigPlatformService();
@@ -80,7 +81,7 @@ test(
     resetWhatsAppState();
     configService.resetForTests();
 
-    const created = configService.createDocument(
+    const created = await configService.createDocument(
       { id: "admin-1", role: "admin" },
       {
         namespace: "integration",
@@ -102,11 +103,12 @@ test(
         }
       }
     );
-    configService.publishDocument(
+    await configService.publishDocument(
       { id: "admin-1", role: "admin" },
       created.document.id,
       { expectedDraftVersionId: created.draft.id }
     );
+    await refreshRuntimeConfigCache();
 
     await withEnv({ WHATSAPP_VERIFY_TOKEN: "env-token" }, async () => {
       const response = await request(app)

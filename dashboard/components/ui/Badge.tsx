@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type BadgeVariant = "neutral" | "info" | "success" | "warning" | "danger";
+type BadgeVariant = "neutral" | "info" | "success" | "warning" | "danger" | "purple" | "teal";
 
 export type BadgeProps = {
   children: ReactNode;
@@ -12,7 +12,9 @@ const badgeVariantClassName: Record<BadgeVariant, string> = {
   info: "ui-badge--info",
   success: "ui-badge--success",
   warning: "ui-badge--warning",
-  danger: "ui-badge--danger"
+  danger: "ui-badge--danger",
+  purple: "ui-badge--purple",
+  teal: "ui-badge--teal"
 };
 
 export function Badge({ children, variant = "neutral" }: BadgeProps) {

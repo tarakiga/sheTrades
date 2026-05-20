@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import { authenticateJwt, requireRoles } from "../auth/jwt-rbac.js";
 import type { ConfigPayload } from "../config-platform/contracts.js";
 import { getConfigPlatformService } from "../config-platform/service.js";
+import { refreshRuntimeConfigCache } from "../config-platform/runtime-config.js";
 import {
   completeTranslationRequestSchema,
   createTranslationRequestSchema,
@@ -19,7 +20,8 @@ const METHOD_OPTIONS_KEY = "options.settings.translation_request_methods";
 const LANGUAGE_OPTIONS_KEY = "options.settings.translation_request_languages";
 const PRIORITY_OPTIONS_KEY = "options.settings.translation_request_priorities";
 
-type ConfigListItem = ReturnType<typeof configService.listDocuments>["items"][number];
+type ConfigListItem = Awaited<ReturnType<typeof configService.listDocuments>>["items"][number];
+
 
 function actorFromRequest(req: Request) {
   return {
@@ -192,18 +194,18 @@ translationRequestsRouter.use(authenticateJwt);
 translationRequestsRouter.get(
   "/content/admin/translation-requests/bootstrap",
   requireRoles(["viewer", "editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const contentRows = configService.listDocuments({
+      const contentRows = (await configService.listDocuments({
         namespace: "content",
         page: 1,
         pageSize: 500
-      }).items;
-      const optionRows = configService.listDocuments({
+      })).items;
+      const optionRows = (await configService.listDocuments({
         namespace: "options",
         page: 1,
         pageSize: 500
-      }).items;
+      })).items;
 
       const methodOptions = toManagedOptions(
         optionRows.find((item) => item.document.key === METHOD_OPTIONS_KEY)
@@ -238,14 +240,14 @@ translationRequestsRouter.get(
 translationRequestsRouter.post(
   "/content/admin/translation-requests",
   requireRoles(["editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const input = createTranslationRequestSchema.parse(req.body);
-      const optionRows = configService.listDocuments({
+      const optionRows = (await configService.listDocuments({
         namespace: "options",
         page: 1,
         pageSize: 500
-      }).items;
+      })).items;
       const languageOptions = toManagedOptions(
         optionRows.find((item) => item.document.key === LANGUAGE_OPTIONS_KEY)
       );
@@ -263,11 +265,11 @@ translationRequestsRouter.post(
         return;
       }
 
-      const contentRows = configService.listDocuments({
+      const contentRows = (await configService.listDocuments({
         namespace: "content",
         page: 1,
         pageSize: 500
-      }).items;
+      })).items;
       const contentRow = contentRows.find(
         (item) => item.document.id === input.contentDocumentId && item.document.isActive
       );
@@ -303,17 +305,17 @@ translationRequestsRouter.post(
 translationRequestsRouter.post(
   "/content/admin/translation-requests/:requestId/complete",
   requireRoles(["editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const requestId = getRequiredParam(req, "requestId");
       const input = completeTranslationRequestSchema.parse(req.body);
       const requestRecord = translationRequestService.getRequestOrThrow(requestId);
-      const contentRow = configService
+      const contentRow = (await configService
         .listDocuments({
           namespace: "content",
           page: 1,
           pageSize: 500
-        })
+        }))
         .items.find(
           (item) =>
             item.document.id === requestRecord.contentDocumentId &&
@@ -342,7 +344,7 @@ translationRequestsRouter.post(
         requestRecord.targetLanguage,
         input.translatedContent
       );
-      const draftUpdate = configService.updateDraft(actorFromRequest(req), contentRow.document.id, {
+      const draftUpdate = await configService.updateDraft(actorFromRequest(req), contentRow.document.id, {
         payload: nextPayload,
         changeSummary: `Added ${requestRecord.targetLanguage} translation from the translation queue`
       });
@@ -350,6 +352,8 @@ translationRequestsRouter.post(
         ...input,
         reviewDraftVersionId: draftUpdate.draft.id
       });
+
+      await refreshRuntimeConfigCache();
 
       res.status(200).json({
         message: "Translation added to a review draft.",

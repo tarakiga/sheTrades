@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { PostgresConfigPlatformService } from "./postgres-service.js";
 import type {
   ConfigAuditLog,
   ConfigDocument,
@@ -164,7 +165,7 @@ export class ConfigPlatformService {
     return published.sort((a, b) => b.versionNumber - a.versionNumber)[0] ?? null;
   }
 
-  createDocument(actor: Actor, input: CreateDocumentInput) {
+  async createDocument(actor: Actor, input: CreateDocumentInput) {
     const duplicate = this.findDocumentByNamespaceKey(input.namespace, input.key);
     if (duplicate) {
       throw new Error("A config document with this namespace/key already exists.");
@@ -202,7 +203,7 @@ export class ConfigPlatformService {
     return { document, draft: version };
   }
 
-  listDocuments(query: ListDocumentsQuery, options: ListDocumentsOptions = {}) {
+  async listDocuments(query: ListDocumentsQuery, options: ListDocumentsOptions = {}) {
     let rows = Array.from(this.documents.values());
     if (options.includeIntegration === false) {
       rows = rows.filter((item) => item.namespace !== "integration");
@@ -233,7 +234,7 @@ export class ConfigPlatformService {
     };
   }
 
-  updateDraft(actor: Actor, documentId: string, input: UpdateDraftInput) {
+  async updateDraft(actor: Actor, documentId: string, input: UpdateDraftInput) {
     const document = this.getDocumentOrThrow(documentId);
     const versions = this.getVersions(documentId);
     const existingDraft = this.findDraftVersion(documentId);
@@ -272,7 +273,7 @@ export class ConfigPlatformService {
     return { document: updatedDocument, draft: nextDraft };
   }
 
-  publishDocument(actor: Actor, documentId: string, input: PublishInput) {
+  async publishDocument(actor: Actor, documentId: string, input: PublishInput) {
     const document = this.getDocumentOrThrow(documentId);
     const versions = this.getVersions(documentId);
     const draft = versions.find((item) => item.id === input.expectedDraftVersionId);
@@ -319,7 +320,7 @@ export class ConfigPlatformService {
     return { document: updatedDocument, published };
   }
 
-  rollbackDocument(actor: Actor, documentId: string, input: RollbackInput) {
+  async rollbackDocument(actor: Actor, documentId: string, input: RollbackInput) {
     const document = this.getDocumentOrThrow(documentId);
     const versions = this.getVersions(documentId);
     const target = versions.find((item) => item.id === input.targetVersionId);
@@ -377,7 +378,7 @@ export class ConfigPlatformService {
     };
   }
 
-  getHistory(documentId: string) {
+  async getHistory(documentId: string) {
     this.getDocumentOrThrow(documentId);
     return {
       versions: this.getVersions(documentId).sort((a, b) => b.versionNumber - a.versionNumber),
@@ -387,7 +388,7 @@ export class ConfigPlatformService {
     };
   }
 
-  getPublishedConfig(namespace?: PublicConfigNamespace) {
+  async getPublishedConfig(namespace?: PublicConfigNamespace) {
     const rows = Array.from(this.documents.values())
       .filter((document) => document.isActive)
       .filter((document) => document.namespace !== "integration")
@@ -417,7 +418,7 @@ export class ConfigPlatformService {
     return { versionTag, documents };
   }
 
-  getDocumentByNamespaceKey(namespace: ConfigNamespace, key: string) {
+  async getDocumentByNamespaceKey(namespace: ConfigNamespace, key: string) {
     const document = this.findDocumentByNamespaceKey(namespace, key);
     if (!document) {
       throw new Error("Config document not found.");
@@ -429,11 +430,11 @@ export class ConfigPlatformService {
     };
   }
 
-  getDocument(documentId: string) {
+  async getDocument(documentId: string) {
     return this.getDocumentOrThrow(documentId);
   }
 
-  getPublishedDocumentByNamespaceKey(namespace: ConfigNamespace, key: string) {
+  async getPublishedDocumentByNamespaceKey(namespace: ConfigNamespace, key: string) {
     const match = this.findDocumentByNamespaceKey(namespace, key);
     if (!match || !match.isActive) {
       return null;
@@ -450,7 +451,7 @@ export class ConfigPlatformService {
     };
   }
 
-  getHistoryByNamespaceKey(namespace: ConfigNamespace, key: string) {
+  async getHistoryByNamespaceKey(namespace: ConfigNamespace, key: string) {
     const match = this.findDocumentByNamespaceKey(namespace, key);
     if (!match) {
       throw new Error("Config document not found.");
@@ -458,7 +459,7 @@ export class ConfigPlatformService {
     return this.getHistory(match.id);
   }
 
-  archiveDocument(actor: Actor, documentId: string, input: ArchiveInput) {
+  async archiveDocument(actor: Actor, documentId: string, input: ArchiveInput) {
     const document = this.getDocumentOrThrow(documentId);
     if (!document.isActive) {
       throw new Error("Config document is already hidden.");
@@ -479,7 +480,7 @@ export class ConfigPlatformService {
     return { document: updatedDocument };
   }
 
-  reactivateDocument(actor: Actor, documentId: string, input: ReactivateInput) {
+  async reactivateDocument(actor: Actor, documentId: string, input: ReactivateInput) {
     const document = this.getDocumentOrThrow(documentId);
     if (document.isActive) {
       throw new Error("Config document is already visible.");
@@ -543,7 +544,7 @@ export class ConfigPlatformService {
     return { document: updatedDocument, ...(published ? { published } : {}) };
   }
 
-  archiveDocumentByNamespaceKey(
+  async archiveDocumentByNamespaceKey(
     actor: Actor,
     namespace: ConfigNamespace,
     key: string,
@@ -556,7 +557,7 @@ export class ConfigPlatformService {
     return this.archiveDocument(actor, match.id, input);
   }
 
-  reactivateDocumentByNamespaceKey(
+  async reactivateDocumentByNamespaceKey(
     actor: Actor,
     namespace: ConfigNamespace,
     key: string,
@@ -569,6 +570,31 @@ export class ConfigPlatformService {
     return this.reactivateDocument(actor, match.id, input);
   }
 
+  async purgeDocument(actor: Actor, documentId: string) {
+    const document = this.getDocumentOrThrow(documentId);
+    if (document.isActive) {
+      throw new Error("Only trashed documents can be permanently deleted. Move it to trash first.");
+    }
+    this.documents.delete(documentId);
+    this.versionsByDocument.delete(documentId);
+    this.auditByDocument.delete(documentId);
+    return { purgedDocumentId: documentId };
+  }
+
+  async purgeTrashForNamespace(actor: Actor, namespace: ConfigNamespace) {
+    const trashedDocs = Array.from(this.documents.values()).filter(
+      (doc) => doc.namespace === namespace && !doc.isActive
+    );
+    const purgedKeys: string[] = [];
+    for (const doc of trashedDocs) {
+      this.documents.delete(doc.id);
+      this.versionsByDocument.delete(doc.id);
+      this.auditByDocument.delete(doc.id);
+      purgedKeys.push(doc.key);
+    }
+    return { purgedCount: purgedKeys.length, purgedKeys };
+  }
+
   resetForTests() {
     this.documents.clear();
     this.versionsByDocument.clear();
@@ -576,11 +602,15 @@ export class ConfigPlatformService {
   }
 }
 
-let singleton: ConfigPlatformService | null = null;
+let singleton: ConfigPlatformService | PostgresConfigPlatformService | null = null;
 
-export function getConfigPlatformService() {
+export function getConfigPlatformService(): ConfigPlatformService | PostgresConfigPlatformService {
   if (!singleton) {
-    singleton = new ConfigPlatformService();
+    if (process.env.POSTGRES_URL) {
+      singleton = new PostgresConfigPlatformService();
+    } else {
+      singleton = new ConfigPlatformService();
+    }
   }
   return singleton;
 }

@@ -49,10 +49,10 @@ function createToken(role: "admin" | "editor" | "viewer", secret: string) {
   );
 }
 
-function seedTranslationConfig() {
+async function seedTranslationConfig() {
   const actor = { id: "seed-admin", role: "admin" as const };
 
-  const lessonContent = configService.createDocument(actor, {
+  const lessonContent = await configService.createDocument(actor, {
     namespace: "content",
     key: "content.lesson.onboarding",
     type: "lesson_content",
@@ -65,7 +65,7 @@ function seedTranslationConfig() {
     }
   });
 
-  const uiCopyContent = configService.createDocument(actor, {
+  const uiCopyContent = await configService.createDocument(actor, {
     namespace: "content",
     key: "content.message.welcome",
     type: "ui_copy",
@@ -75,7 +75,7 @@ function seedTranslationConfig() {
     }
   });
 
-  configService.createDocument(actor, {
+  await configService.createDocument(actor, {
     namespace: "options",
     key: "options.settings.translation_request_methods",
     type: "option_set",
@@ -103,7 +103,7 @@ function seedTranslationConfig() {
     }
   });
 
-  configService.createDocument(actor, {
+  await configService.createDocument(actor, {
     namespace: "options",
     key: "options.settings.translation_request_languages",
     type: "option_set",
@@ -117,7 +117,7 @@ function seedTranslationConfig() {
     }
   });
 
-  configService.createDocument(actor, {
+  await configService.createDocument(actor, {
     namespace: "options",
     key: "options.settings.translation_request_priorities",
     type: "option_set",
@@ -151,7 +151,7 @@ test(
     configService.resetForTests();
     translationRequestService.resetForTests();
 
-    const { lessonContentDocumentId } = seedTranslationConfig();
+    const { lessonContentDocumentId } = await seedTranslationConfig();
 
     await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
       const token = createToken("editor", "test-secret");
@@ -199,7 +199,7 @@ test(
     configService.resetForTests();
     translationRequestService.resetForTests();
 
-    const { lessonContentDocumentId } = seedTranslationConfig();
+    const { lessonContentDocumentId } = await seedTranslationConfig();
 
     await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
       const viewerToken = createToken("viewer", "test-secret");
@@ -238,7 +238,7 @@ test(
     configService.resetForTests();
     translationRequestService.resetForTests();
 
-    const { lessonContentDocumentId } = seedTranslationConfig();
+    const { lessonContentDocumentId } = await seedTranslationConfig();
 
     await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
       const adminToken = createToken("admin", "test-secret");
@@ -268,7 +268,7 @@ test(
     configService.resetForTests();
     translationRequestService.resetForTests();
 
-    const { lessonContentDocumentId } = seedTranslationConfig();
+    const { lessonContentDocumentId } = await seedTranslationConfig();
 
     await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
       const editorToken = createToken("editor", "test-secret");
@@ -309,7 +309,7 @@ test(
     configService.resetForTests();
     translationRequestService.resetForTests();
 
-    const { uiCopyContentDocumentId } = seedTranslationConfig();
+    const { uiCopyContentDocumentId } = await seedTranslationConfig();
 
     await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
       const adminToken = createToken("admin", "test-secret");

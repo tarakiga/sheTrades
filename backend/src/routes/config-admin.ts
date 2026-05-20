@@ -14,6 +14,7 @@ import {
 import { ensureCategoryOptionSetSeeds } from "../config-platform/category-option-set-seeds.js";
 import { authenticateJwt, requireRoles } from "../auth/jwt-rbac.js";
 import { getConfigPlatformService } from "../config-platform/service.js";
+import { refreshRuntimeConfigCache } from "../config-platform/runtime-config.js";
 
 export const configAdminRouter = Router();
 const service = getConfigPlatformService();
@@ -29,7 +30,7 @@ const createDomainDocumentSchema = z.object({
     .string()
     .min(1)
     .max(120)
-    .regex(/^[a-z0-9_.-]+$/),
+    .regex(/^[a-zA-Z0-9_.-]+$/),
   type: z.enum(["lesson_content", "option_set", "legal_block", "ui_copy", "integration_config"]),
   title: z.string().min(1).max(160),
   initialPayload: configPayloadSchema
@@ -94,6 +95,7 @@ configAdminRouter.post(
   async (req, res, next) => {
     try {
       const payload = await ensureCategoryOptionSetSeeds(actorFromRequest(req));
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Settings category seeds ensured.",
         ...payload
@@ -107,13 +109,13 @@ configAdminRouter.post(
 configAdminRouter.get(
   "/documents",
   requireRoles(["viewer", "editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const query = toListDocumentsQuery(req.query);
       if (query.namespace) {
         assertNamespaceAccess(query.namespace, actorFromRequest(req).role);
       }
-      const payload = service.listDocuments(query, {
+      const payload = await service.listDocuments(query, {
         includeIntegration: actorFromRequest(req).role === "admin"
       });
       res.status(200).json(payload);
@@ -123,12 +125,13 @@ configAdminRouter.get(
   }
 );
 
-configAdminRouter.post("/documents", requireRoles(["editor", "admin"]), (req, res, next) => {
+configAdminRouter.post("/documents", requireRoles(["editor", "admin"]), async (req, res, next) => {
   try {
     const body = createDocumentRequestSchema.parse(req.body);
     assertNamespaceAccess(body.namespace, actorFromRequest(req).role);
     assertTypeAllowedForNamespace(body.namespace, body.type);
-    const payload = service.createDocument(actorFromRequest(req), body);
+    const payload = await service.createDocument(actorFromRequest(req), body);
+    await refreshRuntimeConfigCache();
     res.status(201).json({
       message: "Config document created.",
       ...payload
@@ -141,16 +144,20 @@ configAdminRouter.post("/documents", requireRoles(["editor", "admin"]), (req, re
 configAdminRouter.put(
   "/documents/:documentId/draft",
   requireRoles(["editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const document = service.getDocument(getRequiredParam(req, "documentId"));
+      const document = await service.getDocument(getRequiredParam(req, "documentId"));
       assertNamespaceAccess(document.namespace, actorFromRequest(req).role);
       const body = updateDraftRequestSchema.parse(req.body);
-      const payload = service.updateDraft(
+      const payload = await service.updateDraft(
         actorFromRequest(req),
         document.id,
-        body
+        {
+          payload: body.payload,
+          ...(body.changeSummary !== undefined ? { changeSummary: body.changeSummary } : {})
+        }
       );
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Draft updated.",
         ...payload
@@ -164,16 +171,20 @@ configAdminRouter.put(
 configAdminRouter.post(
   "/documents/:documentId/publish",
   requireRoles(["admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const document = service.getDocument(getRequiredParam(req, "documentId"));
+      const document = await service.getDocument(getRequiredParam(req, "documentId"));
       assertNamespaceAccess(document.namespace, actorFromRequest(req).role);
       const body = publishDocumentRequestSchema.parse(req.body);
-      const payload = service.publishDocument(
+      const payload = await service.publishDocument(
         actorFromRequest(req),
         document.id,
-        body
+        {
+          expectedDraftVersionId: body.expectedDraftVersionId,
+          ...(body.publishNote !== undefined ? { publishNote: body.publishNote } : {})
+        }
       );
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Document published.",
         ...payload
@@ -187,16 +198,20 @@ configAdminRouter.post(
 configAdminRouter.post(
   "/documents/:documentId/rollback",
   requireRoles(["admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const document = service.getDocument(getRequiredParam(req, "documentId"));
+      const document = await service.getDocument(getRequiredParam(req, "documentId"));
       assertNamespaceAccess(document.namespace, actorFromRequest(req).role);
       const body = rollbackDocumentRequestSchema.parse(req.body);
-      const payload = service.rollbackDocument(
+      const payload = await service.rollbackDocument(
         actorFromRequest(req),
         document.id,
-        body
+        {
+          targetVersionId: body.targetVersionId,
+          ...(body.rollbackReason !== undefined ? { rollbackReason: body.rollbackReason } : {})
+        }
       );
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Document rollback completed.",
         ...payload
@@ -210,16 +225,19 @@ configAdminRouter.post(
 configAdminRouter.post(
   "/documents/:documentId/archive",
   requireRoles(["admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const document = service.getDocument(getRequiredParam(req, "documentId"));
+      const document = await service.getDocument(getRequiredParam(req, "documentId"));
       assertNamespaceAccess(document.namespace, actorFromRequest(req).role);
       const body = archiveDocumentRequestSchema.parse(req.body ?? {});
-      const payload = service.archiveDocument(
+      const payload = await service.archiveDocument(
         actorFromRequest(req),
         document.id,
-        body
+        {
+          ...(body.archiveReason !== undefined ? { archiveReason: body.archiveReason } : {})
+        }
       );
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Document archived.",
         ...payload
@@ -233,16 +251,19 @@ configAdminRouter.post(
 configAdminRouter.post(
   "/documents/:documentId/reactivate",
   requireRoles(["admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const document = service.getDocument(getRequiredParam(req, "documentId"));
+      const document = await service.getDocument(getRequiredParam(req, "documentId"));
       assertNamespaceAccess(document.namespace, actorFromRequest(req).role);
       const body = reactivateDocumentRequestSchema.parse(req.body ?? {});
-      const payload = service.reactivateDocument(
+      const payload = await service.reactivateDocument(
         actorFromRequest(req),
         document.id,
-        body
+        {
+          ...(body.reactivateReason !== undefined ? { reactivateReason: body.reactivateReason } : {})
+        }
       );
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Document reactivated.",
         ...payload
@@ -256,11 +277,11 @@ configAdminRouter.post(
 configAdminRouter.get(
   "/documents/:documentId/history",
   requireRoles(["viewer", "editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const document = service.getDocument(getRequiredParam(req, "documentId"));
+      const document = await service.getDocument(getRequiredParam(req, "documentId"));
       assertNamespaceAccess(document.namespace, actorFromRequest(req).role);
-      const payload = service.getHistory(document.id);
+      const payload = await service.getHistory(document.id);
       res.status(200).json(payload);
     } catch (error) {
       next(error);
@@ -271,7 +292,7 @@ configAdminRouter.get(
 configAdminRouter.get(
   "/:namespace/documents",
   requireRoles(["viewer", "editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const namespace = domainPathSchema.parse(req.params.namespace);
       assertNamespaceAccess(namespace, actorFromRequest(req).role);
@@ -279,7 +300,7 @@ configAdminRouter.get(
         ...req.query,
         namespace
       });
-      const payload = service.listDocuments(query);
+      const payload = await service.listDocuments(query);
       res.status(200).json(payload);
     } catch (error) {
       next(error);
@@ -290,19 +311,20 @@ configAdminRouter.get(
 configAdminRouter.post(
   "/:namespace/documents",
   requireRoles(["editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const namespace = domainPathSchema.parse(req.params.namespace);
       assertNamespaceAccess(namespace, actorFromRequest(req).role);
       const body = createDomainDocumentSchema.parse(req.body);
       assertTypeAllowedForNamespace(namespace, body.type);
-      const payload = service.createDocument(actorFromRequest(req), {
+      const payload = await service.createDocument(actorFromRequest(req), {
         namespace,
         key: body.key,
         type: body.type,
         title: body.title,
         initialPayload: body.initialPayload
       });
+      await refreshRuntimeConfigCache();
       res.status(201).json({
         message: "Config document created.",
         ...payload
@@ -316,11 +338,11 @@ configAdminRouter.post(
 configAdminRouter.get(
   "/:namespace/documents/:key",
   requireRoles(["viewer", "editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const namespace = domainPathSchema.parse(req.params.namespace);
       assertNamespaceAccess(namespace, actorFromRequest(req).role);
-      const payload = service.getDocumentByNamespaceKey(namespace, getRequiredParam(req, "key"));
+      const payload = await service.getDocumentByNamespaceKey(namespace, getRequiredParam(req, "key"));
       res.status(200).json(payload);
     } catch (error) {
       next(error);
@@ -331,13 +353,21 @@ configAdminRouter.get(
 configAdminRouter.put(
   "/:namespace/documents/:key/draft",
   requireRoles(["editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const namespace = domainPathSchema.parse(req.params.namespace);
       assertNamespaceAccess(namespace, actorFromRequest(req).role);
-      const document = service.getDocumentByNamespaceKey(namespace, getRequiredParam(req, "key"));
+      const document = await service.getDocumentByNamespaceKey(namespace, getRequiredParam(req, "key"));
       const body = updateDraftRequestSchema.parse(req.body);
-      const payload = service.updateDraft(actorFromRequest(req), document.document.id, body);
+      const payload = await service.updateDraft(
+        actorFromRequest(req),
+        document.document.id,
+        {
+          payload: body.payload,
+          ...(body.changeSummary !== undefined ? { changeSummary: body.changeSummary } : {})
+        }
+      );
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Draft updated.",
         ...payload
@@ -351,13 +381,21 @@ configAdminRouter.put(
 configAdminRouter.post(
   "/:namespace/documents/:key/publish",
   requireRoles(["admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const namespace = domainPathSchema.parse(req.params.namespace);
       assertNamespaceAccess(namespace, actorFromRequest(req).role);
-      const document = service.getDocumentByNamespaceKey(namespace, getRequiredParam(req, "key"));
+      const document = await service.getDocumentByNamespaceKey(namespace, getRequiredParam(req, "key"));
       const body = publishDocumentRequestSchema.parse(req.body);
-      const payload = service.publishDocument(actorFromRequest(req), document.document.id, body);
+      const payload = await service.publishDocument(
+        actorFromRequest(req),
+        document.document.id,
+        {
+          expectedDraftVersionId: body.expectedDraftVersionId,
+          ...(body.publishNote !== undefined ? { publishNote: body.publishNote } : {})
+        }
+      );
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Document published.",
         ...payload
@@ -371,13 +409,17 @@ configAdminRouter.post(
 configAdminRouter.post(
   "/:namespace/documents/:key/rollback",
   requireRoles(["admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const namespace = domainPathSchema.parse(req.params.namespace);
       assertNamespaceAccess(namespace, actorFromRequest(req).role);
-      const document = service.getDocumentByNamespaceKey(namespace, getRequiredParam(req, "key"));
+      const document = await service.getDocumentByNamespaceKey(namespace, getRequiredParam(req, "key"));
       const body = rollbackDocumentRequestSchema.parse(req.body);
-      const payload = service.rollbackDocument(actorFromRequest(req), document.document.id, body);
+      const payload = await service.rollbackDocument(actorFromRequest(req), document.document.id, {
+        targetVersionId: body.targetVersionId,
+        ...(body.rollbackReason !== undefined ? { rollbackReason: body.rollbackReason } : {})
+      });
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Document rollback completed.",
         ...payload
@@ -391,17 +433,20 @@ configAdminRouter.post(
 configAdminRouter.post(
   "/:namespace/documents/:key/archive",
   requireRoles(["admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const namespace = domainPathSchema.parse(req.params.namespace);
       assertNamespaceAccess(namespace, actorFromRequest(req).role);
       const body = archiveDocumentRequestSchema.parse(req.body ?? {});
-      const payload = service.archiveDocumentByNamespaceKey(
+      const payload = await service.archiveDocumentByNamespaceKey(
         actorFromRequest(req),
         namespace,
         getRequiredParam(req, "key"),
-        body
+        {
+          ...(body.archiveReason !== undefined ? { archiveReason: body.archiveReason } : {})
+        }
       );
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Document archived.",
         ...payload
@@ -415,19 +460,62 @@ configAdminRouter.post(
 configAdminRouter.post(
   "/:namespace/documents/:key/reactivate",
   requireRoles(["admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const namespace = domainPathSchema.parse(req.params.namespace);
       assertNamespaceAccess(namespace, actorFromRequest(req).role);
       const body = reactivateDocumentRequestSchema.parse(req.body ?? {});
-      const payload = service.reactivateDocumentByNamespaceKey(
+      const payload = await service.reactivateDocumentByNamespaceKey(
         actorFromRequest(req),
         namespace,
         getRequiredParam(req, "key"),
-        body
+        {
+          ...(body.reactivateReason !== undefined ? { reactivateReason: body.reactivateReason } : {})
+        }
       );
+      await refreshRuntimeConfigCache();
       res.status(200).json({
         message: "Document reactivated.",
+        ...payload
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+configAdminRouter.delete(
+  "/documents/:documentId/purge",
+  requireRoles(["admin"]),
+  async (req, res, next) => {
+    try {
+      const document = await service.getDocument(getRequiredParam(req, "documentId"));
+      assertNamespaceAccess(document.namespace, actorFromRequest(req).role);
+      const payload = await service.purgeDocument(actorFromRequest(req), document.id);
+      await refreshRuntimeConfigCache();
+      res.status(200).json({
+        message: "Document permanently deleted.",
+        ...payload
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+configAdminRouter.post(
+  "/documents/purge-trash",
+  requireRoles(["admin"]),
+  async (req, res, next) => {
+    try {
+      const { namespace } = z
+        .object({ namespace: z.enum(["content", "options", "legal"]) })
+        .parse(req.body);
+      assertNamespaceAccess(namespace, actorFromRequest(req).role);
+      const payload = await service.purgeTrashForNamespace(actorFromRequest(req), namespace);
+      await refreshRuntimeConfigCache();
+      res.status(200).json({
+        message: `Permanently deleted ${payload.purgedCount} trashed document(s).`,
         ...payload
       });
     } catch (error) {
@@ -439,11 +527,11 @@ configAdminRouter.post(
 configAdminRouter.get(
   "/:namespace/documents/:key/history",
   requireRoles(["viewer", "editor", "admin"]),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const namespace = domainPathSchema.parse(req.params.namespace);
       assertNamespaceAccess(namespace, actorFromRequest(req).role);
-      const payload = service.getHistoryByNamespaceKey(namespace, getRequiredParam(req, "key"));
+      const payload = await service.getHistoryByNamespaceKey(namespace, getRequiredParam(req, "key"));
       res.status(200).json(payload);
     } catch (error) {
       next(error);
@@ -461,6 +549,10 @@ configAdminRouter.use((error: unknown, _req: Request, res: Response, next: NextF
   }
   if (error instanceof Error && "statusCode" in error && error.statusCode === 403) {
     res.status(403).json({ message: error.message });
+    return;
+  }
+  if (error instanceof Error && error.message === "Config document not found.") {
+    res.status(404).json({ message: error.message });
     return;
   }
   if (

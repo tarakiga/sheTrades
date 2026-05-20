@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Button, FilterChipGroup, Input } from "../ui";
 
 type ToolbarFilter = {
@@ -22,6 +23,7 @@ export type SettingsWorkspaceToolbarProps = {
   activeFilter: string;
   onFilterChange: (id: string) => void;
   filterAriaLabel: string;
+  categoryFilter?: ReactNode;
 };
 
 export function SettingsWorkspaceToolbar({
@@ -37,7 +39,8 @@ export function SettingsWorkspaceToolbar({
   filters,
   activeFilter,
   onFilterChange,
-  filterAriaLabel
+  filterAriaLabel,
+  categoryFilter
 }: SettingsWorkspaceToolbarProps) {
   return (
     <section className="settings-workspace-toolbar">
@@ -52,14 +55,21 @@ export function SettingsWorkspaceToolbar({
         </div>
         <p className="settings-workspace-toolbar__hint">{actionHint}</p>
       </div>
-      <div className="settings-workspace-toolbar__search">
-        <Input
-          id="settings-workspace-search"
-          label={searchLabel}
-          value={searchValue}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder={searchPlaceholder}
-        />
+      <div className="settings-workspace-toolbar__filters">
+        <div className="settings-workspace-toolbar__search">
+          <Input
+            id="settings-workspace-search"
+            label={searchLabel}
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={searchPlaceholder}
+          />
+        </div>
+        {categoryFilter ? (
+          <div className="settings-workspace-toolbar__category-filter">
+            {categoryFilter}
+          </div>
+        ) : null}
       </div>
       <FilterChipGroup
         items={filters}

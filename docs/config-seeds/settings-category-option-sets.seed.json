@@ -5,7 +5,13 @@
     "items": [
       { "value": "lesson", "label": "Lesson" },
       { "value": "message", "label": "Message" },
-      { "value": "ui", "label": "UI" }
+      { "value": "ui", "label": "UI" },
+      { "value": "awaiting_name", "label": "Bot – Awaiting Name" },
+      { "value": "awaiting_language", "label": "Bot – Awaiting Language" },
+      { "value": "main_menu", "label": "Bot – Main Menu" },
+      { "value": "module", "label": "Bot – Module" },
+      { "value": "progress", "label": "Bot – Progress" },
+      { "value": "webhook", "label": "Bot – Webhook" }
     ]
   },
   {

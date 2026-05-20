@@ -16,7 +16,7 @@ const keySchema = z
   .string()
   .min(1)
   .max(120)
-  .regex(/^[a-z0-9_.-]+$/);
+  .regex(/^[a-zA-Z0-9_.-]+$/);
 
 function withCachingHeaders(res: Response, versionTag: string) {
   res.setHeader("Cache-Control", CACHE_CONTROL);
@@ -29,9 +29,9 @@ function isNotModified(ifNoneMatch: string | undefined, versionTag: string) {
   return normalized === versionTag;
 }
 
-configPublicRouter.get("/bundle", (req, res, next) => {
+configPublicRouter.get("/bundle", async (req, res, next) => {
   try {
-    const payload = publicConfigBundleResponseSchema.parse(service.getPublishedConfig());
+    const payload = publicConfigBundleResponseSchema.parse(await service.getPublishedConfig());
     if (isNotModified(req.header("if-none-match"), payload.versionTag)) {
       withCachingHeaders(res, payload.versionTag);
       res.status(304).end();
@@ -44,10 +44,10 @@ configPublicRouter.get("/bundle", (req, res, next) => {
   }
 });
 
-configPublicRouter.get("/:namespace", (req, res, next) => {
+configPublicRouter.get("/:namespace", async (req, res, next) => {
   try {
     const namespace = publicConfigNamespaceSchema.parse(req.params.namespace);
-    const payload = publicConfigBundleResponseSchema.parse(service.getPublishedConfig(namespace));
+    const payload = publicConfigBundleResponseSchema.parse(await service.getPublishedConfig(namespace));
     if (isNotModified(req.header("if-none-match"), payload.versionTag)) {
       withCachingHeaders(res, payload.versionTag);
       res.status(304).end();
@@ -60,12 +60,12 @@ configPublicRouter.get("/:namespace", (req, res, next) => {
   }
 });
 
-configPublicRouter.get("/:namespace/:key", (req, res, next) => {
+configPublicRouter.get("/:namespace/:key", async (req, res, next) => {
   try {
     const namespace = publicConfigNamespaceSchema.parse(req.params.namespace);
     const key = keySchema.parse(req.params.key);
-    const bundle = service.getPublishedConfig(namespace);
-    const item = bundle.documents.find((document) => document.key === key);
+    const bundle = await service.getPublishedConfig(namespace);
+    const item = bundle.documents.find((document: any) => document.key === key);
     if (!item) {
       res.status(404).json({ message: "Published config not found." });
       return;
@@ -82,3 +82,4 @@ configPublicRouter.get("/:namespace/:key", (req, res, next) => {
     next(error);
   }
 });
+

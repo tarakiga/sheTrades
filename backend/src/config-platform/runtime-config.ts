@@ -20,7 +20,41 @@ type OptionItem = {
   metadata?: Record<string, unknown>;
 };
 
-const service = getConfigPlatformService();
+// Write-through in-memory cache
+const cachedPublicConfigs = new Map<string, { versionTag: string; documents: any[] }>();
+const cachedIntegrationConfigs = new Map<string, any>();
+let isInitialized = false;
+
+export async function refreshRuntimeConfigCache() {
+  const service = getConfigPlatformService();
+
+  // Refresh content, options, legal namespaces
+  const namespaces: Array<"content" | "options" | "legal"> = ["content", "options", "legal"];
+  for (const ns of namespaces) {
+    const bundle = await service.getPublishedConfig(ns);
+    cachedPublicConfigs.set(ns, bundle);
+  }
+
+  // Refresh integration configs
+  const result = await service.listDocuments({
+    namespace: "integration",
+    page: 1,
+    pageSize: 100
+  });
+
+  cachedIntegrationConfigs.clear();
+  for (const item of result.items) {
+    if (item.published && item.document.isActive) {
+      cachedIntegrationConfigs.set(item.document.key, item.published.payload);
+    }
+  }
+}
+
+export async function ensureCacheInitialized() {
+  if (isInitialized) return;
+  await refreshRuntimeConfigCache();
+  isInitialized = true;
+}
 
 function readFirstString(value: unknown): string | null {
   if (typeof value === "string" && value.trim().length > 0) {
@@ -48,12 +82,13 @@ function readFirstString(value: unknown): string | null {
 }
 
 function getPublishedData(namespace: "content" | "options" | "legal", key: string) {
-  const bundle = service.getPublishedConfig(namespace);
+  const bundle = cachedPublicConfigs.get(namespace);
+  if (!bundle) return null;
   return bundle.documents.find((document) => document.key === key)?.data;
 }
 
 function getPublishedIntegrationData(key: string) {
-  return service.getPublishedDocumentByNamespaceKey("integration", key)?.published.payload ?? null;
+  return cachedIntegrationConfigs.get(key) ?? null;
 }
 
 export function getRuntimeText(key: string, fallback: string) {
@@ -134,3 +169,4 @@ export function getRuntimeWhatsAppConfig() {
 export function getRuntimeNotificationConfig() {
   return getRuntimeIntegrationConfig<NotificationIntegrationPayload>("integration.notification.smtp");
 }
+

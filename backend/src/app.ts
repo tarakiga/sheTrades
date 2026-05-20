@@ -84,9 +84,10 @@ export function createApp() {
   app.use("/api", translationRequestsRouter);
   app.use("/webhook", webhookRouter);
 
-  app.use((error: unknown, _req: express.Request, res: express.Response) => {
+  app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : "Unexpected server error";
-    res.status(500).json({ message });
+    const status = error instanceof Error && error.message.includes("not found") ? 404 : 500;
+    res.status(status).json({ message });
   });
 
   return app;

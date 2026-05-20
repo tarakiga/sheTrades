@@ -104,7 +104,7 @@ export async function ensureCategoryOptionSetSeeds(actor: Actor) {
 
   for (const entry of entries) {
     try {
-      service.getDocumentByNamespaceKey("options", entry.key);
+      await service.getDocumentByNamespaceKey("options", entry.key);
       existingKeys.push(entry.key);
       continue;
     } catch (error) {
@@ -114,7 +114,7 @@ export async function ensureCategoryOptionSetSeeds(actor: Actor) {
       }
     }
 
-    const created = service.createDocument(actor, {
+    const created = await service.createDocument(actor, {
       namespace: "options",
       key: entry.key,
       type: "option_set",
@@ -122,7 +122,7 @@ export async function ensureCategoryOptionSetSeeds(actor: Actor) {
       initialPayload: buildPayload(entry)
     });
 
-    service.publishDocument(actor, created.document.id, {
+    await service.publishDocument(actor, created.document.id, {
       expectedDraftVersionId: created.draft.id,
       publishNote: "Seed default settings categories"
     });

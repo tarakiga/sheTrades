@@ -8,6 +8,7 @@ type UserSession = {
   name?: string;
   language?: "en" | "pcm" | "ig";
   state: ConversationState;
+  namePrompted?: boolean;
   lastUpdatedAt: string;
 };
 
@@ -150,7 +151,14 @@ function transition(
   const normalized = safeText.toLowerCase();
 
   if (session.state === "awaiting_name") {
-    if (!safeText) {
+    const greetings = ["hi", "hello", "hey", "start", "menu", "yo", "hola", "begin", "ping", "test", "shetrades"];
+    const cleanText = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "");
+    const words = cleanText.split(/\s+/);
+    const isGreeting = words.some(w => greetings.includes(w));
+
+    if (!safeText || (isGreeting && !session.namePrompted)) {
+      session.namePrompted = true;
+      session.lastUpdatedAt = nowIso();
       return {
         state: "awaiting_name",
         reply: getRuntimeText(

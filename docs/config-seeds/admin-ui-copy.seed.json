@@ -907,5 +907,131 @@
       "pcm": "Users",
       "ig": "Users"
     }
+  },
+  {
+    "key": "bot.awaiting_name.prompt",
+    "title": "Chatbot - Awaiting Name Prompt",
+    "content": {
+      "en": "Welcome to SheTrades. Please reply with your full name to begin.",
+      "pcm": "Welcome to SheTrades. Please reply with your full name to begin.",
+      "ig": "Welcome to SheTrades. Please reply with your full name to begin."
+    }
+  },
+  {
+    "key": "bot.awaiting_language.prompt",
+    "title": "Chatbot - Awaiting Language Prompt",
+    "content": {
+      "en": "Thanks {name}. Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)",
+      "pcm": "Thanks {name}. Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)",
+      "ig": "Thanks {name}. Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)"
+    }
+  },
+  {
+    "key": "bot.awaiting_language.invalid",
+    "title": "Chatbot - Invalid Language Option",
+    "content": {
+      "en": "Invalid language option. Reply with 1 (EN), 2 (PCM), or 3 (IG).",
+      "pcm": "Invalid language option. Reply with 1 (EN), 2 (PCM), or 3 (IG).",
+      "ig": "Invalid language option. Reply with 1 (EN), 2 (PCM), or 3 (IG)."
+    }
+  },
+  {
+    "key": "bot.main_menu.language_set",
+    "title": "Chatbot - Language Confirmed Welcome",
+    "content": {
+      "en": "{menu}\nLanguage set: {language}",
+      "pcm": "{menu}\nLanguage set: {language}",
+      "ig": "{menu}\nLanguage set: {language}"
+    }
+  },
+  {
+    "key": "bot.main_menu",
+    "title": "Chatbot - Main Menu Description",
+    "content": {
+      "en": "Welcome {name}. Main Menu:\n1. Start Module 1\n2. My Progress\n3. Change Language",
+      "pcm": "Welcome {name}. Main Menu:\n1. Start Module 1\n2. My Progress\n3. Change Language",
+      "ig": "Welcome {name}. Main Menu:\n1. Start Module 1\n2. My Progress\n3. Change Language"
+    }
+  },
+  {
+    "key": "bot.main_menu.invalid",
+    "title": "Chatbot - Main Menu Invalid Input",
+    "content": {
+      "en": "I did not understand that.\n{menu}",
+      "pcm": "I did not understand that.\n{menu}",
+      "ig": "I did not understand that.\n{menu}"
+    }
+  },
+  {
+    "key": "bot.module.started",
+    "title": "Chatbot - Module 1 Started Announcement",
+    "content": {
+      "en": "Module 1 started. Reply NEXT for the next lesson or MENU to return.",
+      "pcm": "Module 1 started. Reply NEXT for the next lesson or MENU to return.",
+      "ig": "Module 1 started. Reply NEXT for the next lesson or MENU to return."
+    }
+  },
+  {
+    "key": "bot.progress.summary",
+    "title": "Chatbot - User Progress Summary",
+    "content": {
+      "en": "{name}, your current completion is 0%. Reply 1 to start Module 1.",
+      "pcm": "{name}, your current completion is 0%. Reply 1 to start Module 1.",
+      "ig": "{name}, your current completion is 0%. Reply 1 to start Module 1."
+    }
+  },
+  {
+    "key": "bot.awaiting_language.prompt_short",
+    "title": "Chatbot - Change Language Option Prompt",
+    "content": {
+      "en": "Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)",
+      "pcm": "Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)",
+      "ig": "Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)"
+    }
+  },
+  {
+    "key": "bot.module.lesson_tip",
+    "title": "Chatbot - Module 1 Lesson Tip",
+    "content": {
+      "en": "Lesson 1: Keep daily sales records. Reply NEXT for the next tip or MENU to return.",
+      "pcm": "Lesson 1: Keep daily sales records. Reply NEXT for the next tip or MENU to return.",
+      "ig": "Lesson 1: Keep daily sales records. Reply NEXT for the next tip or MENU to return."
+    }
+  },
+  {
+    "key": "bot.webhook.ignored_reason",
+    "title": "Chatbot - Webhook Ignored Logs Reason",
+    "content": {
+      "en": "No supported inbound text message in payload.",
+      "pcm": "No supported inbound text message in payload.",
+      "ig": "No supported inbound text message in payload."
+    }
+  },
+  {
+    "key": "bot.language.en",
+    "title": "Chatbot - English Language Label",
+    "content": {
+      "en": "English",
+      "pcm": "English",
+      "ig": "English"
+    }
+  },
+  {
+    "key": "bot.language.pcm",
+    "title": "Chatbot - Pidgin Language Label",
+    "content": {
+      "en": "Pidgin",
+      "pcm": "Pidgin",
+      "ig": "Pidgin"
+    }
+  },
+  {
+    "key": "bot.language.ig",
+    "title": "Chatbot - Igbo Language Label",
+    "content": {
+      "en": "Igbo",
+      "pcm": "Igbo",
+      "ig": "Igbo"
+    }
   }
 ]
