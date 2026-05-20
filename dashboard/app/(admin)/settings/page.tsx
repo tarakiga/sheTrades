@@ -86,7 +86,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           "Manage option lists and legal content in one clear workspace."
         )}
         actions={
-          <Badge variant={configResult.source === "live" ? "success" : "warning"}>
+          <Badge variant={configResult.source === "live" ? "success" : "danger"}>
             {configResult.source === "live"
               ? t("common.liveData", "Live Data")
               : t("common.fallbackData", "Fallback Data")}

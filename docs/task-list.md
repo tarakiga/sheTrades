@@ -5,8 +5,8 @@ This document consolidates the implementation task roadmap in one place.
 ## Current Status
 
 - Project phase: CORE DIRECTIVE compliance remediation (Option B phased rollout)
-- Last completed task: Task 115
-- Next task: Focused visual verification of the recalibrated primary brand color across dashboard preview and live admin surfaces
+- Last completed task: Task 117
+- Next task: Apply the updated Cloud Run staging env file if the admin password changed, then use the new runbook in `handoff.md` to verify login, CORS, and deploy health
 
 ## Completed Tasks
 
@@ -118,12 +118,15 @@ This document consolidates the implementation task roadmap in one place.
 106. Task 113 - `/login` desktop no-scroll shared-component implementation and verification
 107. Task 114 - `/login` desktop focus rebalance refinement
 108. Task 115 - Primary brand color recalibration to `#334E58`
+109. Task 116 - Project continuation handoff consolidation
+110. Task 117 - Deploy and rollback runbook added to handoff
 
 ## Planned Next Tasks
 
+- Apply the updated Cloud Run staging env file if the admin password changed and verify production login on `https://she-trades.vercel.app`
+- Use the new runbook in `handoff.md` for deploy verification and rollback if needed
 - Focused visual verification of the recalibrated primary brand color across `/previews/components` and live admin surfaces
-- Decide whether the refreshed slate-steel primary should later extend into any additional marketing or external-facing surfaces
-- Redeploy `shetrades-backend-staging` from the updated backend manifests and verify production auth against Cloud Run
+- Decide whether the remaining local auth/backend manifest changes should be committed and, if needed, redeployed to Cloud Run
 
 ## Option B Rollout Notes
 

@@ -13,8 +13,9 @@ export type LoginFormValue = {
 
 export type LoginFormCardProps = {
   eyebrow?: string;
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
+  density?: "default" | "compact";
   emailLabel: string;
   emailHint?: string;
   passwordLabel: string;
@@ -35,6 +36,7 @@ export function LoginFormCard({
   eyebrow,
   title,
   description,
+  density = "default",
   emailLabel,
   emailHint,
   passwordLabel,
@@ -53,15 +55,27 @@ export function LoginFormCard({
   const withHint = (hint?: string) => (hint ? { hint } : {});
   const withError = (error?: string) => (error ? { error } : {});
 
+  const hasHeader = Boolean(eyebrow || title || description);
+
   return (
-    <section className="ui-card auth-login-card">
-      <header className="auth-login-card__header">
-        {eyebrow ? <p className="auth-login-card__eyebrow">{eyebrow}</p> : null}
-        <div>
-          <h3 className="auth-login-card__title">{title}</h3>
-          <p className="auth-login-card__description">{description}</p>
-        </div>
-      </header>
+    <section
+      className={[
+        "ui-card",
+        "auth-login-card",
+        density === "compact" ? "auth-login-card--compact" : ""
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {hasHeader ? (
+        <header className="auth-login-card__header">
+          {eyebrow ? <p className="auth-login-card__eyebrow">{eyebrow}</p> : null}
+          <div>
+            {title ? <h3 className="auth-login-card__title">{title}</h3> : null}
+            {description ? <p className="auth-login-card__description">{description}</p> : null}
+          </div>
+        </header>
+      ) : null}
       <div className="auth-login-card__content">
         <div className="profile-form auth-login-card__form">
           <AuthStatusBanner message={status} />

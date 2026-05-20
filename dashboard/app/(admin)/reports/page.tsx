@@ -28,7 +28,7 @@ export default async function ReportsPage() {
       )}
       actions={
         <div className="preview-row">
-          <Badge variant={meta.source === "live" ? "success" : "warning"}>
+          <Badge variant={meta.source === "live" ? "success" : "danger"}>
             {meta.source === "live"
               ? t("common.liveData", "Live Data")
               : t("common.fallbackData", "Fallback Data")}
@@ -83,7 +83,21 @@ export default async function ReportsPage() {
           <Table
             wrapperClassName="admin-review-table-wrap"
             tableClassName="admin-review-table"
-            emptyMessage={t("reports.empty.history", "No export history is available yet.")}
+            emptyState={
+              <EmptyState
+                icon="reports"
+                title={t("reports.empty.history.title", "No exports generated")}
+                description={t(
+                  "reports.empty.history.description",
+                  "Generate your first impact or operational report to see export history."
+                )}
+                action={
+                  <Button variant="secondary">
+                    {t("reports.actions.generateFirstReport", "Generate First Report")}
+                  </Button>
+                }
+              />
+            }
             columns={[
               { key: "report", header: t("common.columns.report", "Report") },
               { key: "format", header: t("common.columns.format", "Format") },
@@ -149,6 +163,7 @@ export default async function ReportsPage() {
             )}
           >
             <EmptyState
+              icon="config"
               title={t("reports.empty.scheduledJobs.title", "No scheduled report jobs")}
               description={t(
                 "reports.empty.scheduledJobs.description",
@@ -166,7 +181,7 @@ export default async function ReportsPage() {
             title={t("reports.support.governance.title", "Export Governance")}
             description={t(
               "reports.support.governance.description",
-              "Keep source and operational readiness visible without competing with export history."
+              "Overview of export data sources and operational readiness."
             )}
           >
             <div className="admin-review-support-stack">
@@ -177,7 +192,7 @@ export default async function ReportsPage() {
                 <Badge variant={queuedRows.length > 0 ? "warning" : "neutral"}>
                   {queuedRows.length} {t("reports.support.governance.queued", "queued")}
                 </Badge>
-                <Badge variant={meta.source === "live" ? "info" : "warning"}>
+                <Badge variant={meta.source === "live" ? "success" : "danger"}>
                   {meta.source === "live"
                     ? t("common.liveData", "Live Data")
                     : t("common.fallbackData", "Fallback Data")}

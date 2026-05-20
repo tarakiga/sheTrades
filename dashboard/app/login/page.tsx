@@ -8,6 +8,7 @@ function LoginPageFallback() {
   return (
     <main className="auth-page">
       <AuthPageShell
+        desktopMode="viewport-fit"
         eyebrow="SheTrades Admin"
         title="Preparing your workspace"
         description="Loading the secure sign-in experience and validating your current session."
@@ -29,7 +30,7 @@ function LoginPageFallback() {
           </p>
         }
       >
-        <div className="ui-card auth-login-card">
+        <div className="ui-card auth-login-card auth-login-card--compact">
           <div className="auth-login-card__content">
             <LoadingState label="Preparing sign-in workspace..." />
           </div>

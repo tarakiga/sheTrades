@@ -35,7 +35,7 @@ export default async function AnalyticsPage() {
       )}
       actions={
         <div className="preview-row">
-          <Badge variant={meta.source === "live" ? "success" : "warning"}>
+          <Badge variant={meta.source === "live" ? "success" : "danger"}>
             {meta.source === "live"
               ? t("common.liveData", "Live Data")
               : t("common.fallbackData", "Fallback Data")}
@@ -82,7 +82,7 @@ export default async function AnalyticsPage() {
           title={t("analytics.workspace.primary.title", "Analytics Review Canvas")}
           description={t(
             "analytics.workspace.primary.description",
-            "Lead with the strongest interpretive signals, then keep supporting status and notes quieter."
+            "Review key performance signals and learner funnel progression."
           )}
           summary={
             <div className="admin-insight-surface__badge-row">
@@ -106,26 +106,45 @@ export default async function AnalyticsPage() {
                 "Learner progression through onboarding and modules."
               )}
             >
-              <Tabs
-                activeId="overall"
-                items={[
-                  {
-                    id: "overall",
-                    label: t("analytics.tabs.overall", "Overall"),
-                    content: data.funnelOverall
-                  },
-                  {
-                    id: "anambra",
-                    label: t("analytics.tabs.anambra", "Anambra"),
-                    content: data.funnelAnambra
-                  },
-                  {
-                    id: "delta",
-                    label: t("analytics.tabs.delta", "Delta"),
-                    content: data.funnelDelta
+              {funnelReady ? (
+                <Tabs
+                  activeId="overall"
+                  items={[
+                    {
+                      id: "overall",
+                      label: t("analytics.tabs.overall", "Overall"),
+                      content: data.funnelOverall
+                    },
+                    {
+                      id: "anambra",
+                      label: t("analytics.tabs.anambra", "Anambra"),
+                      content: data.funnelAnambra
+                    },
+                    {
+                      id: "delta",
+                      label: t("analytics.tabs.delta", "Delta"),
+                      content: data.funnelDelta
+                    }
+                  ]}
+                />
+              ) : (
+                <EmptyState
+                  icon="analytics"
+                  title={t("analytics.empty.funnel.title", "Enrol learners to see analytics")}
+                  description={t(
+                    "analytics.empty.funnel.description",
+                    "Connect your data pipeline or wait for the first learning events to generate the funnel snapshot."
+                  )}
+                  action={
+                    <Button 
+                      variant="primary" 
+                      style={{ background: "var(--color-info)", borderColor: "var(--color-info)", color: "#ffffff" }}
+                    >
+                      {t("analytics.actions.enrolLearnerCTA", "Enrol your first learner")}
+                    </Button>
                   }
-                ]}
-              />
+                />
+              )}
             </AdminInsightPanel>
           }
           aside={
@@ -134,7 +153,7 @@ export default async function AnalyticsPage() {
                 title={t("analytics.cards.signals.title", "Performance Signals")}
                 description={t(
                   "analytics.cards.signals.description",
-                  "Keep the core completion and assessment indicators visible beside the funnel."
+                  "Overview of core completion and assessment indicators."
                 )}
               >
                 <div className="admin-insight-signal-list">
@@ -180,7 +199,7 @@ export default async function AnalyticsPage() {
             title={t("analytics.support.interpretation.title", "Interpretation Notes")}
             description={t(
               "analytics.support.interpretation.description",
-              "Keep the clearest operator guidance in a calmer support zone."
+              "Guidance for interpreting current metrics and trends."
             )}
           >
             <div className="admin-review-support-stack">
@@ -208,7 +227,7 @@ export default async function AnalyticsPage() {
           >
             <div className="admin-review-support-stack">
               <div className="admin-review-support-badges">
-                <Badge variant={meta.source === "live" ? "success" : "warning"}>
+                <Badge variant={meta.source === "live" ? "success" : "danger"}>
                   {meta.source === "live"
                     ? t("common.liveData", "Live Data")
                     : t("common.fallbackData", "Fallback Data")}
@@ -233,7 +252,7 @@ export default async function AnalyticsPage() {
             title={t("analytics.support.readiness.title", "Publishing Readiness")}
             description={t(
               "analytics.support.readiness.description",
-              "Use this zone for missing setup steps and lower-priority follow-up."
+              "Track configuration and publishing status of analytics features."
             )}
           >
             {funnelReady ? (
@@ -245,6 +264,7 @@ export default async function AnalyticsPage() {
               </p>
             ) : (
               <EmptyState
+                icon="config"
                 title={t("analytics.empty.readiness.title", "Analytics funnel still needs setup")}
                 description={t(
                   "analytics.empty.readiness.description",

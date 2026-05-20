@@ -16,7 +16,7 @@ export default async function ContentPage() {
           "Manage lessons, message copy, and learning content from one premium workspace."
         )}
         actions={
-          <Badge variant={copy.source === "live" ? "success" : "warning"}>
+          <Badge variant={copy.source === "live" ? "success" : "danger"}>
             {copy.source === "live"
               ? t("common.liveData", "Live Data")
               : t("common.fallbackData", "Fallback Data")}

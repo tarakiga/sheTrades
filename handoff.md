@@ -4,7 +4,7 @@
 
 - Name: SheTrades Digital WhatsApp Chatbot
 - PRD: `PRD.md`
-- Last Updated: 2026-05-05
+- Last Updated: 2026-05-18
 
 ## How To Use This File
 
@@ -5398,3 +5398,485 @@ psql "sslmode=verify-ca sslrootcert=server-ca.pem sslcert=client-cert.pem sslkey
 #### Next Task
 
 - Perform a focused visual verification of the recalibrated primary brand color across `/previews/components` and live admin surfaces.
+
+### Task 116 - Project Continuation Handoff Consolidation
+
+- Date: 2026-05-18
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Consolidate the current project, deployment, troubleshooting, and continuation context into a single handoff section so another developer can safely pick up the work without reconstructing recent history.
+
+#### Product And Architecture Snapshot
+
+- Product:
+  - SheTrades Digital WhatsApp chatbot platform with a Next.js admin dashboard and a Cloud Run backend.
+- Monorepo structure:
+  - `dashboard/` -> Next.js admin app
+  - `backend/` -> Express/TypeScript backend
+  - `shared/` -> design tokens and shared contracts/utilities
+  - `docs/` -> specs, task tracking, and operational notes
+- Current frontend architecture:
+  - premium admin dashboard and managed-config flows are implemented
+  - real admin auth routes exist for `/login`, `/profile`, and protected admin pages
+  - root route `/` is no longer a design review page; it redirects authenticated users to `/dashboard` and unauthenticated users to `/login`
+  - analytics, rewards, and reports have premium parity redesigns using shared workspace primitives
+  - `/login` has an executive-premium redesign plus desktop no-scroll and focus-rebalance refinements
+- Current design-system state:
+  - source of truth:
+    - `shared/src/design-tokens.ts`
+    - `dashboard/app/globals.css`
+    - `docs/design-tokens.md`
+  - primary brand family was recalibrated on 2026-05-18 to a slate-steel scale anchored at `#334E58`
+  - accent family remains gold
+
+#### Deployment Topology
+
+- Frontend hosting:
+  - Vercel
+  - framework preset: `Next.js`
+  - root directory: `dashboard`
+- Backend hosting:
+  - Google Cloud Run
+  - service: `shetrades-backend-staging`
+  - region: `us-central1`
+  - current backend URL used in production flow:
+    - `https://shetrades-backend-staging-214511840103.us-central1.run.app`
+- Production frontend domain:
+  - `https://she-trades.vercel.app`
+
+#### Required Runtime Configuration
+
+- Vercel frontend env:
+  - `NEXT_PUBLIC_API_BASE_URL` must point to the live Cloud Run backend URL
+  - current expected value:
+    - `https://shetrades-backend-staging-214511840103.us-central1.run.app`
+- Cloud Run backend env must include at minimum:
+  - `POSTGRES_URL`
+  - `ADMIN_CONFIG_JWT_SECRET`
+  - `ADMIN_AUTH_BOOTSTRAP_EMAIL`
+  - `ADMIN_AUTH_BOOTSTRAP_PASSWORD`
+  - `ADMIN_AUTH_BOOTSTRAP_FULL_NAME`
+  - `ADMIN_AUTH_BOOTSTRAP_ROLE`
+  - `ADMIN_AUTH_BOOTSTRAP_STATUS`
+  - `BACKEND_CORS_ALLOWED_ORIGINS`
+- Local-only env management:
+  - `cloudrun-staging-env.yaml` is the safe local file used to apply staging env vars to Cloud Run
+  - it must remain untracked by git
+  - do not commit secrets or machine-specific files
+
+#### Critical Auth And Password Behavior
+
+- The admin auth bootstrap account is created from Cloud Run env at runtime by:
+  - `backend/src/auth/service.ts`
+- Important behavior:
+  - `ADMIN_AUTH_BOOTSTRAP_PASSWORD` is read from runtime env
+  - the auth service bootstraps users in memory on first auth use for a given process
+  - there is also an authenticated change-password endpoint:
+    - `POST /api/admin/auth/change-password`
+- Operational implication:
+  - changing the password inside the running app alone does not update the Cloud Run env source of truth
+  - after a restart or new revision, the bootstrap password can revert to whatever is still configured in Cloud Run env
+  - if the admin password changes for production/staging, update `cloudrun-staging-env.yaml` and then apply it to Cloud Run
+
+#### Cloud Run Commands
+
+- Apply the local staging env file to Cloud Run:
+  - `gcloud run services update shetrades-backend-staging --region us-central1 --env-vars-file cloudrun-staging-env.yaml`
+- Deploy the backend service from the current repo source:
+  - `gcloud run deploy shetrades-backend-staging --region us-central1 --source .`
+- Describe the current Cloud Run service:
+  - `gcloud run services describe shetrades-backend-staging --region us-central1`
+- Print the live env block:
+  - `gcloud run services describe shetrades-backend-staging --region us-central1 --format="value(spec.template.spec.containers[0].env)"`
+
+#### Recommended Safe Cloud Run Sequence
+
+- If only env values changed:
+  - update `cloudrun-staging-env.yaml`
+  - run:
+    - `gcloud run services update shetrades-backend-staging --region us-central1 --env-vars-file cloudrun-staging-env.yaml`
+  - retest login against the live frontend
+- If backend code or package manifests changed:
+  - ensure local backend build passes:
+    - `npm run build -w @shetrades/backend`
+  - deploy source:
+    - `gcloud run deploy shetrades-backend-staging --region us-central1 --source .`
+  - re-apply env file:
+    - `gcloud run services update shetrades-backend-staging --region us-central1 --env-vars-file cloudrun-staging-env.yaml`
+  - verify preflight and login again
+
+#### Verification Commands
+
+- Dashboard typecheck:
+  - `npm run typecheck -w @shetrades/dashboard`
+- Dashboard production build:
+  - `npm run build -w @shetrades/dashboard`
+- Backend production build:
+  - `npm run build -w @shetrades/backend`
+- CORS preflight check:
+  - `curl.exe -i -X OPTIONS "https://shetrades-backend-staging-214511840103.us-central1.run.app/api/admin/auth/login" -H "Origin: https://she-trades.vercel.app" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: content-type"`
+- Expected healthy preflight result:
+  - `204 No Content`
+  - `Access-Control-Allow-Origin: https://she-trades.vercel.app`
+
+#### Recent Production-Facing Work Completed
+
+- `feat(admin): add managed config and premium dashboard workspaces`
+  - broader premium admin/config/dashboard work was previously committed and pushed
+- `build(dashboard): add local typescript for vercel builds`
+  - fixed Vercel app-root builds by adding local `typescript` under `dashboard/package.json`
+- `fix(dashboard): redirect root entry to auth flow`
+  - root route now smart-redirects instead of rendering the legacy design-token review page
+- `feat(design-system): recalibrate primary brand color`
+  - pushed on 2026-05-18
+  - commit:
+    - `9ad028c`
+
+#### Known Issues Encountered Recently And How They Were Resolved
+
+- Vercel build failed because TypeScript was only available at workspace root:
+  - symptom:
+    - Vercel build from `dashboard` failed complaining TypeScript was missing
+  - fix:
+    - add local `typescript` dependency in `dashboard/package.json`
+- Production frontend called `http://localhost:8080`:
+  - symptom:
+    - login on Vercel attempted localhost and failed with CORS
+  - root cause:
+    - `NEXT_PUBLIC_API_BASE_URL` missing or incorrect
+  - fix:
+    - point Vercel env to the Cloud Run backend URL
+- Cloud Run env update with comma-separated CORS origins failed:
+  - symptom:
+    - `gcloud run services update --update-env-vars` produced dict parsing errors
+  - root cause:
+    - commas and special delimiters in env values
+  - fix:
+    - use `--env-vars-file cloudrun-staging-env.yaml` instead of inline env parsing
+- Backend preflight returned `500` before CORS was healthy:
+  - symptom:
+    - `OPTIONS /api/admin/auth/login` returned `500`
+  - root cause:
+    - backend code/image mismatch or failing backend deployment, not just missing CORS env
+  - fix:
+    - redeploy backend from source and ensure required dependencies build inside Cloud Run
+- Cloud Run source deployment failed on notification integration build:
+  - symptom:
+    - backend Cloud Build failed in a clean container
+  - root causes:
+    - missing runtime dependency `nodemailer`
+    - missing declaration package `@types/nodemailer`
+  - fix:
+    - ensure `backend/package.json` and `package-lock.json` include both
+    - verify with `npm run build -w @shetrades/backend`
+
+#### Current Repo State Before Any New Work
+
+- The worktree is currently dirty with unrelated local changes and helpers that were not part of the last primary-color commit.
+- Current modified files observed in the local working tree:
+  - `.gitignore`
+  - `backend/package.json`
+  - `dashboard/app/login/page.tsx`
+  - `dashboard/app/previews/components/AdminAuthPreview.tsx`
+  - `dashboard/components/auth/AuthPageShell.tsx`
+  - `dashboard/components/auth/LoginFormCard.tsx`
+  - `dashboard/components/auth/LoginPageClient.tsx`
+  - `package-lock.json`
+- Current untracked files observed in the local working tree:
+  - `docs/superpowers/specs/2026-05-18-login-desktop-focus-rebalance.md`
+  - `docs/superpowers/specs/2026-05-18-login-desktop-no-scroll-refinement.md`
+  - `errorlog.txt`
+  - `make-admin-jwt.cjs`
+- Guidance:
+  - do not blindly revert these files
+  - inspect whether they represent intended work from the prior login/backend deployment thread before committing or cleaning them up
+  - keep local-only helper files untracked unless there is an explicit reason to productize them
+
+#### What Is Safe To Do Next
+
+- If the admin password was just updated in `cloudrun-staging-env.yaml`:
+  - run:
+    - `gcloud run services update shetrades-backend-staging --region us-central1 --env-vars-file cloudrun-staging-env.yaml`
+  - then retest login on:
+    - `https://she-trades.vercel.app`
+- If backend auth/deploy issues reappear:
+  - verify Cloud Run env first
+  - verify backend local build next
+  - redeploy source only after confirming manifests are correct
+- For product continuation:
+  - visually verify the new `#334E58` primary across live admin surfaces and `/previews/components`
+  - review whether the remaining local auth/login files should be committed as a separate scoped change
+  - confirm whether the backend manifest fixes in `backend/package.json` and `package-lock.json` should be committed and, if needed, redeployed
+
+#### Continuation Summary
+
+- The product is in a working premium-admin state with live Vercel frontend and Cloud Run backend integration.
+- The biggest recent risks were deployment/env drift and backend build cleanliness in Cloud Run.
+- The next developer should treat Cloud Run env, Vercel runtime env, and the dirty local worktree as the three highest-leverage continuation checks before making new production changes.
+
+#### Deploy And Rollback Runbook
+
+- Scope:
+  - use this runbook for the live Vercel frontend plus the Cloud Run staging backend currently serving production login traffic
+- Frontend baseline:
+  - Vercel project preset: `Next.js`
+  - Vercel root directory: `dashboard`
+  - required frontend env:
+    - `NEXT_PUBLIC_API_BASE_URL=https://shetrades-backend-staging-214511840103.us-central1.run.app`
+
+##### Runbook: Cloud Run Env-Only Update
+
+- Use this when:
+  - only backend env values changed
+  - examples:
+    - admin bootstrap password
+    - CORS origins
+    - JWT secret
+- Steps:
+  - update local-only file:
+    - `cloudrun-staging-env.yaml`
+  - apply env file:
+    - `gcloud run services update shetrades-backend-staging --region us-central1 --env-vars-file cloudrun-staging-env.yaml`
+  - verify service env:
+    - `gcloud run services describe shetrades-backend-staging --region us-central1 --format="value(spec.template.spec.containers[0].env)"`
+  - retest production login:
+    - `https://she-trades.vercel.app`
+
+##### Runbook: Backend Code Deploy
+
+- Use this when:
+  - backend code changed
+  - backend package manifests changed
+  - Cloud Run image behavior does not match local repo state
+- Steps:
+  - verify backend build locally:
+    - `npm run build -w @shetrades/backend`
+  - deploy from repo root:
+    - `gcloud run deploy shetrades-backend-staging --region us-central1 --source .`
+  - re-apply env file after deploy:
+    - `gcloud run services update shetrades-backend-staging --region us-central1 --env-vars-file cloudrun-staging-env.yaml`
+  - verify CORS preflight:
+    - `curl.exe -i -X OPTIONS "https://shetrades-backend-staging-214511840103.us-central1.run.app/api/admin/auth/login" -H "Origin: https://she-trades.vercel.app" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: content-type"`
+  - verify live login through the frontend:
+    - `https://she-trades.vercel.app`
+
+##### Runbook: Frontend Env Or App Deploy
+
+- Use this when:
+  - Vercel env changed
+  - dashboard app code changed
+  - backend URL changed
+- Steps:
+  - ensure `dashboard` still builds locally:
+    - `npm run typecheck -w @shetrades/dashboard`
+    - `npm run build -w @shetrades/dashboard`
+  - confirm Vercel env:
+    - `NEXT_PUBLIC_API_BASE_URL` points to the intended Cloud Run backend
+  - trigger or allow Vercel redeploy from `main`
+  - verify:
+    - `/`
+    - `/login`
+    - `/dashboard`
+
+##### Runbook: Post-Deploy Verification Checklist
+
+- Backend:
+  - `OPTIONS /api/admin/auth/login` returns `204`
+  - `Access-Control-Allow-Origin` includes `https://she-trades.vercel.app`
+- Frontend:
+  - `/` redirects correctly
+  - `/login` loads without localhost API calls
+  - sign-in succeeds with the intended admin password
+- Product UI:
+  - `/previews/components` loads
+  - admin workspace routes render
+  - primary brand color appears as the new slate-steel system
+
+##### Runbook: Rollback Strategy
+
+- If the issue is env-only:
+  - restore the previous values in `cloudrun-staging-env.yaml`
+  - run:
+    - `gcloud run services update shetrades-backend-staging --region us-central1 --env-vars-file cloudrun-staging-env.yaml`
+- If the issue is backend code:
+  - identify the last known good revision or redeploy the last known good commit from repo source
+  - after rollback deploy, re-apply the correct env file
+- If the issue is frontend-only:
+  - restore the last known good Vercel env or redeploy the previous good frontend commit
+- After any rollback:
+  - repeat the post-deploy verification checklist above
+
+##### Runbook: Common Failure Patterns
+
+- Vercel frontend tries `localhost`:
+  - cause:
+    - `NEXT_PUBLIC_API_BASE_URL` missing or wrong
+  - fix:
+    - update Vercel env and redeploy frontend
+- Cloud Run env command fails with dict parsing errors:
+  - cause:
+    - comma-separated or special-character env values used inline
+  - fix:
+    - use `--env-vars-file cloudrun-staging-env.yaml`
+- Preflight returns `500` instead of `204`:
+  - cause:
+    - backend deploy/image mismatch or backend startup/runtime failure
+  - fix:
+    - verify backend build locally, redeploy Cloud Run source, then re-apply env
+- Cloud Run source build fails for missing packages:
+  - cause:
+    - backend manifest drift from local state
+  - fix:
+    - confirm `backend/package.json` and `package-lock.json` contain required dependencies, then rebuild locally before redeploy
+
+### Task 052 - Fix Silent Failure Data Trust Issue
+
+- Date: 2026-05-20
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Ensure admins can distinguish between a server error and genuine zero-data states.
+
+#### Changes Made
+
+- Removed silent fallback data returned from fetch catches in `dashboard/lib/admin/api.ts`.
+- Refactored `fetchWithFallback` to `fetchAdminData` which now explicitly throws `Error` if the response is not `ok`.
+- Ensured that any failed API fetch properly cascades up to Next.js `error.tsx` boundary.
+
+#### Why
+
+- Prevents a "silent failure" where a broken database connection returns `0` metrics, masquerading as a system with no users.
+- Re-establishes data trust: when admins see `0`, they know it genuinely means zero data, not a server crash.
+- Next.js Error Boundaries correctly take over UI rendering when an actual error occurs.
+
+#### Next Task
+
+- Task 053: Login Page UX Refinement
+
+### Task 053 - Login Page UX Refinement
+
+- Date: 2026-05-20
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Maintain premium UX on the login page while removing redundant headers to prevent error messages from pushing the login form out of view.
+
+#### Changes Made
+
+- Made `title` and `description` props optional in `dashboard/components/auth/LoginFormCard.tsx`.
+- Conditionally rendered the inner header block in `LoginFormCard` only when `eyebrow`, `title`, or `description` are provided.
+- Removed redundant `eyebrow`, `title`, and `description` props from the `LoginFormCard` usage inside `dashboard/components/auth/LoginPageClient.tsx`.
+- Added `align-content: start` to `.auth-shell__aside-points` in `dashboard/app/globals.css`.
+
+#### Why
+
+- The inner grey form box was heavily duplicating the main page header text ("Admin sign in" vs "Welcome back"), which wasted valuable vertical space.
+- By removing the redundant inner headers, we preserve the premium look of the outer shell while keeping the form input fields and error messages tightly in focus on smaller screens.
+- The CSS Grid layout on the dark sidebar was stretching the list items across the remaining vertical space. `align-content: start` fixes this excess whitespace, allowing the items to sit naturally with their defined `gap`.
+
+#### Next Task
+
+- Task 054: Empty States UX Refinement
+
+### Task 054 - Empty States UX Refinement
+
+- Date: 2026-05-20
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Fix the "broken first impression" by introducing premium, actionable empty states across all data-holding pages instead of falling back to zeroes or plain text.
+
+#### Changes Made
+
+- Redesigned `EmptyState.tsx` and `globals.css` to feature a centered layout, an icon container, and subtle borders, elevating the visual aesthetic.
+- Enhanced `EmptyState` to support a new `icon` prop rendering custom SVG icons based on context (e.g. "users", "rewards", "analytics").
+- Upgraded `Table.tsx` to support a native `emptyState` ReactNode prop, replacing the bare `<p>` tag fallback when tables are empty.
+- Injected actionable Empty States into the primary tables for `UsersPage`, `RewardsPage`, `ReportsPage`, and `DashboardPage`.
+- Updated the Funnel Breakdown panel in `AnalyticsPage` to display a contextual empty state if the funnel is missing data.
+
+#### Next Task
+
+- Task 055: Copy Refinement (Replaced designer annotations)
+
+### Task 055 - Copy Refinement
+
+- Date: 2026-05-20
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Remove internal designer annotations from live UI descriptions and replace them with professional, user-facing copy.
+
+#### Changes Made
+
+- Audited all admin pages (`users/page.tsx`, `rewards/page.tsx`, `analytics/page.tsx`, `reports/page.tsx`, `dashboard/page.tsx`) for placeholder designer notes.
+- Replaced internal rationale (e.g., "Keep failed or disputed rewards in a quieter support zone") with clear user guidance (e.g., "Track and manage failed or disputed rewards requiring manual follow-up").
+- Renamed internal developer titles (e.g., "Preview-Ready Action Rail") to standard UI titles (e.g., "Quick Actions").
+
+#### Next Task
+
+- Task 056: Fix Holographic Shimmer Bug
+
+### Task 056: Fix Holographic Shimmer Bug
+
+- Date: 2026-05-20
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Resolve the holographic / rainbow shimmer bleeding from parent containers behind content cards on all pages.
+
+#### Changes Made
+- Audited the root admin layout component and main styles in `dashboard/app/globals.css`.
+- Added `background: var(--color-neutral-50);` (neutral grey background color #f8f9fb) to both `.admin-shell` and `.admin-shell__main` classes to ensure an opaque backdrop.
+- This successfully overrides and blocks any bleeding gradients, background conic/linear gradients, or backdrop filter bugs from rendering behind content cards.
+
+#### Next Task
+- Task 057: Improve 500 Error Boundary Component
+
+### Task 057: Improve 500 Error Boundary Component
+
+- Date: 2026-05-20
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Implement a premium, dedicated full-page error state for 500 API errors that eliminates data ambiguity and provides clear recovery CTAs.
+
+#### Changes Made
+- Completely redesigned `dashboard/app/(admin)/error.tsx` into a high-fidelity full-page error boundary.
+- Added a custom animated server outage graphic using custom SVG elements with an active HSL glow pulse.
+- Added clear, explicit copywriting explaining that this is a system connectivity/server error and NOT missing/unpopulated data.
+- Built a primary "Retry Connection" CTA that executes Next.js's native `reset()` callback with an active `loading` spinner using React state.
+- Provided a secondary "Dashboard Overview" CTA button.
+- Designed an expandable support drawer containing detailed connection diagnostics (collapsible `code` snippet block) for administrators or developers.
+- Ensured no underlying page content can render when a server error occurs, preventing incorrect user actions or trust issues.
+
+#### Next Task
+- Task 058: Onboarding Empty States & Accent Coherence
+
+### Task 058: Onboarding Empty States & Accent Coherence
+
+- Date: 2026-05-20
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Implement onboarding-oriented empty states across all data-holding pages with contextual illustrations/icons, clear action headlines, and custom color-matched accents for CTA buttons.
+
+#### Changes Made
+- **Users Page (Directory):** Updated the main empty state to show `Import your first learner` as both the title and the action button. Styled the CTA with a success-green background accent (`var(--color-success)`) matching the section's accent color.
+- **Rewards Page (Log):** Updated the main empty state to show `Issue a reward to get started` as both the title and the action button. Styled the CTA with a warning-orange background accent (`var(--color-warning)`) matching the section's accent color.
+- **Analytics Page (Progression):** Updated the funnel breakdown empty state to display `Enrol learners to see analytics` as the headline. Added an action button `Enrol your first learner` styled with an info-blue background accent (`var(--color-info)`) matching the section's accent color.
+- Verified TypeScript compilation type safety across all updated pages using `npx tsc --noEmit` with a clean pass.
+
+#### Next Task
+- Task 059: Resolve Badge Semantic Token Inconsistencies
+
+### Task 059: Resolve Badge Semantic Token Inconsistencies
+
+- Date: 2026-05-20
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Define a consistent 5-token badge color system across all pages and resolve the conflict where Fallback Data (an error state) shared the warning (amber) variant with Coverage.
+
+#### Changes Made
+- **Header Actions Badges:** Updated the top actions header badge on `/users`, `/rewards`, `/reports`, `/analytics`, `/content`, and `/settings` pages. When copy or data source is in a fallback state (`meta.source !== "live"`), the badge now correctly uses `variant="danger"` (rendering as red/error state) instead of `variant="warning"` (rendering as amber).
+- **Reports Operational Governance Badges:** Updated the data source health status badge inside the export governance section from using `info`/`warning` variants to properly using `success`/`danger` semantic variants.
+- **Analytics Source Health Badges:** Updated the secondary source health badge to use `success`/`danger` variants, ensuring a clean red fallback data state.
+- **Dashboard Workspace Status Badges:** Changed the "Safe Empty Fallback" actions badge variant from `warning` to `neutral` (grey) as per the 5-token system recommendation.
+- **Verification & Parity:** Verified that "Pending" states correctly remain warning/amber, dynamic/assessment labels remain info/blue, completed/fulfilled states remain success/green, N/A states remain neutral/grey, and only genuine data loading error states use danger/red.
+- Verified TypeScript compilation type safety across all updated files using `npx tsc --noEmit` with a clean pass.
+
+#### Next Task
+- Pending user direction.
+

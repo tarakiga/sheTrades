@@ -132,6 +132,7 @@ export function AdminAuthPreview() {
           </Button>
         </div>
         <AuthPageShell
+          desktopMode="viewport-fit"
           eyebrow="SheTrades Admin"
           title="Welcome back"
           description="Sign in with your admin account to manage content, integrations, and operational settings."
@@ -179,6 +180,7 @@ export function AdminAuthPreview() {
           }
         >
           <LoginFormCard
+            density="compact"
             eyebrow="Secure sign-in"
             title="Admin sign in"
             description="Enter your assigned credentials to continue into the SheTrades control workspace."

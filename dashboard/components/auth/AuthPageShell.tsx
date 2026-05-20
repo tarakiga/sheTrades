@@ -9,6 +9,7 @@ export type AuthPageShellProps = {
   eyebrow: string;
   title: string;
   description: string;
+  desktopMode?: "default" | "viewport-fit";
   heroBadge?: ReactNode;
   heroHighlights?: ReactNode;
   asideLabel?: string;
@@ -27,6 +28,7 @@ export function AuthPageShell({
   eyebrow,
   title,
   description,
+  desktopMode = "default",
   heroBadge,
   heroHighlights,
   asideLabel = "Secure admin access",
@@ -41,7 +43,14 @@ export function AuthPageShell({
   children
 }: AuthPageShellProps) {
   return (
-    <section className="auth-shell">
+    <section
+      className={[
+        "auth-shell",
+        desktopMode === "viewport-fit" ? "auth-shell--viewport-fit" : ""
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <div className="auth-shell__panel">
         <div className="auth-shell__hero">
           {heroBadge ? <div className="auth-shell__hero-badge">{heroBadge}</div> : null}

@@ -55,7 +55,7 @@ export default async function UsersPage() {
       )}
       actions={
         <div className="preview-row">
-          <Badge variant={meta.source === "live" ? "success" : "warning"}>
+          <Badge variant={meta.source === "live" ? "success" : "danger"}>
             {meta.source === "live"
               ? t("common.liveData", "Live Data")
               : t("common.fallbackData", "Fallback Data")}
@@ -106,13 +106,30 @@ export default async function UsersPage() {
           title={t("users.cards.directory.title", "Learner Directory")}
           description={t(
             "users.cards.directory.description",
-            "Scan learner identity, progress, and follow-up state from one calmer review surface."
+            "View and manage all registered learners across the platform."
           )}
         >
           <Table
             wrapperClassName="admin-review-table-wrap"
             tableClassName="admin-review-table admin-review-table--users"
-            emptyMessage={t("users.empty.directory", "No learner records are available yet.")}
+            emptyState={
+              <EmptyState
+                icon="users"
+                title={t("users.empty.directory.title", "Import your first learner")}
+                description={t(
+                  "users.empty.directory.description",
+                  "Connect your WhatsApp data source or import a CSV of learner records to populate the directory."
+                )}
+                action={
+                  <Button 
+                    variant="primary" 
+                    style={{ background: "var(--color-success)", borderColor: "var(--color-success-700)", color: "#ffffff" }}
+                  >
+                    {t("users.actions.importFirstLearner", "Import your first learner")}
+                  </Button>
+                }
+              />
+            }
             columns={[
               {
                 key: "name",
@@ -189,7 +206,7 @@ export default async function UsersPage() {
             title={t("users.support.coverage.title", "Directory Coverage")}
             description={t(
               "users.support.coverage.description",
-              "Use this support view to understand where the visible directory is strongest."
+              "Overview of learner demographics and platform adoption by region and language."
             )}
           >
             <div className="admin-review-support-stack">
@@ -245,10 +262,11 @@ export default async function UsersPage() {
             title={t("users.cards.actions.title", "User Actions")}
             description={t(
               "users.cards.actions.description",
-              "Keep import follow-up, moderation, and preview work staged in one secondary zone."
+              "Manage pending imports, data merging, and moderation queues."
             )}
           >
             <EmptyState
+              icon="users"
               title={t("users.empty.actions.title", "No pending user actions")}
               description={t(
                 "users.empty.actions.description",
@@ -263,10 +281,10 @@ export default async function UsersPage() {
           </Card>
 
           <Card
-            title={t("users.support.futureActions.title", "Preview-Ready Action Rail")}
+            title={t("users.support.futureActions.title", "Quick Actions")}
             description={t(
               "users.support.futureActions.description",
-              "The directory already reserves space for profile previews, outreach, and follow-up actions."
+              "Manage user profiles and track follow-up activities directly from the directory."
             )}
           >
             <div className="admin-review-support-stack">

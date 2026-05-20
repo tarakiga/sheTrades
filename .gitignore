@@ -1,5 +1,6 @@
 .env.local
 docker-compose.local.yml
+cloudrun-staging-env.yaml
 admin-jwt.txt
 pg-ca.pem
 connect/*.pem
@@ -14,3 +15,6 @@ dashboard/.next/
 dist/
 coverage/
 *.tsbuildinfo
+errorlog.txt
+make-admin-jwt.cjs
+

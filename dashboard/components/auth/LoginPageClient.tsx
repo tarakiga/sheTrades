@@ -101,6 +101,7 @@ export function LoginPageClient() {
   return (
     <main className="auth-page">
       <AuthPageShell
+        desktopMode="viewport-fit"
         eyebrow={t("auth.login.eyebrow", "SheTrades Admin")}
         title={t("auth.login.pageTitle", "Welcome back")}
         description={t(
@@ -181,12 +182,7 @@ export function LoginPageClient() {
         }
       >
         <LoginFormCard
-          eyebrow={t("auth.login.form.eyebrow", "Secure sign-in")}
-          title={t("auth.login.form.title", "Admin sign in")}
-          description={t(
-            "auth.login.form.description",
-            "Enter your assigned credentials to continue into the SheTrades control workspace."
-          )}
+          density="compact"
           emailLabel={t("auth.login.form.email.label", "Email address")}
           emailHint={t(
             "auth.login.form.email.hint",
