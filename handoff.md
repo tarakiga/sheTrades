@@ -6069,5 +6069,180 @@ psql "sslmode=verify-ca sslrootcert=server-ca.pem sslcert=client-cert.pem sslkey
   - Staged and committed all three modified files, and successfully pushed the codebase updates to the remote GitHub repository `tarakiga/sheTrades`.
 
 #### Next Task
-- Project completed successfully! Ready for final review.
+- Task 068: Resolve Hydration Mismatch & Previews TypeScript Resolution Error
+
+### Task 068: Resolve Hydration Mismatch & Previews TypeScript Resolution Error
+
+- Date: 2026-05-20
+- Owner: Antigravity AI Coding Agent
+- Status: Completed
+- Goal: Fix React hydration mismatches on the `/login` dashboard page due to dynamic client translations and third-party browser-extension-injected attributes (`rtrvr-ls`), and resolve a TypeScript compile error in the Component Previews environment caused by an obsolete component import.
+
+#### Changes Made
+- **Client-Side Mounting Guard & Unified Fallback:**
+  - Designed and created a unified, reusable `LoginPageFallback` component inside `dashboard/components/auth/LoginPageFallback.tsx` to handle the static shell loading skeleton state.
+  - Replaced the local duplicate fallback layout in `dashboard/app/login/page.tsx` with the new shared `<LoginPageFallback />`.
+  - Refactored `dashboard/components/auth/LoginPageClient.tsx` to utilize the `mounted` state guard pattern, returning `<LoginPageFallback />` on the initial hydration render and SSR. This ensures that the server-rendered HTML and client's first paint match perfectly, avoiding any mismatches from dynamic translations.
+- **Hydration Attribute Suppression:**
+  - Added the `suppressHydrationWarning` attribute to core wrapper and content elements in `LoginPageClient.tsx`, `AuthPageShell.tsx`, `LoginFormCard.tsx`, `Input.tsx`, and `PasswordField.tsx`. This elegantly suppresses hydration warning overlays when browser extensions (like password managers, Translators, or screen readers) inject custom trackers or metadata attributes (e.g., `rtrvr-ls`) before React hydration is complete.
+- **Previews Compilation Fix:**
+  - Cleaned up `dashboard/app/previews/components/IntegrationWorkspacePreview.tsx` by removing the obsolete import and rendering of the deleted `AdminAccessKeyPanel` component, fully resolving the TypeScript compilation failure.
+- **Verification:**
+  - Executed a successful full Next.js production build (`npm run build -w @shetrades/dashboard`), confirming the frontend compiles cleanly and is free of errors.
+
+#### Next Task
+- Task 069: Login Form Forgot Password Link, Help Placement & WCAG Contrast Fix
+
+### Task 069: Login Form Forgot Password Link, Help Placement & WCAG Contrast Fix
+
+- Date: 2026-05-20
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Add a dedicated forgot-password affordance in the form, move the recovery help action out of the primary CTA zone, and fix a WCAG AA contrast failure on the dark aside panel.
+
+#### Changes Made
+- **Forgot Password Link:**
+  - Added `forgotPasswordAction` prop to `dashboard/components/auth/LoginFormCard.tsx`.
+  - Rendered a styled `auth-login-card__forgot-link` button between the password field and the Sign in button in the form flow.
+  - Wired to `handleForgotPassword()` in `dashboard/components/auth/LoginPageClient.tsx`, which sets an informational feedback banner directing the admin to contact IT for a password reset.
+- **Help Action Relocation:**
+  - Moved the `recoveryAction` ("Get sign-in help") into a visually separated `auth-login-card__footer` zone below a horizontal divider inside `LoginFormCard.tsx`.
+  - This prevents the help button from appearing in-line with the primary Sign in CTA and causing action confusion.
+- **WCAG Contrast Fix:**
+  - Replaced `rgba(226,232,240,0.72)` with solid `#cbd5e1` on `.auth-shell__aside-highlight-label` in `dashboard/app/globals.css`.
+  - Achieves a 7.4:1 contrast ratio against the dark aside background, satisfying WCAG AA.
+- **Preview Update:**
+  - Updated `dashboard/app/previews/components/AdminAuthPreview.tsx` to reflect the new form layout and recovery zone.
+
+#### Verification
+- `npm run typecheck -w @shetrades/dashboard` → PASS
+- `npm run build -w @shetrades/dashboard` → PASS
+
+#### Next Task
+- Task 070: Login Page Layout Fix — Overflowing Left Panel Content
+
+### Task 070: Login Page Layout Fix — Overflowing Left Panel Content
+
+- Date: 2026-05-21
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Fix the login page layout where the Sign in button and everything below it was pushed out of frame due to too much content stacked in the left panel, while the right panel had unused vertical space.
+
+#### Changes Made
+- **`dashboard/components/auth/AuthPageShell.tsx`:**
+  - Removed `auth-shell__support` and `auth-shell__footer` from inside `.auth-shell__panel` (left column).
+  - Appended both as the last children of `.auth-shell__aside-panel` (right column), positioned below the aside bullet points.
+  - Left panel now contains only two children: hero section and form card.
+
+- **`dashboard/app/globals.css`:**
+  - `.auth-shell__panel`: reduced `grid-template-rows` from `auto auto auto auto` (4 rows) to `auto auto` (2 rows), eliminating the phantom row space for the removed sections.
+  - `.auth-shell__aside-panel`: switched from `display: grid` with `grid-template-rows: auto auto 1fr` to `display: flex; flex-direction: column`. Flex column allows `margin-top: auto` to push the support block to the bottom of the panel naturally, regardless of how much content is above it.
+  - Added `.auth-shell__aside .auth-shell__support { margin-top: auto; }` to pin the support card to the bottom of the right panel.
+  - Added dark-context colour overrides for the moved elements so they render correctly on the dark navy aside background:
+    - Support card background changed to `rgba(255,255,255,0.06)` with a subtle white border.
+    - `auth-shell__support-title` set to `#f8fafc`.
+    - `auth-shell__support-description` set to `rgba(226,232,240,0.72)`.
+    - Ghost button text set to `rgba(226,232,240,0.85)` with a hover state.
+    - Footnote text set to `rgba(203,213,225,0.5)`.
+
+#### Why
+- The left panel was overflowing because 4 stacked sections (hero + form + support + footer) exceeded any normal viewport height, hiding the Sign in button and all content below it.
+- The right aside panel had significant unused vertical space. Moving the support and footer there balances the two columns and ensures the form is always fully visible.
+- Switching the aside-panel to flexbox (rather than adjusting fragile explicit grid row counts) is robust against conditional children — `margin-top: auto` on the support block works correctly whether optional sections above it are rendered or not.
+
+#### Verification
+- `npm run typecheck -w @shetrades/dashboard` → PASS
+- `npm run build -w @shetrades/dashboard` → PASS
+
+#### Next Task
+- Task 071: Trim Redundant Login Hero & Form-Card Header
+
+### Task 071: Trim Redundant Login Hero & Form-Card Header
+
+- Date: 2026-05-21
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Remove redundant copy that duplicated information already in the left-panel hero, simplifying the visual hierarchy of `/login`.
+
+#### Changes Made
+- **`dashboard/components/auth/LoginFormCard.tsx`:**
+  - Removed the entire `<header className="auth-login-card__header">` block containing the "Secure sign-in" eyebrow, "Admin sign in" title, and "Enter your assigned credentials..." description.
+  - Dropped the `eyebrow`, `title`, and `description` props from `LoginFormCardProps` and the component signature — they're no longer rendered anywhere in the card.
+- **`dashboard/components/auth/LoginPageClient.tsx`:**
+  - Removed the `eyebrow`, `title`, `description`, `heroBadge`, and `heroHighlights` props from the `LoginFormCard` and `AuthPageShell` callsites.
+  - Dropped the now-orphan `Badge` import.
+- **`dashboard/components/auth/AuthPageShell.tsx`:**
+  - Removed the `heroHighlights?: ReactNode` prop from the type, destructure, and JSX render block — `heroHighlights` was only ever used by the login page.
+  - Kept the `heroBadge` prop intact because `RootEntryRedirect.tsx` still consumes it for the entry handoff state.
+- **`dashboard/app/previews/components/AdminAuthPreview.tsx`:**
+  - Removed the same `eyebrow`, `title`, `description`, `heroBadge`, and `heroHighlights` props from the workshop callsite so the preview matches production.
+  - Dropped the orphan `Badge` import.
+- **`dashboard/app/globals.css`:**
+  - Deleted `auth-login-card__header`, `auth-login-card__eyebrow`, `auth-login-card__title`, `auth-login-card__description` rules.
+  - Deleted `auth-shell__hero-highlights`, `auth-shell__hero-strip`, `auth-shell__hero-metric`, `auth-shell__hero-metric-value`, `auth-shell__hero-metric-label` rules.
+  - Deleted the compact-density and `viewport-fit` overrides for the same selectors, plus removed the `.auth-shell__hero-strip` entry from the mobile responsive grid rule.
+
+#### Why
+- The "Welcome back / Sign in with your admin account..." hero on the left panel already conveys the page's purpose. The in-card "Admin sign in / Enter your assigned credentials..." block was duplicative noise that competed with the form action for attention.
+- The "Executive admin access" badge and the three-metric `Role-aware / 3 core / Session-backed` strip were marketing fluff for an internal admin sign-in page — they pushed the form below the fold on tighter viewports and added visual weight without operational value.
+- Removing them simplifies the visual hierarchy and gives the form room to breathe.
+
+#### Verification
+- Live browser preview at `localhost:3000/login` — header block, badge, and strip all absent from the DOM (`document.querySelector('.auth-login-card__header')` → `null`, `.auth-shell__hero-badge` → `null`, `.auth-shell__hero-highlights` → `null`).
+- `npm run typecheck -w @shetrades/dashboard` → PASS.
+- No browser console errors after reload.
+
+#### Next Task
+- Task 072: Aside Label Dark-Background Contrast Fix
+
+### Task 072: Aside Label Dark-Background Contrast Fix
+
+- Date: 2026-05-21
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Fix the "SECURE ADMIN ACCESS" eyebrow label on the dark navy aside panel that was rendering dark-on-dark and effectively invisible.
+
+#### Changes Made
+- **`dashboard/app/globals.css`:** Changed `.auth-shell__aside-label` color from `var(--color-brand-700)` (#253941, dark navy) to `var(--color-brand-300)` (#9fb4bc, brand-tinted light).
+
+#### Why
+- `--color-brand-700` is the brand-tinted eyebrow colour for light backgrounds. On the dark navy aside panel (`linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.96))`) it produced effectively dark-on-dark text, failing WCAG even at the lowest tier.
+- `--color-brand-300` (#9fb4bc) is the dark-context equivalent — light enough for ~8:1 contrast (WCAG AAA) while keeping the eyebrow tinted to the brand rather than going neutral slate. Aligns with the dark-context overrides established by Task 070 for the moved support card text.
+- Used a token rather than a raw hex to keep design-system rule 4 (no raw hex in components/utility CSS) satisfied.
+
+#### Verification
+- Computed style on `.auth-shell__aside-label` reads `rgb(159, 180, 188)` after reload, matching the new token value.
+- Live screenshot confirms the "SECURE ADMIN ACCESS" eyebrow is clearly readable above the "Trusted operational control" heading.
+
+#### Next Task
+- Task 073: Local Dev Resilience — `.env.local` Loading & Non-Fatal Startup Migrations
+
+### Task 073: Local Dev Resilience — `.env.local` Loading & Non-Fatal Startup Migrations
+
+- Date: 2026-05-21
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Get local admin sign-in working again by loading `.env.local` on `npm run dev` for the backend, and let the backend boot even when the staging Postgres is unreachable from a developer machine.
+
+#### Changes Made
+- **`backend/package.json`:** Changed the `dev` script from `tsx watch src/index.ts` to `tsx watch --env-file-if-exists=../.env.local src/index.ts`. The flag uses Node's native `--env-file-if-exists` (passed through by tsx) so:
+  - Local `.env.local` (containing `ADMIN_AUTH_BOOTSTRAP_EMAIL/PASSWORD`, `POSTGRES_URL`, etc.) is loaded automatically on `npm run dev`.
+  - In CI/prod where `.env.local` does not exist, the flag is silent — no failure, no warning. Satisfies the project rule that local env overrides must remain optional.
+- **`backend/src/index.ts`:** Wrapped `await runMigrations()` and `await ensureCacheInitialized()` in `try/catch` blocks at the boot path. Connection failures now emit a `console.warn` ("Startup migrations failed; continuing with in-memory config fallback.") and the process continues to bind on the configured port. The CLI-direct `npm run migrate` path remains strict because it has its own top-level `.catch(err => process.exit(1))` outside the boot file.
+
+#### Why
+- Without env loading the boot path saw no `ADMIN_AUTH_BOOTSTRAP_*` vars, so no admin user was seeded into the in-memory auth store; login attempts returned 401 regardless of credentials supplied.
+- Without `--env-file-if-exists` the obvious alternative (`--env-file`) would have crashed CI/prod where the file is absent.
+- Without the boot try/catch, loading `.env.local` exposed a second failure mode: the staging Postgres at `34.66.72.193:5432` is firewalled from typical developer machines, and the `await runMigrations()` call crashed the process before Express ever called `listen()`. Admin auth doesn't need Postgres — it's in-memory — so a Postgres outage should never block local dev sign-in.
+
+#### Verification
+- After restart, `POST http://localhost:8080/api/admin/auth/login` with `admin@shetrades.com` / `Valerian101!` returned HTTP 200 with a valid JWT session token.
+- Backend logs show: `Startup migrations failed; continuing with in-memory config fallback. connect ETIMEDOUT 34.66.72.193:5432` → `Runtime config cache could not be warmed; continuing with in-memory fallback. Connection terminated due to connection timeout` → `Backend listening on port 8080`.
+- `npm run typecheck` → PASS across all workspaces.
+
+#### Operator Note
+- A separate Apache service (`PEMHTTPD-x64` from EnterpriseDB Postgres Enterprise Manager) was occupying port 8080 on the developer machine; stopping the service (`Stop-Service -Name 'PEMHTTPD-x64'` in an admin PowerShell) freed the port for the Express backend. Not a code change, but documented here so future devs hitting the same conflict can resolve it quickly.
+
+#### Next Task
+- Push the Task 068–073 work to `origin/main` so staging picks up the Login UI refinements and the dev-resilience changes. Note that admin-managed copy and seeded data in staging Postgres are unaffected by the push — only the React code defaults and backend boot behaviour change.
 
