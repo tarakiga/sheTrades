@@ -6044,5 +6044,30 @@ psql "sslmode=verify-ca sslrootcert=server-ca.pem sslcert=client-cert.pem sslkey
   - Successfully ran full backend Jest tests (`npm run test -w @shetrades/backend`) confirming 100% pass status (82/82 tests passing).
 
 #### Next Task
+- Task 067: Implement Startup Database Migrations & Resolve Postgres TIMESTAMPTZ Parsing Error
+
+### Task 067: Implement Startup Database Migrations & Resolve Postgres TIMESTAMPTZ Parsing Error
+
+- Date: 2026-05-20
+- Owner: Antigravity AI Coding Agent
+- Status: Completed
+- Goal: Implement automatic startup migrations in Cloud Run and fix localized date formatting/serialization errors in the Postgres data provider to enable reliable staging database deployments and seeding.
+
+#### Changes Made
+- **Self-Healing Startup Migrations:**
+  - Exported `runMigrations()` from `backend/src/config-platform/migrate.ts` and refactored the file to run the command-line CLI interface only when executed directly as the main script via Node.js.
+  - Updated `backend/src/index.ts` to automatically execute `await runMigrations()` on server startup (only if `POSTGRES_URL` is defined), making deployments entirely self-healing by resolving the chicken-and-egg bootstrap issue.
+- **TIMESTAMPTZ Serialization/Parsing Fix:**
+  - Defined the `formatTimestamp` helper inside `backend/src/config-platform/postgres-service.ts` to convert JavaScript `Date` objects returned by the PostgreSQL client driver into valid, standard ISO 8601 string representations (`YYYY-MM-DDTHH:mm:ss.sssZ`).
+  - Replaced native `String(...)` casts in `toDocument` and `toVersion` mappers with `formatTimestamp(...)`, resolving the critical Postgres syntax error `invalid input syntax for type timestamp with time zone`.
+- **Staging Cloud Run Deployment:**
+  - Configured `PG_SSL_ENABLED: "false"` in `.gitignore`-protected `cloudrun-staging-env.yaml`.
+  - Updated Google Cloud Run environment settings and rolled out the new codebase, creating healthy staging service revision `shetrades-backend-staging-00037-skc` serving 100% of traffic.
+- **Staging Database Seeding:**
+  - Executed the automatic seeding script (`seed:admin-ui-copy`), successfully writing and publishing 115 configuration documents (such as `admin.ui.analytics.actions.downloadCsv` and chatbot prompts `bot.*`) into the live PostgreSQL database.
+- **Git Housekeeping & Pushing:**
+  - Staged and committed all three modified files, and successfully pushed the codebase updates to the remote GitHub repository `tarakiga/sheTrades`.
+
+#### Next Task
 - Project completed successfully! Ready for final review.
 
