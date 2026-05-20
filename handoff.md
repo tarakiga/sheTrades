@@ -6244,5 +6244,31 @@ psql "sslmode=verify-ca sslrootcert=server-ca.pem sslcert=client-cert.pem sslkey
 - A separate Apache service (`PEMHTTPD-x64` from EnterpriseDB Postgres Enterprise Manager) was occupying port 8080 on the developer machine; stopping the service (`Stop-Service -Name 'PEMHTTPD-x64'` in an admin PowerShell) freed the port for the Express backend. Not a code change, but documented here so future devs hitting the same conflict can resolve it quickly.
 
 #### Next Task
-- Push the Task 068–073 work to `origin/main` so staging picks up the Login UI refinements and the dev-resilience changes. Note that admin-managed copy and seeded data in staging Postgres are unaffected by the push — only the React code defaults and backend boot behaviour change.
+- Task 074: Sync Guided Builder Section Chip With Resolved Key Root
+
+### Task 074: Sync Guided Builder Section Chip With Resolved Key Root
+
+- Date: 2026-05-21
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Fix the contradiction in the create-content form where the guided builder's "Section" chip displayed `content` while the full preview at the bottom of the same form correctly displayed e.g. `bot.module.lesson_tip` for chatbot categories.
+
+#### Background
+- The create-content form in `ConfigAdminManager.tsx` uses `buildInternalName(namespace, category, slug)` → `resolveKeyRoot(namespace, category)` to swap the `content` root for `bot` when the selected category is one of the chatbot ones (`awaiting_name`, `awaiting_language`, `main_menu`, `module`, `progress`, `webhook`). The submitted key and the preview value were already correct (e.g. `bot.module.lesson_tip` for the demo seed format the project agreed on).
+- However, the leftmost "Section" chip in the `GuidedInternalNameBuilder` was receiving the raw `namespace` prop, so it always rendered `content` regardless of category. Admins saw `[ content ] . [ module ▾ ] . [ lesson_tip ]` above a preview that read `bot.module.lesson_tip` — same form, two different prefixes.
+
+#### Changes Made
+- **`dashboard/components/config/ConfigAdminManager.tsx`:** Changed the `<GuidedInternalNameBuilder>` call (around the create-form mount) from `namespace={namespace}` to `namespace={resolveKeyRoot(namespace, categoryInput)}` so the chip uses the same resolver as the assembled key and the preview value.
+
+#### Why
+- `resolveKeyRoot` already exists, is already trusted at line 602 where it determines the *submitted* key, and is the single source of truth for the prefix swap. Reusing it for the *displayed* chip keeps the UI and the data perfectly aligned with one change rather than introducing a duplicate switch.
+- Kept the chip wired through the same prop name (`namespace`) rather than renaming the prop or threading a separate `resolvedRoot` prop — the builder stays presentation-only and the manager owns the business logic.
+
+#### Verification
+- `npm run typecheck -w @shetrades/dashboard` → PASS.
+- Live DOM probe at `/content` confirmed the chip currently renders `content` with an empty `categoryInput`, matching `resolveKeyRoot("content", "")` → `"content"`. The chatbot-category branch can't be exercised locally without seeded category options (Postgres is unreachable from this dev box and the in-memory fallback has no admin-managed categories), but the substitution is a one-line route through an already-trusted function, so the change carries no additional behavioural risk relative to the existing submitted-key path.
+- Preview workshop (`/previews` → guided settings) unaffected — its sample categories (`lesson`, `message`, `ui`) aren't in `CHATBOT_CATEGORY_VALUES`, so `resolveKeyRoot` is a no-op there.
+
+#### Next Task
+- Pull the guided builder into `/previews` workshop with chatbot-category fixtures so the `bot.*` prefix swap can be visually verified without seeded data, then republish the affected admin-managed copy keys via the Content workspace on staging so the page subtitles, operational review subtitles, and Upcoming Milestones subtitles match the newer hardcoded fallback wording introduced in earlier tasks.
 

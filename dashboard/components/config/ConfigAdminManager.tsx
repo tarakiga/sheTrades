@@ -1953,7 +1953,7 @@ export function ConfigAdminManager({
         keyField={
           <GuidedInternalNameBuilder
             label={t("configAdmin.create.keyLabel", "Internal Name")}
-            namespace={namespace}
+            namespace={resolveKeyRoot(namespace, categoryInput)}
             categoryLabel={t("configAdmin.create.categoryLabel", "Category")}
             categoryValue={categoryInput}
             categoryOptions={categoryOptions}
