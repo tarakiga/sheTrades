@@ -11,7 +11,6 @@ import {
   Table,
   Tabs
 } from "../ui";
-import { AdminAccessKeyPanel } from "../config/AdminAccessKeyPanel";
 import { SettingsWorkspaceHeader } from "../config/SettingsWorkspaceHeader";
 import {
   ADMIN_CONFIG_API_BASE_URL,
@@ -860,8 +859,6 @@ export function IntegrationSettingsWorkspace({ copy }: IntegrationSettingsWorksp
           { label: t("integration.summary.workflow", "Workflow"), value: "Draft + Live" }
         ]}
       />
-
-      <AdminAccessKeyPanel copy={copy} />
 
       <div className="integration-tabs-shell">
         <Tabs

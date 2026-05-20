@@ -118,6 +118,10 @@ export function isProductionMode() {
   return process.env.NODE_ENV === "production";
 }
 
+export function allowMockFallback() {
+  return process.env.ADMIN_ALLOW_MOCK_FALLBACK === "true" || process.env.NODE_ENV !== "production";
+}
+
 export function isForcedEmptyDataMode() {
   return process.env.ADMIN_FORCE_EMPTY_DATA === "true";
 }

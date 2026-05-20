@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getConfigPlatformService } from "./service.js";
 
 type Actor = {
@@ -23,7 +24,9 @@ function getSeedPath() {
     return path.resolve(configured);
   }
   return path.resolve(
-    process.cwd(),
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
     "..",
     "docs",
     "config-seeds",

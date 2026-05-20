@@ -5,7 +5,7 @@ import type {
   RewardsPageData,
   UsersPageData
 } from "./contracts.js";
-import { getProviderMode, isForcedEmptyDataMode, isProductionMode } from "./config.js";
+import { getProviderMode, isForcedEmptyDataMode, allowMockFallback } from "./config.js";
 import {
   fallbackAnalyticsData,
   fallbackContentData,
@@ -62,7 +62,7 @@ async function resolveData<T>(
       logger.error("admin.data.postgres_failed", error);
       throw error;
     }
-    if (isProductionMode()) {
+    if (!allowMockFallback()) {
       throw new Error("PostgreSQL provider returned no data in production mode.");
     }
     logger.warn("admin.data.postgres_fallback_used");
@@ -77,7 +77,7 @@ async function resolveData<T>(
       logger.error("admin.data.firestore_failed", error);
       throw error;
     }
-    if (isProductionMode()) {
+    if (!allowMockFallback()) {
       throw new Error("Firestore provider returned no data in production mode.");
     }
     logger.warn("admin.data.firestore_fallback_used");
@@ -108,7 +108,7 @@ async function resolveData<T>(
     return firestoreData;
   }
 
-  if (isProductionMode()) {
+  if (!allowMockFallback()) {
     throw new Error("No provider data available in production mode.");
   }
   logger.warn("admin.data.hybrid_fallback_used");

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 
 type SeedEntry = {
@@ -30,7 +31,15 @@ function getSeedPath() {
   if (configured) {
     return path.resolve(configured);
   }
-  return path.resolve(process.cwd(), "..", "docs", "config-seeds", "admin-ui-copy.seed.json");
+  return path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "..",
+    "docs",
+    "config-seeds",
+    "admin-ui-copy.seed.json"
+  );
 }
 
 async function loadSeedEntries(seedPath: string) {

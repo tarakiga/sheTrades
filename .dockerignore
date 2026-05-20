@@ -1,9 +1,10 @@
-﻿node_modules
+node_modules
 **/node_modules
 .git
 .github
 .trae
-docs
+docs/*
+!docs/config-seeds
 dashboard
 connect
 *.log

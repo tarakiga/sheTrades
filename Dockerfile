@@ -1,4 +1,4 @@
-﻿FROM node:24-slim AS builder
+FROM node:24-slim AS builder
 WORKDIR /app
 
 # Copy workspace manifests first for better layer caching
@@ -26,6 +26,9 @@ RUN npm ci --omit=dev -w @shetrades/backend --include-workspace-root=false
 
 # Copy compiled backend output
 COPY --from=builder /app/backend/dist backend/dist
+
+# Copy seed config files
+COPY docs/config-seeds docs/config-seeds
 
 EXPOSE 8080
 CMD ["node", "backend/dist/index.js"]

@@ -29,6 +29,7 @@ export default async function ContentPage() {
         namespace="content"
         defaultType="ui_copy"
         copy={copy.map}
+        showAccessControls={false}
         presentation={{
           workspaceTitle: t("content.workspace.title", "Content Workspace"),
           workspaceDescription: t(

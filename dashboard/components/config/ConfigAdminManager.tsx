@@ -440,7 +440,7 @@ export function ConfigAdminManager({
   defaultType,
   copy,
   presentation,
-  showAccessControls = true
+  showAccessControls = false
 }: ConfigAdminManagerProps) {
   const [tokenInput, setTokenInput] = useState("");
   const [token, setToken] = useState("");

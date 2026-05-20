@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Badge, Button, Card, Table, Tabs } from "../../../components/ui";
-import { AdminAccessKeyPanel } from "../../../components/config/AdminAccessKeyPanel";
 import { IntegrationConfigDrawer } from "../../../components/integration/IntegrationConfigDrawer";
 import { IntegrationPreviewDrawer } from "../../../components/integration/IntegrationPreviewDrawer";
 import {
@@ -35,8 +34,6 @@ export function IntegrationWorkspacePreview() {
 
   return (
     <div className="preview-card-content">
-      <AdminAccessKeyPanel copy={copy} />
-
       <Card
         title="Integration Provider Tabs"
         description="Top-level nested tabs for WhatsApp and Notification provider workspaces."
