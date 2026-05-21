@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Select } from "../ui";
 
 type CategoryOption = {
@@ -30,6 +31,10 @@ export type GuidedInternalNameBuilderProps = {
   previewValue: string;
   notice?: BuilderNotice | null;
   slugHint?: string;
+  isLessonMode?: boolean;
+  lessonNumberValue?: string;
+  onLessonNumberChange?: (value: string) => void;
+  automatedSlugPreview?: string;
 };
 
 export function GuidedInternalNameBuilder({
@@ -49,8 +54,24 @@ export function GuidedInternalNameBuilder({
   previewLabel,
   previewValue,
   notice,
-  slugHint
+  slugHint,
+  isLessonMode,
+  lessonNumberValue,
+  onLessonNumberChange,
+  automatedSlugPreview
 }: GuidedInternalNameBuilderProps) {
+  const inputRef = useRef<HTMLDivElement>(null);
+
+  // Sync internal slug state to div value when it changes externally (e.g. templates applied)
+  // but only when the user is not actively focusing/typing inside it to avoid cursor jumps.
+  useEffect(() => {
+    if (inputRef.current && document.activeElement !== inputRef.current) {
+      if (inputRef.current.innerText !== slugValue) {
+        inputRef.current.innerText = slugValue;
+      }
+    }
+  }, [slugValue]);
+
   return (
     <section className="guided-key-builder">
       <div className="guided-key-builder__header">
@@ -82,18 +103,54 @@ export function GuidedInternalNameBuilder({
         </div>
 
         <div className="guided-key-builder__segment guided-key-builder__segment--slug">
-          <label className="guided-key-builder__segment-label" htmlFor="config-editor-slug">
-            {slugLabel}
+          <label className="guided-key-builder__segment-label" htmlFor="config-editor-slug-internal-unique">
+            {isLessonMode ? "Lesson Number" : slugLabel}
           </label>
-          <input
-            id="config-editor-slug"
-            className="ui-input"
-            value={slugValue}
-            onChange={(event) => onSlugChange(event.target.value)}
-            placeholder={slugPlaceholder}
-            spellCheck={false}
-          />
-          {slugHint ? <p className="guided-key-builder__slug-hint">{slugHint}</p> : null}
+          {isLessonMode ? (
+            <>
+              <input
+                type="number"
+                id="config-editor-slug-internal-unique"
+                className="ui-input__field"
+                value={lessonNumberValue || ""}
+                onChange={(e) => onLessonNumberChange && onLessonNumberChange(e.target.value)}
+                min={1}
+                style={{ height: "40px", padding: "0 12px", width: "100%", borderRadius: "var(--radius-md)", border: "1px solid var(--color-gray-300)" }}
+              />
+              {automatedSlugPreview && (
+                <div style={{ marginTop: "4px", fontSize: "12px", color: "var(--color-brand-600)", fontWeight: 500 }}>
+                  Auto-Slug: {automatedSlugPreview}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div
+                id="config-editor-slug-internal-unique"
+                ref={inputRef}
+                contentEditable
+                suppressContentEditableWarning
+                className="ui-input guided-key-builder__content-editable-input"
+                data-placeholder={slugPlaceholder}
+                onInput={(event) => onSlugChange(event.currentTarget.innerText || "")}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                  }
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  minHeight: "40px",
+                  height: "40px",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                }}
+              />
+              {slugHint ? <p className="guided-key-builder__slug-hint">{slugHint}</p> : null}
+            </>
+          )}
         </div>
       </div>
 

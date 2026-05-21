@@ -150,7 +150,7 @@ export default async function UsersPage() {
                 )
               },
               {
-                key: "name",
+                key: "phone",
                 header: "",
                 render: (value) => (
                   <AdminActionRail

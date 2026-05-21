@@ -85,6 +85,7 @@ export function createApp() {
   app.use("/webhook", webhookRouter);
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("Unhandled express error:", error);
     const message = error instanceof Error ? error.message : "Unexpected server error";
     const status = error instanceof Error && error.message.includes("not found") ? 404 : 500;
     res.status(status).json({ message });

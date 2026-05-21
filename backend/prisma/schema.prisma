@@ -1,0 +1,80 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String         @id @default(uuid())
+  phone        String         @unique
+  name         String?
+  language     String?
+  location     String?
+  status       String         @default("Active")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  session      UserSession?
+  progress     UserProgress[]
+  quizAttempts QuizAttempt[]
+  rewards      Reward[]
+
+  @@map("users")
+}
+
+model UserSession {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id])
+  state              String
+  selectedModuleId   String?
+  currentLessonKey   String?
+  completedLessons   String[]
+  awaitingQuizAnswer Boolean  @default(false)
+  currentQuizIndex   Int      @default(0)
+  namePrompted       Boolean  @default(false)
+  lastUpdatedAt      DateTime @default(now())
+
+  @@map("user_sessions")
+}
+
+model UserProgress {
+  id                   String   @id @default(uuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id])
+  module               String
+  completionPercentage Float    @default(0.0)
+  updatedAt            DateTime @updatedAt
+
+  @@unique([userId, module])
+  @@map("user_progress")
+}
+
+model QuizAttempt {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  lessonKey     String
+  passed        Boolean  @default(false)
+  attemptCount  Int      @default(1)
+  lastAttemptAt DateTime @default(now())
+
+  @@unique([userId, lessonKey])
+  @@map("quiz_attempts")
+}
+
+model Reward {
+  id       String    @id @default(uuid())
+  userId   String
+  user     User      @relation(fields: [userId], references: [id])
+  module   String
+  amount   Float
+  channel  String
+  status   String    @default("Pending")
+  issuedAt DateTime?
+
+  @@map("rewards")
+}

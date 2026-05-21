@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getRuntimeOptionSet, getRuntimeText, getRuntimeLessons, RuntimeLesson } from "../config-platform/runtime-config.js";
+import { prisma } from "../admin/prisma.js";
 
 export type ConversationState = "awaiting_name" | "awaiting_language" | "main_menu" | "module_menu";
 
@@ -13,6 +14,7 @@ type UserSession = {
   completedLessons?: string[];
   currentLessonKey?: string | null;
   awaitingQuizAnswer?: boolean;
+  currentQuizIndex?: number;
   selectedModuleId?: string | null;
 };
 
@@ -39,6 +41,7 @@ export type WhatsAppWebhookResult =
       messageId: string;
       state: ConversationState;
       reply: string;
+      buttons?: string[];
     };
 
 const webhookPayloadSchema = z.object({
@@ -57,6 +60,23 @@ const webhookPayloadSchema = z.object({
                       .object({
                         body: z.string().optional()
                       })
+                      .optional(),
+                    interactive: z
+                      .object({
+                        type: z.enum(["button_reply", "list_reply"]),
+                        button_reply: z
+                          .object({
+                            id: z.string(),
+                            title: z.string()
+                          })
+                          .optional(),
+                        list_reply: z
+                          .object({
+                            id: z.string(),
+                            title: z.string()
+                          })
+                          .optional()
+                      })
                       .optional()
                   })
                 )
@@ -69,7 +89,6 @@ const webhookPayloadSchema = z.object({
     .optional()
 });
 
-const sessions = new Map<string, UserSession>();
 const processedMessageIds = new Set<string>();
 
 function nowIso() {
@@ -113,11 +132,9 @@ function languageLabel(language: "en" | "pcm" | "ig") {
   return getRuntimeText("bot.language.ig", "Igbo");
 }
 
-function mainMenuText(name: string) {
-  return getRuntimeText(
-    "bot.main_menu",
-    `Welcome ${name}. Main Menu:\n1. Start Module 1\n2. My Progress\n3. Change Language`
-  ).replace("{name}", name);
+function mainMenuText(name: string): string {
+  let text = getRuntimeText("bot.main_menu", `Hello {name}! Main Menu:`);
+  return text.replace("{name}", name);
 }
 
 function extractInboundMessage(payload: unknown): InboundMessage | null {
@@ -127,24 +144,109 @@ function extractInboundMessage(payload: unknown): InboundMessage | null {
   const message = parsed.data.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
   if (!message) return null;
 
+  let bodyText = "";
+  if (message.interactive) {
+    if (message.interactive.type === "button_reply") {
+      bodyText = message.interactive.button_reply?.title || message.interactive.button_reply?.id || "";
+    } else if (message.interactive.type === "list_reply") {
+      bodyText = message.interactive.list_reply?.title || message.interactive.list_reply?.id || "";
+    }
+  } else {
+    bodyText = message.text?.body || "";
+  }
+
   return {
     id: message.id,
     from: message.from,
-    text: message.text?.body?.trim() ?? ""
+    text: bodyText.trim()
   };
 }
 
-function getOrCreateSession(phone: string): UserSession {
-  const existing = sessions.get(phone);
-  if (existing) return existing;
+async function getOrCreateSession(phone: string): Promise<UserSession> {
+  const user = await prisma.user.findUnique({
+    where: { phone },
+    include: { session: true }
+  });
 
-  const created: UserSession = {
-    phone,
-    state: "awaiting_name",
-    lastUpdatedAt: nowIso()
+  if (user && user.session) {
+    const s: UserSession = {
+      phone: user.phone,
+      state: user.session.state as ConversationState,
+      lastUpdatedAt: user.session.lastUpdatedAt.toISOString(),
+      completedLessons: user.session.completedLessons,
+      currentLessonKey: user.session.currentLessonKey || null,
+      awaitingQuizAnswer: user.session.awaitingQuizAnswer,
+      currentQuizIndex: user.session.currentQuizIndex,
+      selectedModuleId: user.session.selectedModuleId || null
+    };
+    if (user.name) s.name = user.name;
+    if (user.language) s.language = user.language as any;
+    if (user.session.namePrompted) s.namePrompted = user.session.namePrompted;
+    return s;
+  }
+
+  if (user && !user.session) {
+    const newSession = await prisma.userSession.create({
+      data: {
+        userId: user.id,
+        state: "awaiting_name"
+      }
+    });
+    const s: UserSession = {
+      phone: user.phone,
+      state: newSession.state as ConversationState,
+      lastUpdatedAt: newSession.lastUpdatedAt.toISOString(),
+      completedLessons: []
+    };
+    if (user.name) s.name = user.name;
+    if (user.language) s.language = user.language as any;
+    return s;
+  }
+
+  const createdUser = await prisma.user.create({
+    data: {
+      phone,
+      session: {
+        create: {
+          state: "awaiting_name"
+        }
+      }
+    },
+    include: { session: true }
+  });
+
+  const s2: UserSession = {
+    phone: createdUser.phone,
+    state: createdUser.session!.state as ConversationState,
+    lastUpdatedAt: createdUser.session!.lastUpdatedAt.toISOString(),
+    completedLessons: []
   };
-  sessions.set(phone, created);
-  return created;
+  if (createdUser.name) s2.name = createdUser.name;
+  if (createdUser.language) s2.language = createdUser.language as any;
+  return s2;
+}
+
+async function saveSession(phone: string, session: UserSession) {
+  await prisma.user.update({
+    where: { phone },
+    data: {
+      name: session.name || null,
+      language: session.language || null,
+      status: 'Active',
+      session: {
+        update: {
+          state: session.state,
+          namePrompted: session.namePrompted || false,
+          completedLessons: session.completedLessons || [],
+          currentLessonKey: session.currentLessonKey || null,
+          awaitingQuizAnswer: session.awaitingQuizAnswer || false,
+          currentQuizIndex: session.currentQuizIndex || 0,
+          selectedModuleId: session.selectedModuleId || null,
+          lastUpdatedAt: new Date()
+        }
+      }
+    }
+  });
 }
 
 function getPrompt(
@@ -159,9 +261,9 @@ function getPrompt(
       ig: "Họrọ modul ka ịmalite:\n"
     },
     "modules_menu_footer": {
-      en: "\nReply with the module number (e.g. 1, 2, 3) or MENU to return.",
-      pcm: "\nReply with the module number (e.g. 1, 2, 3) or MENU to go back.",
-      ig: "\nReply na nọmba modul (dịka 1, 2, 3) ma ọ bụ MENU ka ịlaghachi."
+      en: "",
+      pcm: "",
+      ig: ""
     },
     "invalid_module": {
       en: "Invalid module selection. Please choose a Module to begin:\n",
@@ -179,9 +281,9 @@ function getPrompt(
       ig: "📚 Oge Ule! Ajụjụ:\n"
     },
     "quiz_answer_prompt": {
-      en: "\n\nReply with your answer (1, 2, or 3) or MENU to return.",
-      pcm: "\n\nReply with your answer (1, 2, or 3) or MENU to go back.",
-      ig: "\n\nReply na azịza gị (1, 2, ma ọ bụ 3) ma ọ bụ MENU ka ịlaghachi."
+      en: "\n\nSelect your answer below or reply MENU to return.",
+      pcm: "\n\nSelect your answer below or reply MENU to go back.",
+      ig: "\n\nHọrọ azịza gị n'okpuru ma ọ bụ pịnye MENU ka ịlaghachi."
     },
     "correct_next": {
       en: "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.",
@@ -212,7 +314,7 @@ function getPrompt(
 function transition(
   session: UserSession,
   text: string
-): { state: ConversationState; reply: string } {
+): { state: ConversationState; reply: string; buttons?: string[] } {
   const safeText = text.trim();
   const normalized = safeText.toLowerCase();
   const lang = session.language || "en";
@@ -245,8 +347,9 @@ function transition(
       state: session.state,
       reply: getRuntimeText(
         "bot.awaiting_language.prompt",
-        `Thanks ${safeText}. Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)`
-      ).replace("{name}", safeText)
+        `Thanks {name}. Choose your language:`
+      ).replace("{name}", safeText),
+      buttons: ["English", "Pidgin", "Igbo"]
     };
   }
 
@@ -257,8 +360,9 @@ function transition(
         state: "awaiting_language",
         reply: getRuntimeText(
           "bot.awaiting_language.invalid",
-          "Invalid language option. Reply with 1 (EN), 2 (PCM), or 3 (IG)."
-        )
+          "Invalid language option. Please select your language:"
+        ),
+        buttons: ["English", "Pidgin", "Igbo"]
       };
     }
 
@@ -272,7 +376,8 @@ function transition(
         `${mainMenuText(session.name ?? "Learner")}\nLanguage set: ${languageLabel(language)}`
       )
         .replace("{menu}", mainMenuText(session.name ?? "Learner"))
-        .replace("{language}", languageLabel(language))
+        .replace("{language}", languageLabel(language)),
+      buttons: ["1. Start Learning", "2. My Progress", "3. Change Language"]
     };
   }
 
@@ -282,10 +387,12 @@ function transition(
     session.currentLessonKey = null;
     session.selectedModuleId = null;
     session.awaitingQuizAnswer = false;
+    session.currentQuizIndex = 0;
     session.lastUpdatedAt = nowIso();
     return {
       state: session.state,
-      reply: mainMenuText(session.name ?? "Learner")
+      reply: mainMenuText(session.name ?? "Learner"),
+      buttons: ["1. Start Learning", "2. My Progress", "3. Change Language"]
     };
   }
 
@@ -303,7 +410,7 @@ function transition(
 
   if (session.state === "main_menu") {
     // Option 1: Start Learning / Modules Menu
-    if (["1", "start", "module 1", "modules", "learn"].includes(normalized)) {
+    if (["1", "start", "module 1", "modules", "learn", "start learning", "1. start learning"].includes(normalized)) {
       session.state = "module_menu";
       session.selectedModuleId = null;
       session.currentLessonKey = null;
@@ -313,24 +420,22 @@ function transition(
       if (moduleNames.length === 0) {
         return {
           state: session.state,
-          reply: "No learning modules are available at the moment. Reply MENU to return."
+          reply: "No learning modules are available at the moment. Reply MENU to return.",
+          buttons: ["MENU"]
         };
       }
 
-      let reply = getPrompt("modules_menu_header", lang, "Choose a Module to begin:\n");
-      moduleNames.forEach((mName, idx) => {
-        reply += `${idx + 1}. ${mName}\n`;
-      });
-      reply += getPrompt("modules_menu_footer", lang, "\nReply with the module number (e.g. 1, 2, 3) or MENU to return.");
+      let reply = getPrompt("modules_menu_header", lang, "Choose a Module to begin:");
 
       return {
         state: session.state,
-        reply
+        reply,
+        buttons: [...moduleNames.map((mName, idx) => `${idx + 1}. ${mName.split(":")[0] || mName}`), "MENU"]
       };
     }
 
     // Option 2: My Progress summary
-    if (["2", "progress", "my progress"].includes(normalized)) {
+    if (["2", "progress", "my progress", "2. my progress"].includes(normalized)) {
       const totalCount = lessons.length || 6;
       const completedCount = session.completedLessons.length;
       const percentage = Math.round((completedCount / totalCount) * 100);
@@ -347,20 +452,22 @@ function transition(
           .replace("{name}", session.name ?? "Learner")
           .replace("{percentage}", String(percentage))
           .replace("{completedCount}", String(completedCount))
-          .replace("{totalCount}", String(totalCount))
+          .replace("{totalCount}", String(totalCount)),
+        buttons: ["1. Start Learning", "MENU"]
       };
     }
 
     // Option 3: Change Language
-    if (["3", "language", "change language"].includes(normalized)) {
+    if (["3", "language", "change language", "3. change language"].includes(normalized)) {
       session.state = "awaiting_language";
       session.lastUpdatedAt = nowIso();
       return {
         state: session.state,
         reply: getRuntimeText(
           "bot.awaiting_language.prompt_short",
-          "Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)"
-        )
+          "Choose your language:"
+        ),
+        buttons: ["English", "Pidgin", "Igbo"]
       };
     }
 
@@ -369,7 +476,8 @@ function transition(
       reply: getRuntimeText(
         "bot.main_menu.invalid",
         `I did not understand that.\n${mainMenuText(session.name ?? "Learner")}`
-      ).replace("{menu}", mainMenuText(session.name ?? "Learner"))
+      ).replace("{menu}", mainMenuText(session.name ?? "Learner")),
+      buttons: ["1. Start Learning", "2. My Progress", "3. Change Language"]
     };
   }
 
@@ -386,7 +494,8 @@ function transition(
         if (moduleLessons.length === 0) {
           return {
             state: session.state,
-            reply: `No lessons found in ${chosenModule}. Reply MENU to select another module.`
+            reply: `No lessons found in ${chosenModule}. Reply MENU to select another module.`,
+            buttons: ["MENU"]
           };
         }
 
@@ -395,26 +504,24 @@ function transition(
         const firstIncomplete = (moduleLessons.find(l => !completed.includes(l.key)) || moduleLessons[0])!;
         session.currentLessonKey = firstIncomplete.key;
         session.awaitingQuizAnswer = false;
+        session.currentQuizIndex = 0;
 
         const lessonText = firstIncomplete.languages[lang] || firstIncomplete.languages.en || "";
         const reply = `📖 ${firstIncomplete.title}\n\n${lessonText}${getPrompt("quiz_instruction", lang, "\n\nReply QUIZ to start the lesson quiz, or MENU to return.")}`;
 
         return {
           state: session.state,
-          reply
+          reply,
+          buttons: ["QUIZ", "MENU"]
         };
       }
 
-      // Re-prompt list of modules if invalid input
-      let reply = getPrompt("invalid_module", lang, "Invalid module selection. Please choose a Module to begin:\n");
-      moduleNames.forEach((mName, idx) => {
-        reply += `${idx + 1}. ${mName}\n`;
-      });
-      reply += getPrompt("modules_menu_footer", lang, "\nReply with the module number or MENU to return.");
+      let reply = getPrompt("invalid_module", lang, "Invalid module selection. Please choose a Module to begin:");
 
       return {
         state: session.state,
-        reply
+        reply,
+        buttons: [...moduleNames.map((mName, idx) => `${idx + 1}. ${mName.split(":")[0] || mName}`), "MENU"]
       };
     }
 
@@ -430,13 +537,15 @@ function transition(
       session.lastUpdatedAt = nowIso();
       return {
         state: session.state,
-        reply: "Selected lesson not found. Reply MENU to return."
+        reply: "Selected lesson not found. Reply MENU to return.",
+        buttons: ["MENU"]
       };
     }
 
     // Subcase B.1: Chatbot is awaiting answer for the active quiz
     if (session.awaitingQuizAnswer) {
-      const quizItem = activeLesson.quiz[0]; // Fetch active quiz item
+      const qIndex = session.currentQuizIndex || 0;
+      const quizItem = activeLesson.quiz[qIndex]; // Fetch active quiz item
       if (quizItem) {
         const correctIndex = quizItem.answerIndex;
         const correctOptionText = quizItem.options[correctIndex]?.trim().toLowerCase() || "";
@@ -445,31 +554,83 @@ function transition(
         const isCorrectText = normalized === correctOptionText;
 
         if (isCorrectNumber || isCorrectText) {
-          // Success! Add to completed lessons
-          if (!session.completedLessons.includes(activeLesson.key)) {
-            session.completedLessons.push(activeLesson.key);
-          }
-          session.awaitingQuizAnswer = false;
-          session.lastUpdatedAt = nowIso();
+          // Success on this question
+          const isLastQuestion = qIndex >= activeLesson.quiz.length - 1;
 
-          // Find next lesson inside this module
-          const currentIdx = moduleLessons.findIndex(l => l.key === activeLesson.key);
-          const nextLesson = moduleLessons[currentIdx + 1];
-
-          if (nextLesson) {
-            session.currentLessonKey = nextLesson.key;
+          if (!isLastQuestion) {
+            // Move to next question immediately
+            session.currentQuizIndex = qIndex + 1;
+            session.lastUpdatedAt = nowIso();
+            
+            const nextQuizItem = activeLesson.quiz[qIndex + 1];
+            let nextReply = `🎉 Correct!\n\n📚 Next Question:\n${nextQuizItem.question}\n`;
+            nextQuizItem.options.forEach((opt, idx) => {
+              nextReply += `${idx + 1}. ${opt}\n`;
+            });
+            nextReply += getPrompt("quiz_answer_prompt", lang, "Reply with your answer (1, 2, or 3) or MENU to return.");
+            
             return {
               state: session.state,
-              reply: getPrompt("correct_next", lang, "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.")
+              reply: nextReply,
+              buttons: [...nextQuizItem.options.map((_, i) => String(i + 1)), "MENU"]
             };
           } else {
-            // Completed entire module
-            session.currentLessonKey = null;
-            session.selectedModuleId = null;
-            return {
-              state: session.state,
-              reply: getPrompt("correct_module_complete", lang, "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nReply MENU to choose another module.")
-            };
+            // Success on entire quiz! Add to completed lessons
+            if (!session.completedLessons.includes(activeLesson.key)) {
+              session.completedLessons.push(activeLesson.key);
+            }
+            session.awaitingQuizAnswer = false;
+            session.currentQuizIndex = 0;
+            session.lastUpdatedAt = nowIso();
+
+            // Find next lesson inside this module
+            const currentIdx = moduleLessons.findIndex(l => l.key === activeLesson.key);
+            const nextLesson = moduleLessons[currentIdx + 1];
+
+            if (nextLesson) {
+              session.currentLessonKey = nextLesson.key;
+              
+              // Build list of remaining lessons
+              const remainingLessons = moduleLessons.slice(currentIdx + 1);
+              let remainingText = "\n\nRemaining lessons in this module:\n";
+              remainingLessons.forEach((l) => {
+                remainingText += `- ${l.title}\n`;
+              });
+              
+              const replyBase = getPrompt("correct_next", lang, "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.");
+              
+              return {
+                state: session.state,
+                reply: replyBase + remainingText,
+                buttons: ["NEXT", "MENU"]
+              };
+            } else {
+              // Completed entire module
+              session.currentLessonKey = null;
+              session.selectedModuleId = null;
+
+              // Find other incomplete modules
+              const incompleteModules = moduleNames.filter(m => {
+                const lessons = modulesMap.get(m) || [];
+                return !lessons.every(l => session.completedLessons!.includes(l.key));
+              });
+
+              let incompleteText = "";
+              if (incompleteModules.length > 0) {
+                incompleteText = "\n\nOther incomplete modules:\n";
+                incompleteModules.forEach(m => {
+                  incompleteText += `- ${m}\n`;
+                });
+              }
+
+              const replyBase = getPrompt("correct_module_complete", lang, "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nReply MENU to choose another module.");
+
+              return {
+                state: session.state,
+                reply: replyBase + incompleteText,
+                buttons: ["MENU"]
+              };
+            }
           }
         } else {
           // Incorrect answer retry
@@ -483,19 +644,23 @@ function transition(
           
           return {
             state: session.state,
-            reply
+            reply,
+            buttons: [...quizItem.options.map((_, i) => String(i + 1)), "MENU"]
           };
         }
       }
     }
 
     // Subcase B.2: Chatbot is in lesson view (awaiting next or quiz trigger)
-    if (["quiz", "start quiz", "take quiz", "test"].includes(normalized)) {
-      const quizItem = activeLesson.quiz[0];
+    if (["quiz", "start quiz", "take quiz", "test"].includes(normalized) || (session.awaitingQuizAnswer && ["next", "continue"].includes(normalized))) {
+      const qIndex = session.currentQuizIndex || 0;
+      const quizItem = activeLesson.quiz[qIndex];
+      
       if (!quizItem) {
         return {
           state: session.state,
-          reply: "No quiz questions found for this lesson. Reply NEXT to proceed or MENU to return."
+          reply: "No quiz questions found for this lesson. Reply NEXT to proceed or MENU to return.",
+          buttons: ["NEXT", "MENU"]
         };
       }
 
@@ -511,34 +676,38 @@ function transition(
 
       return {
         state: session.state,
-        reply
+        reply,
+        buttons: [...quizItem.options.map((_, i) => String(i + 1)), "MENU"]
       };
     }
 
-    if (["next", "continue"].includes(normalized)) {
+    if (["next", "continue"].includes(normalized) && !session.awaitingQuizAnswer) {
       const lessonText = activeLesson.languages[lang] || activeLesson.languages.en || "";
       const reply = `📖 ${activeLesson.title}\n\n${lessonText}${getPrompt("quiz_instruction", lang, "\n\nReply QUIZ to start the lesson quiz, or MENU to return.")}`;
       session.lastUpdatedAt = nowIso();
       return {
         state: session.state,
-        reply
+        reply,
+        buttons: ["QUIZ", "MENU"]
       };
     }
 
     // Fallback did-not-understand message in lesson view
     return {
       state: session.state,
-      reply: getPrompt("bot_did_not_understand", lang, "I did not understand that. Reply QUIZ to start this lesson's quiz, NEXT to progress, or MENU to return.")
+      reply: getPrompt("bot_did_not_understand", lang, "I did not understand that. Reply QUIZ to start this lesson's quiz, NEXT to progress, or MENU to return."),
+      buttons: ["QUIZ", "NEXT", "MENU"]
     };
   }
 
   return {
     state: session.state,
-    reply: getPrompt("bot_did_not_understand", lang, "I did not understand that. Reply MENU to return to the main menu.")
+    reply: getPrompt("bot_did_not_understand", lang, "I did not understand that. Reply MENU to return to the main menu."),
+    buttons: ["MENU"]
   };
 }
 
-export function handleWhatsAppWebhook(payload: unknown): WhatsAppWebhookResult {
+export async function handleWhatsAppWebhook(payload: unknown): Promise<WhatsAppWebhookResult> {
   const inbound = extractInboundMessage(payload);
   if (!inbound) {
     return {
@@ -550,7 +719,7 @@ export function handleWhatsAppWebhook(payload: unknown): WhatsAppWebhookResult {
     };
   }
 
-  const existingSession = getOrCreateSession(inbound.from);
+  const existingSession = await getOrCreateSession(inbound.from);
   if (processedMessageIds.has(inbound.id)) {
     return {
       status: "duplicate",
@@ -562,23 +731,42 @@ export function handleWhatsAppWebhook(payload: unknown): WhatsAppWebhookResult {
 
   processedMessageIds.add(inbound.id);
   const result = transition(existingSession, inbound.text);
-  sessions.set(inbound.from, existingSession);
+  await saveSession(inbound.from, existingSession);
 
   return {
     status: "processed",
     phone: inbound.from,
     messageId: inbound.id,
     state: result.state,
-    reply: result.reply
+    reply: result.reply,
+    ...(result.buttons ? { buttons: result.buttons } : {})
   };
 }
 
-export function resetWhatsAppState() {
-  sessions.clear();
+export async function resetWhatsAppState() {
+  await prisma.userSession.deleteMany({});
   processedMessageIds.clear();
 }
 
-export function getWhatsAppSession(phone: string) {
-  return sessions.get(phone);
+export async function getWhatsAppSession(phone: string) {
+  const user = await prisma.user.findUnique({
+    where: { phone },
+    include: { session: true }
+  });
+  if (!user || !user.session) return null;
+
+  return {
+    phone: user.phone,
+    name: user.name || undefined,
+    language: (user.language as any) || undefined,
+    state: user.session.state as ConversationState,
+    namePrompted: user.session.namePrompted,
+    lastUpdatedAt: user.session.lastUpdatedAt.toISOString(),
+    completedLessons: user.session.completedLessons,
+    currentLessonKey: user.session.currentLessonKey,
+    awaitingQuizAnswer: user.session.awaitingQuizAnswer,
+    currentQuizIndex: user.session.currentQuizIndex,
+    selectedModuleId: user.session.selectedModuleId
+  };
 }
 

@@ -165,7 +165,7 @@ export function OverviewUsersWorkspacePreview() {
               )
             },
             {
-              key: "learner",
+              key: "phone",
               header: "",
               render: (_value, row) => (
                 <AdminActionRail

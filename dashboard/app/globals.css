@@ -3251,6 +3251,7 @@ body {
   display: grid;
   gap: var(--space-3);
   grid-template-columns: minmax(120px, 0.8fr) minmax(180px, 1fr) minmax(220px, 1.2fr);
+  align-items: start;
 }
 
 .guided-key-builder__segment {
@@ -3269,15 +3270,23 @@ body {
 
 .guided-key-builder__namespace {
   align-items: center;
-  background: rgba(51, 78, 88, 0.08);
-  border: 1px solid rgba(51, 78, 88, 0.18);
-  border-radius: var(--radius-lg);
-  color: var(--color-brand-700);
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-700);
   display: flex;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  min-height: 48px;
-  padding: 0 var(--space-4);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  height: var(--control-height-md);
+  box-sizing: border-box;
+  padding: 0 var(--space-3);
+}
+
+.guided-key-builder__content-editable-input:empty::before {
+  content: attr(placeholder);
+  color: var(--color-neutral-500);
+  pointer-events: none;
+  display: block;
 }
 
 .guided-key-builder__select {
@@ -4072,3 +4081,623 @@ body {
   border-top: 1px solid var(--color-neutral-100);
   padding-top: var(--space-4);
 }
+
+/* WhatsApp-style Interactive Quick Reply Buttons */
+.chat-bubble-buttons-container {
+  margin: var(--space-2) calc(-1 * var(--space-3)) calc(-1 * var(--space-2)) calc(-1 * var(--space-3));
+  border-top: 1px solid var(--color-neutral-200);
+  display: flex;
+  flex-direction: column;
+  background: #f0f2f5;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+
+.chat-bubble-button {
+  background: var(--color-neutral-0);
+  border: none;
+  border-bottom: 1px solid var(--color-neutral-200);
+  color: #00a884; /* WhatsApp bright green button text */
+  padding: 10px var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  width: 100%;
+}
+
+.chat-bubble-button:last-child {
+  border-bottom: none;
+}
+
+.chat-bubble-button:hover:not(:disabled) {
+  background-color: var(--color-neutral-50);
+}
+
+.chat-bubble-button:active:not(:disabled) {
+  background-color: var(--color-neutral-100);
+}
+
+.chat-bubble-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   PREMIUM CONTENT STEP WIZARD & WHATSAPP SIMULATOR STYLES
+   ========================================================================== */
+
+/* 1. Mode Toggle Header (Wizard vs JSON) */
+.wizard-mode-toggle {
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-full);
+  display: flex;
+  margin-bottom: var(--space-4);
+  padding: 2px;
+  width: 100%;
+}
+
+.wizard-mode-toggle__btn {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--color-neutral-700);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 1;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  gap: var(--space-2);
+  justify-content: center;
+  min-height: 32px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wizard-mode-toggle__btn--active {
+  background: var(--color-brand-500);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-neutral-0);
+}
+
+.wizard-mode-toggle__btn:hover:not(.wizard-mode-toggle__btn--active) {
+  background: rgba(51, 78, 88, 0.08);
+  color: var(--color-neutral-900);
+}
+
+/* 2. Step Progress Indicators */
+.wizard-progress {
+  background: linear-gradient(180deg, var(--color-neutral-50), var(--color-neutral-100));
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4) var(--space-3);
+  position: relative;
+}
+
+.wizard-progress__track {
+  background: var(--color-neutral-300);
+  height: 3px;
+  left: var(--space-10);
+  position: absolute;
+  right: var(--space-10);
+  top: calc(var(--space-4) + 12px);
+  z-index: 1;
+}
+
+.wizard-progress__bar {
+  background: var(--color-brand-400);
+  height: 100%;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 0%;
+}
+
+.wizard-progress__steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+}
+
+.wizard-progress__step {
+  align-items: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  outline: none;
+  padding: 0;
+  width: 60px;
+}
+
+.wizard-progress__step-circle {
+  align-items: center;
+  background: var(--color-neutral-0);
+  border: 2px solid var(--color-neutral-300);
+  border-radius: var(--radius-full);
+  color: var(--color-neutral-700);
+  display: flex;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  height: 26px;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 26px;
+}
+
+.wizard-progress__step-label {
+  color: var(--color-neutral-500);
+  font-family: var(--font-family-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+  white-space: nowrap;
+}
+
+/* Active & Completed States */
+.wizard-progress__step--completed .wizard-progress__step-circle {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-neutral-0);
+}
+
+.wizard-progress__step--completed .wizard-progress__step-label {
+  color: var(--color-success-700);
+}
+
+.wizard-progress__step--active .wizard-progress__step-circle {
+  background: var(--color-brand-500);
+  border-color: var(--color-brand-500);
+  color: var(--color-neutral-0);
+  transform: scale(1.15);
+  box-shadow: 0 0 0 4px rgba(51, 78, 88, 0.16);
+}
+
+.wizard-progress__step--active .wizard-progress__step-label {
+  color: var(--color-brand-800);
+  font-weight: 700;
+}
+
+/* 3. Sliding Content Panels */
+.wizard-panel {
+  animation: wizardPanelFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  display: grid;
+  gap: var(--space-4);
+}
+
+@keyframes wizardPanelFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wizard-panel__section {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  position: relative;
+}
+
+.wizard-panel__section-title {
+  color: var(--color-neutral-900);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  margin: 0 0 var(--space-3) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Expandable Voiceover Accordion */
+.audio-accordion {
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-2);
+  overflow: hidden;
+}
+
+.audio-accordion__header {
+  align-items: center;
+  background: var(--color-neutral-50);
+  border: none;
+  color: var(--color-neutral-700);
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  text-transform: uppercase;
+  width: 100%;
+}
+
+.audio-accordion__header:hover {
+  background: var(--color-neutral-100);
+}
+
+.audio-accordion__content {
+  background: var(--color-neutral-0);
+  border-top: 1px solid var(--color-neutral-200);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+/* 4. Emoji Keyboard Inserter Helper */
+.emoji-inserter-bar {
+  align-items: center;
+  background: linear-gradient(90deg, var(--color-neutral-50), var(--color-neutral-100));
+  border: 1px solid var(--color-neutral-200);
+  border-bottom: none;
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: var(--radius-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.emoji-inserter-bar__label {
+  color: var(--color-neutral-700);
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: var(--space-1);
+  text-transform: uppercase;
+}
+
+.emoji-inserter-bar__btn {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  height: 26px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.emoji-inserter-bar__btn:hover {
+  background: var(--color-accent-100);
+  border-color: var(--color-accent-400);
+  transform: scale(1.15);
+}
+
+.emoji-textarea-wrapper textarea {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
+/* 5. Gamified Quiz Builder */
+.quiz-questions-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.quiz-question-card {
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: var(--color-neutral-0);
+}
+
+.quiz-question-card--active {
+  border-color: var(--color-brand-400);
+  box-shadow: var(--shadow-sm);
+}
+
+.quiz-question-card__header {
+  align-items: center;
+  background: var(--color-neutral-50);
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  width: 100%;
+  border: none;
+  text-align: left;
+}
+
+.quiz-question-card__header:hover {
+  background: var(--color-neutral-100);
+}
+
+.quiz-question-card__title {
+  color: var(--color-neutral-900);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quiz-question-card__actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.quiz-question-card__body {
+  border-top: 1px solid var(--color-neutral-200);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.quiz-option-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.quiz-correct-indicator {
+  align-items: center;
+  background: var(--color-neutral-0);
+  border: 2px solid var(--color-neutral-300);
+  border-radius: var(--radius-full);
+  color: transparent;
+  cursor: pointer;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 32px;
+  margin-bottom: 4px;
+}
+
+.quiz-correct-indicator--active {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-neutral-0);
+}
+
+/* 6. WhatsApp Phone Live Simulator Frame */
+.phone-mock {
+  background: #1e1e1e;
+  border: 10px solid #2e2e2e;
+  border-radius: 36px;
+  box-shadow: var(--shadow-lg);
+  margin: 0 auto;
+  max-width: 335px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.phone-mock__screen {
+  background: #efeae2; /* WhatsApp classic background tint */
+  display: flex;
+  flex-direction: column;
+  height: 480px;
+  position: relative;
+}
+
+.phone-mock__header {
+  align-items: center;
+  background: #008069; /* Classic WhatsApp Teal Header */
+  color: var(--color-neutral-0);
+  display: flex;
+  gap: var(--space-2);
+  padding: 30px var(--space-3) 10px var(--space-3);
+  position: relative;
+}
+
+.phone-mock__header::before {
+  background: #000000;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  content: "";
+  height: 18px;
+  left: 50%;
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  width: 110px;
+}
+
+.phone-mock__avatar {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-full);
+  font-size: 16px;
+  height: 32px;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.phone-mock__profile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.phone-mock__name {
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.phone-mock__status {
+  align-items: center;
+  display: flex;
+  font-size: 9px;
+  gap: var(--space-1);
+  opacity: 0.85;
+}
+
+.phone-mock__status-dot {
+  background: #25d366; /* WhatsApp bright green */
+  border-radius: var(--radius-full);
+  height: 5px;
+  width: 5px;
+  display: inline-block;
+}
+
+.phone-mock__chat-body {
+  background-color: #efeae2;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 0);
+  background-size: 16px 16px;
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.phone-mock__date-badge {
+  align-self: center;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 6px;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.06);
+  color: var(--color-neutral-700);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
+/* WhatsApp Message Bubble */
+.whatsapp-bubble {
+  background: var(--color-neutral-0);
+  border-radius: 8px;
+  border-top-left-radius: 0;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  max-width: 90%;
+  padding: var(--space-2) var(--space-3);
+  position: relative;
+  align-self: flex-start;
+  word-break: break-word;
+}
+
+.whatsapp-bubble::after {
+  border: 6px solid transparent;
+  border-right-color: var(--color-neutral-0);
+  border-top-color: var(--color-neutral-0);
+  content: "";
+  left: -6px;
+  position: absolute;
+  top: 0;
+}
+
+.whatsapp-bubble__meta {
+  color: var(--color-neutral-500);
+  display: block;
+  font-size: 8px;
+  margin-top: 4px;
+  text-align: right;
+}
+
+/* Interactive Quiz Buttons inside Mock */
+.whatsapp-bubble__buttons {
+  border-top: 1px solid var(--color-neutral-100);
+  display: flex;
+  flex-direction: column;
+  margin: var(--space-2) calc(-1 * var(--space-3)) calc(-1 * var(--space-2)) calc(-1 * var(--space-3));
+  overflow: hidden;
+  background: #f8f9fa;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.whatsapp-bubble__btn {
+  background: var(--color-neutral-0);
+  border: none;
+  border-bottom: 1px solid var(--color-neutral-100);
+  color: #00a884; /* Classic WhatsApp Quick Reply accent */
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 8px var(--space-3);
+  text-align: center;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.whatsapp-bubble__btn:hover {
+  background-color: var(--color-neutral-50);
+}
+
+.whatsapp-bubble__btn:last-child {
+  border-bottom: none;
+}
+
+.whatsapp-bubble__btn--correct {
+  background-color: var(--color-success-50) !important;
+  color: var(--color-success-700) !important;
+}
+
+.whatsapp-bubble__audio {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: #e1f5fe;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: var(--space-2);
+  font-size: 11px;
+  color: #0277bd;
+  font-weight: 600;
+}
+
+.whatsapp-bubble__audio svg {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.phone-mock__input-area {
+  background: #f0f2f5;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.phone-mock__input-box {
+  background: var(--color-neutral-0);
+  border-radius: var(--radius-full);
+  height: 32px;
+  flex: 1;
+  padding: 0 var(--space-4);
+  font-size: 11px;
+  color: var(--color-neutral-500);
+  display: flex;
+  align-items: center;
+}
+
+

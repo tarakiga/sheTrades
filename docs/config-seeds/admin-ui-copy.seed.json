@@ -921,9 +921,9 @@
     "key": "bot.awaiting_language.prompt",
     "title": "Chatbot - Awaiting Language Prompt",
     "content": {
-      "en": "Thanks {name}. Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)",
-      "pcm": "Thanks {name}. Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)",
-      "ig": "Thanks {name}. Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)"
+      "en": "Thanks {name}. Choose language:",
+      "pcm": "Thanks {name}. Choose language:",
+      "ig": "Thanks {name}. Choose language:"
     }
   },
   {
@@ -948,9 +948,9 @@
     "key": "bot.main_menu",
     "title": "Chatbot - Main Menu Description",
     "content": {
-      "en": "Welcome {name}. Main Menu:\n1. Start Module 1\n2. My Progress\n3. Change Language",
-      "pcm": "Welcome {name}. Main Menu:\n1. Start Module 1\n2. My Progress\n3. Change Language",
-      "ig": "Welcome {name}. Main Menu:\n1. Start Module 1\n2. My Progress\n3. Change Language"
+      "en": "Welcome {name}. Main Menu:",
+      "pcm": "Welcome {name}. Main Menu:",
+      "ig": "Welcome {name}. Main Menu:"
     }
   },
   {
@@ -984,9 +984,9 @@
     "key": "bot.awaiting_language.prompt_short",
     "title": "Chatbot - Change Language Option Prompt",
     "content": {
-      "en": "Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)",
-      "pcm": "Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)",
-      "ig": "Choose language:\n1. English (EN)\n2. Pidgin (PCM)\n3. Igbo (IG)"
+      "en": "Choose language:",
+      "pcm": "Choose language:",
+      "ig": "Choose language:"
     }
   },
   {

@@ -9,6 +9,7 @@ type Message = {
   sender: "user" | "bot" | "system";
   text: string;
   timestamp: string;
+  buttons?: string[];
 };
 
 type SessionInfo = {
@@ -75,12 +76,14 @@ export function WhatsAppSandboxSimulator() {
     }
   }, [phone]);
 
-  const handleSend = async (e?: React.FormEvent) => {
+  const handleSend = async (e?: React.FormEvent, buttonText?: string) => {
     if (e) e.preventDefault();
-    const textToSend = inputText.trim();
+    const textToSend = buttonText ? buttonText.trim() : inputText.trim();
     if (!textToSend || isLoading) return;
 
-    setInputText("");
+    if (!buttonText) {
+      setInputText("");
+    }
     const userMsgId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const userMsg: Message = {
       id: userMsgId,
@@ -93,19 +96,31 @@ export function WhatsAppSandboxSimulator() {
     setIsLoading(true);
     setFeedback(null);
 
+    // Format payload: if sent via button, send as WhatsApp interactive button reply
+    const messageObj: any = {
+      id: userMsgId,
+      from: phone.trim(),
+    };
+
+    if (buttonText) {
+      messageObj.interactive = {
+        type: "button_reply",
+        button_reply: {
+          id: buttonText.toLowerCase().replace(/\s+/g, "_"),
+          title: buttonText
+        }
+      };
+    } else {
+      messageObj.text = { body: textToSend };
+    }
+
     const payload = {
       entry: [
         {
           changes: [
             {
               value: {
-                messages: [
-                  {
-                    id: userMsgId,
-                    from: phone.trim(),
-                    text: { body: textToSend }
-                  }
-                ]
+                messages: [messageObj]
               }
             }
           ]
@@ -135,7 +150,8 @@ export function WhatsAppSandboxSimulator() {
             id: result.messageId ? `bot-${result.messageId}` : `bot-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             sender: "bot",
             text: result.reply,
-            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            buttons: result.buttons
           }
         ]);
       } else if (result.status === "duplicate") {
@@ -261,6 +277,21 @@ export function WhatsAppSandboxSimulator() {
                       <div className={`chat-bubble chat-bubble--${msg.sender}`}>
                         <div className="chat-bubble-text">{msg.text}</div>
                         <div className="chat-bubble-time">{msg.timestamp}</div>
+                        {msg.sender === "bot" && msg.buttons && msg.buttons.length > 0 && (
+                          <div className="chat-bubble-buttons-container">
+                            {msg.buttons.map((btn, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                disabled={isLoading}
+                                onClick={() => void handleSend(undefined, btn)}
+                                className="chat-bubble-button"
+                              >
+                                {btn}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

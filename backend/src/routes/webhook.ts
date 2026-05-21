@@ -25,21 +25,33 @@ webhookRouter.get("/whatsapp", (req, res) => {
   res.status(403).json({ message: "Webhook verification failed." });
 });
 
-webhookRouter.post("/whatsapp", (req, res) => {
-  const result = handleWhatsAppWebhook(req.body);
-  res.status(200).json(result);
-});
-
-webhookRouter.post("/whatsapp/reset", (req, res) => {
-  resetWhatsAppState();
-  res.status(200).json({ message: "WhatsApp sandbox sessions have been reset." });
-});
-
-webhookRouter.get("/whatsapp/session/:phone", (req, res) => {
-  const session = getWhatsAppSession(req.params.phone);
-  if (!session) {
-    res.status(404).json({ message: "Session not found." });
-    return;
+webhookRouter.post("/whatsapp", async (req, res, next) => {
+  try {
+    const result = await handleWhatsAppWebhook(req.body);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
   }
-  res.status(200).json(session);
+});
+
+webhookRouter.post("/whatsapp/reset", async (req, res, next) => {
+  try {
+    await resetWhatsAppState();
+    res.status(200).json({ message: "WhatsApp sandbox sessions have been reset." });
+  } catch (err) {
+    next(err);
+  }
+});
+
+webhookRouter.get("/whatsapp/session/:phone", async (req, res, next) => {
+  try {
+    const session = await getWhatsAppSession(req.params.phone);
+    if (!session) {
+      res.status(404).json({ message: "Session not found." });
+      return;
+    }
+    res.status(200).json(session);
+  } catch (err) {
+    next(err);
+  }
 });

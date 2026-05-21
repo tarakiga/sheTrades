@@ -516,6 +516,7 @@ export function ConfigAdminManager({
   const [keyInput, setKeyInput] = useState("");
   const [categoryInput, setCategoryInput] = useState("");
   const [slugInput, setSlugInput] = useState("");
+  const [lessonNumberInput, setLessonNumberInput] = useState("1");
   const [titleInput, setTitleInput] = useState("");
   const [payloadInput, setPayloadInput] = useState('{"en":"New value"}');
   const [history, setHistory] = useState<Array<HistoryResponse["versions"][number]>>([]);
@@ -545,6 +546,25 @@ export function ConfigAdminManager({
   const selectedDocumentRow = docs.find((item) => item.document.key === selectedKey) ?? null;
   const categoryDocumentRow =
     optionDocs.find((item) => item.document.key === profile.categorySourceKey) ?? null;
+
+  const existingModules = useMemo(() => {
+    const modules = new Set<string>();
+    docs.forEach((row) => {
+      const payload = row.draft?.payload ?? row.published?.payload;
+      if (
+        payload &&
+        typeof payload === "object" &&
+        "module" in payload &&
+        typeof payload.module === "string"
+      ) {
+        const trimmed = payload.module.trim();
+        if (trimmed) {
+          modules.add(trimmed);
+        }
+      }
+    });
+    return Array.from(modules);
+  }, [docs]);
 
   const t = useMemo(
     () => (key: string, fallback: string) => {
@@ -598,8 +618,50 @@ export function ConfigAdminManager({
       }));
   }, [categoryDocumentRow]);
 
-  const categoryOptions = managedCategoryOptions;
-  const assembledCreateKey = buildInternalName(namespace, categoryInput, slugInput);
+  const categoryOptions = useMemo(() => {
+    if (managedCategoryOptions.length > 0) return managedCategoryOptions;
+    if (namespace === "content") {
+      return [
+        { value: "lesson", label: "Lesson" },
+        { value: "message", label: "Message" },
+        { value: "ui", label: "UI" }
+      ];
+    } else if (namespace === "options") {
+      return [
+        { value: "language", label: "Language" },
+        { value: "profile", label: "Profile" }
+      ];
+    } else if (namespace === "legal") {
+      return [
+        { value: "privacy", label: "Privacy" },
+        { value: "terms", label: "Terms" }
+      ];
+    }
+    return [];
+  }, [managedCategoryOptions, namespace]);
+
+  const parsedPayload = useMemo(() => {
+    try {
+      return JSON.parse(payloadInput);
+    } catch {
+      return {};
+    }
+  }, [payloadInput]);
+
+  const activeSlug = useMemo(() => {
+    if (categoryInput !== "lesson") return slugInput;
+    const moduleName = String(parsedPayload?.module || "");
+    const lessonTitle = String(parsedPayload?.title || "");
+    
+    const modMatch = moduleName.match(/module\s*(\d+)/i);
+    const mNum = modMatch ? `m${modMatch[1]}` : "m0";
+    const lNum = lessonNumberInput ? `l${lessonNumberInput}` : "l0";
+    const firstLetter = lessonTitle ? lessonTitle.charAt(0).toLowerCase() : "x";
+    
+    return `${mNum}_${lNum}_${firstLetter}`;
+  }, [categoryInput, slugInput, parsedPayload, lessonNumberInput]);
+
+  const assembledCreateKey = buildInternalName(namespace, categoryInput, activeSlug);
   const resolvedCreateType = resolveDocumentTypeForCreate(namespace, categoryInput, defaultType);
   const createBuilderNotice = useMemo(() => {
     if (categoryOptions.length === 0) {
@@ -628,8 +690,8 @@ export function ConfigAdminManager({
   const isCreateKeyValid =
     categoryOptions.some((option) => option.value === categoryInput) &&
     categoryInput.trim().length > 0 &&
-    slugInput.trim().length > 0 &&
-    /^[a-z0-9_.-]+$/.test(slugInput) &&
+    activeSlug.trim().length > 0 &&
+    /^[a-z0-9_.-]+$/.test(activeSlug) &&
     assembledCreateKey.trim().length > 0;
 
   const filterCounts = useMemo(
@@ -944,6 +1006,13 @@ export function ConfigAdminManager({
     const template = profile.templates.find((item) => item.id === templateId);
     if (template) {
       setPayloadInput(template.payload);
+      if (namespace === "content") {
+        if (templateId === "content-lesson") {
+          setCategoryInput("lesson");
+        } else if (templateId === "content-copy") {
+          setCategoryInput("message");
+        }
+      }
     }
   }
 
@@ -951,6 +1020,7 @@ export function ConfigAdminManager({
     setKeyInput("");
     setCategoryInput("");
     setSlugInput("");
+    setLessonNumberInput("1");
     setTitleInput("");
     setPayloadInput(profile.defaultPayload);
   }
@@ -1940,6 +2010,8 @@ export function ConfigAdminManager({
       <ConfigEditorDrawer
         open={editorMode === "create"}
         mode="create"
+        namespace={namespace}
+        existingModules={existingModules}
         namespaceLabel={t(profile.guideTitleKey, profile.guideTitleFallback)}
         title={t(profile.createTitleKey, profile.createTitleFallback)}
         description={t(
@@ -1958,7 +2030,7 @@ export function ConfigAdminManager({
             categoryValue={categoryInput}
             categoryOptions={categoryOptions}
             categoryPlaceholder={t("configAdmin.create.categoryPlaceholder", "Choose a category")}
-            slugLabel={t("configAdmin.create.slugLabel", "Name")}
+            slugLabel={t("configAdmin.create.slugLabel", "Slug")}
             slugValue={slugInput}
             slugPlaceholder={profile.slugPlaceholder}
             onCategoryChange={setCategoryInput}
@@ -1975,6 +2047,10 @@ export function ConfigAdminManager({
               "configAdmin.create.slugHint",
               "Use lowercase letters, numbers, dots, dashes, or underscores."
             )}
+            isLessonMode={categoryInput === "lesson"}
+            lessonNumberValue={lessonNumberInput}
+            onLessonNumberChange={setLessonNumberInput}
+            automatedSlugPreview={activeSlug}
           />
         }
         titleLabel={t("configAdmin.create.titleLabel", "Display Title")}
@@ -2005,6 +2081,8 @@ export function ConfigAdminManager({
       <ConfigEditorDrawer
         open={editorMode === "edit"}
         mode="edit"
+        namespace={namespace}
+        existingModules={existingModules}
         namespaceLabel={t(profile.guideTitleKey, profile.guideTitleFallback)}
         title={t("configAdmin.drawer.edit.title", "Edit Draft")}
         description={t(
@@ -2034,38 +2112,50 @@ export function ConfigAdminManager({
         primaryActionLabel={t("configAdmin.manage.updateDraft", "Save Draft")}
         onPrimaryAction={() => void updateDraft()}
         secondaryActions={
-          <>
-            <Button
-              variant="secondary"
-              loading={activeWorkflowAction === "publish"}
+          <div style={{ display: "flex", gap: "16px", marginLeft: "12px", alignItems: "center" }}>
+            <button
+              type="button"
+              disabled={activeWorkflowAction === "publish"}
               onClick={() => void publish()}
+              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "publish" ? 0.5 : 1, padding: "4px" }}
+              title={t("configAdmin.manage.publish", "Publish Live")}
             >
-              {t("configAdmin.manage.publish", "Publish Live")}
-            </Button>
-            <Button
-              variant="secondary"
-              loading={activeWorkflowAction === "history"}
+              <span style={{ fontSize: "18px" }}>🚀</span>
+              <span style={{ fontSize: "10px", marginTop: "4px", color: "var(--color-gray-600)", fontWeight: 500 }}>Publish</span>
+            </button>
+            <button
+              type="button"
+              disabled={activeWorkflowAction === "history"}
               onClick={() => void loadHistory()}
+              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "history" ? 0.5 : 1, padding: "4px" }}
+              title={t("configAdmin.manage.loadHistory", "View History")}
             >
-              {t("configAdmin.manage.loadHistory", "View History")}
-            </Button>
-            <Button
-              variant="secondary"
-              loading={activeWorkflowAction === "rollback"}
+              <span style={{ fontSize: "18px" }}>🕒</span>
+              <span style={{ fontSize: "10px", marginTop: "4px", color: "var(--color-gray-600)", fontWeight: 500 }}>History</span>
+            </button>
+            <button
+              type="button"
+              disabled={activeWorkflowAction === "rollback"}
               onClick={() => void rollback()}
+              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "rollback" ? 0.5 : 1, padding: "4px" }}
+              title={t("configAdmin.manage.rollback", "Restore Previous")}
             >
-              {t("configAdmin.manage.rollback", "Restore Previous")}
-            </Button>
-            <Button
-              variant="ghost"
-              loading={activeWorkflowAction === "archive"}
+              <span style={{ fontSize: "18px" }}>⏪</span>
+              <span style={{ fontSize: "10px", marginTop: "4px", color: "var(--color-gray-600)", fontWeight: 500 }}>Restore</span>
+            </button>
+            <button
+              type="button"
+              disabled={activeWorkflowAction === "archive"}
               onClick={() => requestTrashOrRestore(selectedKey)}
+              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "archive" ? 0.5 : 1, padding: "4px" }}
+              title={selectedDocumentRow?.document.isActive === false ? t("configAdmin.manage.restore", "Restore") : t("configAdmin.manage.archive", "Move To Trash")}
             >
-              {selectedDocumentRow?.document.isActive === false
-                ? t("configAdmin.manage.restore", "Restore")
-                : t("configAdmin.manage.archive", "Move To Trash")}
-            </Button>
-          </>
+              <span style={{ fontSize: "18px" }}>{selectedDocumentRow?.document.isActive === false ? "♻️" : "🗑️"}</span>
+              <span style={{ fontSize: "10px", marginTop: "4px", color: selectedDocumentRow?.document.isActive === false ? "var(--color-brand-600)" : "var(--color-danger)", fontWeight: 500 }}>
+                {selectedDocumentRow?.document.isActive === false ? "Restore" : "Trash"}
+              </span>
+            </button>
+          </div>
         }
         onClose={closeEditor}
       />

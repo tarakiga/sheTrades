@@ -48,3 +48,4 @@ export { OptionSetEditor } from "./OptionSetEditor";
 export type { OptionSetEditorProps, OptionSetItem } from "./OptionSetEditor";
 export { PublishWorkflowPanel } from "./PublishWorkflowPanel";
 export type { PublishWorkflowPanelProps } from "./PublishWorkflowPanel";
+export * from "./RichTextEditor";
