@@ -15,3 +15,6 @@ dashboard/.next/
 dist/
 coverage/
 *.tsbuildinfo
+errorlog.txt
+.claude/
+

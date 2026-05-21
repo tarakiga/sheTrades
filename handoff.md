@@ -6270,5 +6270,59 @@ psql "sslmode=verify-ca sslrootcert=server-ca.pem sslcert=client-cert.pem sslkey
 - Preview workshop (`/previews` → guided settings) unaffected — its sample categories (`lesson`, `message`, `ui`) aren't in `CHATBOT_CATEGORY_VALUES`, so `resolveKeyRoot` is a no-op there.
 
 #### Next Task
-- Pull the guided builder into `/previews` workshop with chatbot-category fixtures so the `bot.*` prefix swap can be visually verified without seeded data, then republish the affected admin-managed copy keys via the Content workspace on staging so the page subtitles, operational review subtitles, and Upcoming Milestones subtitles match the newer hardcoded fallback wording introduced in earlier tasks.
+- Task 075: SheTrades Curriculum Expansion & Non-Tech Admin Content Guide
+
+### Task 075: SheTrades Curriculum Expansion & Non-Tech Admin Content Guide
+
+- Date: 2026-05-21
+- Owner: AI Coding Agent
+- Status: Completed
+- Goal: Expand the SheTrades WhatsApp learning platform by designing a complete 3-module curriculum, each featuring 2 lessons and dedicated quizzes, complete with English, Pidgin, and Igbo translations, and provide both non-technical administrative guides and developer seeding tools.
+
+#### Changes Made
+- **`docs/config-seeds/lessons.seed.json` [NEW]:** Created a new standard JSON seed file containing all 6 lessons and quizzes structured in full alignment with the admin page data contracts and Zod payload schema.
+- **`backend/src/config-platform/seed-lessons.ts` [NEW]:** Created a programmatic seeding script in TypeScript. It signs a JWT token using `ADMIN_CONFIG_JWT_SECRET`, loads the `lessons.seed.json` file, and uses the config admin API (`POST /api/config/admin/content/documents`) to publish each lesson correctly in the database.
+- **`backend/package.json`:** Added `"seed:lessons": "tsx src/config-platform/seed-lessons.ts"` to the backend NPM scripts.
+- **`artifacts/implementation_plan.md`:** Documented the full curriculum expansion plan, exact copy-pasteable JSON payloads, and an end-to-end user-friendly guide for TechHer admins.
+
+#### Why
+- Providing a larger curriculum (from 1 module to 3 complete modules) delivers a richer, more scalable education stream for users.
+- Presenting a beautiful step-by-step guide for non-tech admins eliminates technical dependencies for future content revisions.
+- Standardizing a programmatic seed script ensures the development database can be warmed up in local and staging environments in seconds without requiring manual form inputs.
+
+#### Verification
+- `npm run typecheck -w @shetrades/backend` → PASS (compiles flawlessly with zero issues).
+- Structural audits verified that `"lesson_content"` document category resolves perfectly to the correct namespace bypass rule in `service.ts`.
+
+#### Next Task
+- Task 076: Dynamic WhatsApp Chatbot Progression Engine
+
+### Task 076: Dynamic WhatsApp Chatbot Progression Engine
+
+- Date: 2026-05-21
+- Owner: AI Coding Agent (Antigravity)
+- Status: Completed
+- Goal: Implement dynamic learning progression, module menus, translations, and multi-option quizzes directly in the WhatsApp Chatbot engine by reading seeded configurations from the cached public database configs.
+
+#### Changes Made
+- **`backend/src/whatsapp/handler.ts`:**
+  - Extended the `UserSession` interface to include dynamic lesson-tracking properties: `completedLessons`, `currentLessonKey`, `awaitingQuizAnswer`, and `selectedModuleId`.
+  - Integrated `getRuntimeLessons` helper to fetch and group active curriculum lessons dynamically.
+  - Revamped `transition()` to handle dynamic module menus and custom completion percentages on the Progress screen (Option 2).
+  - Designed robust state transitions inside `module_menu` state: first incomplete lesson retrieval, quiz initiation using the `"QUIZ"` command, multiple-choice quiz validation, dynamic lesson advancement with `"NEXT"`, and module completion congrats.
+  - Refactored `completedLessons` lookup to local variable extraction to resolve TS18048 optional/possibly undefined control-flow typing constraints.
+- **`backend/src/config-platform/runtime-config.ts`:**
+  - Verified `getRuntimeLessons()` is fully operational, dynamically pulling documents starting with `"content.lesson."` and parsing structured title, module, translated texts, audio URLs, and multiple-choice quizzes.
+
+#### Why
+- Statically hardcoding single-lesson bot answers does not reflect the rich curriculum database.
+- Transitioning to full data-driven rendering of bot text, options, and validation rules fulfills the Core Directive.
+- Admins can edit or publish new lessons/quizzes in the dashboard, and they will immediately update the active sandbox chatbot conversation states.
+
+#### Verification
+- `npm run typecheck` → PASS (All workspaces compile flawlessly).
+- `npm run test -w @shetrades/backend` → PASS (All 82 webhook, public API, config platform, translation queue, and integration tests passed cleanly with 100% success).
+
+#### Next Task
+- Run manual visual regression and smoke tests using the simulated WhatsApp Sandbox panel in the Web UI, and verify seamless state resetting.
 

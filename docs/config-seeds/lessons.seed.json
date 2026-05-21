@@ -1,0 +1,152 @@
+[
+  {
+    "key": "content.lesson.m1_l1_bookkeeping",
+    "title": "Introduction to Basic Bookkeeping",
+    "content": {
+      "title": "Introduction to Basic Bookkeeping",
+      "module": "Module 1: Financial Literacy & Record Keeping",
+      "languages": {
+        "en": "Record keeping is the foundation of a successful business. By writing down every sale and expense daily, you can track whether your business is making money or losing money. Always record the date, item name, and price.",
+        "pcm": "To write down everything wey you sell and wey you spend every day, na standard logic for business. Dis one go help you know if your business dey make gain or loss. Make you always record date, name of item, and the amount.",
+        "ig": "Idekọ ego na mmefu ego kwa ụbọchị bụ ntọala nke azụmahịa na-aga nke ọma. Nke a na-enyere gị aka ịma ma azụmahịa gị na-erite uru ma ọ bụ na-ala n'iyi. Gbalịa idekọ ụbọchị, aha ngwaahịa, na ọnụego ya mgbe niile."
+      },
+      "audioUrls": {},
+      "quiz": [
+        {
+          "question": "What is the best way to track if your business is making money?",
+          "options": [
+            "Write down every single sale and expense daily",
+            "Try to remember everything in your head",
+            "Only write down big sales"
+          ],
+          "answerIndex": 0
+        }
+      ]
+    }
+  },
+  {
+    "key": "content.lesson.m1_l2_separation",
+    "title": "Separating Business and Personal Funds",
+    "content": {
+      "title": "Separating Business and Personal Funds",
+      "module": "Module 1: Financial Literacy & Record Keeping",
+      "languages": {
+        "en": "Never mix your business money with your personal money. Pay yourself a regular salary from your business profits, and use that salary for personal needs. Mixing funds makes it hard to see if the business is profitable.",
+        "pcm": "No join your business money with your personal money. Make you dey pay yourself small salary from business gain, and use that salary for your personal things. If you mix them, you no go know if business dey make gain.",
+        "ig": "Ejikọtala ego azụmahịa gị na ego nke gị. Kwụọ onwe gị ụgwọ ọrụ mgbe niile site n'uru azụmahịa gị, ma jiri ego ahụ mezuo mkpa gị. Ịgwakọta ha na-eme ka ọ sie ike ịhụ ma azụmahịa gị na-erite uru."
+      },
+      "audioUrls": {},
+      "quiz": [
+        {
+          "question": "If you need money to buy personal food, what should you do?",
+          "options": [
+            "Take it from your business cash box directly",
+            "Use your personal salary paid from the business profits",
+            "Ask a customer to pay you directly into your personal account"
+          ],
+          "answerIndex": 1
+        }
+      ]
+    }
+  },
+  {
+    "key": "content.lesson.m2_l1_whatsapp",
+    "title": "Selling Online with WhatsApp Business",
+    "content": {
+      "title": "Selling Online with WhatsApp Business",
+      "module": "Module 2: Digital Marketing & Customer Relations",
+      "languages": {
+        "en": "WhatsApp Business is a free tool to reach more customers. Set up a professional profile with your business hours, catalog, and address. Create broadcast lists to send new arrival updates directly to interested buyers.",
+        "pcm": "WhatsApp Business na free tool wey go help you reach plenty customers. Set up profile wey fine with your business hours, catalog, and shop address. Make broadcast list to send update of new items to people.",
+        "ig": "WhatsApp Business bụ ngwá ọrụ n'efu iji nweta ndị ahịa ka ukwuu. Mepụta profaịlụ mara mma nke nwere oge ọrụ gị, katalọgụ, na adresị gị. Mepụta listi mgbasa ozi iji zipu ozi gbasara ngwaahịa ọhụrụ."
+      },
+      "audioUrls": {},
+      "quiz": [
+        {
+          "question": "Which feature on WhatsApp Business is best for showcasing your products?",
+          "options": [
+            "WhatsApp Catalog",
+            "Status Updates only",
+            "Personal profile picture"
+          ],
+          "answerIndex": 0
+        }
+      ]
+    }
+  },
+  {
+    "key": "content.lesson.m2_l2_trust",
+    "title": "Building Customer Trust and Retention",
+    "content": {
+      "title": "Building Customer Trust and Retention",
+      "module": "Module 2: Digital Marketing & Customer Relations",
+      "languages": {
+        "en": "Trust brings repeat business. Always be honest about product quality, deliver on time, and handle complaints with a polite attitude. A happy customer will recommend you to friends and family.",
+        "pcm": "Na trust dey bring customer back. Always talk true about the quality of wetin you dey sell, make you deliver on time, and answer complaints with respect. Happy customer go tell other people about you.",
+        "ig": "Nkwenye na-eweta ndị ahịa ugboro ugboro. Na-ekwu eziokwu gbasara ogo ngwaahịa gị mgbe niile, na-ezipụ ha n'oge, ma na-eji nkwanye ùgwù na-edozi mkpesa ndị ahịa."
+      },
+      "audioUrls": {},
+      "quiz": [
+        {
+          "question": "What is the best way to handle a customer who complains about a faulty item?",
+          "options": [
+            "Ignore their calls and messages",
+            "Listen politely, apologize, and offer a replacement or refund",
+            "Tell them it is not your fault and refuse to help"
+          ],
+          "answerIndex": 1
+        }
+      ]
+    }
+  },
+  {
+    "key": "content.lesson.m3_l1_pricing",
+    "title": "Understanding Pricing and Profit",
+    "content": {
+      "title": "Understanding Pricing and Profit",
+      "module": "Module 3: Access to Finance & Growth",
+      "languages": {
+        "en": "To set the right price, calculate all costs: buying price, transportation, packaging, and shop rent. Your selling price must cover all these costs plus your desired profit margin.",
+        "pcm": "To set standard price, make you calculate all the costs: buying price, transport, packaging, and rent. Selling price must clear all these costs and still join gain for you.",
+        "ig": "Iji dozie ọnụ ahịa kwesịrị ekwesị, gbakọọ ụgwọ niile: ọnụ ahịa ịzụrụ ya, njem, nkwakọ ngwaahịa, na ụgwọ ụlọ ahịa gị. Ọnụ ahịa ire gị ga-ekpuchi ihe ndị a niile ma nwee uru."
+      },
+      "audioUrls": {},
+      "quiz": [
+        {
+          "question": "When pricing an item, what costs must you include?",
+          "options": [
+            "Only the direct cost of buying the item",
+            "The buying price plus transport, packaging, and other operating costs",
+            "Whatever price your closest competitor is charging"
+          ],
+          "answerIndex": 1
+        }
+      ]
+    }
+  },
+  {
+    "key": "content.lesson.m3_l2_savings",
+    "title": "Accessing Micro-loans and Savings",
+    "content": {
+      "title": "Accessing Micro-loans and Savings",
+      "module": "Module 3: Access to Finance & Growth",
+      "languages": {
+        "en": "Micro-loans can help grow your business, but they must be used carefully. Only borrow what you can afford to repay from your business cash flow. Keep a good repayment track record to unlock larger loan limits.",
+        "pcm": "Loan fit help you grow business, but make you dey careful. Only borrow wetin you get power to pay back from your business profits. Make you dey pay on time so dem fit borrow you bigger money later.",
+        "ig": "Ego mgbazinye nwere ike inyere aka gbasaa azụmahịa gị, mana a ghaghị iji nlezianya mee ihe. Gbazinye naanị ihe ị ga-enwe ike ịkwụghachi site n'ego azụmahịa gị."
+      },
+      "audioUrls": {},
+      "quiz": [
+        {
+          "question": "What is a safe rule when taking a loan for your business?",
+          "options": [
+            "Borrow as much money as the bank is willing to offer",
+            "Only borrow what your business cash flow can safely repay",
+            "Use the loan to buy personal items first"
+          ],
+          "answerIndex": 1
+        }
+      ]
+    }
+  }
+]

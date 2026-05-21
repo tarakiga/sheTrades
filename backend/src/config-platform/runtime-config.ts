@@ -170,3 +170,49 @@ export function getRuntimeNotificationConfig() {
   return getRuntimeIntegrationConfig<NotificationIntegrationPayload>("integration.notification.smtp");
 }
 
+export type RuntimeLesson = {
+  key: string;
+  title: string;
+  module: string;
+  languages: {
+    en: string;
+    pcm?: string;
+    ig?: string;
+  };
+  audioUrls: Record<string, string>;
+  quiz: Array<{
+    question: string;
+    options: string[];
+    answerIndex: number;
+  }>;
+};
+
+export function getRuntimeLessons(): RuntimeLesson[] {
+  const bundle = cachedPublicConfigs.get("content");
+  if (!bundle) return [];
+  return bundle.documents
+    .filter((doc) => doc.key.startsWith("content.lesson."))
+    .map((doc) => {
+      const payload = doc.data || {};
+      return {
+        key: doc.key,
+        title: String(payload.title || ""),
+        module: String(payload.module || ""),
+        languages: {
+          en: String(payload.languages?.en || ""),
+          ...(payload.languages?.pcm ? { pcm: String(payload.languages.pcm) } : {}),
+          ...(payload.languages?.ig ? { ig: String(payload.languages.ig) } : {})
+        },
+        audioUrls: (payload.audioUrls && typeof payload.audioUrls === "object" ? payload.audioUrls : {}) as Record<string, string>,
+        quiz: (Array.isArray(payload.quiz)
+          ? payload.quiz.map((q: any) => ({
+              question: String(q?.question || ""),
+              options: Array.isArray(q?.options) ? q.options.map(String) : [],
+              answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0
+            }))
+          : [])
+      } satisfies RuntimeLesson;
+    });
+}
+
+
