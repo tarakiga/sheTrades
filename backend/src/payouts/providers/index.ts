@@ -1,5 +1,6 @@
 import { africasTalkingAdapter } from "./africas-talking.js";
 import { termiiAdapter } from "./termii.js";
+import { reloadlyAdapter } from "./reloadly.js";
 import type { PayoutProvider, PayoutsIntegrationPayload } from "./contracts.js";
 import { getRuntimePayoutsConfig } from "../../config-platform/runtime-config.js";
 
@@ -15,8 +16,6 @@ export async function getActiveProvider(): Promise<{
     case "termii":
       return { provider: termiiAdapter, config };
     case "reloadly":
-      // Reloadly adapter added in Task 8. Returning null is safe:
-      // the worker logs a "no_active_provider" skip event when this is null.
-      return null;
+      return { provider: reloadlyAdapter, config };
   }
 }
