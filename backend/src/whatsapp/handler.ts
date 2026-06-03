@@ -870,29 +870,23 @@ async function recordAnalytics(session: UserSession): Promise<void> {
           }
         });
       } else if (event.type === "module_completed") {
-        // Idempotency guard: only one reward per (user, module). The
-        // Reward model has no unique constraint on (userId, module)
-        // yet, so we check explicitly. If the user replays a module
-        // (e.g. re-takes a lesson after MENU), we do not stack rewards.
-        const existing = await prisma.reward.findFirst({
-          where: { userId: session.userId, module: event.module }
+        const parsedAmount = Number(process.env.REWARD_DEFAULT_AMOUNT);
+        const amount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 500;
+        const channel = (process.env.REWARD_DEFAULT_CHANNEL ?? "airtime").trim() || "airtime";
+        await prisma.reward.upsert({
+          where: {
+            userId_module: { userId: session.userId, module: event.module }
+          },
+          update: {},  // never overwrite an existing reward when the user replays a module
+          create: {
+            userId: session.userId,
+            module: event.module,
+            amount,
+            channel,
+            status: "Pending",
+            learnerPhone: session.phone
+          }
         });
-        if (!existing) {
-          const parsedAmount = Number(process.env.REWARD_DEFAULT_AMOUNT);
-          const amount = Number.isFinite(parsedAmount) && parsedAmount > 0
-            ? parsedAmount
-            : 500;
-          const channel = (process.env.REWARD_DEFAULT_CHANNEL ?? "airtime").trim();
-          await prisma.reward.create({
-            data: {
-              userId: session.userId,
-              module: event.module,
-              amount,
-              channel: channel || "airtime",
-              status: "Pending"
-            }
-          });
-        }
       }
     } catch (error) {
       console.warn(
