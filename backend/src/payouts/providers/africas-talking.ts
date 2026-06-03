@@ -5,6 +5,7 @@ import type {
   PayoutsIntegrationPayload,
   RewardDispatchInput
 } from "./contracts.js";
+import { isRetryableStatus } from "./contracts.js";
 
 const SANDBOX_BASE = "https://api.sandbox.africastalking.com/version1";
 const PROD_BASE = "https://api.africastalking.com/version1";
@@ -22,12 +23,6 @@ function requireAfricasTalkingConfig(config: PayoutsIntegrationPayload) {
     throw new Error("africasTalkingAdapter received a non-AT config");
   }
   return config.africasTalking;
-}
-
-const RETRYABLE_HTTP_STATUSES = new Set([408, 425, 429]);
-
-function isRetryableStatus(status: number) {
-  return status >= 500 || RETRYABLE_HTTP_STATUSES.has(status);
 }
 
 export const africasTalkingAdapter: PayoutProvider = {

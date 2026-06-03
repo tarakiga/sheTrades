@@ -5,16 +5,12 @@ import type {
   PayoutsIntegrationPayload,
   RewardDispatchInput
 } from "./contracts.js";
+import { isRetryableStatus } from "./contracts.js";
 
 const AUTH_URL = "https://auth.reloadly.com/oauth/token";
 const SANDBOX_AUDIENCE = "https://topups-sandbox.reloadly.com";
 const PROD_AUDIENCE = "https://topups.reloadly.com";
 const DEFAULT_NG_MTN_OPERATOR_ID = 341;
-
-const RETRYABLE_HTTP_STATUSES = new Set([408, 425, 429]);
-function isRetryableStatus(status: number) {
-  return status >= 500 || RETRYABLE_HTTP_STATUSES.has(status);
-}
 
 const RETRYABLE_PROVIDER_ERROR_CODES = new Set(["TIMEOUT", "PROVIDER_UNAVAILABLE"]);
 

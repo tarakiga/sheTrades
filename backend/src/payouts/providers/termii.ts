@@ -5,14 +5,10 @@ import type {
   PayoutsIntegrationPayload,
   RewardDispatchInput
 } from "./contracts.js";
+import { isRetryableStatus } from "./contracts.js";
 
 const SANDBOX_BASE = "https://sandbox.termii.com/api";
 const PROD_BASE = "https://api.ng.termii.com/api";
-
-const RETRYABLE_HTTP_STATUSES = new Set([408, 425, 429]);
-function isRetryableStatus(status: number) {
-  return status >= 500 || RETRYABLE_HTTP_STATUSES.has(status);
-}
 
 const RETRYABLE_PROVIDER_CODES = new Set(["service_unavailable", "rate_limited"]);
 

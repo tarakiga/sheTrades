@@ -55,3 +55,18 @@ export interface PayoutProvider {
   verifyCredentials(config: PayoutsIntegrationPayload): Promise<ConnectionResult>;
   dispatch(reward: RewardDispatchInput, config: PayoutsIntegrationPayload): Promise<DispatchResult>;
 }
+
+/**
+ * HTTP status codes that should be treated as transient and worth retrying.
+ * Used by each provider adapter to classify upstream HTTP failures.
+ */
+export const RETRYABLE_HTTP_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
+
+/**
+ * Returns true if an HTTP response status indicates a transient failure
+ * that the worker should re-attempt later. Any 5xx, plus the curated set
+ * of retryable 4xx (408 Request Timeout, 425 Too Early, 429 Too Many Requests).
+ */
+export function isRetryableStatus(status: number): boolean {
+  return status >= 500 || RETRYABLE_HTTP_STATUSES.has(status);
+}
