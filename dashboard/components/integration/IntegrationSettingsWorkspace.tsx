@@ -20,6 +20,10 @@ import {
 } from "../../lib/admin-config-auth";
 import { IntegrationConfigDrawer } from "./IntegrationConfigDrawer";
 import { IntegrationPreviewDrawer } from "./IntegrationPreviewDrawer";
+import {
+  IntegrationPayoutsWorkspace,
+  type PayoutsProviderConfig
+} from "./IntegrationPayoutsWorkspace";
 import type {
   IntegrationConnectionResult,
   IntegrationDocumentDetail,
@@ -86,6 +90,17 @@ const PROVIDERS: Record<IntegrationProviderId, ProviderConfig> = {
     emptyDescription:
       "Create the managed SMTP draft so admins can verify delivery credentials before they publish the live notification sender."
   }
+};
+
+const PAYOUTS_PROVIDER: PayoutsProviderConfig = {
+  id: "payouts",
+  label: "Payouts",
+  description: "Airtime issuance provider for learner rewards.",
+  key: "integration.payouts.primary",
+  title: "Payouts Integration",
+  emptyTitle: "Configure a payouts provider",
+  emptyDescription:
+    "Pick a provider (Africa's Talking, Termii, or Reloadly) and enter credentials to start dispatching rewards."
 };
 
 function tFactory(copy: Record<string, string>) {
@@ -863,7 +878,7 @@ export function IntegrationSettingsWorkspace({ copy }: IntegrationSettingsWorksp
           "Manage provider credentials, test connectivity, and publish operational integrations from one premium workspace."
         )}
         summary={[
-          { label: t("integration.summary.providers", "Providers"), value: "2" },
+          { label: t("integration.summary.providers", "Providers"), value: "3" },
           { label: t("integration.summary.access", "Access"), value: "Admin Only" },
           { label: t("integration.summary.workflow", "Workflow"), value: "Draft + Live" }
         ]}
@@ -882,6 +897,11 @@ export function IntegrationSettingsWorkspace({ copy }: IntegrationSettingsWorksp
               id: PROVIDERS.notification.id,
               label: PROVIDERS.notification.label,
               content: <IntegrationProviderWorkspace copy={copy} provider={PROVIDERS.notification} />
+            },
+            {
+              id: PAYOUTS_PROVIDER.id,
+              label: PAYOUTS_PROVIDER.label,
+              content: <IntegrationPayoutsWorkspace provider={PAYOUTS_PROVIDER} />
             }
           ]}
         />

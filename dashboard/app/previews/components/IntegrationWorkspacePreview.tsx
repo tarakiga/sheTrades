@@ -37,7 +37,7 @@ export function IntegrationWorkspacePreview() {
 
       <Card
         title="Integration Provider Tabs"
-        description="Top-level nested tabs for WhatsApp and Notification provider workspaces."
+        description="Top-level nested tabs for WhatsApp, Notification, and Payouts provider workspaces."
       >
         <Tabs
           activeId="whatsapp"
@@ -107,6 +107,37 @@ export function IntegrationWorkspacePreview() {
                     </Button>
                     <Button onClick={() => setDrawerProvider("notification")}>Open Drawer</Button>
                   </div>
+                </div>
+              )
+            },
+            {
+              id: "payouts",
+              label: "Payouts",
+              content: (
+                <div className="preview-card-content">
+                  <div className="preview-row">
+                    <Badge variant="success">Live</Badge>
+                    <Badge variant="neutral">Africa's Talking (sandbox)</Badge>
+                  </div>
+                  <Table
+                    columns={[
+                      { key: "title", header: "Integration" },
+                      { key: "status", header: "Status" },
+                      { key: "updated", header: "Updated" }
+                    ]}
+                    rows={[
+                      {
+                        title: "Primary Payouts Integration",
+                        status: "Live",
+                        updated: "17 May 2026, 12:24"
+                      }
+                    ]}
+                  />
+                  <p>
+                    Live form (provider selector + credential fields) is rendered inline beneath
+                    the table. See the dedicated &quot;Payouts Integration&quot; preview for the
+                    selector and credential field components.
+                  </p>
                 </div>
               )
             }
