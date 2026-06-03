@@ -230,7 +230,7 @@ export async function fetchRewardsFromFirestore(): Promise<RewardsPageData | nul
       isRetryableFirestoreError
     );
     const rewards = snapshot.docs.map((doc) => doc.data()) as RewardsPageData["rewards"];
-    return { rewards };
+    return { rewards, meta: { activeProvider: null, nextCursor: null } };
   } catch (error) {
     logger.error("admin.firestore.rewards_failed", error, {
       collection: mappings.rewardsCollection

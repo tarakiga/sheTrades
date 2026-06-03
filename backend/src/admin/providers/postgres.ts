@@ -45,7 +45,10 @@ function isRetryablePostgresError(error: unknown) {
   return code.startsWith("08") || code === "57P01" || code === "40001";
 }
 
-async function queryWithPolicy<T extends QueryResultRow>(query: string): Promise<T[]> {
+async function queryWithPolicy<T extends QueryResultRow>(
+  query: string,
+  params?: unknown[]
+): Promise<T[]> {
   const db = getPool();
   if (!db) {
     return [];
@@ -53,7 +56,9 @@ async function queryWithPolicy<T extends QueryResultRow>(query: string): Promise
   const policy = getDataAccessPolicy();
   return withRetry(
     async () => {
-      const result = await db.query<T>(query);
+      const result = params
+        ? await db.query<T>(query, params as unknown[])
+        : await db.query<T>(query);
       return result.rows;
     },
     policy.retryAttempts,
@@ -193,22 +198,105 @@ export async function fetchContentFromPostgres(): Promise<ContentPageData | null
   }
 }
 
-export async function fetchRewardsFromPostgres(): Promise<RewardsPageData | null> {
+export type RewardsFilters = {
+  status?: "Issued" | "Pending" | "Failed";
+  from?: Date;
+  to?: Date;
+  q?: string;
+  cursor?: string;
+  limit?: number;
+};
+
+export async function fetchRewardsFromPostgres(
+  filters: RewardsFilters = {}
+): Promise<RewardsPageData | null> {
   const db = getPool();
   if (!db) return null;
-  const mappings = getPostgresMappings();
+
+  const limit = Math.min(Math.max(filters.limit ?? 25, 1), 100);
+  const where: string[] = [`r."status" IS NOT NULL`];
+  const params: unknown[] = [];
+
+  if (filters.status) {
+    params.push(filters.status);
+    where.push(`r."status" = $${params.length}`);
+  }
+  if (filters.from) {
+    params.push(filters.from);
+    where.push(`r."createdAt" >= $${params.length}`);
+  }
+  if (filters.to) {
+    params.push(filters.to);
+    where.push(`r."createdAt" <= $${params.length}`);
+  }
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    where.push(
+      `(COALESCE(u."name", '') ILIKE $${params.length} OR r."learnerPhone" ILIKE $${params.length} OR r."module" ILIKE $${params.length})`
+    );
+  }
+  if (filters.cursor) {
+    params.push(new Date(filters.cursor));
+    where.push(`r."createdAt" < $${params.length}`);
+  }
+
+  params.push(limit + 1);
+  const sql = `
+    SELECT
+      r."id", COALESCE(u."name", '') AS "learner", r."learnerPhone", r."module",
+      r."amount"::float AS "amount", r."channel", r."status",
+      r."createdAt", r."issuedAt", r."providerTxnId", r."failureReason",
+      r."retryCount", r."noteFromActor"
+    FROM rewards r
+    LEFT JOIN users u ON u."id" = r."userId"
+    WHERE ${where.join(" AND ")}
+    ORDER BY r."createdAt" DESC
+    LIMIT $${params.length}
+  `;
 
   try {
     const rows = await queryWithPolicy<{
+      id: string;
       learner: string;
+      learnerPhone: string;
       module: string;
-      amount: string;
+      amount: number;
       channel: string;
       status: "Issued" | "Pending" | "Failed";
-    }>(`SELECT learner, module, amount, channel, status FROM ${mappings.rewardsView} LIMIT 200`);
-    return { rewards: rows };
+      createdAt: Date;
+      issuedAt: Date | null;
+      providerTxnId: string | null;
+      failureReason: string | null;
+      retryCount: number;
+      noteFromActor: string | null;
+    }>(sql, params);
+
+    const hasMore = rows.length > limit;
+    const trimmed = hasMore ? rows.slice(0, limit) : rows;
+    const lastRow = trimmed[trimmed.length - 1];
+    const nextCursor = hasMore && lastRow ? lastRow.createdAt.toISOString() : null;
+
+    return {
+      rewards: trimmed.map((row) => ({
+        id: row.id,
+        learner: row.learner,
+        learnerPhone: row.learnerPhone,
+        module: row.module,
+        amount: Number(row.amount),
+        currency: "NGN" as const,
+        channel: row.channel,
+        status: row.status,
+        createdAt: row.createdAt.toISOString(),
+        issuedAt: row.issuedAt ? row.issuedAt.toISOString() : null,
+        providerTxnId: row.providerTxnId,
+        failureReason: row.failureReason,
+        retryCount: row.retryCount,
+        noteFromActor: row.noteFromActor
+      })),
+      meta: { activeProvider: null, nextCursor }
+    };
   } catch (error) {
-    logger.error("admin.postgres.rewards_failed", error, { view: mappings.rewardsView });
+    logger.error("admin.postgres.rewards_failed", error);
     throw error;
   }
 }

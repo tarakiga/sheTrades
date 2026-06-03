@@ -131,8 +131,23 @@ export async function getContentData(): Promise<ContentPageData> {
   return resolveData(fallbackContentData, fetchContentFromPostgres, fetchContentFromFirestore);
 }
 
-export async function getRewardsData(): Promise<RewardsPageData> {
-  return resolveData(fallbackRewardsData, fetchRewardsFromPostgres, fetchRewardsFromFirestore);
+export type RewardsDataFilters = {
+  status?: "Issued" | "Pending" | "Failed";
+  from?: Date;
+  to?: Date;
+  q?: string;
+  cursor?: string;
+  limit?: number;
+};
+
+export async function getRewardsData(
+  filters: RewardsDataFilters = {}
+): Promise<RewardsPageData> {
+  return resolveData(
+    fallbackRewardsData,
+    () => fetchRewardsFromPostgres(filters),
+    fetchRewardsFromFirestore
+  );
 }
 
 export async function getReportsData(): Promise<ReportsPageData> {

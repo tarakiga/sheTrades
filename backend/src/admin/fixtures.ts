@@ -25,7 +25,8 @@ export const fallbackContentData: ContentPageData = {
 };
 
 export const fallbackRewardsData: RewardsPageData = {
-  rewards: []
+  rewards: [],
+  meta: { activeProvider: null, nextCursor: null }
 };
 
 export const fallbackReportsData: ReportsPageData = {

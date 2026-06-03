@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { createApp } from "../app.js";
+import { setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
 
 const app = createApp();
 
@@ -52,6 +53,50 @@ test("GET /api/admin/rewards returns rewards payload", { concurrency: false }, a
   const response = await request(app).get("/api/admin/rewards").expect(200);
   assert.ok(Array.isArray(response.body.rewards));
 });
+
+test(
+  "GET /api/admin/rewards returns meta.activeProvider null when no payouts config published",
+  { concurrency: false },
+  async () => {
+    setRuntimeIntegrationConfigForTests("integration.payouts.primary", null);
+    const response = await request(app).get("/api/admin/rewards").expect(200);
+    assert.equal(response.body.meta.activeProvider, null);
+  }
+);
+
+test(
+  "GET /api/admin/rewards returns meta.activeProvider populated when payouts config is published",
+  { concurrency: false },
+  async () => {
+    setRuntimeIntegrationConfigForTests("integration.payouts.primary", {
+      provider: "africas_talking",
+      sandbox: true,
+      africasTalking: { username: "u", apiKey: "k" },
+      defaults: { currency: "NGN", channel: "airtime" }
+    });
+    try {
+      const response = await request(app).get("/api/admin/rewards").expect(200);
+      assert.deepEqual(response.body.meta.activeProvider, {
+        key: "africas_talking",
+        sandbox: true
+      });
+    } finally {
+      setRuntimeIntegrationConfigForTests("integration.payouts.primary", null);
+    }
+  }
+);
+
+test(
+  "GET /api/admin/rewards?status=Pending accepts and forwards the status filter",
+  { concurrency: false },
+  async () => {
+    // Smoke: confirm the route accepts the filter and returns 200 with rewards/meta shape.
+    setRuntimeIntegrationConfigForTests("integration.payouts.primary", null);
+    const response = await request(app).get("/api/admin/rewards?status=Pending").expect(200);
+    assert.ok(Array.isArray(response.body.rewards));
+    assert.ok(response.body.meta);
+  }
+);
 
 test("GET /api/admin/reports returns reports payload", { concurrency: false }, async () => {
   const response = await request(app).get("/api/admin/reports").expect(200);
