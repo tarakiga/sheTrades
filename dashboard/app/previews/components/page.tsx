@@ -24,6 +24,7 @@ import { IntegrationWorkspacePreview } from "./IntegrationWorkspacePreview";
 import { OverlayPreviewDemo } from "./OverlayPreviewDemo";
 import { OverviewUsersWorkspacePreview } from "./OverviewUsersWorkspacePreview";
 import { PreviewSelectTabsDemo } from "./PreviewSelectTabsDemo";
+import { RewardsWorkspacePreview } from "./RewardsWorkspacePreview";
 import { TranslationRequestWorkflowPreview } from "./TranslationRequestWorkflowPreview";
 
 type LearnerRow = {
@@ -286,6 +287,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <AnalyticsRewardsReportsWorkspacePreview />
+        </Card>
+
+        <Card
+          title={t("preview.rewardsHealthHero.title", "Rewards Health Hero")}
+          description={t(
+            "preview.rewardsHealthHero.description",
+            "Preview the issuance gauge, total-paid headline, attention panel, and hero / banner states."
+          )}
+        >
+          <RewardsWorkspacePreview />
         </Card>
 
         <Card
