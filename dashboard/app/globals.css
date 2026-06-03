@@ -6548,3 +6548,39 @@ button.needs-attention-panel__item:focus {
   color: var(--color-danger);
 }
 
+/* ==========================================================================
+   Rewards page shell
+   The page wrapper inherits the premium grid spacing from
+   .admin-dashboard-page (gap + max-width + padding). These rules only
+   handle the header action cluster and inline status messages.
+   ========================================================================== */
+
+.rewards-page__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+.rewards-page__inline-note,
+.rewards-page__inline-error {
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.rewards-page__inline-note {
+  background: var(--color-warning-100);
+  border: 1px solid var(--color-warning-500);
+  color: var(--color-warning-700);
+}
+
+.rewards-page__inline-error {
+  background: var(--color-danger-100);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger-700);
+}
+

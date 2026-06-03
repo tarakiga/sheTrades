@@ -14,6 +14,7 @@ import {
   type LearnerOption
 } from "../../../components/rewards/ManualRewardDrawer";
 import type { NeedsAttentionItem } from "../../../components/rewards/NeedsAttentionPanel";
+import { Badge, Button, SectionHeader } from "../../../components/ui";
 import {
   createManualReward,
   getRewardsPageData,
@@ -314,30 +315,21 @@ export default function RewardsPage() {
   const dataMessage = result?.meta.message;
 
   return (
-    <div className="rewards-page">
-      <header className="rewards-page__header">
-        <div className="rewards-page__heading">
-          <h1 className="rewards-page__title">Rewards</h1>
-          <p className="rewards-page__description">
-            Monitor reward issuance, failures, and manual intervention workflows.
-          </p>
-        </div>
-        <div className="rewards-page__actions">
-          <span
-            className={`rewards-page__source rewards-page__source--${dataSource}`}
-            role="status"
-          >
-            {dataSource === "live" ? "Live Data" : "Fallback Data"}
-          </span>
-          <button
-            type="button"
-            className="rewards-page__primary-action"
-            onClick={() => setManualOpen(true)}
-          >
-            Issue Manual Reward
-          </button>
-        </div>
-      </header>
+    <main className="admin-dashboard-page rewards-page">
+      <SectionHeader
+        title="Rewards"
+        description="Monitor reward issuance, failures, and manual intervention workflows."
+        actions={
+          <div className="rewards-page__actions">
+            <Badge variant={dataSource === "live" ? "success" : "warning"}>
+              {dataSource === "live" ? "Live Data" : "Fallback Data"}
+            </Badge>
+            <Button type="button" onClick={() => setManualOpen(true)}>
+              Issue Manual Reward
+            </Button>
+          </div>
+        }
+      />
 
       {dataMessage ? (
         <p className="rewards-page__inline-note">{dataMessage}</p>
@@ -385,6 +377,6 @@ export default function RewardsPage() {
         defaultChannel={DEFAULT_MANUAL_CHANNEL}
         learners={learnerOptions}
       />
-    </div>
+    </main>
   );
 }
