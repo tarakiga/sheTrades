@@ -126,6 +126,37 @@ export async function ensurePrismaTables() {
       END $$;
     `);
 
+    // Neutralise legacy NOT NULL constraints on columns not in the current
+    // Prisma schema. If a table existed before with extra required columns
+    // (`email`, etc.) that Prisma no longer writes to, the inserts would
+    // fail with P2011 NullConstraintViolation. We DROP NOT NULL on any
+    // column that is required, has no default, and is not in our managed
+    // set for that table. Existing data is untouched.
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      DECLARE rec RECORD;
+      BEGIN
+        FOR rec IN
+          SELECT table_name, column_name
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name IN ('users','user_sessions','user_progress','quiz_attempts','rewards')
+            AND is_nullable = 'NO'
+            AND column_default IS NULL
+            AND NOT (
+              (table_name = 'users' AND column_name IN ('id','phone','status','createdAt','updatedAt'))
+              OR (table_name = 'user_sessions' AND column_name IN ('id','userId','state','completedLessons','awaitingQuizAnswer','currentQuizIndex','namePrompted','lastUpdatedAt'))
+              OR (table_name = 'user_progress' AND column_name IN ('id','userId','module','completionPercentage','updatedAt'))
+              OR (table_name = 'quiz_attempts' AND column_name IN ('id','userId','lessonKey','passed','attemptCount','lastAttemptAt'))
+              OR (table_name = 'rewards' AND column_name IN ('id','userId','module','amount','channel','status'))
+            )
+        LOOP
+          EXECUTE format('ALTER TABLE %I ALTER COLUMN %I DROP NOT NULL', rec.table_name, rec.column_name);
+          RAISE NOTICE 'Dropped NOT NULL from legacy column %.%', rec.table_name, rec.column_name;
+        END LOOP;
+      END $$;
+    `);
+
     logger.info("Prisma-managed tables ensured.");
   } catch (error) {
     logger.error("Failed to ensure Prisma tables; admin/sandbox features may not work.", error);
