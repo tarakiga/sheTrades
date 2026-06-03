@@ -23,6 +23,7 @@ import { GuidedSettingsWorkspacePreview } from "./GuidedSettingsWorkspacePreview
 import { IntegrationWorkspacePreview } from "./IntegrationWorkspacePreview";
 import { OverlayPreviewDemo } from "./OverlayPreviewDemo";
 import { OverviewUsersWorkspacePreview } from "./OverviewUsersWorkspacePreview";
+import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
 import { PreviewSelectTabsDemo } from "./PreviewSelectTabsDemo";
 import { RewardsWorkspacePreview } from "./RewardsWorkspacePreview";
 import { TranslationRequestWorkflowPreview } from "./TranslationRequestWorkflowPreview";
@@ -297,6 +298,19 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <RewardsWorkspacePreview />
+        </Card>
+
+        <Card
+          title={t(
+            "preview.payoutsIntegration.title",
+            "Payouts Integration — provider + credentials"
+          )}
+          description={t(
+            "preview.payoutsIntegration.description",
+            "Preview the three payouts providers, the sandbox toggle, disabled state, and field-level error states."
+          )}
+        >
+          <PayoutsIntegrationPreview />
         </Card>
 
         <Card

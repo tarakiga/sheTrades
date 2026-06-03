@@ -6310,3 +6310,241 @@ button.needs-attention-panel__item:focus {
   width: 100%;
 }
 
+/* Payouts provider selector
+ * ------------------------------------------------------------------
+ * Three radio cards with a nested sandbox toggle inside the selected
+ * one. Renders via <button role="radio"> inside a role="radiogroup".
+ */
+
+.payouts-provider-selector {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.payouts-provider-selector--disabled {
+  opacity: 0.7;
+}
+
+.payouts-provider-selector__card-wrap {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.payouts-provider-selector__card {
+  align-items: flex-start;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: var(--space-3);
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: var(--space-4);
+  text-align: left;
+  transition: border-color 120ms ease, box-shadow 120ms ease,
+    background 120ms ease;
+  width: 100%;
+}
+
+.payouts-provider-selector__card:hover:not(:disabled) {
+  border-color: var(--color-brand-300);
+}
+
+.payouts-provider-selector__card:focus-visible {
+  border-color: var(--color-brand-500);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.payouts-provider-selector__card--active {
+  background: var(--color-brand-50);
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 0 1px var(--color-brand-500) inset;
+}
+
+.payouts-provider-selector__card--disabled,
+.payouts-provider-selector__card:disabled {
+  cursor: not-allowed;
+}
+
+.payouts-provider-selector__radio {
+  align-items: center;
+  background: var(--color-neutral-0);
+  border: 1.5px solid var(--color-neutral-300);
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  height: 18px;
+  justify-content: center;
+  margin-top: 2px;
+  transition: border-color 120ms ease;
+  width: 18px;
+}
+
+.payouts-provider-selector__card--active .payouts-provider-selector__radio {
+  border-color: var(--color-brand-500);
+}
+
+.payouts-provider-selector__radio-dot {
+  background: var(--color-brand-500);
+  border-radius: var(--radius-full);
+  height: 8px;
+  transform: scale(0);
+  transition: transform 120ms ease;
+  width: 8px;
+}
+
+.payouts-provider-selector__card--active
+  .payouts-provider-selector__radio-dot {
+  transform: scale(1);
+}
+
+.payouts-provider-selector__copy {
+  display: grid;
+  gap: 2px;
+}
+
+.payouts-provider-selector__name {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.payouts-provider-selector__tagline {
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
+.payouts-provider-selector__sandbox {
+  align-items: start;
+  background: var(--color-neutral-50);
+  border: 1px dashed var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: grid;
+  gap: var(--space-1);
+  grid-template-columns: auto minmax(0, 1fr);
+  margin-left: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+}
+
+.payouts-provider-selector--disabled .payouts-provider-selector__sandbox {
+  cursor: not-allowed;
+}
+
+.payouts-provider-selector__sandbox-input {
+  accent-color: var(--color-brand-500);
+  grid-row: 1 / span 2;
+  height: 16px;
+  margin-top: 3px;
+  width: 16px;
+}
+
+.payouts-provider-selector__sandbox-label {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.payouts-provider-selector__sandbox-hint {
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+}
+
+/* Payouts credential fields
+ * ------------------------------------------------------------------
+ * Discriminated form per provider. Text and secret inputs share the
+ * .payouts-credential-fields__input baseline; the reveal button is
+ * docked next to the secret input via a flex row.
+ */
+
+.payouts-credential-fields {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.payouts-credential-fields__field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.payouts-credential-fields__label {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.payouts-credential-fields__control {
+  display: grid;
+}
+
+.payouts-credential-fields__input {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-md);
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
+  width: 100%;
+}
+
+.payouts-credential-fields__input::placeholder {
+  color: var(--color-neutral-500);
+}
+
+.payouts-credential-fields__input:focus-visible {
+  border-color: var(--color-brand-500);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.payouts-credential-fields__input--error {
+  border-color: var(--color-danger);
+}
+
+.payouts-credential-fields__secret {
+  align-items: stretch;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.payouts-credential-fields__reveal {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-900);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
+}
+
+.payouts-credential-fields__reveal:hover {
+  background: var(--color-neutral-50);
+}
+
+.payouts-credential-fields__reveal:focus-visible {
+  border-color: var(--color-brand-500);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.payouts-credential-fields__hint,
+.payouts-credential-fields__error {
+  font-size: var(--font-size-xs);
+  margin: 0;
+}
+
+.payouts-credential-fields__hint {
+  color: var(--color-neutral-700);
+}
+
+.payouts-credential-fields__error {
+  color: var(--color-danger);
+}
+
