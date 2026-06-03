@@ -8,7 +8,7 @@ export const payoutsIntegrationPayloadSchema = z.discriminatedUnion("provider", 
       username: z.string().min(1),
       apiKey: z.string().min(1)
     }),
-    defaults: z.object({ currency: z.literal("NGN"), channel: z.literal("airtime") })
+    defaults: z.object({ currency: z.enum(["NGN"]), channel: z.enum(["airtime"]) })
   }),
   z.object({
     provider: z.literal("termii"),
@@ -17,7 +17,7 @@ export const payoutsIntegrationPayloadSchema = z.discriminatedUnion("provider", 
       apiKey: z.string().min(1),
       senderId: z.string().optional()
     }),
-    defaults: z.object({ currency: z.literal("NGN"), channel: z.literal("airtime") })
+    defaults: z.object({ currency: z.enum(["NGN"]), channel: z.enum(["airtime"]) })
   }),
   z.object({
     provider: z.literal("reloadly"),
@@ -26,7 +26,7 @@ export const payoutsIntegrationPayloadSchema = z.discriminatedUnion("provider", 
       clientId: z.string().min(1),
       clientSecret: z.string().min(1)
     }),
-    defaults: z.object({ currency: z.literal("NGN"), channel: z.literal("airtime") })
+    defaults: z.object({ currency: z.enum(["NGN"]), channel: z.enum(["airtime"]) })
   })
 ]);
 

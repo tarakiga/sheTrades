@@ -154,6 +154,11 @@ export function getRuntimeNumericPolicy(key: string, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+// TODO(payouts): the generic constraint was relaxed in Task 2 (was
+// `<T extends IntegrationConfigPayload>`) to avoid cross-module import
+// from config-platform → payouts. Restore a constraint once the payouts
+// payload schema is hoisted into a shared types module — or add
+// PayoutsIntegrationPayload to IntegrationConfigPayload directly.
 export function getRuntimeIntegrationConfig<T>(key: string) {
   const data = getPublishedIntegrationData(key);
   if (!data || typeof data !== "object") {
