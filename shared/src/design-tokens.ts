@@ -41,7 +41,13 @@ export const designTokens = {
       success: "#0f9f6e",
       warning: "#c58900",
       danger: "#d92d20",
-      info: "#2563eb"
+      info: "#2563eb",
+      "success-100": "#dcfce7",
+      "success-700": "#166534",
+      "warning-100": "#fef3c7",
+      "warning-700": "#854d0e",
+      "danger-100": "#fee2e2",
+      "danger-700": "#991b1b"
     }
   },
   typography: {
@@ -94,7 +100,8 @@ export const designTokens = {
   elevation: {
     sm: "0 1px 2px rgba(16, 24, 40, 0.08)",
     md: "0 4px 10px rgba(16, 24, 40, 0.1)",
-    lg: "0 12px 24px rgba(16, 24, 40, 0.14)"
+    lg: "0 12px 24px rgba(16, 24, 40, 0.14)",
+    drawer: "-12px 0 32px rgba(15, 23, 42, 0.12)"
   },
   iconography: {
     size: {
