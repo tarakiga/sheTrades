@@ -132,3 +132,84 @@ To prevent database formatting errors, the form must serialize into these two st
   * `npm run typecheck` PASS across all workspaces.
   * Code-level trace confirms button payload now matches handler menu pattern and answer matcher accepts all three input forms.
   * Local end-to-end smoke test deferred: local backend has no seeded lessons (Postgres unreachable from this dev machine), so the quiz path can't be triggered without staging access. User to verify on staging after Vercel + Cloud Run pick up the next deploy.
+
+---
+
+### 2026-06-04: Rewards Page Redesign + Automated Payouts Pipeline
+
+**Spec:** `docs/superpowers/specs/2026-06-04-rewards-redesign-design.md`
+**Plan:** `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
+**Status:** Tasks 1-20 complete on `main`. Cloud Scheduler not yet deployed.
+
+**What landed (20 tasks):**
+- Task 1: Reward schema delta + `ensurePrismaTables` ALTERs + bot upsert swap (`backend/prisma/schema.prisma`, `backend/src/admin/prisma.ts`, `backend/src/rewards/service.ts`).
+- Task 2: Payouts provider contracts — Zod discriminated union over the three sandbox providers (`backend/src/payouts/providers/contracts.ts`).
+- Task 3: Africa's Talking adapter + 13 tests (`backend/src/payouts/providers/africas-talking.ts`, `.test.ts`).
+- Task 4: Provider factory `getActiveProvider()` + test seam for swapping in mocks (`backend/src/payouts/providers/factory.ts`).
+- Task 5: Worker dispatch loop — claim, exponential backoff (5/10/20 min), structured logs (`backend/src/payouts/worker.ts`).
+- Task 6: Worker HTTP endpoint + `PAYOUTS_WORKER_TOKEN` auth header check (`backend/src/payouts/routes.ts`).
+- Task 7: Termii adapter (`backend/src/payouts/providers/termii.ts`).
+- Task 8: Reloadly adapter (`backend/src/payouts/providers/reloadly.ts`).
+- Task 9: Extended `GET /admin/rewards` with status/channel/search filters + `meta.activeProvider`.
+- Task 10: Admin endpoints — `POST /admin/rewards/:id/retry`, `/:id/mark-issued`, `/admin/rewards/manual`.
+- Task 11: CSV export endpoint (`GET /admin/rewards/export.csv`).
+- Task 12: Design tokens + currency / relative-time helpers (`dashboard/lib/design-tokens.ts`, `dashboard/lib/format.ts`).
+- Task 13: `RewardsHealthHero` + 3 sub-components + Storybook-style preview page.
+- Task 14: `RewardsToolbar` (search, status/channel/date filters, refresh, manual, export).
+- Task 15: `RewardsTable` + `RewardDetailDrawer` with status-gated row actions.
+- Task 16: `ManualRewardDrawer` with Zod validation and submit flow.
+- Task 17: Wired `/rewards` page composition to use the new components.
+- Task 18: `PayoutsProviderSelector` + `PayoutsCredentialFields` discriminated form + preview.
+- Task 19: Registered Payouts as a third sibling tab inside `IntegrationSettingsWorkspace` (followed the existing WhatsApp / Email pattern).
+- Task 20: Payouts post-deploy smoke script (`backend/src/smoke/payouts-smoke.ts`), CI wire-up in `.github/workflows/staging-promotion-gate.yml`, and this handoff entry.
+
+**Outstanding (operator actions required before production):**
+
+1. **Create the Cloud Scheduler worker secret on staging** (run in an authenticated shell):
+   ```
+   PROJECT=shetrades-staging-12345
+   TOKEN=$(openssl rand -hex 32)
+   echo -n "$TOKEN" | gcloud secrets create payouts-worker-token \
+     --data-file=- --project=$PROJECT
+   gcloud secrets add-iam-policy-binding payouts-worker-token \
+     --member="serviceAccount:214511840103-compute@developer.gserviceaccount.com" \
+     --role="roles/secretmanager.secretAccessor" --project=$PROJECT
+   echo "Save: $TOKEN"
+   ```
+
+2. **Deploy the backend with the secret mounted:**
+   ```
+   gcloud run deploy shetrades-backend-staging --source . --region us-central1 \
+     --env-vars-file cloudrun-staging-env.yaml \
+     --update-secrets PAYOUTS_WORKER_TOKEN=payouts-worker-token:latest --quiet
+   ```
+
+3. **Create the Cloud Scheduler job hitting the endpoint every 5 min:**
+   ```
+   gcloud scheduler jobs create http shetrades-payouts-dispatcher-staging \
+     --schedule "*/5 * * * *" \
+     --time-zone "Africa/Lagos" \
+     --uri "https://shetrades-backend-staging-214511840103.us-central1.run.app/internal/payouts/dispatch" \
+     --http-method POST \
+     --headers "X-Internal-Worker-Token=$TOKEN" \
+     --max-retry-attempts 0 \
+     --location us-central1 \
+     --project $PROJECT
+   ```
+
+4. **Publish a sandbox Payouts config:** via `/settings -> Integration -> Payouts`, pick Africa's Talking (or Termii / Reloadly), enter sandbox credentials, toggle sandbox ON, publish.
+
+5. **Run the smoke locally to verify end-to-end:**
+   ```
+   POSTGRES_URL="..." npm run smoke:payouts -w @shetrades/backend
+   ```
+   Expect `payouts.smoke.ok` within 6 minutes.
+
+6. **Production cut-over** (separate change): create production-side secret, repeat scheduler creation for production region, publish a production Payouts config doc using real credentials.
+
+**Known follow-ups not blocking this delivery:**
+- Add `/api/integrations/admin/payouts/test` endpoint that calls the adapter's `verifyCredentials` so the Settings tab can show a Test Connection button.
+- The `/rewards` `ManualRewardDrawer`'s learner autocomplete currently passes the reward id (not user id) — wire `/api/admin/users` (paginated list) to feed the picker properly, otherwise `POST /api/admin/rewards/manual` will 404.
+- Date range "Custom..." in `RewardsToolbar` is a label only — wire a date-picker modal in a follow-up.
+- Set up a dashboard test runner (Vitest or `node:test` loader) so component tests can actually execute.
+- Extract `dashboard/lib/admin/contracts.ts` `RewardLogRow` into a shared package or generate it from the backend Zod schemas to prevent drift.

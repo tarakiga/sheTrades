@@ -50,6 +50,12 @@ jobs:
       - name: Run staging smoke gate
         run: npm run smoke:staging -w @shetrades/backend
 
+      - name: Run payouts smoke
+        if: success() && env.STAGING_BACKEND_READY_URL != ''
+        env:
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+        run: npm run smoke:payouts -w @shetrades/backend
+
       - name: Verify deployed staging readiness endpoint
         if: success() && env.STAGING_BACKEND_READY_URL != ''
         shell: bash
