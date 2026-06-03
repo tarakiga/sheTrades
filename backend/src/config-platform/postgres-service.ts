@@ -515,7 +515,7 @@ export class PostgresConfigPlatformService {
         key: String(row.key),
         versionTag: toVersionTag(String(row.id), Number(row.version_number)),
         data: row.payload as ConfigPayload,
-        updatedAt: String(row.updated_at)
+        updatedAt: formatTimestamp(row.updated_at)
       }));
 
     const versionTag = documents.map((d) => d.versionTag).join("|") || "empty";

@@ -8,6 +8,91 @@ const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 export const prisma = new PrismaClient({ adapter });
 
+/**
+ * Idempotent bootstrap of the Prisma-managed tables. The Prisma schema lives
+ * in backend/prisma/schema.prisma but no migration files have ever been
+ * generated for it, so a fresh staging Postgres has none of these tables.
+ * We create them here at boot using IF NOT EXISTS so this is safe to run on
+ * every cold start and does nothing on warm restarts.
+ *
+ * Keep this in sync with backend/prisma/schema.prisma. The column types and
+ * defaults mirror what `prisma migrate dev` would produce.
+ */
+export async function ensurePrismaTables() {
+  try {
+    logger.info("Ensuring Prisma-managed tables exist...");
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        phone TEXT NOT NULL UNIQUE,
+        name TEXT,
+        language TEXT,
+        location TEXT,
+        status TEXT NOT NULL DEFAULT 'Active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        id TEXT PRIMARY KEY,
+        "userId" TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        state TEXT NOT NULL,
+        "selectedModuleId" TEXT,
+        "currentLessonKey" TEXT,
+        "completedLessons" TEXT[] NOT NULL DEFAULT '{}'::TEXT[],
+        "awaitingQuizAnswer" BOOLEAN NOT NULL DEFAULT false,
+        "currentQuizIndex" INTEGER NOT NULL DEFAULT 0,
+        "namePrompted" BOOLEAN NOT NULL DEFAULT false,
+        "lastUpdatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS user_progress (
+        id TEXT PRIMARY KEY,
+        "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        module TEXT NOT NULL,
+        "completionPercentage" DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT user_progress_user_module_unique UNIQUE ("userId", module)
+      );
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS quiz_attempts (
+        id TEXT PRIMARY KEY,
+        "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        "lessonKey" TEXT NOT NULL,
+        passed BOOLEAN NOT NULL DEFAULT false,
+        "attemptCount" INTEGER NOT NULL DEFAULT 1,
+        "lastAttemptAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT quiz_attempts_user_lesson_unique UNIQUE ("userId", "lessonKey")
+      );
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS rewards (
+        id TEXT PRIMARY KEY,
+        "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        module TEXT NOT NULL,
+        amount DOUBLE PRECISION NOT NULL,
+        channel TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'Pending',
+        "issuedAt" TIMESTAMP(3)
+      );
+    `);
+
+    logger.info("Prisma-managed tables ensured.");
+  } catch (error) {
+    logger.error("Failed to ensure Prisma tables; admin/sandbox features may not work.", error);
+    // Do not rethrow — same resilience pattern as the config-platform startup
+    // migrations. Express still binds so the rest of the app can serve.
+  }
+}
+
 export async function initializeAdminViews() {
   try {
     logger.info("Initializing admin dashboard views...");

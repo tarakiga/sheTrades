@@ -1,5 +1,5 @@
 import { createApp } from "./app.js";
-import { initializeAdminViews } from "./admin/prisma.js";
+import { ensurePrismaTables, initializeAdminViews } from "./admin/prisma.js";
 import { runMigrations } from "./config-platform/migrate.js";
 import { ensureCacheInitialized } from "./config-platform/runtime-config.js";
 
@@ -21,6 +21,9 @@ try {
   );
 }
 
+// Prisma tables must exist before initializeAdminViews creates VIEWs over them,
+// and before the WhatsApp handler queries UserSession during /webhook/whatsapp.
+await ensurePrismaTables();
 await initializeAdminViews();
 
 const port = Number(process.env.PORT ?? 8080);
