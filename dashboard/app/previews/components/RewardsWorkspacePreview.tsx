@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Card, SectionHeader } from "../../../components/ui";
 import { IssuanceSuccessGauge } from "../../../components/rewards/IssuanceSuccessGauge";
 import { TotalPaidHeadline } from "../../../components/rewards/TotalPaidHeadline";
@@ -6,6 +9,11 @@ import {
   type NeedsAttentionItem
 } from "../../../components/rewards/NeedsAttentionPanel";
 import { RewardsHealthHero } from "../../../components/rewards/RewardsHealthHero";
+import {
+  RewardsToolbar,
+  type RewardsToolbarDateRange,
+  type RewardsToolbarStatus
+} from "../../../components/rewards/RewardsToolbar";
 
 const STABLE_NOW = new Date("2026-05-18T12:00:00.000Z");
 const RECENT_ISSUANCE = new Date(STABLE_NOW.getTime() - 5 * 60 * 1000);
@@ -36,6 +44,58 @@ const overflowAttention: Array<NeedsAttentionItem> = [
     meta: "Termii key rotates in 2 d"
   }
 ];
+
+function ToolbarVariantDefault() {
+  const [status, setStatus] = useState<RewardsToolbarStatus>("All");
+  const [dateRange, setDateRange] = useState<RewardsToolbarDateRange>("7d");
+  const [query, setQuery] = useState<string>("");
+  return (
+    <RewardsToolbar
+      status={status}
+      onStatusChange={setStatus}
+      dateRange={dateRange}
+      onDateRangeChange={setDateRange}
+      query={query}
+      onQueryChange={setQuery}
+      onExportClick={() => undefined}
+    />
+  );
+}
+
+function ToolbarVariantFiltered() {
+  const [status, setStatus] = useState<RewardsToolbarStatus>("Failed");
+  const [dateRange, setDateRange] = useState<RewardsToolbarDateRange>("24h");
+  const [query, setQuery] = useState<string>("adaeze");
+  return (
+    <RewardsToolbar
+      status={status}
+      onStatusChange={setStatus}
+      dateRange={dateRange}
+      onDateRangeChange={setDateRange}
+      query={query}
+      onQueryChange={setQuery}
+      onExportClick={() => undefined}
+    />
+  );
+}
+
+function ToolbarVariantExporting() {
+  const [status, setStatus] = useState<RewardsToolbarStatus>("Pending");
+  const [dateRange, setDateRange] = useState<RewardsToolbarDateRange>("30d");
+  const [query, setQuery] = useState<string>("");
+  return (
+    <RewardsToolbar
+      status={status}
+      onStatusChange={setStatus}
+      dateRange={dateRange}
+      onDateRangeChange={setDateRange}
+      query={query}
+      onQueryChange={setQuery}
+      onExportClick={() => undefined}
+      exporting
+    />
+  );
+}
 
 export function RewardsWorkspacePreview() {
   return (
@@ -145,6 +205,35 @@ export function RewardsWorkspacePreview() {
           deltaVsPreviousPeriod={null}
           attentionItems={[]}
         />
+      </Card>
+
+      <Card
+        title="Rewards Toolbar"
+        description="Sticky strip below the hero: status pills, date range select, debounced search, export CSV. Search input debounces at 300ms before reporting changes upstream."
+      >
+        <div className="preview-card-content">
+          <div>
+            <ToolbarVariantDefault />
+            <p className="preview-card-content__caption">
+              Default — status: All, range: Last 7 days, no query, idle export
+              button.
+            </p>
+          </div>
+          <div>
+            <ToolbarVariantFiltered />
+            <p className="preview-card-content__caption">
+              Filtered — status: Failed (danger accent), range: Last 24 hours,
+              search prefilled with "adaeze".
+            </p>
+          </div>
+          <div>
+            <ToolbarVariantExporting />
+            <p className="preview-card-content__caption">
+              Exporting — status: Pending (warning accent), range: Last 30 days,
+              export button locked with spinner.
+            </p>
+          </div>
+        </div>
       </Card>
     </div>
   );
