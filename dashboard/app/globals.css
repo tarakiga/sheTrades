@@ -5954,3 +5954,359 @@ button.needs-attention-panel__item:focus {
   width: 100%;
 }
 
+/* -------------------------------------------------------------
+ * Manual reward drawer
+ * Right-side slide-out for issuing rewards by hand. Re-uses the
+ * same drawer shell tokens (--shadow-drawer, ESC/backdrop close)
+ * as the reward detail drawer.
+ * ------------------------------------------------------------- */
+
+.manual-reward-drawer {
+  inset: 0;
+  position: fixed;
+  z-index: 40;
+}
+
+.manual-reward-drawer__backdrop {
+  background: rgba(15, 23, 42, 0.48);
+  border: none;
+  cursor: pointer;
+  inset: 0;
+  opacity: 0;
+  padding: 0;
+  position: absolute;
+  animation: ui-fade-in 0.22s ease forwards;
+}
+
+.manual-reward-drawer__panel {
+  background: var(--color-neutral-0);
+  box-shadow: var(--shadow-drawer);
+  display: grid;
+  gap: var(--space-4);
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  margin-left: auto;
+  max-width: 100%;
+  overflow: hidden;
+  padding: var(--space-6);
+  position: relative;
+  width: min(480px, 100vw);
+  animation: ui-drawer-enter 0.28s cubic-bezier(0.2, 0.9, 0.22, 1) forwards;
+  transform: translateX(24px);
+}
+
+.manual-reward-drawer__header {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.manual-reward-drawer__title {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-xl);
+  margin: 0;
+}
+
+.manual-reward-drawer__close {
+  background: transparent;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-700);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
+}
+
+.manual-reward-drawer__close:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.manual-reward-drawer__form {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-rows: auto auto auto auto 1fr auto;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.manual-reward-drawer__alert {
+  background: var(--color-danger-50);
+  border: 1px solid var(--color-danger-500);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-700);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  padding: var(--space-3) var(--space-4);
+}
+
+.manual-reward-drawer__field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.manual-reward-drawer__field-row {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr 1fr;
+}
+
+.manual-reward-drawer__field-label {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.manual-reward-drawer__field-hint {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+}
+
+.manual-reward-drawer__field-error {
+  color: var(--color-danger-700);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.manual-reward-drawer__input,
+.manual-reward-drawer__textarea {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-900);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-3);
+  width: 100%;
+}
+
+.manual-reward-drawer__textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.manual-reward-drawer__input:focus-visible,
+.manual-reward-drawer__textarea:focus-visible {
+  border-color: var(--color-neutral-900);
+  outline: 2px solid var(--color-neutral-900);
+  outline-offset: 1px;
+}
+
+.manual-reward-drawer__input:disabled,
+.manual-reward-drawer__textarea:disabled {
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-500);
+  cursor: not-allowed;
+}
+
+.manual-reward-drawer__autocomplete {
+  position: relative;
+}
+
+.manual-reward-drawer__suggestions {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  display: grid;
+  gap: 1px;
+  left: 0;
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 5;
+}
+
+.manual-reward-drawer__suggestion {
+  margin: 0;
+  padding: 0;
+}
+
+.manual-reward-drawer__suggestion-btn {
+  align-items: baseline;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-neutral-900);
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  width: 100%;
+}
+
+.manual-reward-drawer__suggestion-btn:hover,
+.manual-reward-drawer__suggestion-btn:focus-visible {
+  background: var(--color-neutral-100);
+  outline: none;
+}
+
+.manual-reward-drawer__suggestion-name {
+  color: var(--color-neutral-900);
+  font-weight: 600;
+}
+
+.manual-reward-drawer__suggestion-phone {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.manual-reward-drawer__selected-learner {
+  align-items: center;
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+}
+
+.manual-reward-drawer__selected-learner-body {
+  display: grid;
+  gap: 2px;
+}
+
+.manual-reward-drawer__selected-learner-name {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.manual-reward-drawer__selected-learner-phone {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.manual-reward-drawer__selected-learner-clear {
+  background: transparent;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-700);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-3);
+}
+
+.manual-reward-drawer__selected-learner-clear:hover:not(:disabled) {
+  background: var(--color-neutral-100);
+}
+
+.manual-reward-drawer__selected-learner-clear:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.manual-reward-drawer__selected-learner-clear:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.manual-reward-drawer__footer {
+  align-items: center;
+  border-top: 1px solid var(--color-neutral-100);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  padding-top: var(--space-4);
+}
+
+.manual-reward-drawer__btn {
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-4);
+  transition: background-color 120ms ease, border-color 120ms ease,
+    color 120ms ease, opacity 120ms ease;
+}
+
+.manual-reward-drawer__btn:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.manual-reward-drawer__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.manual-reward-drawer__btn--primary {
+  background: var(--color-neutral-900);
+  border: 1px solid var(--color-neutral-900);
+  color: var(--color-neutral-0);
+}
+
+.manual-reward-drawer__btn--primary:hover:not(:disabled) {
+  background: var(--color-brand-700);
+  border-color: var(--color-brand-700);
+}
+
+.manual-reward-drawer__btn--secondary {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  color: var(--color-neutral-900);
+}
+
+.manual-reward-drawer__btn--secondary:hover:not(:disabled) {
+  background: var(--color-neutral-100);
+  border-color: var(--color-neutral-300);
+}
+
+.manual-reward-drawer__submit-busy {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.manual-reward-drawer__spinner {
+  border: 2px solid var(--color-neutral-200);
+  border-radius: var(--radius-full);
+  border-top-color: var(--color-neutral-0);
+  display: inline-block;
+  height: 14px;
+  width: 14px;
+  animation: ui-spin 0.7s linear infinite;
+}
+
+/* Preview frame overrides — render the drawer in-place rather than
+ * as a page-level overlay. */
+
+.preview-drawer-frame .manual-reward-drawer {
+  inset: auto;
+  position: relative;
+  z-index: auto;
+}
+
+.preview-drawer-frame .manual-reward-drawer__backdrop {
+  display: none;
+}
+
+.preview-drawer-frame .manual-reward-drawer__panel {
+  animation: none;
+  box-shadow: none;
+  height: 100%;
+  margin: 0;
+  transform: none;
+  width: 100%;
+}
+

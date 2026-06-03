@@ -19,6 +19,10 @@ import {
   type RewardLogRow
 } from "../../../components/rewards/RewardsTable";
 import { RewardDetailDrawer } from "../../../components/rewards/RewardDetailDrawer";
+import {
+  ManualRewardDrawer,
+  type LearnerOption
+} from "../../../components/rewards/ManualRewardDrawer";
 
 const STABLE_NOW = new Date("2026-05-18T12:00:00.000Z");
 const RECENT_ISSUANCE = new Date(STABLE_NOW.getTime() - 5 * 60 * 1000);
@@ -156,6 +160,112 @@ const MOCK_REWARDS: Array<RewardLogRow> = [
 const ISSUED_REWARD: RewardLogRow = MOCK_REWARDS[0] as RewardLogRow;
 const PENDING_REWARD: RewardLogRow = MOCK_REWARDS[1] as RewardLogRow;
 const FAILED_REWARD: RewardLogRow = MOCK_REWARDS[2] as RewardLogRow;
+
+const MOCK_LEARNERS: Array<LearnerOption> = [
+  { id: "lr_001", name: "Adaeze Okonkwo", phone: "+2348031234567" },
+  { id: "lr_002", name: "Funmi Adebayo", phone: "+2347061122334" },
+  { id: "lr_003", name: "Chinwe Okoro", phone: "+2348099887766" },
+  { id: "lr_004", name: "Aisha Yusuf", phone: "+2349055443322" }
+];
+
+const PRE_SELECTED_LEARNER: LearnerOption = MOCK_LEARNERS[0] as LearnerOption;
+
+function ManualRewardEmptyVariant() {
+  return (
+    <ManualRewardDrawer
+      open
+      onClose={noop}
+      onSubmit={noopAsync}
+      defaultAmount={5000}
+      defaultChannel="airtime"
+      learners={MOCK_LEARNERS}
+    />
+  );
+}
+
+function ManualRewardPrefilledVariant() {
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    // Simulate the learner being selected from the autocomplete by
+    // clicking the first suggestion. We type a query first so the
+    // suggestion list opens.
+    const input = frame.querySelector<HTMLInputElement>(
+      "input.manual-reward-drawer__input"
+    );
+    if (!input) return;
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value"
+    )?.set;
+    setter?.call(input, PRE_SELECTED_LEARNER.name);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    // Fill the note so the form is ready-to-submit.
+    const note = frame.querySelector<HTMLTextAreaElement>(
+      "textarea.manual-reward-drawer__textarea"
+    );
+    if (note) {
+      const noteSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        "value"
+      )?.set;
+      noteSetter?.call(
+        note,
+        "Issued manually after Reloadly outage on 2026-05-18."
+      );
+      note.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    // Click the first suggestion to lock the learner in.
+    window.requestAnimationFrame(() => {
+      const suggestion = frame.querySelector<HTMLButtonElement>(
+        "button.manual-reward-drawer__suggestion-btn"
+      );
+      suggestion?.click();
+    });
+  }, []);
+  return (
+    <div className="preview-drawer-frame" ref={frameRef}>
+      <ManualRewardDrawer
+        open
+        onClose={noop}
+        onSubmit={noopAsync}
+        defaultAmount={5000}
+        defaultChannel="airtime"
+        learners={MOCK_LEARNERS}
+      />
+    </div>
+  );
+}
+
+function ManualRewardValidationErrorVariant() {
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    // Submitting an empty form surfaces validation errors next to
+    // every required field.
+    const form = frame.querySelector<HTMLFormElement>(
+      "form.manual-reward-drawer__form"
+    );
+    if (!form) return;
+    window.requestAnimationFrame(() => {
+      form.requestSubmit();
+    });
+  }, []);
+  return (
+    <div className="preview-drawer-frame" ref={frameRef}>
+      <ManualRewardDrawer
+        open
+        onClose={noop}
+        onSubmit={noopAsync}
+        defaultAmount={5000}
+        defaultChannel="airtime"
+        learners={MOCK_LEARNERS}
+      />
+    </div>
+  );
+}
 
 function noop(): void {
   /* preview only */
@@ -457,6 +567,46 @@ export function RewardsWorkspacePreview() {
             onOpenLearner={noop}
           />
         </div>
+      </Card>
+
+      <Card
+        title="Manual Reward Drawer — closed"
+        description="When open is false the drawer renders nothing."
+      >
+        <p className="preview-card-content__caption">
+          (Nothing renders below — closed drawer is a no-op.)
+        </p>
+        <ManualRewardDrawer
+          open={false}
+          onClose={noop}
+          onSubmit={noopAsync}
+          defaultAmount={5000}
+          defaultChannel="airtime"
+          learners={MOCK_LEARNERS}
+        />
+      </Card>
+
+      <Card
+        title="Manual Reward Drawer — empty form"
+        description="Default state with no fields touched. Amount and channel show their defaults; the learner is unselected."
+      >
+        <div className="preview-drawer-frame">
+          <ManualRewardEmptyVariant />
+        </div>
+      </Card>
+
+      <Card
+        title="Manual Reward Drawer — pre-filled valid"
+        description="A learner is pre-selected via the autocomplete and the reason note is populated, so the form is ready to submit."
+      >
+        <ManualRewardPrefilledVariant />
+      </Card>
+
+      <Card
+        title="Manual Reward Drawer — validation errors"
+        description="Submitting the empty form surfaces inline errors next to every required field. The card auto-submits on mount to simulate this state."
+      >
+        <ManualRewardValidationErrorVariant />
       </Card>
     </div>
   );
