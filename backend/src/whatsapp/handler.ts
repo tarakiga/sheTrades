@@ -873,14 +873,17 @@ async function recordAnalytics(session: UserSession): Promise<void> {
         const parsedAmount = Number(process.env.REWARD_DEFAULT_AMOUNT);
         const amount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 500;
         const channel = (process.env.REWARD_DEFAULT_CHANNEL ?? "airtime").trim() || "airtime";
+        // Guard against an empty or whitespace-only module name, which would
+        // otherwise collapse the (userId, module) dedup key for the user.
+        const moduleKey = (event.module ?? "").trim() || "Unknown";
         await prisma.reward.upsert({
           where: {
-            userId_module: { userId: session.userId, module: event.module }
+            userId_module: { userId: session.userId, module: moduleKey }
           },
           update: {},  // never overwrite an existing reward when the user replays a module
           create: {
             userId: session.userId,
-            module: event.module,
+            module: moduleKey,
             amount,
             channel,
             status: "Pending",

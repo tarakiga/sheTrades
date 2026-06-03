@@ -137,6 +137,10 @@ export async function ensurePrismaTables() {
       END $$;
     `);
 
+    // TODO(Task 2): backfill learnerPhone from users.phone for legacy Pending
+    // rewards before the payouts worker runs against them, e.g.:
+    //   UPDATE rewards r SET "learnerPhone" = u.phone
+    //   FROM users u WHERE r."userId" = u.id AND r."learnerPhone" = '';
     // rewards
     await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS rewards (id TEXT PRIMARY KEY);`);
     await prisma.$executeRawUnsafe(`ALTER TABLE rewards ADD COLUMN IF NOT EXISTS "userId" TEXT;`);
@@ -155,11 +159,30 @@ export async function ensurePrismaTables() {
     await prisma.$executeRawUnsafe(`ALTER TABLE rewards ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE rewards ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
 
-    // Compound uniqueness so the bot can use prisma.reward.upsert.
+    // Pre-clean any legacy duplicate (userId, module) rows so the UNIQUE
+    // constraint can be added safely. The previous findFirst+create path
+    // had a TOCTOU race that could (rarely) insert duplicates; keep the
+    // row with the lowest ctid (oldest). Idempotent on a clean DB.
+    await prisma.$executeRawUnsafe(`
+      DELETE FROM rewards a
+      USING rewards b
+      WHERE a.ctid < b.ctid
+        AND a."userId" = b."userId"
+        AND a.module = b.module;
+    `);
+
+    // Compound uniqueness so the bot can use prisma.reward.upsert. Wrapped
+    // in its own EXCEPTION block so an unforeseen failure here does not
+    // abort the rest of the bootstrap (the outer try/catch would otherwise
+    // skip every subsequent ALTER + the legacy-NOT-NULL sweep).
     await prisma.$executeRawUnsafe(`
       DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rewards_userId_module_key') THEN
-          ALTER TABLE rewards ADD CONSTRAINT "rewards_userId_module_key" UNIQUE ("userId", module);
+          BEGIN
+            ALTER TABLE rewards ADD CONSTRAINT "rewards_userId_module_key" UNIQUE ("userId", module);
+          EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'rewards_userId_module_key add failed: %', SQLERRM;
+          END;
         END IF;
       END $$;
     `);
