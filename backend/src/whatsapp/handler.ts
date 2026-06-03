@@ -11,7 +11,8 @@ type AnalyticsEvent =
       lessonKey: string;
       module: string;
       completionPercentage: number;
-    };
+    }
+  | { type: "module_completed"; module: string };
 
 type UserSession = {
   phone: string;
@@ -679,7 +680,17 @@ function transition(
                 buttons: ["NEXT", "MENU"]
               };
             } else {
-              // Completed entire module
+              // Completed entire module — capture the name before mutating
+              // session state, then emit the analytics event so a reward
+              // record can be inserted by recordAnalytics() after the user
+              // turn is persisted.
+              const completedModuleName =
+                session.selectedModuleId ?? activeLesson.module ?? "Unknown";
+              session._events!.push({
+                type: "module_completed",
+                module: completedModuleName
+              });
+
               session.currentLessonKey = null;
               session.selectedModuleId = null;
 
@@ -858,6 +869,30 @@ async function recordAnalytics(session: UserSession): Promise<void> {
             completionPercentage: event.completionPercentage
           }
         });
+      } else if (event.type === "module_completed") {
+        // Idempotency guard: only one reward per (user, module). The
+        // Reward model has no unique constraint on (userId, module)
+        // yet, so we check explicitly. If the user replays a module
+        // (e.g. re-takes a lesson after MENU), we do not stack rewards.
+        const existing = await prisma.reward.findFirst({
+          where: { userId: session.userId, module: event.module }
+        });
+        if (!existing) {
+          const parsedAmount = Number(process.env.REWARD_DEFAULT_AMOUNT);
+          const amount = Number.isFinite(parsedAmount) && parsedAmount > 0
+            ? parsedAmount
+            : 500;
+          const channel = (process.env.REWARD_DEFAULT_CHANNEL ?? "airtime").trim();
+          await prisma.reward.create({
+            data: {
+              userId: session.userId,
+              module: event.module,
+              amount,
+              channel: channel || "airtime",
+              status: "Pending"
+            }
+          });
+        }
       }
     } catch (error) {
       console.warn(
