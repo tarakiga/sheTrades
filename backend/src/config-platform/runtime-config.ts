@@ -179,6 +179,15 @@ export function getRuntimePayoutsConfig() {
   return getRuntimeIntegrationConfig<PayoutsIntegrationPayload>("integration.payouts.primary");
 }
 
+/** Test-only: inject an integration config without exercising the publish path. */
+export function setRuntimeIntegrationConfigForTests(key: string, value: unknown) {
+  if (value === null || value === undefined) {
+    cachedIntegrationConfigs.delete(key);
+  } else {
+    cachedIntegrationConfigs.set(key, value);
+  }
+}
+
 export type RuntimeLesson = {
   key: string;
   title: string;
