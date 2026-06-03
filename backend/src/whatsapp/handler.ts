@@ -4,8 +4,18 @@ import { prisma } from "../admin/prisma.js";
 
 export type ConversationState = "awaiting_name" | "awaiting_language" | "main_menu" | "module_menu";
 
+type AnalyticsEvent =
+  | { type: "quiz_answered"; lessonKey: string; correct: boolean }
+  | {
+      type: "lesson_completed";
+      lessonKey: string;
+      module: string;
+      completionPercentage: number;
+    };
+
 type UserSession = {
   phone: string;
+  userId: string;
   name?: string;
   language?: "en" | "pcm" | "ig";
   state: ConversationState;
@@ -16,6 +26,12 @@ type UserSession = {
   awaitingQuizAnswer?: boolean;
   currentQuizIndex?: number;
   selectedModuleId?: string | null;
+  /**
+   * Transient per-turn analytics events. Never persisted; cleared at the
+   * start of each transition() and consumed by recordAnalytics() after
+   * saveSession() runs.
+   */
+  _events?: AnalyticsEvent[];
 };
 
 type InboundMessage = {
@@ -171,6 +187,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
   if (user && user.session) {
     const s: UserSession = {
       phone: user.phone,
+      userId: user.id,
       state: user.session.state as ConversationState,
       lastUpdatedAt: user.session.lastUpdatedAt.toISOString(),
       completedLessons: user.session.completedLessons,
@@ -194,6 +211,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
     });
     const s: UserSession = {
       phone: user.phone,
+      userId: user.id,
       state: newSession.state as ConversationState,
       lastUpdatedAt: newSession.lastUpdatedAt.toISOString(),
       completedLessons: []
@@ -217,6 +235,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
 
   const s2: UserSession = {
     phone: createdUser.phone,
+    userId: createdUser.id,
     state: createdUser.session!.state as ConversationState,
     lastUpdatedAt: createdUser.session!.lastUpdatedAt.toISOString(),
     completedLessons: []
@@ -321,6 +340,11 @@ function transition(
 
   // Ensure completed lessons list is always initialized
   session.completedLessons = session.completedLessons || [];
+
+  // Fresh per-turn event buffer. recordAnalytics() drains this after the
+  // session is persisted, so analytics writes can fail without breaking
+  // the user-facing reply.
+  session._events = [];
 
   if (session.state === "awaiting_name") {
     const greetings = ["hi", "hello", "hey", "start", "menu", "yo", "hola", "begin", "ping", "test", "shetrades"];
@@ -559,8 +583,18 @@ function transition(
         const isCorrectNumber = inputAsNumber === String(correctIndex + 1);
         const isCorrectText =
           normalized === correctOptionText || strippedInput === correctOptionText;
+        const isCorrect = isCorrectNumber || isCorrectText;
 
-        if (isCorrectNumber || isCorrectText) {
+        // Record every submitted answer so the admin Pass Rate / Quiz Pass
+        // analytics reflect real bot interactions. quiz_attempts is keyed
+        // on (userId, lessonKey) so retries accumulate against the same row.
+        session._events!.push({
+          type: "quiz_answered",
+          lessonKey: activeLesson.key,
+          correct: isCorrect
+        });
+
+        if (isCorrect) {
           // Success on this question
           const isLastQuestion = qIndex >= activeLesson.quiz.length - 1;
 
@@ -605,6 +639,23 @@ function transition(
             session.awaitingQuizAnswer = false;
             session.currentQuizIndex = 0;
             session.lastUpdatedAt = nowIso();
+
+            // Record lesson completion so the admin Module Completion %
+            // reflects real bot interactions. Compute the module's overall
+            // completion percentage here where moduleLessons is in scope.
+            const completedInModule = moduleLessons.filter((l) =>
+              session.completedLessons!.includes(l.key)
+            ).length;
+            const completionPercentage =
+              moduleLessons.length > 0
+                ? Math.round((completedInModule / moduleLessons.length) * 100)
+                : 0;
+            session._events!.push({
+              type: "lesson_completed",
+              lessonKey: activeLesson.key,
+              module: session.selectedModuleId ?? activeLesson.module ?? "Unknown",
+              completionPercentage
+            });
 
             // Find next lesson inside this module
             const currentIdx = moduleLessons.findIndex(l => l.key === activeLesson.key);
@@ -704,7 +755,7 @@ function transition(
         state: session.state,
         reply,
         buttons: [
-          ...quizItem.options.map((opt) => opt),
+          ...quizItem.options,
           "MENU"
         ]
       };
@@ -736,6 +787,88 @@ function transition(
   };
 }
 
+/**
+ * Drain the transient `_events` buffer set by transition() and persist
+ * the corresponding rows in quiz_attempts / user_progress. Failures here
+ * MUST NOT bubble up — the user already got their reply from transition,
+ * and analytics drift is far less important than a 500 in the webhook.
+ */
+async function recordAnalytics(session: UserSession): Promise<void> {
+  const events = session._events ?? [];
+  if (events.length === 0) {
+    return;
+  }
+  for (const event of events) {
+    try {
+      if (event.type === "quiz_answered") {
+        await prisma.quizAttempt.upsert({
+          where: {
+            userId_lessonKey: {
+              userId: session.userId,
+              lessonKey: event.lessonKey
+            }
+          },
+          update: {
+            attemptCount: { increment: 1 },
+            lastAttemptAt: new Date()
+          },
+          create: {
+            userId: session.userId,
+            lessonKey: event.lessonKey,
+            attemptCount: 1,
+            passed: false,
+            lastAttemptAt: new Date()
+          }
+        });
+      } else if (event.type === "lesson_completed") {
+        // Mark the quiz attempt as passed (lesson is only marked complete
+        // when the final question of its quiz is answered correctly).
+        await prisma.quizAttempt.upsert({
+          where: {
+            userId_lessonKey: {
+              userId: session.userId,
+              lessonKey: event.lessonKey
+            }
+          },
+          update: { passed: true },
+          create: {
+            userId: session.userId,
+            lessonKey: event.lessonKey,
+            attemptCount: 1,
+            passed: true,
+            lastAttemptAt: new Date()
+          }
+        });
+        // Update the per-module completion percentage for the analytics
+        // dashboard. Module column is the module name string.
+        await prisma.userProgress.upsert({
+          where: {
+            userId_module: {
+              userId: session.userId,
+              module: event.module
+            }
+          },
+          update: {
+            completionPercentage: event.completionPercentage,
+            updatedAt: new Date()
+          },
+          create: {
+            userId: session.userId,
+            module: event.module,
+            completionPercentage: event.completionPercentage
+          }
+        });
+      }
+    } catch (error) {
+      console.warn(
+        "recordAnalytics: failed to persist event",
+        event.type,
+        error instanceof Error ? error.message : error
+      );
+    }
+  }
+}
+
 export async function handleWhatsAppWebhook(payload: unknown): Promise<WhatsAppWebhookResult> {
   const inbound = extractInboundMessage(payload);
   if (!inbound) {
@@ -761,6 +894,7 @@ export async function handleWhatsAppWebhook(payload: unknown): Promise<WhatsAppW
   processedMessageIds.add(inbound.id);
   const result = transition(existingSession, inbound.text);
   await saveSession(inbound.from, existingSession);
+  await recordAnalytics(existingSession);
 
   return {
     status: "processed",
