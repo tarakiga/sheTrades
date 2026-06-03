@@ -12,77 +12,118 @@ export const prisma = new PrismaClient({ adapter });
  * Idempotent bootstrap of the Prisma-managed tables. The Prisma schema lives
  * in backend/prisma/schema.prisma but no migration files have ever been
  * generated for it, so a fresh staging Postgres has none of these tables.
- * We create them here at boot using IF NOT EXISTS so this is safe to run on
- * every cold start and does nothing on warm restarts.
  *
- * Keep this in sync with backend/prisma/schema.prisma. The column types and
- * defaults mirror what `prisma migrate dev` would produce.
+ * Each table is created with IF NOT EXISTS, then every column is added with
+ * ALTER TABLE ... ADD COLUMN IF NOT EXISTS. This double-pass is what makes
+ * the bootstrap resilient against schema drift: if a table already exists
+ * (from an earlier version of the codebase or a manual setup) but is missing
+ * columns the current Prisma schema requires, the ALTER calls fill them in
+ * without touching existing data.
+ *
+ * Keep this in sync with backend/prisma/schema.prisma. If you remove or
+ * rename a column in the Prisma schema this code will not drop it; that
+ * needs an explicit migration.
  */
 export async function ensurePrismaTables() {
   try {
     logger.info("Ensuring Prisma-managed tables exist...");
 
+    // users
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS location TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Active';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
+    // Phone is UNIQUE; add the constraint if missing. Wrap in a DO block so
+    // re-running is silent.
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        phone TEXT NOT NULL UNIQUE,
-        name TEXT,
-        language TEXT,
-        location TEXT,
-        status TEXT NOT NULL DEFAULT 'Active',
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'users_phone_key'
+        ) THEN
+          ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone);
+        END IF;
+      END $$;
     `);
 
+    // user_sessions
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS user_sessions (id TEXT PRIMARY KEY);`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "userId" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS state TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "selectedModuleId" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "currentLessonKey" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "completedLessons" TEXT[] NOT NULL DEFAULT '{}'::TEXT[];`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "awaitingQuizAnswer" BOOLEAN NOT NULL DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "currentQuizIndex" INTEGER NOT NULL DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "namePrompted" BOOLEAN NOT NULL DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "lastUpdatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS user_sessions (
-        id TEXT PRIMARY KEY,
-        "userId" TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-        state TEXT NOT NULL,
-        "selectedModuleId" TEXT,
-        "currentLessonKey" TEXT,
-        "completedLessons" TEXT[] NOT NULL DEFAULT '{}'::TEXT[],
-        "awaitingQuizAnswer" BOOLEAN NOT NULL DEFAULT false,
-        "currentQuizIndex" INTEGER NOT NULL DEFAULT 0,
-        "namePrompted" BOOLEAN NOT NULL DEFAULT false,
-        "lastUpdatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_sessions_userId_key') THEN
+          ALTER TABLE user_sessions ADD CONSTRAINT "user_sessions_userId_key" UNIQUE ("userId");
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_sessions_userId_fkey') THEN
+          ALTER TABLE user_sessions ADD CONSTRAINT "user_sessions_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
     `);
 
+    // user_progress
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS user_progress (id TEXT PRIMARY KEY);`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS "userId" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS module TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS "completionPercentage" DOUBLE PRECISION NOT NULL DEFAULT 0.0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS user_progress (
-        id TEXT PRIMARY KEY,
-        "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        module TEXT NOT NULL,
-        "completionPercentage" DOUBLE PRECISION NOT NULL DEFAULT 0.0,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT user_progress_user_module_unique UNIQUE ("userId", module)
-      );
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_progress_user_module_unique') THEN
+          ALTER TABLE user_progress ADD CONSTRAINT user_progress_user_module_unique UNIQUE ("userId", module);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_progress_userId_fkey') THEN
+          ALTER TABLE user_progress ADD CONSTRAINT "user_progress_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
     `);
 
+    // quiz_attempts
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS quiz_attempts (id TEXT PRIMARY KEY);`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS "userId" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS "lessonKey" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS passed BOOLEAN NOT NULL DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS "attemptCount" INTEGER NOT NULL DEFAULT 1;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS "lastAttemptAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS quiz_attempts (
-        id TEXT PRIMARY KEY,
-        "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        "lessonKey" TEXT NOT NULL,
-        passed BOOLEAN NOT NULL DEFAULT false,
-        "attemptCount" INTEGER NOT NULL DEFAULT 1,
-        "lastAttemptAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT quiz_attempts_user_lesson_unique UNIQUE ("userId", "lessonKey")
-      );
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'quiz_attempts_user_lesson_unique') THEN
+          ALTER TABLE quiz_attempts ADD CONSTRAINT quiz_attempts_user_lesson_unique UNIQUE ("userId", "lessonKey");
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'quiz_attempts_userId_fkey') THEN
+          ALTER TABLE quiz_attempts ADD CONSTRAINT "quiz_attempts_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
     `);
 
+    // rewards
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS rewards (id TEXT PRIMARY KEY);`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE rewards ADD COLUMN IF NOT EXISTS "userId" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE rewards ADD COLUMN IF NOT EXISTS module TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE rewards ADD COLUMN IF NOT EXISTS amount DOUBLE PRECISION;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE rewards ADD COLUMN IF NOT EXISTS channel TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE rewards ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Pending';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE rewards ADD COLUMN IF NOT EXISTS "issuedAt" TIMESTAMP(3);`);
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS rewards (
-        id TEXT PRIMARY KEY,
-        "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        module TEXT NOT NULL,
-        amount DOUBLE PRECISION NOT NULL,
-        channel TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'Pending',
-        "issuedAt" TIMESTAMP(3)
-      );
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rewards_userId_fkey') THEN
+          ALTER TABLE rewards ADD CONSTRAINT "rewards_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
     `);
 
     logger.info("Prisma-managed tables ensured.");
