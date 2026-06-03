@@ -233,3 +233,54 @@ test(
     );
   }
 );
+
+test(
+  "POST /api/admin/rewards/:id/retry rejects when reward not found",
+  { concurrency: false },
+  async () => {
+    const fakeId = "00000000-0000-4000-8000-000000000000";
+    await request(app).post(`/api/admin/rewards/${fakeId}/retry`).expect(404);
+  }
+);
+
+test(
+  "POST /api/admin/rewards/:id/mark-issued rejects body with short note",
+  { concurrency: false },
+  async () => {
+    const fakeId = "00000000-0000-4000-8000-000000000001";
+    // Validation should fire before the existence check (Zod first).
+    const response = await request(app)
+      .post(`/api/admin/rewards/${fakeId}/mark-issued`)
+      .send({ note: "short" })
+      .expect(400);
+    assert.match(response.body.message, /at least 10/);
+  }
+);
+
+test(
+  "POST /api/admin/rewards/manual rejects body with missing userId",
+  { concurrency: false },
+  async () => {
+    const response = await request(app)
+      .post("/api/admin/rewards/manual")
+      .send({ amount: 500, note: "one-time discretionary payout for completion" })
+      .expect(400);
+    assert.ok(response.body.message);
+  }
+);
+
+test(
+  "POST /api/admin/rewards/manual rejects when amount is zero",
+  { concurrency: false },
+  async () => {
+    const response = await request(app)
+      .post("/api/admin/rewards/manual")
+      .send({
+        userId: "00000000-0000-4000-8000-000000000002",
+        amount: 0,
+        note: "valid length note for the request"
+      })
+      .expect(400);
+    assert.ok(response.body.message);
+  }
+);
