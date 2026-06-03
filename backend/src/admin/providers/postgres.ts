@@ -106,26 +106,31 @@ export async function fetchAnalyticsFromPostgres(): Promise<AnalyticsPageData | 
         deltaCompletedCount: number;
         deltaPassedCount: number;
       }>(
+        // Identifiers are interpolated from validated mappings (allow-listed
+        // by sqlIdentifierSchema / sqlColumnIdentifierSchema) and wrapped in
+        // double quotes here so Postgres preserves case. Without quoting,
+        // camelCase Prisma columns like "userId" / "completionPercentage"
+        // get folded to lowercase by the parser and never match.
         `WITH base_users AS (
            SELECT
-             u.${mappings.usersIdColumn} AS user_id,
-             u.${mappings.usersLocationColumn} AS user_location
-           FROM ${mappings.usersTable} u
+             u."${mappings.usersIdColumn}" AS user_id,
+             u."${mappings.usersLocationColumn}" AS user_location
+           FROM "${mappings.usersTable}" u
          ),
          progress_per_user AS (
            SELECT
-             p.${mappings.progressUserIdColumn} AS user_id,
-             MAX(COALESCE(p.${mappings.progressCompletionColumn}, 0))::numeric AS completion_pct
-           FROM ${mappings.progressTable} p
-           GROUP BY p.${mappings.progressUserIdColumn}
+             p."${mappings.progressUserIdColumn}" AS user_id,
+             MAX(COALESCE(p."${mappings.progressCompletionColumn}", 0))::numeric AS completion_pct
+           FROM "${mappings.progressTable}" p
+           GROUP BY p."${mappings.progressUserIdColumn}"
          ),
          quiz_per_user AS (
            SELECT
-             q.${mappings.quizUserIdColumn} AS user_id,
-             BOOL_OR(q.${mappings.quizPassedColumn} = true) AS has_passed,
+             q."${mappings.quizUserIdColumn}" AS user_id,
+             BOOL_OR(q."${mappings.quizPassedColumn}" = true) AS has_passed,
              COUNT(*)::numeric AS attempt_count
-           FROM ${mappings.quizAttemptsTable} q
-           GROUP BY q.${mappings.quizUserIdColumn}
+           FROM "${mappings.quizAttemptsTable}" q
+           GROUP BY q."${mappings.quizUserIdColumn}"
          )
          SELECT
            COUNT(*)::numeric AS "registeredCount",
