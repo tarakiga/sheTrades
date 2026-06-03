@@ -28,6 +28,34 @@ export async function ensurePrismaTables() {
   try {
     logger.info("Ensuring Prisma-managed tables exist...");
 
+    // Some staging Postgres instances carry legacy versions of the
+    // analytics tables (quiz_attempts, user_progress, rewards) from
+    // earlier schema iterations. Those tables don't have an `id` column
+    // at all, so the CREATE TABLE IF NOT EXISTS path is a no-op and the
+    // ADD COLUMN ALTERs can't promote a regular column to PRIMARY KEY.
+    // Drop these tables when they predate the current schema (no id
+    // column) so the bootstrap can recreate them cleanly. We only do
+    // this for the analytics tables the bot starts writing to fresh in
+    // this commit — never for `users` / `user_sessions` which already
+    // hold real learner data.
+    for (const table of ["quiz_attempts", "user_progress", "rewards"]) {
+      await prisma.$executeRawUnsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = '${table}'
+          ) AND NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = '${table}' AND column_name = 'id'
+          ) THEN
+            EXECUTE 'DROP TABLE ${table} CASCADE';
+            RAISE NOTICE 'Dropped legacy ${table} (no id column) for clean recreate';
+          END IF;
+        END $$;
+      `);
+    }
+
     // users
     await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);
