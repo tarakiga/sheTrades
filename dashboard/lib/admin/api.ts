@@ -101,11 +101,102 @@ export async function getContentPageData() {
   }
 }
 
-export function getRewardsPageData() {
+export type RewardsListParams = {
+  status?: "Issued" | "Pending" | "Failed";
+  from?: string;
+  to?: string;
+  q?: string;
+  cursor?: string;
+  limit?: number;
+};
+
+function buildRewardsQuery(params: RewardsListParams): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, String(value));
+    }
+  }
+  return query.toString();
+}
+
+export function getRewardsPageData(params: RewardsListParams = {}) {
   const fallback: RewardsPageData = {
-    rewards: []
+    rewards: [],
+    meta: { activeProvider: null, nextCursor: null }
   };
-  return fetchWithFallback<RewardsPageData>("/api/admin/rewards", fallback);
+  const queryString = buildRewardsQuery(params);
+  const endpoint = `/api/admin/rewards${queryString ? `?${queryString}` : ""}`;
+  return fetchWithFallback<RewardsPageData>(endpoint, fallback);
+}
+
+async function rewardsActionFetch<T>(
+  endpoint: string,
+  init: RequestInit,
+  errorPrefix: string
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    credentials: "include",
+    ...init
+  });
+  if (!response.ok) {
+    let message = `${errorPrefix} (HTTP ${response.status})`;
+    try {
+      const body = (await response.json()) as { message?: string };
+      if (body && typeof body.message === "string" && body.message.length > 0) {
+        message = body.message;
+      }
+    } catch {
+      // ignore JSON parse failure; keep the default message
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as T;
+}
+
+export function retryReward(id: string) {
+  return rewardsActionFetch<{ message: string }>(
+    `/api/admin/rewards/${encodeURIComponent(id)}/retry`,
+    { method: "POST" },
+    "Retry failed"
+  );
+}
+
+export function markRewardIssued(
+  id: string,
+  body: { note: string; providerTxnId?: string }
+) {
+  return rewardsActionFetch<{ message: string }>(
+    `/api/admin/rewards/${encodeURIComponent(id)}/mark-issued`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    "Mark issued failed"
+  );
+}
+
+export function createManualReward(body: {
+  userId: string;
+  amount: number;
+  channel: string;
+  note: string;
+}) {
+  return rewardsActionFetch<{ id: string }>(
+    `/api/admin/rewards/manual`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    "Manual create failed"
+  );
+}
+
+export function rewardsExportUrl(params: RewardsListParams): string {
+  const queryString = buildRewardsQuery(params);
+  return `${API_BASE_URL}/api/admin/rewards/export${queryString ? `?${queryString}` : ""}`;
 }
 
 export function getReportsPageData() {

@@ -43,15 +43,30 @@ export type ContentPageData = {
 };
 
 export type RewardLogRow = {
+  id: string;
   learner: string;
+  learnerPhone: string;
   module: string;
-  amount: string;
+  amount: number;
+  currency: "NGN";
   channel: string;
   status: "Issued" | "Pending" | "Failed";
+  createdAt: string;
+  issuedAt: string | null;
+  providerTxnId: string | null;
+  failureReason: string | null;
+  retryCount: number;
+  noteFromActor: string | null;
+};
+
+export type RewardsListMeta = {
+  activeProvider: { key: "africas_talking" | "termii" | "reloadly"; sandbox: boolean } | null;
+  nextCursor: string | null;
 };
 
 export type RewardsPageData = {
   rewards: Array<RewardLogRow>;
+  meta: RewardsListMeta;
 };
 
 export type ExportRow = {
