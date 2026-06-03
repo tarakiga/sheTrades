@@ -418,7 +418,7 @@ const NAMESPACE_PROFILES: Record<ConfigNamespace, NamespaceProfile> = {
         labelKey: "configAdmin.content.template.lesson",
         labelFallback: "Starter: Lesson Content",
         payload:
-          '{"title":"Pricing Basics","languages":{"en":"Lesson body","pcm":"Lesson body","ig":"Lesson body"},"quiz":[{"question":"Sample question","options":["A","B"],"answerIndex":0}]}'
+          '{"title":"Pricing Basics","module":"Module 1: Learning Path","languages":{"en":"Lesson body","pcm":"Lesson body","ig":"Lesson body"},"quiz":[{"question":"Sample question 1","options":["Option A","Option B","Option C"],"answerIndex":0},{"question":"Sample question 2","options":["Option A","Option B","Option C"],"answerIndex":1},{"question":"Sample question 3","options":["Option A","Option B","Option C"],"answerIndex":2}]}'
       }
     ]
   },

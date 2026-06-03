@@ -113,3 +113,22 @@ To prevent database formatting errors, the form must serialize into these two st
 ## Recent Fixes
 - Fixed WhatsApp Handler quiz progression, button matching bugs, and 500 crashes on new user session.
 - Updated content seeds and Visual Wizard to strictly enforce 3-option limits without redundant fallbacks.
+
+### 2026-05-22: WhatsApp Sandbox Quiz Buttons + Starter Template Multi-Question Seed
+* **Problem**:
+  * Reported via the WhatsApp sandbox simulator: quiz answer buttons displayed as bare numbers (`1`, `2`, `3`, `MENU`) rather than the corresponding option text, even though the reply body listed `1. Option A`, `2. Option B`, etc.
+  * After answering the very first quiz question in a lesson, the bot offered `NEXT` and advanced to the next lesson, instead of stepping through additional questions for the same lesson.
+* **Root Cause Investigation**:
+  * **Bug 1 (numeric buttons)**: `backend/src/whatsapp/handler.ts` returned `buttons: [...quizItem.options.map((_, i) => String(i + 1)), "MENU"]` at three sites (initial quiz, next-question advance, incorrect-retry). The map ignored the option text and only emitted `String(i + 1)`. Sandbox component (`WhatsAppSandboxSimulator.tsx`) renders button labels verbatim, so users saw numeric buttons.
+  * **Bug 2 (NEXT skip)**: The `isLastQuestion = qIndex >= activeLesson.quiz.length - 1` guard is correct. Iteration through multi-question quizzes works when `quiz.length > 1`. Pulled the thread back to the admin-side data shape: the "Starter: Lesson Content" template at `ConfigAdminManager.tsx` seeded a single-question `quiz` array (`[{"question":"Sample question","options":["A","B"],"answerIndex":0}]`), so any lesson scaffolded from the starter without manual question addition resulted in `quiz.length === 1` and `isLastQuestion` flipping true after the first answer.
+* **Fixes Applied**:
+  * **`backend/src/whatsapp/handler.ts`**:
+    * Replaced the three numeric button maps with `[...options.map((opt, i) => \`${i + 1}. ${opt}\`), "MENU"]`, matching the existing main-menu pattern (`1. Start Learning`, `2. My Progress`, etc.).
+    * Extended the answer matcher to accept the new button payload format. Added a `strippedInput = normalized.replace(/^\d+\s*[.)]\s*/, "").trim()` derivation and a `leadingNumberMatch` regex that extracts a leading number from `1. Apple`. The match now succeeds for plain `1`, plain `apple`, and the button-click `1. apple` — all three resolve to the correct answer.
+    * Added a defensive guard for `nextQuizItem = activeLesson.quiz[qIndex + 1]` so the file typechecks under `noUncheckedIndexedAccess` (the `isLastQuestion` invariant guarantees existence, but TS can't narrow numeric comparisons). The guard falls back to a safe MENU reply rather than emitting a half-formed payload.
+  * **`dashboard/components/config/ConfigAdminManager.tsx`**: Expanded the "Starter: Lesson Content" payload to seed three sample questions with three options each and an explicit `module` field, so admins scaffolding new lessons start with a proper multi-question quiz array. Schema is unchanged; only the starter JSON literal grew.
+* **Note on existing 9 lessons**: Already-published lessons whose `quiz` arrays contain only one question will continue to complete after that one question — the starter-template fix only changes the default for NEW lessons. To get the multi-question flow on existing lessons, each lesson document needs its `quiz` array edited via `/content` to add the additional questions.
+* **Verification**:
+  * `npm run typecheck` PASS across all workspaces.
+  * Code-level trace confirms button payload now matches handler menu pattern and answer matcher accepts all three input forms.
+  * Local end-to-end smoke test deferred: local backend has no seeded lessons (Postgres unreachable from this dev machine), so the quiz path can't be triggered without staging access. User to verify on staging after Vercel + Cloud Run pick up the next deploy.

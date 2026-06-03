@@ -549,9 +549,16 @@ function transition(
       if (quizItem) {
         const correctIndex = quizItem.answerIndex;
         const correctOptionText = quizItem.options[correctIndex]?.trim().toLowerCase() || "";
-        
-        const isCorrectNumber = normalized === String(correctIndex + 1);
-        const isCorrectText = normalized === correctOptionText;
+
+        // Strip a leading "N. " or "N) " prefix so button clicks like
+        // "1. Apple" still match against the option text or option number.
+        const strippedInput = normalized.replace(/^\d+\s*[.)]\s*/, "").trim();
+        const leadingNumberMatch = normalized.match(/^(\d+)\s*[.)]/);
+        const inputAsNumber = leadingNumberMatch ? leadingNumberMatch[1] : normalized;
+
+        const isCorrectNumber = inputAsNumber === String(correctIndex + 1);
+        const isCorrectText =
+          normalized === correctOptionText || strippedInput === correctOptionText;
 
         if (isCorrectNumber || isCorrectText) {
           // Success on this question
@@ -561,18 +568,34 @@ function transition(
             // Move to next question immediately
             session.currentQuizIndex = qIndex + 1;
             session.lastUpdatedAt = nowIso();
-            
+
             const nextQuizItem = activeLesson.quiz[qIndex + 1];
+            if (!nextQuizItem) {
+              // Defensive: should be unreachable because isLastQuestion guards
+              // qIndex < quiz.length - 1, but noUncheckedIndexedAccess can't narrow
+              // numeric comparisons. Fall back gracefully rather than emit a
+              // half-formed reply.
+              session.awaitingQuizAnswer = false;
+              session.currentQuizIndex = 0;
+              return {
+                state: session.state,
+                reply: "Quiz state issue. Reply MENU to return.",
+                buttons: ["MENU"]
+              };
+            }
             let nextReply = `🎉 Correct!\n\n📚 Next Question:\n${nextQuizItem.question}\n`;
             nextQuizItem.options.forEach((opt, idx) => {
               nextReply += `${idx + 1}. ${opt}\n`;
             });
             nextReply += getPrompt("quiz_answer_prompt", lang, "Reply with your answer (1, 2, or 3) or MENU to return.");
-            
+
             return {
               state: session.state,
               reply: nextReply,
-              buttons: [...nextQuizItem.options.map((_, i) => String(i + 1)), "MENU"]
+              buttons: [
+                ...nextQuizItem.options.map((opt, i) => `${i + 1}. ${opt}`),
+                "MENU"
+              ]
             };
           } else {
             // Success on entire quiz! Add to completed lessons
@@ -641,11 +664,14 @@ function transition(
             reply += `${idx + 1}. ${opt}\n`;
           });
           reply += getPrompt("quiz_answer_prompt", lang, "\nReply with your answer (1, 2, or 3) or MENU to return.");
-          
+
           return {
             state: session.state,
             reply,
-            buttons: [...quizItem.options.map((_, i) => String(i + 1)), "MENU"]
+            buttons: [
+              ...quizItem.options.map((opt, i) => `${i + 1}. ${opt}`),
+              "MENU"
+            ]
           };
         }
       }
@@ -677,7 +703,10 @@ function transition(
       return {
         state: session.state,
         reply,
-        buttons: [...quizItem.options.map((_, i) => String(i + 1)), "MENU"]
+        buttons: [
+          ...quizItem.options.map((opt, i) => `${i + 1}. ${opt}`),
+          "MENU"
+        ]
       };
     }
 
