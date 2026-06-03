@@ -270,6 +270,26 @@ test(
 );
 
 test(
+  "GET /api/admin/rewards/export returns CSV with the expected columns",
+  { concurrency: false },
+  async () => {
+    const response = await request(app)
+      .get("/api/admin/rewards/export")
+      .expect(200);
+    assert.match(response.headers["content-type"] ?? "", /text\/csv/);
+    assert.match(
+      response.headers["content-disposition"] ?? "",
+      /attachment; filename="rewards-/
+    );
+    const lines = response.text.split("\n");
+    assert.equal(
+      lines[0],
+      "Learner,Phone,Module,Amount,Currency,Channel,Status,Created (UTC),Issued (UTC),Provider Txn ID,Failure Reason,Actor Note"
+    );
+  }
+);
+
+test(
   "POST /api/admin/rewards/manual rejects when amount is zero",
   { concurrency: false },
   async () => {
