@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { payoutsIntegrationPayloadSchema } from "../payouts/providers/contracts.js";
 
 export const configNamespaceSchema = z.enum(["content", "options", "legal", "integration"]);
 export type ConfigNamespace = z.infer<typeof configNamespaceSchema>;
@@ -89,9 +90,21 @@ export const notificationIntegrationPayloadSchema = z.object({
 });
 export type NotificationIntegrationPayload = z.infer<typeof notificationIntegrationPayloadSchema>;
 
-export const integrationConfigPayloadSchema = z.discriminatedUnion("provider", [
+// Plain union (not discriminatedUnion) because payoutsIntegrationPayloadSchema
+// is itself a discriminated union on `provider` over a different set of literal
+// values (africas_talking | termii | reloadly). z.union tries each member and
+// succeeds on the first match, which correctly routes whatsapp/notification to
+// their literal-provider schemas and payouts payloads to the payouts union.
+// Without payouts here, a payouts payload only survived via the generic
+// z.record catch-all in configPayloadSchema — i.e. stored as an unvalidated
+// blob — which is what the spec's "validate on both client and server" rule
+// forbids. The frontend serializes an extra `title` into the payload; the
+// payouts schemas strip it (zod drops unknown keys), and the document-level
+// title field preserves it regardless.
+export const integrationConfigPayloadSchema = z.union([
   whatsappIntegrationPayloadSchema,
-  notificationIntegrationPayloadSchema
+  notificationIntegrationPayloadSchema,
+  payoutsIntegrationPayloadSchema
 ]);
 export type IntegrationConfigPayload = z.infer<typeof integrationConfigPayloadSchema>;
 
