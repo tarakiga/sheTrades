@@ -19,7 +19,7 @@ export type RewardsHealthHeroProps = {
   lastIssuedAt?: Date;
 };
 
-const PROVIDER_SETUP_HREF = "/settings/integration";
+const PROVIDER_SETUP_HREF = "/settings?tab=integration";
 
 const BANNER_COPY =
   "Pending rewards will not dispatch until a payouts provider is configured.";
