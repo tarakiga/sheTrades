@@ -5232,4 +5232,725 @@ button.needs-attention-panel__item:focus {
   }
 }
 
+/* -------------------------------------------------------------
+ * RewardsTable
+ * ------------------------------------------------------------- */
+
+.rewards-table {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+}
+
+.rewards-table__table {
+  border-collapse: collapse;
+  table-layout: auto;
+  width: 100%;
+}
+
+.rewards-table__head {
+  background: var(--color-neutral-50);
+}
+
+.rewards-table__th {
+  border-bottom: 1px solid var(--color-neutral-200);
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rewards-table__th--amount {
+  text-align: right;
+}
+
+.rewards-table__th--actions {
+  width: 1px;
+}
+
+.rewards-table__sr-only {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.rewards-table__body .rewards-table__row {
+  border-bottom: 1px solid var(--color-neutral-100);
+  cursor: pointer;
+  position: relative;
+  transition: background-color 120ms ease;
+}
+
+.rewards-table__body .rewards-table__row:last-child {
+  border-bottom: none;
+}
+
+.rewards-table__body .rewards-table__row:hover,
+.rewards-table__body .rewards-table__row:focus-within {
+  background: var(--color-neutral-50);
+}
+
+.rewards-table__body .rewards-table__row:focus-visible {
+  outline: 2px solid var(--color-neutral-900);
+  outline-offset: -2px;
+}
+
+.rewards-table__row--skeleton {
+  cursor: default;
+}
+
+.rewards-table__cell {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  padding: var(--space-3) var(--space-4);
+  vertical-align: middle;
+}
+
+.rewards-table__cell--amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rewards-table__cell--actions {
+  position: relative;
+  text-align: right;
+  width: 1px;
+}
+
+.rewards-table__cell--learner {
+  min-width: 180px;
+}
+
+.rewards-table__learner-name {
+  color: var(--color-neutral-900);
+  display: block;
+  font-weight: 600;
+}
+
+.rewards-table__learner-phone {
+  color: var(--color-neutral-500);
+  display: block;
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.rewards-table__module {
+  color: var(--color-neutral-900);
+  display: block;
+  font-weight: 500;
+}
+
+.rewards-table__channel {
+  color: var(--color-neutral-900);
+  display: block;
+  font-weight: 500;
+}
+
+.rewards-table__when {
+  color: var(--color-neutral-500);
+  display: block;
+  font-size: var(--font-size-xs);
+  margin-top: 2px;
+}
+
+.rewards-table__status-pill {
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1;
+  padding: var(--space-1) var(--space-2);
+}
+
+.rewards-table__status-pill--issued {
+  background: var(--color-success-100);
+  color: var(--color-success-700);
+}
+
+.rewards-table__status-pill--pending {
+  background: var(--color-warning-100);
+  color: var(--color-warning-700);
+}
+
+.rewards-table__status-pill--failed {
+  background: var(--color-danger-100);
+  color: var(--color-danger-700);
+}
+
+.rewards-table__actions {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  white-space: nowrap;
+}
+
+.rewards-table__row:hover .rewards-table__actions,
+.rewards-table__row:focus-within .rewards-table__actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.rewards-table__action {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-900);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-3);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.rewards-table__action:hover:not(:disabled) {
+  background: var(--color-neutral-100);
+  border-color: var(--color-neutral-300);
+}
+
+.rewards-table__action:focus-visible {
+  outline: 2px solid var(--color-neutral-900);
+  outline-offset: 2px;
+}
+
+.rewards-table__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.rewards-table__action--retry {
+  background: var(--color-neutral-900);
+  border-color: var(--color-neutral-900);
+  color: var(--color-neutral-0);
+}
+
+.rewards-table__action--retry:hover:not(:disabled) {
+  background: var(--color-brand-700);
+  border-color: var(--color-brand-700);
+  color: var(--color-neutral-0);
+}
+
+.rewards-table__action--mark {
+  background: var(--color-success-50);
+  border-color: var(--color-success-700);
+  color: var(--color-success-700);
+}
+
+.rewards-table__action--mark:hover:not(:disabled) {
+  background: var(--color-success-100);
+  color: var(--color-success-700);
+}
+
+.rewards-table__empty {
+  padding: var(--space-8) var(--space-4);
+}
+
+.rewards-table__empty-default {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 auto;
+  max-width: 420px;
+  text-align: center;
+}
+
+.rewards-table__empty-default-title {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  margin: 0;
+}
+
+.rewards-table__empty-default-body {
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.rewards-table__skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-neutral-100) 0%,
+    var(--color-neutral-200) 50%,
+    var(--color-neutral-100) 100%
+  );
+  background-size: 200% 100%;
+  animation: rewards-table-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+  display: block;
+  height: 12px;
+  margin: 4px 0;
+}
+
+.rewards-table__skeleton--sm {
+  width: 40%;
+}
+
+.rewards-table__skeleton--md {
+  width: 60%;
+}
+
+.rewards-table__skeleton--lg {
+  width: 80%;
+}
+
+.rewards-table__skeleton--pill {
+  border-radius: var(--radius-full);
+  width: 56px;
+}
+
+@keyframes rewards-table-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .rewards-table__cell {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .rewards-table__actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* -------------------------------------------------------------
+ * RewardDetailDrawer
+ * ------------------------------------------------------------- */
+
+.reward-detail-drawer {
+  inset: 0;
+  position: fixed;
+  z-index: 40;
+}
+
+.reward-detail-drawer__backdrop {
+  background: rgba(15, 23, 42, 0.48);
+  border: none;
+  cursor: pointer;
+  inset: 0;
+  opacity: 0;
+  padding: 0;
+  position: absolute;
+  animation: ui-fade-in 0.22s ease forwards;
+}
+
+.reward-detail-drawer__panel {
+  background: var(--color-neutral-0);
+  box-shadow: var(--shadow-drawer);
+  display: grid;
+  gap: var(--space-4);
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  margin-left: auto;
+  max-width: 100%;
+  overflow: hidden;
+  padding: var(--space-6);
+  position: relative;
+  width: min(480px, 100vw);
+  animation: ui-drawer-enter 0.28s cubic-bezier(0.2, 0.9, 0.22, 1) forwards;
+  transform: translateX(24px);
+}
+
+.reward-detail-drawer__header {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.reward-detail-drawer__heading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.reward-detail-drawer__title {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-xl);
+  margin: 0;
+}
+
+.reward-detail-drawer__status-pill {
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1;
+  padding: var(--space-1) var(--space-2);
+}
+
+.reward-detail-drawer__status-pill--issued {
+  background: var(--color-success-100);
+  color: var(--color-success-700);
+}
+
+.reward-detail-drawer__status-pill--pending {
+  background: var(--color-warning-100);
+  color: var(--color-warning-700);
+}
+
+.reward-detail-drawer__status-pill--failed {
+  background: var(--color-danger-100);
+  color: var(--color-danger-700);
+}
+
+.reward-detail-drawer__close {
+  background: transparent;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-700);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
+}
+
+.reward-detail-drawer__close:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.reward-detail-drawer__content {
+  display: grid;
+  gap: var(--space-5);
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.reward-detail-drawer__section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.reward-detail-drawer__identity {
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.reward-detail-drawer__identity-row {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.reward-detail-drawer__label {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.reward-detail-drawer__value {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-align: right;
+}
+
+.reward-detail-drawer__value--amount {
+  font-size: var(--font-size-md);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.reward-detail-drawer__value--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--font-size-xs);
+  word-break: break-all;
+}
+
+.reward-detail-drawer__value--failure {
+  color: var(--color-danger-700);
+}
+
+.reward-detail-drawer__section-title {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.reward-detail-drawer__timeline {
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.reward-detail-drawer__timeline::before {
+  background: var(--color-neutral-200);
+  content: "";
+  inset-block: 6px;
+  left: 5px;
+  position: absolute;
+  width: 2px;
+}
+
+.reward-detail-drawer__timeline-item {
+  align-items: flex-start;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 12px 1fr;
+  position: relative;
+}
+
+.reward-detail-drawer__timeline-dot {
+  background: var(--color-neutral-300);
+  border-radius: var(--radius-full);
+  display: block;
+  height: 12px;
+  margin-top: 4px;
+  position: relative;
+  width: 12px;
+  z-index: 1;
+}
+
+.reward-detail-drawer__timeline-item--done .reward-detail-drawer__timeline-dot {
+  background: var(--color-success-700);
+}
+
+.reward-detail-drawer__timeline-item--current
+  .reward-detail-drawer__timeline-dot {
+  background: var(--color-warning-500);
+  box-shadow: 0 0 0 3px var(--color-warning-100);
+}
+
+.reward-detail-drawer__timeline-item--current.reward-detail-drawer__timeline-item--failed
+  .reward-detail-drawer__timeline-dot {
+  background: var(--color-danger-500);
+}
+
+.reward-detail-drawer__timeline-body {
+  display: grid;
+  gap: 2px;
+}
+
+.reward-detail-drawer__timeline-title {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.reward-detail-drawer__timeline-when {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+}
+
+.reward-detail-drawer__details {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.reward-detail-drawer__details-row {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.reward-detail-drawer__details-row .reward-detail-drawer__value {
+  text-align: left;
+}
+
+.reward-detail-drawer__form {
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.reward-detail-drawer__field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.reward-detail-drawer__field-label {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.reward-detail-drawer__field-hint {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+}
+
+.reward-detail-drawer__field-error {
+  color: var(--color-danger-700);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.reward-detail-drawer__textarea,
+.reward-detail-drawer__input {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-900);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-3);
+  width: 100%;
+}
+
+.reward-detail-drawer__textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.reward-detail-drawer__textarea:focus-visible,
+.reward-detail-drawer__input:focus-visible {
+  border-color: var(--color-neutral-900);
+  outline: 2px solid var(--color-neutral-900);
+  outline-offset: 1px;
+}
+
+.reward-detail-drawer__form-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.reward-detail-drawer__footer {
+  align-items: center;
+  border-top: 1px solid var(--color-neutral-100);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding-top: var(--space-4);
+}
+
+.reward-detail-drawer__footer-actions {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.reward-detail-drawer__btn {
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-4);
+  transition: background-color 120ms ease, border-color 120ms ease,
+    color 120ms ease, opacity 120ms ease;
+}
+
+.reward-detail-drawer__btn:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.reward-detail-drawer__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.reward-detail-drawer__btn--primary {
+  background: var(--color-neutral-900);
+  border: 1px solid var(--color-neutral-900);
+  color: var(--color-neutral-0);
+}
+
+.reward-detail-drawer__btn--primary:hover:not(:disabled) {
+  background: var(--color-brand-700);
+  border-color: var(--color-brand-700);
+}
+
+.reward-detail-drawer__btn--secondary {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  color: var(--color-neutral-900);
+}
+
+.reward-detail-drawer__btn--secondary:hover:not(:disabled) {
+  background: var(--color-neutral-100);
+  border-color: var(--color-neutral-300);
+}
+
+.reward-detail-drawer__btn--link {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-brand-500);
+  min-height: 0;
+  padding: 0;
+  text-decoration: none;
+}
+
+.reward-detail-drawer__btn--link:hover:not(:disabled) {
+  color: var(--color-brand-700);
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------
+ * Preview drawer frame (for workshop / Storybook-style previews
+ * that need to render the drawer in-place without a fixed
+ * overlay).
+ * ------------------------------------------------------------- */
+
+.preview-drawer-frame {
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  height: 620px;
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  width: 480px;
+}
+
+.preview-drawer-frame .reward-detail-drawer {
+  inset: auto;
+  position: relative;
+  z-index: auto;
+}
+
+.preview-drawer-frame .reward-detail-drawer__backdrop {
+  display: none;
+}
+
+.preview-drawer-frame .reward-detail-drawer__panel {
+  animation: none;
+  box-shadow: none;
+  height: 100%;
+  margin: 0;
+  transform: none;
+  width: 100%;
+}
 

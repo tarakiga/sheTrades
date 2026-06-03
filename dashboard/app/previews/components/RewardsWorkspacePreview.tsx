@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, SectionHeader } from "../../../components/ui";
 import { IssuanceSuccessGauge } from "../../../components/rewards/IssuanceSuccessGauge";
 import { TotalPaidHeadline } from "../../../components/rewards/TotalPaidHeadline";
@@ -14,6 +14,11 @@ import {
   type RewardsToolbarDateRange,
   type RewardsToolbarStatus
 } from "../../../components/rewards/RewardsToolbar";
+import {
+  RewardsTable,
+  type RewardLogRow
+} from "../../../components/rewards/RewardsTable";
+import { RewardDetailDrawer } from "../../../components/rewards/RewardDetailDrawer";
 
 const STABLE_NOW = new Date("2026-05-18T12:00:00.000Z");
 const RECENT_ISSUANCE = new Date(STABLE_NOW.getTime() - 5 * 60 * 1000);
@@ -79,6 +84,87 @@ function ToolbarVariantFiltered() {
   );
 }
 
+const MOCK_REWARDS: Array<RewardLogRow> = [
+  {
+    id: "rwd_001",
+    learner: "Adaeze Okonkwo",
+    learnerPhone: "+2348031234567",
+    module: "Module 3 · Pricing your craft",
+    amount: 5000,
+    currency: "NGN",
+    channel: "Airtime · Reloadly",
+    status: "Issued",
+    createdAt: new Date(STABLE_NOW.getTime() - 35 * 60 * 1000).toISOString(),
+    issuedAt: new Date(STABLE_NOW.getTime() - 33 * 60 * 1000).toISOString(),
+    providerTxnId: "RLY-9F12-77AC-001",
+    failureReason: null,
+    retryCount: 0,
+    noteFromActor: null
+  },
+  {
+    id: "rwd_002",
+    learner: "Funmi Adebayo",
+    learnerPhone: "+2347061122334",
+    module: "Module 1 · WhatsApp basics",
+    amount: 3000,
+    currency: "NGN",
+    channel: "Airtime · Africa's Talking",
+    status: "Pending",
+    createdAt: new Date(STABLE_NOW.getTime() - 8 * 60 * 1000).toISOString(),
+    issuedAt: null,
+    providerTxnId: null,
+    failureReason: null,
+    retryCount: 1,
+    noteFromActor: null
+  },
+  {
+    id: "rwd_003",
+    learner: "Chinwe Okoro",
+    learnerPhone: "+2348099887766",
+    module: "Module 2 · Photographing products",
+    amount: 4500,
+    currency: "NGN",
+    channel: "Airtime · Reloadly",
+    status: "Failed",
+    createdAt: new Date(STABLE_NOW.getTime() - 22 * 60 * 1000).toISOString(),
+    issuedAt: null,
+    providerTxnId: null,
+    failureReason: "INSUFFICIENT_FUNDS — top up Reloadly wallet",
+    retryCount: 3,
+    noteFromActor: null
+  },
+  {
+    id: "rwd_004",
+    learner: "Aisha Yusuf",
+    learnerPhone: "+2349055443322",
+    module: "Module 4 · Selling on marketplaces",
+    amount: 6000,
+    currency: "NGN",
+    channel: "Bank · Termii",
+    status: "Issued",
+    createdAt: new Date(STABLE_NOW.getTime() - 4 * 60 * 60 * 1000).toISOString(),
+    issuedAt: new Date(
+      STABLE_NOW.getTime() - 4 * 60 * 60 * 1000 + 90 * 1000
+    ).toISOString(),
+    providerTxnId: "TMR-0044-MAY-2026",
+    failureReason: null,
+    retryCount: 0,
+    noteFromActor: "Re-issued by ops after first attempt timed out."
+  }
+];
+
+const ISSUED_REWARD: RewardLogRow = MOCK_REWARDS[0] as RewardLogRow;
+const PENDING_REWARD: RewardLogRow = MOCK_REWARDS[1] as RewardLogRow;
+const FAILED_REWARD: RewardLogRow = MOCK_REWARDS[2] as RewardLogRow;
+
+function noop(): void {
+  /* preview only */
+}
+
+async function noopAsync(): Promise<void> {
+  /* preview only */
+}
+
 function ToolbarVariantExporting() {
   const [status, setStatus] = useState<RewardsToolbarStatus>("Pending");
   const [dateRange, setDateRange] = useState<RewardsToolbarDateRange>("30d");
@@ -98,6 +184,25 @@ function ToolbarVariantExporting() {
 }
 
 export function RewardsWorkspacePreview() {
+  const markIssuedFrameRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const frame = markIssuedFrameRef.current;
+    if (!frame) return;
+    // Auto-click the "Mark Issued" footer button so the preview shows the
+    // inline mark-issued form mode. We identify the button by text rather
+    // than by class to keep the preview decoupled from CSS class names.
+    const buttons = frame.querySelectorAll<HTMLButtonElement>(
+      "button.reward-detail-drawer__btn--primary"
+    );
+    for (const button of buttons) {
+      if (button.textContent?.trim() === "Mark Issued") {
+        button.click();
+        break;
+      }
+    }
+  }, []);
+
   return (
     <div className="preview-card-content">
       <SectionHeader
@@ -233,6 +338,124 @@ export function RewardsWorkspacePreview() {
               export button locked with spinner.
             </p>
           </div>
+        </div>
+      </Card>
+
+      <Card
+        title="Rewards Table — loading"
+        description="Skeleton rows while the API call resolves."
+      >
+        <RewardsTable
+          rewards={[]}
+          loading
+          onOpenRow={noop}
+          onRetry={noopAsync}
+          onMarkIssued={noop}
+        />
+      </Card>
+
+      <Card
+        title="Rewards Table — empty"
+        description="No rewards match the current filters."
+      >
+        <RewardsTable
+          rewards={[]}
+          onOpenRow={noop}
+          onRetry={noopAsync}
+          onMarkIssued={noop}
+        />
+      </Card>
+
+      <Card
+        title="Rewards Table — populated"
+        description="Row hover/focus reveals status-gated inline actions. Issued rows show Open only; Pending shows Retry · Mark Issued · Open; Failed shows Retry · Open."
+      >
+        <RewardsTable
+          rewards={MOCK_REWARDS}
+          onOpenRow={noop}
+          onRetry={noopAsync}
+          onMarkIssued={noop}
+        />
+      </Card>
+
+      <Card
+        title="Reward Detail Drawer — closed"
+        description="When reward is null and open is false, the drawer renders nothing."
+      >
+        <p className="preview-card-content__caption">
+          (Nothing renders below — closed drawer is a no-op.)
+        </p>
+        <RewardDetailDrawer
+          reward={null}
+          open={false}
+          onClose={noop}
+          onRetry={noopAsync}
+          onMarkIssued={noopAsync}
+          onOpenLearner={noop}
+        />
+      </Card>
+
+      <Card
+        title="Reward Detail Drawer — Pending"
+        description="Right-side drawer with identity card, issuance timeline, action footer. Footer shows Retry now and Mark Issued."
+      >
+        <div className="preview-drawer-frame">
+          <RewardDetailDrawer
+            reward={PENDING_REWARD}
+            open
+            onClose={noop}
+            onRetry={noopAsync}
+            onMarkIssued={noopAsync}
+            onOpenLearner={noop}
+          />
+        </div>
+      </Card>
+
+      <Card
+        title="Reward Detail Drawer — Failed"
+        description="Failure reason surfaces in the provider details section. Footer shows Retry now only."
+      >
+        <div className="preview-drawer-frame">
+          <RewardDetailDrawer
+            reward={FAILED_REWARD}
+            open
+            onClose={noop}
+            onRetry={noopAsync}
+            onMarkIssued={noopAsync}
+            onOpenLearner={noop}
+          />
+        </div>
+      </Card>
+
+      <Card
+        title="Reward Detail Drawer — Issued"
+        description="Provider txn id and issued-at timestamp visible. Footer shows Open learner link only."
+      >
+        <div className="preview-drawer-frame">
+          <RewardDetailDrawer
+            reward={ISSUED_REWARD}
+            open
+            onClose={noop}
+            onRetry={noopAsync}
+            onMarkIssued={noopAsync}
+            onOpenLearner={noop}
+          />
+        </div>
+      </Card>
+
+      <Card
+        title="Reward Detail Drawer — Mark Issued form"
+        description="Inline form mode: note textarea (min 10 chars, required) and optional provider txn id. Click the Mark Issued button in the preview above to see this state live, or this card simulates the form state via auto-click on mount."
+      >
+        <div className="preview-drawer-frame" ref={markIssuedFrameRef}>
+          <RewardDetailDrawer
+            reward={PENDING_REWARD}
+            open
+            onClose={noop}
+            onRetry={noopAsync}
+            onMarkIssued={noopAsync}
+            onOpenLearner={noop}
+          />
         </div>
       </Card>
     </div>
