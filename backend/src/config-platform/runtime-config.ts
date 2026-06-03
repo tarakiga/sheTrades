@@ -1,9 +1,9 @@
 import { getConfigPlatformService } from "./service.js";
 import type {
-  IntegrationConfigPayload,
   NotificationIntegrationPayload,
   WhatsAppIntegrationPayload
 } from "./contracts.js";
+import type { PayoutsIntegrationPayload } from "../payouts/providers/contracts.js";
 
 type LocalizedText = {
   en: string;
@@ -154,7 +154,7 @@ export function getRuntimeNumericPolicy(key: string, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-export function getRuntimeIntegrationConfig<T extends IntegrationConfigPayload>(key: string) {
+export function getRuntimeIntegrationConfig<T>(key: string) {
   const data = getPublishedIntegrationData(key);
   if (!data || typeof data !== "object") {
     return null;
@@ -168,6 +168,10 @@ export function getRuntimeWhatsAppConfig() {
 
 export function getRuntimeNotificationConfig() {
   return getRuntimeIntegrationConfig<NotificationIntegrationPayload>("integration.notification.smtp");
+}
+
+export function getRuntimePayoutsConfig() {
+  return getRuntimeIntegrationConfig<PayoutsIntegrationPayload>("integration.payouts.primary");
 }
 
 export type RuntimeLesson = {
