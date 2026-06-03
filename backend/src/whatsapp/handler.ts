@@ -593,7 +593,7 @@ function transition(
               state: session.state,
               reply: nextReply,
               buttons: [
-                ...nextQuizItem.options.map((opt, i) => `${i + 1}. ${opt}`),
+                ...nextQuizItem.options,
                 "MENU"
               ]
             };
@@ -669,7 +669,7 @@ function transition(
             state: session.state,
             reply,
             buttons: [
-              ...quizItem.options.map((opt, i) => `${i + 1}. ${opt}`),
+              ...quizItem.options,
               "MENU"
             ]
           };
@@ -704,7 +704,7 @@ function transition(
         state: session.state,
         reply,
         buttons: [
-          ...quizItem.options.map((opt, i) => `${i + 1}. ${opt}`),
+          ...quizItem.options.map((opt) => opt),
           "MENU"
         ]
       };
