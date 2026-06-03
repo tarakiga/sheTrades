@@ -24,6 +24,12 @@ function requireAfricasTalkingConfig(config: PayoutsIntegrationPayload) {
   return config.africasTalking;
 }
 
+const RETRYABLE_HTTP_STATUSES = new Set([408, 425, 429]);
+
+function isRetryableStatus(status: number) {
+  return status >= 500 || RETRYABLE_HTTP_STATUSES.has(status);
+}
+
 export const africasTalkingAdapter: PayoutProvider = {
   key: "africas_talking",
 
@@ -74,7 +80,7 @@ export const africasTalkingAdapter: PayoutProvider = {
         return {
           ok: false,
           reason: `Africa's Talking returned HTTP ${response.status}`,
-          retryable: response.status >= 500 || response.status === 429
+          retryable: isRetryableStatus(response.status)
         } satisfies DispatchResult;
       }
       const data = (await response.json()) as {

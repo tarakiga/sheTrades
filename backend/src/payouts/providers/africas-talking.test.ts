@@ -4,15 +4,16 @@ import { africasTalkingAdapter } from "./africas-talking.js";
 import type { PayoutsIntegrationPayload, RewardDispatchInput } from "./contracts.js";
 
 function stubFetch(responses: Array<{ status: number; body: unknown }>) {
+  const original = globalThis.fetch;
   let index = 0;
   const calls: Array<{ url: string; init: RequestInit }> = [];
   globalThis.fetch = (async (url: string, init: RequestInit) => {
     calls.push({ url, init });
     const next = responses[index++] ?? responses[responses.length - 1];
-    if (!next) throw new Error("stubFetch: no responses configured");
+    if (!next) throw new Error("stubFetch ran out of canned responses");
     return new Response(JSON.stringify(next.body), { status: next.status });
   }) as typeof fetch;
-  return calls;
+  return { calls, restore: () => { globalThis.fetch = original; } };
 }
 
 function firstCall(calls: Array<{ url: string; init: RequestInit }>) {
@@ -36,29 +37,33 @@ const baseReward: RewardDispatchInput = {
   retryCount: 0
 };
 
-test("dispatch hits the sandbox URL when config.sandbox is true", async () => {
-  const calls = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-1" }] } }]);
+test("dispatch hits the sandbox URL when config.sandbox is true", async (t) => {
+  const { calls, restore } = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-1" }] } }]);
+  t.after(restore);
   await africasTalkingAdapter.dispatch(baseReward, baseConfig);
   assert.match(firstCall(calls).url, /api\.sandbox\.africastalking\.com/);
 });
 
-test("dispatch hits the production URL when config.sandbox is false", async () => {
-  const calls = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-2" }] } }]);
+test("dispatch hits the production URL when config.sandbox is false", async (t) => {
+  const { calls, restore } = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-2" }] } }]);
+  t.after(restore);
   await africasTalkingAdapter.dispatch(baseReward, { ...baseConfig, sandbox: false });
   assert.match(firstCall(calls).url, /api\.africastalking\.com/);
   assert.doesNotMatch(firstCall(calls).url, /sandbox/);
 });
 
-test("dispatch sets the apiKey header and uses POST", async () => {
-  const calls = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-3" }] } }]);
+test("dispatch sets the apiKey header and uses POST", async (t) => {
+  const { calls, restore } = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-3" }] } }]);
+  t.after(restore);
   await africasTalkingAdapter.dispatch(baseReward, baseConfig);
   assert.equal(firstCall(calls).init.method, "POST");
   const headers = new Headers(firstCall(calls).init.headers);
   assert.equal(headers.get("apiKey"), "test-key");
 });
 
-test("dispatch passes the reward id as the idempotency-ish reference", async () => {
-  const calls = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-4" }] } }]);
+test("dispatch passes the reward id as the idempotency-ish reference", async (t) => {
+  const { calls, restore } = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-4" }] } }]);
+  t.after(restore);
   await africasTalkingAdapter.dispatch({ ...baseReward, retryCount: 2 }, baseConfig);
   const body = new URLSearchParams(firstCall(calls).init.body as string);
   const recipients = JSON.parse(body.get("recipients") ?? "[]") as Array<{
@@ -73,8 +78,9 @@ test("dispatch passes the reward id as the idempotency-ish reference", async () 
   assert.equal(recipient.amount, 500);
 });
 
-test("dispatch returns ok=true with the provider transaction id on Sent", async () => {
-  stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-5" }] } }]);
+test("dispatch returns ok=true with the provider transaction id on Sent", async (t) => {
+  const { restore } = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-5" }] } }]);
+  t.after(restore);
   const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
   assert.equal(result.ok, true);
   if (result.ok) {
@@ -83,8 +89,9 @@ test("dispatch returns ok=true with the provider transaction id on Sent", async 
   }
 });
 
-test("dispatch returns retryable=true on HTTP 503", async () => {
-  stubFetch([{ status: 503, body: { message: "upstream timeout" } }]);
+test("dispatch returns retryable=true on HTTP 503", async (t) => {
+  const { restore } = stubFetch([{ status: 503, body: { message: "upstream timeout" } }]);
+  t.after(restore);
   const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
   assert.equal(result.ok, false);
   if (!result.ok) {
@@ -93,8 +100,9 @@ test("dispatch returns retryable=true on HTTP 503", async () => {
   }
 });
 
-test("dispatch returns retryable=false on HTTP 400 with invalid recipient", async () => {
-  stubFetch([{ status: 201, body: { responses: [{ status: "InvalidPhoneNumber", errorMessage: "bad phone" }] } }]);
+test("dispatch returns retryable=false on HTTP 400 with invalid recipient", async (t) => {
+  const { restore } = stubFetch([{ status: 201, body: { responses: [{ status: "InvalidPhoneNumber", errorMessage: "bad phone" }] } }]);
+  t.after(restore);
   const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
   assert.equal(result.ok, false);
   if (!result.ok) {
@@ -103,14 +111,61 @@ test("dispatch returns retryable=false on HTTP 400 with invalid recipient", asyn
   }
 });
 
-test("verifyCredentials returns healthy when account balance fetch returns 200", async () => {
-  stubFetch([{ status: 200, body: { UserData: { balance: "NGN 1000" } } }]);
+test("verifyCredentials returns healthy when account balance fetch returns 200", async (t) => {
+  const { restore } = stubFetch([{ status: 200, body: { UserData: { balance: "NGN 1000" } } }]);
+  t.after(restore);
   const result = await africasTalkingAdapter.verifyCredentials(baseConfig);
   assert.equal(result.status, "healthy");
 });
 
-test("verifyCredentials returns failed when account balance returns 401", async () => {
-  stubFetch([{ status: 401, body: { message: "unauthorized" } }]);
+test("verifyCredentials returns failed when account balance returns 401", async (t) => {
+  const { restore } = stubFetch([{ status: 401, body: { message: "unauthorized" } }]);
+  t.after(restore);
   const result = await africasTalkingAdapter.verifyCredentials(baseConfig);
   assert.equal(result.status, "failed");
+});
+
+test("dispatch returns retryable=true on HTTP 429 (rate-limited)", async (t) => {
+  const { restore } = stubFetch([{ status: 429, body: { message: "rate limited" } }]);
+  t.after(restore);
+  const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.retryable, true);
+    assert.match(result.reason, /429/);
+  }
+});
+
+test("dispatch returns retryable=true on HTTP 408 (request timeout)", async (t) => {
+  const { restore } = stubFetch([{ status: 408, body: { message: "timeout" } }]);
+  t.after(restore);
+  const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.retryable, true);
+    assert.match(result.reason, /408/);
+  }
+});
+
+test("dispatch returns retryable=true when fetch itself throws (network/parse error)", async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = (async () => { throw new Error("ECONNRESET"); }) as typeof fetch;
+  const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.retryable, true);
+    assert.match(result.reason, /ECONNRESET/);
+  }
+});
+
+test("dispatch returns retryable=true when responses[] is empty", async (t) => {
+  const { restore } = stubFetch([{ status: 201, body: { responses: [] } }]);
+  t.after(restore);
+  const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.retryable, true);
+    assert.match(result.reason, /Empty/);
+  }
 });
