@@ -43,11 +43,11 @@ export const designTokens = {
       danger: "#d92d20",
       info: "#2563eb",
       "success-100": "#dcfce7",
-      "success-700": "#166534",
+      "success-700": "#0c7b56",
       "warning-100": "#fef3c7",
       "warning-700": "#854d0e",
       "danger-100": "#fee2e2",
-      "danger-700": "#991b1b"
+      "danger-700": "#a61b13"
     }
   },
   typography: {
