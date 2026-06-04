@@ -2,6 +2,7 @@ import type {
   AnalyticsPageData,
   ApiResult,
   ContentPageData,
+  LearnerDetail,
   ReportsPageData,
   RewardsPageData,
   UsersPageData
@@ -204,4 +205,27 @@ export function getReportsPageData() {
     exports: []
   };
   return fetchWithFallback<ReportsPageData>("/api/admin/reports", fallback);
+}
+
+export function getLearnerDetail(phone: string) {
+  return fetchWithFallback<LearnerDetail | null>(
+    `/api/admin/users/${encodeURIComponent(phone)}`,
+    null
+  );
+}
+
+export function flagLearner(phone: string, body: { flagged: boolean; note?: string }) {
+  return rewardsActionFetch<{ message: string }>(
+    `/api/admin/users/${encodeURIComponent(phone)}/flag`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    "Flag learner failed"
+  );
+}
+
+export function usersExportUrl(): string {
+  return `${API_BASE_URL}/api/admin/users/export`;
 }

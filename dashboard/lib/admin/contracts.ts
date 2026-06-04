@@ -15,6 +15,30 @@ export type UserRow = {
   language: string;
   completion: string;
   status: "Active" | "At Risk";
+  flaggedForFollowUp: boolean;
+};
+
+export type LearnerDetail = {
+  identity: {
+    id: string;
+    name: string | null;
+    phone: string;
+    location: string | null;
+    language: string | null;
+    status: string;
+    flaggedForFollowUp: boolean;
+    followUpNote: string | null;
+    createdAt: string;
+  };
+  session: {
+    state: string | null;
+    currentLessonKey: string | null;
+    completedLessons: string[];
+    lastUpdatedAt: string | null;
+  } | null;
+  progress: Array<{ module: string; completionPercentage: number; updatedAt: string }>;
+  quizAttempts: Array<{ lessonKey: string; passed: boolean; attemptCount: number; lastAttemptAt: string }>;
+  rewards: Array<{ id: string; module: string; amount: number; channel: string; status: string; issuedAt: string | null; createdAt: string }>;
 };
 
 export type UsersPageData = {
