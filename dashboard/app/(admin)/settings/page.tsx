@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { Badge, Card, SectionHeader } from "../../../components/ui";
 import { ConfigAdminManager } from "../../../components/config/ConfigAdminManager";
 import { IntegrationSettingsWorkspace } from "../../../components/integration/IntegrationSettingsWorkspace";
+import { RewardRulesWorkspace } from "../../../components/integration/RewardRulesWorkspace";
 import { getPublicConfigNamespace } from "../../../lib/config/api";
 import { getAdminUiCopy } from "../../../lib/config/admin-ui-copy";
 
-type SettingsTabId = "options" | "legal" | "integration";
+type SettingsTabId = "options" | "legal" | "integration" | "rewards";
 
 type SettingsPageProps = {
   searchParams?: Promise<{
@@ -49,13 +50,20 @@ const TABS_BY_ID: Record<SettingsTabId, TabConfig> = {
     titleFallback: "Integration",
     hintKey: "settings.tab.integration.hint",
     hintFallback: "WhatsApp, email, and access"
+  },
+  rewards: {
+    id: "rewards",
+    titleKey: "settings.tab.rewards",
+    titleFallback: "Rewards",
+    hintKey: "settings.tab.rewards.hint",
+    hintFallback: "Reward amount and delivery"
   }
 };
 
-const TABS: Array<TabConfig> = [TABS_BY_ID.options, TABS_BY_ID.legal, TABS_BY_ID.integration];
+const TABS: Array<TabConfig> = [TABS_BY_ID.options, TABS_BY_ID.legal, TABS_BY_ID.integration, TABS_BY_ID.rewards];
 
 function resolveActiveTab(raw: string | undefined): SettingsTabId {
-  if (raw === "options" || raw === "legal" || raw === "integration") {
+  if (raw === "options" || raw === "legal" || raw === "integration" || raw === "rewards") {
     return raw;
   }
   return "options";
@@ -129,6 +137,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
       {activeTab.id === "integration" ? (
         <IntegrationSettingsWorkspace copy={copy.map} />
+      ) : activeTab.id === "rewards" ? (
+        <RewardRulesWorkspace />
       ) : activeTab.namespace && activeTab.defaultType ? (
         <ConfigAdminManager
           namespace={activeTab.namespace}
