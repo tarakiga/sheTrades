@@ -4,11 +4,16 @@ import request from "supertest";
 import { createApp } from "../app.js";
 import { resetReportExportState } from "../reports/export-service.js";
 
+// authorizeReportsAccess no longer ships a hardcoded fallback token, so the
+// suite configures the expected secret explicitly (read per-request).
+process.env.ADMIN_REPORTS_API_TOKEN =
+  process.env.ADMIN_REPORTS_API_TOKEN ?? "local-dev-reports-token";
+
 const app = createApp();
 
 const authHeaders = {
   "x-admin-role": "admin",
-  "x-admin-token": "local-dev-reports-token"
+  "x-admin-token": process.env.ADMIN_REPORTS_API_TOKEN
 };
 
 async function withEnv(

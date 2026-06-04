@@ -143,9 +143,19 @@ export function authorizeReportsAccess(headers: Record<string, string | string[]
   const tokenRaw = headers["x-admin-token"];
   const role = Array.isArray(roleRaw) ? roleRaw[0] : roleRaw;
   const token = Array.isArray(tokenRaw) ? tokenRaw[0] : tokenRaw;
-  const requiredToken = process.env.ADMIN_REPORTS_API_TOKEN ?? "local-dev-reports-token";
+  // Fail closed: never fall back to a hardcoded token. The previous default
+  // ("local-dev-reports-token") shipped in the public repo, so anyone could
+  // call the donor-export API. When ADMIN_REPORTS_API_TOKEN is unset the
+  // export surface is simply disabled until an operator configures a secret.
+  const requiredToken = process.env.ADMIN_REPORTS_API_TOKEN;
   const allowedRoles = new Set(["admin", "program_ops"]);
 
+  if (!requiredToken) {
+    return {
+      ok: false as const,
+      message: "Reports export is not configured (ADMIN_REPORTS_API_TOKEN is unset)."
+    };
+  }
   if (!role || !allowedRoles.has(role)) {
     return { ok: false as const, message: "Forbidden: missing or invalid admin role." };
   }

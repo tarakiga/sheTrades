@@ -49,12 +49,19 @@ const markIssuedBodySchema = z.object({
   providerTxnId: z.string().optional()
 });
 
-const manualRewardBodySchema = z.object({
-  userId: z.string().uuid(),
-  amount: z.number().positive(),
-  channel: z.string().min(1).optional(),
-  note: z.string().min(10, "Note must be at least 10 characters")
-});
+const manualRewardBodySchema = z
+  .object({
+    // A learner is identified by phone (what the picker has) or, for
+    // backward compatibility, a user id. At least one must be provided.
+    userId: z.string().uuid().optional(),
+    phone: z.string().min(3).optional(),
+    amount: z.number().positive(),
+    channel: z.string().min(1).optional(),
+    note: z.string().min(10, "Note must be at least 10 characters")
+  })
+  .refine((value) => Boolean(value.userId) || Boolean(value.phone), {
+    message: "Provide a learner (phone or userId) to receive this reward."
+  });
 
 adminRouter.get("/users", async (_req, res, next) => {
   try {
@@ -313,14 +320,16 @@ adminRouter.post("/rewards/:id/mark-issued", async (req, res, next) => {
 adminRouter.post("/rewards/manual", async (req, res, next) => {
   try {
     const body = manualRewardBodySchema.parse(req.body);
-    const user = await prisma.user.findUnique({ where: { id: body.userId } });
+    const user = body.userId
+      ? await prisma.user.findUnique({ where: { id: body.userId } })
+      : await prisma.user.findUnique({ where: { phone: body.phone! } });
     if (!user) {
       res.status(404).json({ message: "Learner not found" });
       return;
     }
     const created = await prisma.reward.create({
       data: {
-        userId: body.userId,
+        userId: user.id,
         module: "Manual",
         amount: body.amount,
         channel: body.channel ?? "airtime",
