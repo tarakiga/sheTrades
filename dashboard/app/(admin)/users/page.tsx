@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { flagLearner, getUsersPageData, usersExportUrl } from "../../../lib/admin/api";
+import { downloadAdminCsv, flagLearner, getUsersPageData, usersExportEndpoint } from "../../../lib/admin/api";
 import type { ApiResult, UsersPageData, UserRow } from "../../../lib/admin/contracts";
 import {
   AdminActionRail,
@@ -143,7 +143,7 @@ export default function UsersPage() {
             </Badge>
             <Button
               onClick={() => {
-                window.location.href = usersExportUrl();
+                void downloadAdminCsv(usersExportEndpoint(), `users-${new Date().toISOString().slice(0, 10)}.csv`);
               }}
             >
               Export Users

@@ -17,10 +17,11 @@ import type { NeedsAttentionItem } from "../../../components/rewards/NeedsAttent
 import { Badge, Button, SectionHeader } from "../../../components/ui";
 import {
   createManualReward,
+  downloadAdminCsv,
   getRewardsPageData,
   markRewardIssued,
   retryReward,
-  rewardsExportUrl,
+  rewardsExportEndpoint,
   type RewardsListParams
 } from "../../../lib/admin/api";
 import type {
@@ -302,9 +303,13 @@ export default function RewardsPage() {
     }
   }
 
-  function handleExportClick() {
-    if (typeof window === "undefined") return;
-    window.location.href = rewardsExportUrl(params);
+  async function handleExportClick() {
+    setActionError(null);
+    try {
+      await downloadAdminCsv(rewardsExportEndpoint(params), `rewards-${new Date().toISOString().slice(0, 10)}.csv`);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Export failed");
+    }
   }
 
   function handleOpenLearner(_userId: string) {
