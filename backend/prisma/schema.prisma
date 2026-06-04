@@ -13,7 +13,9 @@ model User {
   name         String?
   language     String?
   location     String?
-  status       String         @default("Active")
+  status             String         @default("Active")
+  flaggedForFollowUp Boolean        @default(false)
+  followUpNote       String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 

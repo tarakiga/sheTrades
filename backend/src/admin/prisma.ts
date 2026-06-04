@@ -63,6 +63,8 @@ export async function ensurePrismaTables() {
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS location TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Active';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "flaggedForFollowUp" BOOLEAN NOT NULL DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "followUpNote" TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
     // Phone is UNIQUE; add the constraint if missing. Wrap in a DO block so
@@ -213,7 +215,7 @@ export async function ensurePrismaTables() {
             AND is_nullable = 'NO'
             AND column_default IS NULL
             AND NOT (
-              (table_name = 'users' AND column_name IN ('id','phone','status','createdAt','updatedAt'))
+              (table_name = 'users' AND column_name IN ('id','phone','status','flaggedForFollowUp','createdAt','updatedAt'))
               OR (table_name = 'user_sessions' AND column_name IN ('id','userId','state','completedLessons','awaitingQuizAnswer','currentQuizIndex','namePrompted','lastUpdatedAt'))
               OR (table_name = 'user_progress' AND column_name IN ('id','userId','module','completionPercentage','updatedAt'))
               OR (table_name = 'quiz_attempts' AND column_name IN ('id','userId','lessonKey','passed','attemptCount','lastAttemptAt'))
@@ -241,13 +243,14 @@ export async function initializeAdminViews() {
     // admin_users_view
     await prisma.$executeRawUnsafe(`
       CREATE OR REPLACE VIEW admin_users_view AS
-      SELECT 
+      SELECT
         id,
         name,
         phone,
         location,
         language,
         status,
+        COALESCE("flaggedForFollowUp", false) AS "flaggedForFollowUp",
         (SELECT COALESCE(MAX("completionPercentage"), 0) FROM user_progress WHERE "userId" = users.id)::text || '%' as completion
       FROM users;
     `);
