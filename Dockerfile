@@ -15,6 +15,9 @@ COPY backend/tsconfig.json backend/
 COPY backend/prisma backend/prisma
 
 # Copy backend source
+# cachebust: 2026-06-04-reward-rules-union — bump this token to force Cloud
+# Build to re-copy backend/src and recompile (tsc) instead of reusing a
+# cached layer, when a source change must be guaranteed into the image.
 COPY backend/src backend/src
 
 # Install deps (postinstall hooks include prisma generate via @prisma/client,
