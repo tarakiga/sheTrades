@@ -11,6 +11,7 @@ export type AdminActionRailItem = {
   icon: AdminActionIcon;
   tone?: AdminActionTone;
   disabled?: boolean;
+  onClick?: () => void;
 };
 
 export type AdminActionRailProps = {
@@ -87,6 +88,7 @@ export function AdminActionRail({ actions, className }: AdminActionRailProps) {
           label={action.label}
           tone={action.tone ?? "neutral"}
           disabled={action.disabled}
+          onClick={action.onClick}
         />
       ))}
     </div>
