@@ -2,9 +2,19 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { createApp } from "../app.js";
+import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 import { setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
 
+process.env.ADMIN_CONFIG_JWT_SECRET = process.env.ADMIN_CONFIG_JWT_SECRET ?? "test-secret";
+
 const app = createApp();
+
+function createToken(role: "admin" | "editor" | "viewer", secret: string) {
+  const now = Math.floor(Date.now() / 1000);
+  return signJwtHs256ForTests({ sub: "user-1", role, iat: now, exp: now + 3600 }, secret);
+}
+
+const ADMIN_TOKEN = createToken("admin", process.env.ADMIN_CONFIG_JWT_SECRET!);
 
 async function withEnv(
   env: Record<string, string | undefined>,
@@ -32,25 +42,41 @@ async function withEnv(
   }
 }
 
+test("GET /api/admin/users without a token returns 401", async () => {
+  await request(app).get("/api/admin/users").expect(401);
+});
+
 test("GET /api/admin/users returns users payload", { concurrency: false }, async () => {
-  const response = await request(app).get("/api/admin/users").expect(200);
+  const response = await request(app)
+    .get("/api/admin/users")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .expect(200);
   assert.ok(Array.isArray(response.body.users));
 });
 
 test("GET /api/admin/analytics returns analytics payload", { concurrency: false }, async () => {
-  const response = await request(app).get("/api/admin/analytics").expect(200);
+  const response = await request(app)
+    .get("/api/admin/analytics")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .expect(200);
   assert.equal(typeof response.body.registrationRate, "string");
   assert.equal(typeof response.body.completionRate, "string");
   assert.equal(typeof response.body.passRate, "string");
 });
 
 test("GET /api/admin/content returns content payload", { concurrency: false }, async () => {
-  const response = await request(app).get("/api/admin/content").expect(200);
+  const response = await request(app)
+    .get("/api/admin/content")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .expect(200);
   assert.ok(Array.isArray(response.body.lessons));
 });
 
 test("GET /api/admin/rewards returns rewards payload", { concurrency: false }, async () => {
-  const response = await request(app).get("/api/admin/rewards").expect(200);
+  const response = await request(app)
+    .get("/api/admin/rewards")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .expect(200);
   assert.ok(Array.isArray(response.body.rewards));
 });
 
@@ -59,7 +85,10 @@ test(
   { concurrency: false },
   async () => {
     setRuntimeIntegrationConfigForTests("integration.payouts.primary", null);
-    const response = await request(app).get("/api/admin/rewards").expect(200);
+    const response = await request(app)
+      .get("/api/admin/rewards")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .expect(200);
     assert.equal(response.body.meta.activeProvider, null);
   }
 );
@@ -75,7 +104,10 @@ test(
       defaults: { currency: "NGN", channel: "airtime" }
     });
     try {
-      const response = await request(app).get("/api/admin/rewards").expect(200);
+      const response = await request(app)
+        .get("/api/admin/rewards")
+        .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+        .expect(200);
       assert.deepEqual(response.body.meta.activeProvider, {
         key: "africas_talking",
         sandbox: true
@@ -92,20 +124,29 @@ test(
   async () => {
     // Smoke: confirm the route accepts the filter and returns 200 with rewards/meta shape.
     setRuntimeIntegrationConfigForTests("integration.payouts.primary", null);
-    const response = await request(app).get("/api/admin/rewards?status=Pending").expect(200);
+    const response = await request(app)
+      .get("/api/admin/rewards?status=Pending")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .expect(200);
     assert.ok(Array.isArray(response.body.rewards));
     assert.ok(response.body.meta);
   }
 );
 
 test("GET /api/admin/reports returns reports payload", { concurrency: false }, async () => {
-  const response = await request(app).get("/api/admin/reports").expect(200);
+  const response = await request(app)
+    .get("/api/admin/reports")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .expect(200);
   assert.ok(Array.isArray(response.body.exports));
 });
 
 test("returns 500 for invalid ADMIN_DATA_PROVIDER", { concurrency: false }, async () => {
   await withEnv({ ADMIN_DATA_PROVIDER: "invalid-provider" }, async () => {
-    await request(app).get("/api/admin/users").expect(500);
+    await request(app)
+      .get("/api/admin/users")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .expect(500);
   });
 });
 
@@ -117,7 +158,10 @@ test("returns 500 for invalid SQL identifier mapping", { concurrency: false }, a
       POSTGRES_URL: "postgres://invalid:invalid@127.0.0.1:1/invalid"
     },
     async () => {
-      await request(app).get("/api/admin/users").expect(500);
+      await request(app)
+        .get("/api/admin/users")
+        .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+        .expect(500);
     }
   );
 });
@@ -134,7 +178,10 @@ test(
         POSTGRES_URL: "postgres://invalid:invalid@127.0.0.1:1/invalid"
       },
       async () => {
-        await request(app).get("/api/admin/analytics").expect(500);
+        await request(app)
+          .get("/api/admin/analytics")
+          .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+          .expect(500);
       }
     );
   }
@@ -147,7 +194,10 @@ test("returns 500 for invalid Firestore mapping", { concurrency: false }, async 
       FS_ADMIN_USERS_COLLECTION: "admin/users"
     },
     async () => {
-      await request(app).get("/api/admin/users").expect(500);
+      await request(app)
+        .get("/api/admin/users")
+        .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+        .expect(500);
     }
   );
 });
@@ -163,7 +213,10 @@ test(
         FS_LIVE_STARTED_FIELD: "progress/started"
       },
       async () => {
-        await request(app).get("/api/admin/analytics").expect(500);
+        await request(app)
+          .get("/api/admin/analytics")
+          .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+          .expect(500);
       }
     );
   }
@@ -174,7 +227,10 @@ test(
   { concurrency: false },
   async () => {
     await withEnv({ ADMIN_FORCE_EMPTY_DATA: "true" }, async () => {
-      const response = await request(app).get("/api/admin/users").expect(200);
+      const response = await request(app)
+        .get("/api/admin/users")
+        .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+        .expect(200);
       assert.deepEqual(response.body.users, []);
     });
   }
@@ -191,7 +247,10 @@ test(
         POSTGRES_URL: "postgres://invalid:invalid@127.0.0.1:1/invalid"
       },
       async () => {
-        await request(app).get("/api/admin/users").expect(500);
+        await request(app)
+          .get("/api/admin/users")
+          .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+          .expect(500);
       }
     );
   }
@@ -239,7 +298,10 @@ test(
   { concurrency: false },
   async () => {
     const fakeId = "00000000-0000-4000-8000-000000000000";
-    await request(app).post(`/api/admin/rewards/${fakeId}/retry`).expect(404);
+    await request(app)
+      .post(`/api/admin/rewards/${fakeId}/retry`)
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .expect(404);
   }
 );
 
@@ -251,6 +313,7 @@ test(
     // Validation should fire before the existence check (Zod first).
     const response = await request(app)
       .post(`/api/admin/rewards/${fakeId}/mark-issued`)
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
       .send({ note: "short" })
       .expect(400);
     assert.match(response.body.message, /at least 10/);
@@ -263,6 +326,7 @@ test(
   async () => {
     const response = await request(app)
       .post("/api/admin/rewards/manual")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
       .send({ amount: 500, note: "one-time discretionary payout for completion" })
       .expect(400);
     assert.ok(response.body.message);
@@ -275,6 +339,7 @@ test(
   async () => {
     const response = await request(app)
       .get("/api/admin/rewards/export")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
       .expect(200);
     assert.match(response.headers["content-type"] ?? "", /text\/csv/);
     assert.match(
@@ -295,6 +360,7 @@ test(
   async () => {
     const response = await request(app)
       .post("/api/admin/rewards/manual")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
       .send({
         userId: "00000000-0000-4000-8000-000000000002",
         amount: 0,
@@ -306,11 +372,17 @@ test(
 );
 
 test("GET /api/admin/users/:phone returns 404 for unknown learner", async () => {
-  await request(app).get("/api/admin/users/%2B234000000nope").expect(404);
+  await request(app)
+    .get("/api/admin/users/%2B234000000nope")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .expect(404);
 });
 
 test("GET /api/admin/users/export returns CSV with the expected header", async () => {
-  const res = await request(app).get("/api/admin/users/export").expect(200);
+  const res = await request(app)
+    .get("/api/admin/users/export")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .expect(200);
   assert.match(res.headers["content-type"] ?? "", /text\/csv/);
   assert.match(res.headers["content-disposition"] ?? "", /attachment; filename="users-/);
   const firstLine = res.text.split("\n")[0];
@@ -320,6 +392,7 @@ test("GET /api/admin/users/export returns CSV with the expected header", async (
 test("POST /api/admin/users/:phone/flag returns 404 for unknown learner", async () => {
   await request(app)
     .post("/api/admin/users/%2B234000nope/flag")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
     .send({ flagged: true })
     .expect(404);
 });
