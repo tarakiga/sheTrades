@@ -63,7 +63,14 @@ export function LoginFormCard({
       suppressHydrationWarning
     >
       <div className="auth-login-card__content" suppressHydrationWarning>
-        <div className="profile-form auth-login-card__form" suppressHydrationWarning>
+        <form
+          className="profile-form auth-login-card__form"
+          suppressHydrationWarning
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!submitting) onSubmit();
+          }}
+        >
           <AuthStatusBanner message={status} />
           <Input
             id="login-email"
@@ -88,12 +95,12 @@ export function LoginFormCard({
             <div className="auth-login-card__forgot-password">{forgotPasswordAction}</div>
           ) : null}
           <div className="auth-login-card__cta">
-            <Button onClick={onSubmit} loading={submitting} fullWidth size="lg">
+            <Button type="submit" loading={submitting} fullWidth size="lg">
               {submitting ? loadingLabel : submitLabel}
             </Button>
             {submitHint ? <p className="auth-login-card__submit-hint">{submitHint}</p> : null}
           </div>
-        </div>
+        </form>
       </div>
       {recoveryAction ? (
         <footer className="auth-login-card__footer" suppressHydrationWarning>

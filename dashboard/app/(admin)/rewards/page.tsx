@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { RewardsHealthHero } from "../../../components/rewards/RewardsHealthHero";
 import {
   RewardsToolbar,
@@ -19,6 +20,7 @@ import {
   createManualReward,
   downloadAdminCsv,
   getRewardsPageData,
+  getUsersPageData,
   markRewardIssued,
   retryReward,
   rewardsExportEndpoint,
@@ -130,26 +132,9 @@ function findLastIssuedAt(rewards: Array<RewardLogRow>): Date | undefined {
   return latest === null ? undefined : new Date(latest);
 }
 
-function deriveLearnerOptions(rewards: Array<RewardLogRow>): Array<LearnerOption> {
-  // TODO(task-18+): Replace with a dedicated /api/admin/users learner picker
-  // endpoint. For now we surface the unique learners visible in the current
-  // rewards list so the manual-issue flow has a non-empty autocomplete in the
-  // common case where ops staff are reissuing for a learner they already see.
-  // The ID we expose here is the reward id, NOT the learner's user id, so
-  // creating a manual reward from this picker will fail server-side until the
-  // proper user-list endpoint is wired up.
-  const seen = new Set<string>();
-  const options: Array<LearnerOption> = [];
-  for (const row of rewards) {
-    const key = `${row.learner}|${row.learnerPhone}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    options.push({ id: row.id, name: row.learner, phone: row.learnerPhone });
-  }
-  return options;
-}
 
 export default function RewardsPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<RewardsToolbarStatus>("All");
   const [dateRange, setDateRange] = useState<RewardsToolbarDateRange>("7d");
   const [query, setQuery] = useState<string>("");
@@ -159,6 +144,30 @@ export default function RewardsPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState<boolean>(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [learnerOptions, setLearnerOptions] = useState<Array<LearnerOption>>([]);
+
+  // The manual-issue picker offers every learner in the directory (keyed by
+  // phone, which is what the manual endpoint resolves against) — not just the
+  // learners who already appear in the current rewards list.
+  useEffect(() => {
+    let cancelled = false;
+    getUsersPageData()
+      .then((res) => {
+        if (cancelled) return;
+        const options = res.data.users.map((user) => ({
+          id: user.phone,
+          name: user.name,
+          phone: user.phone
+        }));
+        setLearnerOptions(options);
+      })
+      .catch(() => {
+        if (!cancelled) setLearnerOptions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const params = useMemo<RewardsListParams>(
     () => buildParams(status, dateRange, query),
@@ -214,7 +223,6 @@ export default function RewardsPage() {
   );
   const attentionItems = useMemo(() => buildAttentionItems(rewards), [rewards]);
   const lastIssuedAt = useMemo(() => findLastIssuedAt(rewards), [rewards]);
-  const learnerOptions = useMemo(() => deriveLearnerOptions(rewards), [rewards]);
 
   const openReward = useMemo<RewardLogRow | null>(() => {
     if (!openId) return null;
@@ -287,7 +295,7 @@ export default function RewardsPage() {
   }
 
   async function handleCreateManual(input: {
-    userId: string;
+    phone: string;
     amount: number;
     channel: string;
     note: string;
@@ -313,7 +321,9 @@ export default function RewardsPage() {
   }
 
   function handleOpenLearner(_userId: string) {
-    // Out of scope for Task 17 — wired in a follow-up.
+    // Take the operator to the learner directory, where they can open the
+    // full learner profile drawer and act on follow-up state.
+    router.push("/users");
   }
 
   const dataSource = result?.meta.source ?? "fallback";

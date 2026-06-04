@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AdminReviewTableShell,
   AdminReviewWorkspace,
@@ -46,6 +47,7 @@ function toStatusVariant(status: "Healthy" | "Watch" | "Needs Setup" | "Idle") {
 }
 
 export default function AdminDashboardOverviewPage() {
+  const router = useRouter();
   const [usersResult, setUsersResult] = useState<ApiResult<UsersPageData> | null>(null);
   const [rewardsResult, setRewardsResult] = useState<ApiResult<RewardsPageData> | null>(null);
   const [analyticsResult, setAnalyticsResult] = useState<ApiResult<AnalyticsPageData> | null>(null);
@@ -235,7 +237,7 @@ export default function AdminDashboardOverviewPage() {
           <Badge variant={statsSource === "live" ? "success" : "warning"}>
             {statsSource === "live" ? "Live Data" : "Safe Empty Fallback"}
           </Badge>
-          <Button>Export Summary</Button>
+          <Button disabled>Export Summary (coming soon)</Button>
         </div>
       }
       {...(feedbackMessage
@@ -439,7 +441,12 @@ export default function AdminDashboardOverviewPage() {
               title="No upcoming milestone events"
               description="Milestone alerts will appear here when learners approach reward thresholds."
               action={
-                <Button variant="secondary">Configure Milestone Rule</Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push("/settings")}
+                >
+                  Configure Milestone Rule
+                </Button>
               }
             />
           </Card>

@@ -195,7 +195,7 @@ export function markRewardIssued(
 }
 
 export function createManualReward(body: {
-  userId: string;
+  phone: string;
   amount: number;
   channel: string;
   note: string;

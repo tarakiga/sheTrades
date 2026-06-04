@@ -49,7 +49,7 @@ export default function ReportsPage() {
           <Badge variant={meta.source === "live" ? "success" : "warning"}>
             {meta.source === "live" ? "Live Data" : "Fallback Data"}
           </Badge>
-          <Button>Generate Report</Button>
+          <Button disabled>Generate Report (coming soon)</Button>
         </div>
       }
       {...(meta.message ? { feedback: <p className="admin-inline-note">{meta.message}</p> } : {})}
@@ -148,7 +148,9 @@ export default function ReportsPage() {
               title="No scheduled report jobs"
               description="Create scheduled jobs to automatically generate donor and operations reports."
               action={
-                <Button variant="secondary">Create Schedule</Button>
+                <Button variant="secondary" disabled>
+                  Create Schedule (coming soon)
+                </Button>
               }
             />
           </Card>

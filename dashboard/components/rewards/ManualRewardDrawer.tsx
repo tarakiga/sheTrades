@@ -21,7 +21,7 @@ export type ManualRewardDrawerProps = {
   open: boolean;
   onClose: () => void;
   onSubmit: (input: {
-    userId: string;
+    phone: string;
     amount: number;
     channel: string;
     note: string;
@@ -305,7 +305,7 @@ export function ManualRewardDrawer(
     try {
       setSubmitting(true);
       await onSubmit({
-        userId: selectedLearner.id,
+        phone: selectedLearner.phone,
         amount: parsedAmount,
         channel: channel.trim(),
         note: note.trim()

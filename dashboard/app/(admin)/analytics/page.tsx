@@ -64,7 +64,7 @@ export default function AnalyticsPage() {
           <Badge variant={meta.source === "live" ? "success" : "warning"}>
             {meta.source === "live" ? "Live Data" : "Fallback Data"}
           </Badge>
-          <Button>Download Analytics CSV</Button>
+          <Button disabled>Download CSV (coming soon)</Button>
         </div>
       }
       {...(meta.message ? { feedback: <p className="admin-inline-note">{meta.message}</p> } : {})}
@@ -166,10 +166,13 @@ export default function AnalyticsPage() {
                 </AdminInsightPanel>
 
                 <AdminInsightPanel
-                  title="Realtime Sync"
-                  description="Streaming analytics updates from WhatsApp events pipeline."
+                  title="Analytics Source"
+                  description="Figures are computed from the WhatsApp events pipeline."
                 >
-                  <LoadingState label="Refreshing analytics stream..." />
+                  <p className="admin-review-support-note">
+                    Live streaming is not enabled yet — reload this page to pull the latest
+                    snapshot from the events pipeline.
+                  </p>
                 </AdminInsightPanel>
               </>
             }
@@ -225,7 +228,9 @@ export default function AnalyticsPage() {
                   title="Analytics funnel still needs setup"
                   description="Publish the funnel configuration to unlock more useful progression analysis here."
                   action={
-                    <Button variant="secondary">Review Analytics Setup</Button>
+                    <Button variant="secondary" disabled>
+                      Review Analytics Setup (coming soon)
+                    </Button>
                   }
                 />
               )}
