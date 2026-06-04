@@ -101,13 +101,12 @@ export type NotificationIntegrationPayload = z.infer<typeof notificationIntegrat
 // forbids. The frontend serializes an extra `title` into the payload; the
 // payouts schemas strip it (zod drops unknown keys), and the document-level
 // title field preserves it regardless.
-export const integrationConfigPayloadSchema = z.union([
-  whatsappIntegrationPayloadSchema,
-  notificationIntegrationPayloadSchema,
-  payoutsIntegrationPayloadSchema
-]);
-export type IntegrationConfigPayload = z.infer<typeof integrationConfigPayloadSchema>;
-
+// The reward-rule document is stored with type `integration_config` in the
+// `integration` namespace, so it MUST be a member of integrationConfigPayloadSchema:
+// the config-platform service re-validates every integration_config payload
+// against THIS union in validatePayloadForDocumentType (service.ts /
+// postgres-service.ts), not just against configPayloadSchema at the route layer.
+// Defined here (above the integration union) so it can be included below.
 export const rewardRulesPayloadSchema = z.object({
   kind: z.literal("reward_rules"),
   amount: z.number().positive(),
@@ -116,12 +115,19 @@ export const rewardRulesPayloadSchema = z.object({
 });
 export type RewardRulesPayload = z.infer<typeof rewardRulesPayloadSchema>;
 
+export const integrationConfigPayloadSchema = z.union([
+  whatsappIntegrationPayloadSchema,
+  notificationIntegrationPayloadSchema,
+  payoutsIntegrationPayloadSchema,
+  rewardRulesPayloadSchema
+]);
+export type IntegrationConfigPayload = z.infer<typeof integrationConfigPayloadSchema>;
+
 export const configPayloadSchema = z.union([
   legalBlockPayloadSchema,
   optionSetPayloadSchema,
   lessonContentPayloadSchema,
   integrationConfigPayloadSchema,
-  rewardRulesPayloadSchema,
   z.record(z.string(), z.unknown())
 ]);
 export type ConfigPayload = z.infer<typeof configPayloadSchema>;
