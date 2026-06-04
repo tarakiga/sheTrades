@@ -152,6 +152,44 @@ function languageLabel(language: "en" | "pcm" | "ig") {
   return getRuntimeText("bot.language.ig", "Igbo");
 }
 
+type StateRow = { id: string; title: string };
+
+function getStateRows(): StateRow[] {
+  const configured = getRuntimeOptionSet("bot.state_options")
+    .filter((item) => item.enabled)
+    .map((item) => ({ id: item.value.trim().toLowerCase(), title: item.label.trim() }))
+    .filter((r) => r.id.length > 0 && r.title.length > 0);
+  if (configured.length > 0) return configured;
+  // Resilience fallback so onboarding works before bot.state_options is seeded.
+  return [
+    { id: "anambra", title: "Anambra" },
+    { id: "delta", title: "Delta" }
+  ];
+}
+
+function resolveState(input: string, rows: StateRow[]): StateRow | null {
+  const norm = input.trim().toLowerCase();
+  const asNum = Number(norm);
+  if (Number.isInteger(asNum) && asNum >= 1 && asNum <= rows.length) {
+    return rows[asNum - 1] ?? null;
+  }
+  return rows.find((r) => r.id === norm || r.title.trim().toLowerCase() === norm) ?? null;
+}
+
+function buildStateListReply(lang: "en" | "pcm" | "ig", rows: StateRow[]) {
+  let reply = getPrompt("state_prompt", lang, "Which state are you in?") + "\n";
+  rows.forEach((r, i) => {
+    reply += `${i + 1}. ${r.title}\n`;
+  });
+  return {
+    reply,
+    list: {
+      button: getPrompt("state_button", lang, "Choose state"),
+      sections: [{ title: "States", rows: rows.map((r) => ({ id: r.id, title: r.title })) }]
+    }
+  };
+}
+
 function mainMenuText(name: string): string {
   let text = getRuntimeText("bot.main_menu", `Hello {name}! Main Menu:`);
   return text.replace("{name}", name);
@@ -331,6 +369,16 @@ function getPrompt(
       en: "I did not understand that.\nReply QUIZ to start this lesson's quiz, NEXT to progress, or MENU to return.",
       pcm: "I no understand wetin you write.\nReply QUIZ to start dis lesson quiz, NEXT to continue, or MENU to go back.",
       ig: "Aghọtaghị m nke ahụ.\nReply QUIZ ka ịmalite ule, NEXT ka ịga n'ihu, ma ọ bụ MENU ka ịlaghachi."
+    },
+    "state_prompt": {
+      en: "Which state are you in?",
+      pcm: "Which state you dey?",
+      ig: "Kedu steeti ị nọ?"
+    },
+    "state_button": {
+      en: "Choose state",
+      pcm: "Choose state",
+      ig: "Họrọ steeti"
     }
   };
 
@@ -399,16 +447,34 @@ function transition(
     }
 
     session.language = language;
+    session.state = "awaiting_state";
+    session.lastUpdatedAt = nowIso();
+    const stateRows = getStateRows();
+    const stateList = buildStateListReply(language, stateRows);
+    return {
+      state: session.state,
+      reply: stateList.reply,
+      list: stateList.list
+    };
+  }
+
+  if (session.state === "awaiting_state") {
+    const rows = getStateRows();
+    const chosen = resolveState(normalized, rows);
+    if (!chosen) {
+      const list = buildStateListReply(lang, rows);
+      return {
+        state: "awaiting_state",
+        reply: "Please choose your state from the list.\n" + list.reply,
+        list: list.list
+      };
+    }
+    session.location = chosen.title;
     session.state = "main_menu";
     session.lastUpdatedAt = nowIso();
     return {
       state: session.state,
-      reply: getRuntimeText(
-        "bot.main_menu.language_set",
-        `${mainMenuText(session.name ?? "Learner")}\nLanguage set: ${languageLabel(language)}`
-      )
-        .replace("{menu}", mainMenuText(session.name ?? "Learner"))
-        .replace("{language}", languageLabel(language)),
+      reply: mainMenuText(session.name ?? "Learner"),
       buttons: ["1. Start Learning", "2. My Progress", "3. Change Language"]
     };
   }
@@ -947,7 +1013,8 @@ export async function handleWhatsAppWebhook(payload: unknown): Promise<WhatsAppW
     messageId: inbound.id,
     state: result.state,
     reply: result.reply,
-    ...(result.buttons ? { buttons: result.buttons } : {})
+    ...(result.buttons ? { buttons: result.buttons } : {}),
+    ...(result.list ? { list: result.list } : {})
   };
 }
 
