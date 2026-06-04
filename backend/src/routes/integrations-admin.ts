@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { NextFunction, Request, Response } from "express";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import { authenticateJwt, requireRoles } from "../auth/jwt-rbac.js";
 import {
   testNotificationConnectionRequestSchema,
@@ -10,6 +10,12 @@ import {
   testNotificationConnection,
   testWhatsAppConnection
 } from "../integrations/connection-tests.js";
+import { payoutsIntegrationPayloadSchema } from "../payouts/providers/contracts.js";
+import { verifyPayoutsConfig } from "../payouts/providers/index.js";
+
+const testPayoutsConnectionRequestSchema = z.object({
+  config: payoutsIntegrationPayloadSchema
+});
 
 export const integrationsAdminRouter = Router();
 
@@ -41,6 +47,24 @@ integrationsAdminRouter.post("/notification/test", async (req, res, next) => {
         result.status === "connected"
           ? "Notification connection test succeeded."
           : "Notification connection test failed.",
+      result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+integrationsAdminRouter.post("/payouts/test", async (req, res, next) => {
+  try {
+    const body = testPayoutsConnectionRequestSchema.parse(req.body);
+    const result = await verifyPayoutsConfig(body.config);
+    res.status(200).json({
+      message:
+        result.status === "healthy"
+          ? "Payouts connection test succeeded."
+          : result.status === "degraded"
+            ? "Payouts connection responded with warnings."
+            : "Payouts connection test failed.",
       result
     });
   } catch (error) {

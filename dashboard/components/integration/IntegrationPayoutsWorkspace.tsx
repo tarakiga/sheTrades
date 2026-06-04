@@ -252,6 +252,7 @@ export function IntegrationPayoutsWorkspace({
   const [isEditing, setIsEditing] = useState(false);
   const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const [form, setForm] = useState<PayoutsFormState>(createEmptyPayoutsForm());
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -367,6 +368,48 @@ export function IntegrationPayoutsWorkspace({
 
   function handleCredentialsChange(next: PayoutsIntegrationPayload) {
     setForm({ ...form, payload: next });
+  }
+
+  async function testConnection() {
+    const nextErrors = validateForm(form);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      setFeedback({
+        tone: "warning",
+        text: "Add the provider credentials before testing the connection."
+      });
+      return;
+    }
+
+    try {
+      setIsTesting(true);
+      const serialized = serializeForm(form) as Record<string, unknown>;
+      const { title: _title, ...config } = serialized;
+      const response = await request<{
+        message: string;
+        result: { status: "healthy" | "degraded" | "failed"; message?: string };
+      }>(`/api/integrations/admin/payouts/test`, {
+        method: "POST",
+        body: JSON.stringify({ config })
+      });
+      const tone =
+        response.result.status === "healthy"
+          ? "success"
+          : response.result.status === "degraded"
+            ? "warning"
+            : "danger";
+      setFeedback({
+        tone,
+        text: [response.message, response.result.message].filter(Boolean).join(" — ")
+      });
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        text: error instanceof Error ? error.message : String(error)
+      });
+    } finally {
+      setIsTesting(false);
+    }
   }
 
   async function saveDraft() {
@@ -713,7 +756,15 @@ export function IntegrationPayoutsWorkspace({
                 <Button variant="secondary" onClick={cancelEdit}>
                   Cancel
                 </Button>
-                <Button loading={isSubmitting} onClick={() => void saveDraft()}>
+                <Button
+                  variant="secondary"
+                  loading={isTesting}
+                  disabled={isSubmitting}
+                  onClick={() => void testConnection()}
+                >
+                  Test Connection
+                </Button>
+                <Button loading={isSubmitting} disabled={isTesting} onClick={() => void saveDraft()}>
                   {detail ? "Update Draft" : "Save Draft"}
                 </Button>
               </div>
