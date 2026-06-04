@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import {
   AdminReviewTableShell,
   AdminReviewWorkspace,
@@ -8,8 +11,17 @@ import {
   Table,
   Tabs
 } from "../../../components/ui";
-import { getAnalyticsPageData, getRewardsPageData, getUsersPageData } from "../../../lib/admin/api";
-import { getAdminUiCopy } from "../../../lib/config/admin-ui-copy";
+import {
+  getAnalyticsPageData,
+  getRewardsPageData,
+  getUsersPageData
+} from "../../../lib/admin/api";
+import type {
+  AnalyticsPageData,
+  ApiResult,
+  RewardsPageData,
+  UsersPageData
+} from "../../../lib/admin/contracts";
 
 function toNumber(value: string) {
   const parsed = Number.parseFloat(value.replace("%", ""));
@@ -33,184 +45,248 @@ function toStatusVariant(status: "Healthy" | "Watch" | "Needs Setup" | "Idle") {
   }
 }
 
-export default async function AdminDashboardOverviewPage() {
-  const copy = await getAdminUiCopy();
-  const t = copy.t;
-  const [usersResult, rewardsResult, analyticsResult] = await Promise.all([
-    getUsersPageData(),
-    getRewardsPageData(),
-    getAnalyticsPageData()
-  ]);
+export default function AdminDashboardOverviewPage() {
+  const [usersResult, setUsersResult] = useState<ApiResult<UsersPageData> | null>(null);
+  const [rewardsResult, setRewardsResult] = useState<ApiResult<RewardsPageData> | null>(null);
+  const [analyticsResult, setAnalyticsResult] = useState<ApiResult<AnalyticsPageData> | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const rewardRows = rewardsResult.data.rewards.slice(0, 5).map((row) => ({
-    learner: row.learner,
-    module: row.module,
-    amount: row.amount,
-    status: row.status === "Issued" ? "Issued" : "Pending"
-  }));
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([getUsersPageData(), getRewardsPageData(), getAnalyticsPageData()])
+      .then(([users, rewards, analytics]) => {
+        if (!cancelled) {
+          setUsersResult(users);
+          setRewardsResult(rewards);
+          setAnalyticsResult(analytics);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const atRiskRows = usersResult.data.users
-    .filter((row) => row.status === "At Risk")
-    .slice(0, 5)
-    .map((row) => ({
-      learner: row.name,
-      location: row.location,
-      completion: row.completion,
-      risk: toRisk(row.completion)
-    }));
+  const usersData = usersResult?.data ?? { users: [] };
+  const rewardsData = rewardsResult?.data ?? {
+    rewards: [],
+    meta: { activeProvider: null, nextCursor: null }
+  };
+  const analyticsData = analyticsResult?.data ?? {
+    registrationRate: "0%",
+    completionRate: "0%",
+    passRate: "0%",
+    funnelOverall: "",
+    funnelAnambra: "",
+    funnelDelta: ""
+  };
 
-  const statsSource = [
-    usersResult.meta.source,
-    rewardsResult.meta.source,
-    analyticsResult.meta.source
-  ].every((item) => item === "live")
-    ? "live"
-    : "fallback";
+  const rewardRows = useMemo(
+    () =>
+      rewardsData.rewards.slice(0, 5).map((row) => ({
+        learner: row.learner,
+        module: row.module,
+        amount: row.amount,
+        status: row.status === "Issued" ? "Issued" : "Pending"
+      })),
+    [rewardsData.rewards]
+  );
 
-  const issuedCount = rewardsResult.data.rewards.filter((row) => row.status === "Issued").length;
-  const totalRewards = rewardsResult.data.rewards.length;
-  const automationRate =
-    totalRewards === 0 ? "0.0%" : `${((issuedCount / totalRewards) * 100).toFixed(1)}%`;
-  const funnelReady = !analyticsResult.data.funnelOverall.startsWith("No published");
-  const operationalRows = [
-    {
-      area: t("dashboard.operational.learners.title", "Learner Coverage"),
-      summary:
-        usersResult.data.users.length > 0
-          ? t("dashboard.operational.learners.summary", "Registered learner records are flowing into the directory.")
-          : t("dashboard.operational.learners.empty", "No learner records are available in the current source."),
-      signal: t("dashboard.operational.learners.signal", "{{count}} learner records available").replace(
-        "{{count}}",
-        String(usersResult.data.users.length)
-      ),
-      status:
-        usersResult.data.users.length > 0
-          ? ("Healthy" as const)
-          : ("Needs Setup" as const),
-      source:
-        usersResult.meta.source === "live"
-          ? t("common.liveData", "Live Data")
-          : t("common.fallbackData", "Fallback Data")
-    },
-    {
-      area: t("dashboard.operational.progress.title", "Module Progression"),
-      summary: t(
-        "dashboard.operational.progress.summary",
-        "Completion and quiz performance remain the clearest learning health signals."
-      ),
-      signal: `${analyticsResult.data.completionRate} ${t("dashboard.operational.progress.signalJoin", "completion")} / ${analyticsResult.data.passRate} ${t("dashboard.operational.progress.signalPass", "pass rate")}`,
-      status: toNumber(analyticsResult.data.completionRate) > 0 ? ("Healthy" as const) : ("Watch" as const),
-      source:
-        analyticsResult.meta.source === "live"
-          ? t("common.liveData", "Live Data")
-          : t("common.fallbackData", "Fallback Data")
-    },
-    {
-      area: t("dashboard.operational.rewards.title", "Reward Delivery"),
-      summary: t(
-        "dashboard.operational.rewards.summary",
-        "Reward automation shows whether learner completion is flowing through to issuance."
-      ),
-      signal: `${automationRate} ${t("dashboard.operational.rewards.signalJoin", "automation across")} ${totalRewards} ${t("dashboard.operational.rewards.signalTotal", "reward events")}`,
-      status: totalRewards > 0 ? ("Healthy" as const) : ("Idle" as const),
-      source:
-        rewardsResult.meta.source === "live"
-          ? t("common.liveData", "Live Data")
-          : t("common.fallbackData", "Fallback Data")
-    },
-    {
-      area: t("dashboard.operational.funnel.title", "Funnel Readiness"),
-      summary: funnelReady
-        ? t(
-            "dashboard.operational.funnel.summaryReady",
-            "The current funnel snapshot is ready to review by cohort and state."
-          )
-        : t(
-            "dashboard.operational.funnel.summaryEmpty",
-            "The funnel still needs a published analytics configuration before it becomes useful."
-          ),
-      signal: funnelReady
-        ? t("dashboard.operational.funnel.signalReady", "Funnel snapshots are available")
-        : t("dashboard.operational.funnel.signalEmpty", "Waiting for published funnel data"),
-      status: funnelReady ? ("Healthy" as const) : ("Needs Setup" as const),
-      source:
-        analyticsResult.meta.source === "live"
-          ? t("common.liveData", "Live Data")
-          : t("common.fallbackData", "Fallback Data")
-    }
-  ];
+  const atRiskRows = useMemo(
+    () =>
+      usersData.users
+        .filter((row) => row.status === "At Risk")
+        .slice(0, 5)
+        .map((row) => ({
+          learner: row.name,
+          location: row.location,
+          completion: row.completion,
+          risk: toRisk(row.completion)
+        })),
+    [usersData.users]
+  );
+
+  const statsSource = useMemo(() => {
+    if (!usersResult || !rewardsResult || !analyticsResult) return "fallback";
+    return [
+      usersResult.meta.source,
+      rewardsResult.meta.source,
+      analyticsResult.meta.source
+    ].every((item) => item === "live")
+      ? "live"
+      : "fallback";
+  }, [usersResult, rewardsResult, analyticsResult]);
+
+  const issuedCount = useMemo(
+    () => rewardsData.rewards.filter((row) => row.status === "Issued").length,
+    [rewardsData.rewards]
+  );
+
+  const totalRewards = useMemo(() => rewardsData.rewards.length, [rewardsData.rewards]);
+
+  const automationRate = useMemo(
+    () =>
+      totalRewards === 0
+        ? "0.0%"
+        : `${((issuedCount / totalRewards) * 100).toFixed(1)}%`,
+    [issuedCount, totalRewards]
+  );
+
+  const funnelReady = useMemo(
+    () => !analyticsData.funnelOverall.startsWith("No published"),
+    [analyticsData.funnelOverall]
+  );
+
+  const operationalRows = useMemo(
+    () => [
+      {
+        area: "Learner Coverage",
+        summary:
+          usersData.users.length > 0
+            ? "Registered learner records are flowing into the directory."
+            : "No learner records are available in the current source.",
+        signal: `${usersData.users.length} learner records available`,
+        status:
+          usersData.users.length > 0
+            ? ("Healthy" as const)
+            : ("Needs Setup" as const),
+        source:
+          usersResult?.meta.source === "live" ? "Live Data" : "Fallback Data"
+      },
+      {
+        area: "Module Progression",
+        summary:
+          "Completion and quiz performance remain the clearest learning health signals.",
+        signal: `${analyticsData.completionRate} completion / ${analyticsData.passRate} pass rate`,
+        status:
+          toNumber(analyticsData.completionRate) > 0
+            ? ("Healthy" as const)
+            : ("Watch" as const),
+        source:
+          analyticsResult?.meta.source === "live" ? "Live Data" : "Fallback Data"
+      },
+      {
+        area: "Reward Delivery",
+        summary:
+          "Reward automation shows whether learner completion is flowing through to issuance.",
+        signal: `${automationRate} automation across ${totalRewards} reward events`,
+        status: totalRewards > 0 ? ("Healthy" as const) : ("Idle" as const),
+        source:
+          rewardsResult?.meta.source === "live" ? "Live Data" : "Fallback Data"
+      },
+      {
+        area: "Funnel Readiness",
+        summary: funnelReady
+          ? "The current funnel snapshot is ready to review by cohort and state."
+          : "The funnel still needs a published analytics configuration before it becomes useful.",
+        signal: funnelReady
+          ? "Funnel snapshots are available"
+          : "Waiting for published funnel data",
+        status: funnelReady ? ("Healthy" as const) : ("Needs Setup" as const),
+        source:
+          analyticsResult?.meta.source === "live" ? "Live Data" : "Fallback Data"
+      }
+    ],
+    [
+      usersData.users,
+      usersResult,
+      analyticsData.completionRate,
+      analyticsData.passRate,
+      analyticsResult,
+      automationRate,
+      totalRewards,
+      rewardsResult,
+      funnelReady
+    ]
+  );
+
+  const feedbackMessage =
+    usersResult?.meta.message ||
+    rewardsResult?.meta.message ||
+    analyticsResult?.meta.message;
+
+  if (loading) {
+    return (
+      <AdminReviewWorkspace
+        title="Dashboard Overview"
+        description="Review the clearest learner, funnel, and rewards signals first, then use the support panels for detail."
+        actions={
+          <div className="preview-row">
+            <Badge variant="warning">Loading…</Badge>
+          </div>
+        }
+        metricsAriaLabel="Overview metrics"
+        metrics={[]}
+        primary={null}
+        secondary={null}
+      />
+    );
+  }
 
   return (
     <AdminReviewWorkspace
-      title={t("dashboard.title", "Dashboard Overview")}
-      description={t(
-        "dashboard.description",
-        "Review the clearest learner, funnel, and rewards signals first, then use the support panels for detail."
-      )}
+      title="Dashboard Overview"
+      description="Review the clearest learner, funnel, and rewards signals first, then use the support panels for detail."
       actions={
         <div className="preview-row">
           <Badge variant={statsSource === "live" ? "success" : "warning"}>
-            {statsSource === "live"
-              ? t("common.liveData", "Live Data")
-              : t("common.safeEmptyFallback", "Safe Empty Fallback")}
+            {statsSource === "live" ? "Live Data" : "Safe Empty Fallback"}
           </Badge>
-          <Button>{t("dashboard.actions.exportSummary", "Export Summary")}</Button>
+          <Button>Export Summary</Button>
         </div>
       }
-      {...(usersResult.meta.message || rewardsResult.meta.message || analyticsResult.meta.message
+      {...(feedbackMessage
         ? {
             feedback: (
-              <p className="admin-inline-note">
-                {usersResult.meta.message || rewardsResult.meta.message || analyticsResult.meta.message}
-              </p>
+              <p className="admin-inline-note">{feedbackMessage}</p>
             )
           }
         : {})}
-      metricsAriaLabel={t("dashboard.metricsAria", "Overview metrics")}
+      metricsAriaLabel="Overview metrics"
       metrics={[
         {
-          label: t("dashboard.metrics.registeredLearners", "Registered Learners"),
-          value: String(usersResult.data.users.length),
+          label: "Registered Learners",
+          value: String(usersData.users.length),
           trend:
-            usersResult.meta.source === "live"
-              ? t("dashboard.trends.usersLive", "Synced from admin users API")
-              : t("dashboard.trends.usersFallback", "Fallback: no users loaded"),
+            usersResult?.meta.source === "live"
+              ? "Synced from admin users API"
+              : "Fallback: no users loaded",
           status: (
-            <Badge variant={usersResult.data.users.length > 0 ? "success" : "warning"}>
-              {t("dashboard.badges.coverage", "Coverage")}
+            <Badge variant={usersData.users.length > 0 ? "success" : "warning"}>
+              Coverage
             </Badge>
           )
         },
         {
-          label: t("dashboard.metrics.moduleCompletion", "Module Completion"),
-          value: analyticsResult.data.completionRate,
-          trend: t("dashboard.trends.analyticsDynamic", "Dynamic from analytics API"),
-          status: <Badge variant="success">{t("dashboard.badges.dynamic", "Dynamic")}</Badge>
+          label: "Module Completion",
+          value: analyticsData.completionRate,
+          trend: "Dynamic from analytics API",
+          status: <Badge variant="success">Dynamic</Badge>
         },
         {
-          label: t("dashboard.metrics.quizPassRate", "Quiz Pass Rate"),
-          value: analyticsResult.data.passRate,
-          trend: t("dashboard.trends.analyticsDynamic", "Dynamic from analytics API"),
-          status: <Badge variant="info">{t("dashboard.badges.dynamic", "Dynamic")}</Badge>
+          label: "Quiz Pass Rate",
+          value: analyticsData.passRate,
+          trend: "Dynamic from analytics API",
+          status: <Badge variant="info">Dynamic</Badge>
         },
         {
-          label: t("dashboard.metrics.rewardsAutomation", "Rewards Automation"),
+          label: "Rewards Automation",
           value: automationRate,
-          trend: t("dashboard.trends.rewardsAutomation", "Issued / total rewards"),
+          trend: "Issued / total rewards",
           status: (
             <Badge variant={issuedCount > 0 ? "success" : "warning"}>
-              {t("dashboard.badges.dynamic", "Dynamic")}
+              Dynamic
             </Badge>
           )
         }
       ]}
       primary={
         <AdminReviewTableShell
-          title={t("dashboard.workspace.primary.title", "Operational Review")}
-          description={t(
-            "dashboard.workspace.primary.description",
-            "Start with the strongest operating signals, then open the support panels below when you need context."
-          )}
+          title="Operational Review"
+          description="Start with the strongest operating signals, then open the support panels below when you need context."
         >
           <Table
             wrapperClassName="admin-review-table-wrap"
@@ -218,7 +294,7 @@ export default async function AdminDashboardOverviewPage() {
             columns={[
               {
                 key: "area",
-                header: t("dashboard.workspace.columns.area", "Area"),
+                header: "Area",
                 render: (value, row) => (
                   <div className="admin-review-identity">
                     <span className="admin-review-identity__title">{String(value)}</span>
@@ -228,14 +304,20 @@ export default async function AdminDashboardOverviewPage() {
               },
               {
                 key: "signal",
-                header: t("dashboard.workspace.columns.signal", "Signal"),
-                render: (value) => <span className="admin-review-signal">{String(value)}</span>
+                header: "Signal",
+                render: (value) => (
+                  <span className="admin-review-signal">{String(value)}</span>
+                )
               },
               {
                 key: "status",
-                header: t("common.columns.status", "Status"),
+                header: "Status",
                 render: (value) => {
-                  const statusValue = String(value) as "Healthy" | "Watch" | "Needs Setup" | "Idle";
+                  const statusValue = String(value) as
+                    | "Healthy"
+                    | "Watch"
+                    | "Needs Setup"
+                    | "Idle";
                   return (
                     <Badge variant={toStatusVariant(statusValue)}>
                       {statusValue}
@@ -245,8 +327,10 @@ export default async function AdminDashboardOverviewPage() {
               },
               {
                 key: "source",
-                header: t("dashboard.workspace.columns.source", "Source"),
-                render: (value) => <span className="admin-review-muted">{String(value)}</span>
+                header: "Source",
+                render: (value) => (
+                  <span className="admin-review-muted">{String(value)}</span>
+                )
               }
             ]}
             rows={operationalRows}
@@ -256,23 +340,20 @@ export default async function AdminDashboardOverviewPage() {
       secondary={
         <div className="admin-review-support-grid">
           <Card
-            title={t("dashboard.cards.rewardActivity.title", "Recent Reward Activity")}
-            description={t(
-              "dashboard.cards.rewardActivity.description",
-              "Most recent airtime reward transactions."
-            )}
+            title="Recent Reward Activity"
+            description="Most recent airtime reward transactions."
           >
             {rewardRows.length > 0 ? (
               <Table
                 wrapperClassName="admin-review-table-wrap admin-review-table-wrap--compact"
                 tableClassName="admin-review-table admin-review-table--compact"
                 columns={[
-                  { key: "learner", header: t("common.columns.learner", "Learner") },
-                  { key: "module", header: t("common.columns.module", "Module") },
-                  { key: "amount", header: t("common.columns.amount", "Amount") },
+                  { key: "learner", header: "Learner" },
+                  { key: "module", header: "Module" },
+                  { key: "amount", header: "Amount" },
                   {
                     key: "status",
-                    header: t("common.columns.status", "Status"),
+                    header: "Status",
                     render: (value) => (
                       <Badge variant={value === "Issued" ? "success" : "warning"}>
                         {String(value)}
@@ -284,35 +365,31 @@ export default async function AdminDashboardOverviewPage() {
               />
             ) : (
               <EmptyState
-                title={t("dashboard.empty.rewardActivity.title", "No reward activity available")}
-                description={t(
-                  "dashboard.empty.rewardActivity.description",
-                  "Reward transactions will appear when issuance records are available."
-                )}
+                title="No reward activity available"
+                description="Reward transactions will appear when issuance records are available."
               />
             )}
           </Card>
 
           <Card
-            title={t("dashboard.cards.atRisk.title", "At-Risk Learners")}
-            description={t(
-              "dashboard.cards.atRisk.description",
-              "Learners with low completion needing follow-up support."
-            )}
+            title="At-Risk Learners"
+            description="Learners with low completion needing follow-up support."
           >
             {atRiskRows.length > 0 ? (
               <Table
                 wrapperClassName="admin-review-table-wrap admin-review-table-wrap--compact"
                 tableClassName="admin-review-table admin-review-table--compact"
                 columns={[
-                  { key: "learner", header: t("common.columns.learner", "Learner") },
-                  { key: "location", header: t("common.columns.location", "Location") },
-                  { key: "completion", header: t("common.columns.completion", "Completion") },
+                  { key: "learner", header: "Learner" },
+                  { key: "location", header: "Location" },
+                  { key: "completion", header: "Completion" },
                   {
                     key: "risk",
-                    header: t("dashboard.columns.riskLevel", "Risk Level"),
+                    header: "Risk Level",
                     render: (value) => (
-                      <Badge variant={value === "High" ? "danger" : "warning"}>{String(value)}</Badge>
+                      <Badge variant={value === "High" ? "danger" : "warning"}>
+                        {String(value)}
+                      </Badge>
                     )
                   }
                 ]}
@@ -320,21 +397,15 @@ export default async function AdminDashboardOverviewPage() {
               />
             ) : (
               <EmptyState
-                title={t("dashboard.empty.atRisk.title", "No at-risk learner data")}
-                description={t(
-                  "dashboard.empty.atRisk.description",
-                  "At-risk segments appear here when learner status data is available."
-                )}
+                title="No at-risk learner data"
+                description="At-risk segments appear here when learner status data is available."
               />
             )}
           </Card>
 
           <Card
-            title={t("dashboard.cards.funnel.title", "Module Funnel Snapshot")}
-            description={t(
-              "dashboard.cards.funnel.description",
-              "Current completion funnel from onboarding to module completion."
-            )}
+            title="Module Funnel Snapshot"
+            description="Current completion funnel from onboarding to module completion."
           >
             <div className="preview-card-content">
               <Tabs
@@ -342,18 +413,18 @@ export default async function AdminDashboardOverviewPage() {
                 items={[
                   {
                     id: "funnel",
-                    label: t("dashboard.tabs.funnel", "Funnel"),
-                    content: analyticsResult.data.funnelOverall
+                    label: "Funnel",
+                    content: analyticsData.funnelOverall
                   },
                   {
                     id: "state",
-                    label: t("dashboard.tabs.byState", "By State"),
-                    content: analyticsResult.data.funnelAnambra
+                    label: "By State",
+                    content: analyticsData.funnelAnambra
                   },
                   {
                     id: "language",
-                    label: t("dashboard.tabs.byLanguage", "By Language"),
-                    content: analyticsResult.data.funnelDelta
+                    label: "By Language",
+                    content: analyticsData.funnelDelta
                   }
                 ]}
               />
@@ -361,22 +432,14 @@ export default async function AdminDashboardOverviewPage() {
           </Card>
 
           <Card
-            title={t("dashboard.cards.milestones.title", "Upcoming Milestones")}
-            description={t(
-              "dashboard.cards.milestones.description",
-              "Use this support area to track the next threshold learners are approaching."
-            )}
+            title="Upcoming Milestones"
+            description="Use this support area to track the next threshold learners are approaching."
           >
             <EmptyState
-              title={t("dashboard.empty.milestones.title", "No upcoming milestone events")}
-              description={t(
-                "dashboard.empty.milestones.description",
-                "Milestone alerts will appear here when learners approach reward thresholds."
-              )}
+              title="No upcoming milestone events"
+              description="Milestone alerts will appear here when learners approach reward thresholds."
               action={
-                <Button variant="secondary">
-                  {t("dashboard.actions.configureMilestoneRule", "Configure Milestone Rule")}
-                </Button>
+                <Button variant="secondary">Configure Milestone Rule</Button>
               }
             />
           </Card>
