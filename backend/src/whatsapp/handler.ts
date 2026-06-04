@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { getRuntimeOptionSet, getRuntimeText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson } from "../config-platform/runtime-config.js";
 import { prisma } from "../admin/prisma.js";
+import type { WhatsAppListSpec } from "./sender.js";
 
-export type ConversationState = "awaiting_name" | "awaiting_language" | "main_menu" | "module_menu";
+export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "main_menu" | "module_menu";
 
 type AnalyticsEvent =
   | { type: "quiz_answered"; lessonKey: string; correct: boolean }
@@ -19,6 +20,7 @@ type UserSession = {
   userId: string;
   name?: string;
   language?: "en" | "pcm" | "ig";
+  location?: string;
   state: ConversationState;
   namePrompted?: boolean;
   lastUpdatedAt: string;
@@ -59,6 +61,7 @@ export type WhatsAppWebhookResult =
       state: ConversationState;
       reply: string;
       buttons?: string[];
+      list?: WhatsAppListSpec;
     };
 
 const webhookPayloadSchema = z.object({
@@ -199,6 +202,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
     };
     if (user.name) s.name = user.name;
     if (user.language) s.language = user.language as any;
+    if (user.location) s.location = user.location;
     if (user.session.namePrompted) s.namePrompted = user.session.namePrompted;
     return s;
   }
@@ -219,6 +223,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
     };
     if (user.name) s.name = user.name;
     if (user.language) s.language = user.language as any;
+    if (user.location) s.location = user.location;
     return s;
   }
 
@@ -243,6 +248,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
   };
   if (createdUser.name) s2.name = createdUser.name;
   if (createdUser.language) s2.language = createdUser.language as any;
+  if (createdUser.location) s2.location = createdUser.location;
   return s2;
 }
 
@@ -252,6 +258,7 @@ async function saveSession(phone: string, session: UserSession) {
     data: {
       name: session.name || null,
       language: session.language || null,
+      location: session.location || null,
       status: 'Active',
       session: {
         update: {
@@ -334,7 +341,7 @@ function getPrompt(
 function transition(
   session: UserSession,
   text: string
-): { state: ConversationState; reply: string; buttons?: string[] } {
+): { state: ConversationState; reply: string; buttons?: string[]; list?: WhatsAppListSpec } {
   const safeText = text.trim();
   const normalized = safeText.toLowerCase();
   const lang = session.language || "en";
@@ -960,6 +967,7 @@ export async function getWhatsAppSession(phone: string) {
     phone: user.phone,
     name: user.name || undefined,
     language: (user.language as any) || undefined,
+    location: user.location || undefined,
     state: user.session.state as ConversationState,
     namePrompted: user.session.namePrompted,
     lastUpdatedAt: user.session.lastUpdatedAt.toISOString(),
