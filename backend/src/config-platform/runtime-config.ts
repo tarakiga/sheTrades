@@ -1,7 +1,8 @@
 import { getConfigPlatformService } from "./service.js";
 import type {
   NotificationIntegrationPayload,
-  WhatsAppIntegrationPayload
+  WhatsAppIntegrationPayload,
+  RewardRulesPayload
 } from "./contracts.js";
 import type { PayoutsIntegrationPayload } from "../payouts/providers/contracts.js";
 
@@ -177,6 +178,10 @@ export function getRuntimeNotificationConfig() {
 
 export function getRuntimePayoutsConfig() {
   return getRuntimeIntegrationConfig<PayoutsIntegrationPayload>("integration.payouts.primary");
+}
+
+export function getRuntimeRewardRules() {
+  return getRuntimeIntegrationConfig<RewardRulesPayload>("reward.rules.primary");
 }
 
 /** Test-only: inject an integration config without exercising the publish path. */

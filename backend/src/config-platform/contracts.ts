@@ -108,11 +108,20 @@ export const integrationConfigPayloadSchema = z.union([
 ]);
 export type IntegrationConfigPayload = z.infer<typeof integrationConfigPayloadSchema>;
 
+export const rewardRulesPayloadSchema = z.object({
+  kind: z.literal("reward_rules"),
+  amount: z.number().positive(),
+  channel: z.literal("airtime"),
+  enabled: z.boolean()
+});
+export type RewardRulesPayload = z.infer<typeof rewardRulesPayloadSchema>;
+
 export const configPayloadSchema = z.union([
   legalBlockPayloadSchema,
   optionSetPayloadSchema,
   lessonContentPayloadSchema,
   integrationConfigPayloadSchema,
+  rewardRulesPayloadSchema,
   z.record(z.string(), z.unknown())
 ]);
 export type ConfigPayload = z.infer<typeof configPayloadSchema>;
