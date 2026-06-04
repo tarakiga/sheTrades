@@ -27,7 +27,8 @@ webhookRouter.get("/whatsapp", (req, res) => {
 
 webhookRouter.post("/whatsapp", async (req, res, next) => {
   try {
-    const result = await handleWhatsAppWebhook(req.body);
+    const isSandbox = req.header("X-SheTrades-Source") === "sandbox";
+    const result = await handleWhatsAppWebhook(req.body, { deliver: !isSandbox });
     res.status(200).json(result);
   } catch (err) {
     next(err);

@@ -4,7 +4,7 @@ import request from "supertest";
 import { createApp } from "../app.js";
 import { getConfigPlatformService } from "../config-platform/service.js";
 import { resetWhatsAppState } from "../whatsapp/handler.js";
-import { refreshRuntimeConfigCache } from "../config-platform/runtime-config.js";
+import { refreshRuntimeConfigCache, setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
 
 const app = createApp();
 const configService = getConfigPlatformService();
@@ -182,4 +182,44 @@ test("POST /webhook/whatsapp returns ignored for unsupported payload", async () 
     .send({ object: "whatsapp" })
     .expect(200);
   assert.equal(response.body.status, "ignored");
+});
+
+test("POST /webhook/whatsapp delivers via Meta when NOT sandbox-marked", async () => {
+  setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0" });
+  const graphCalls: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: unknown, init: RequestInit) => {
+    if (String(url).includes("graph.facebook.com")) {
+      graphCalls.push(String(url));
+      return new Response(JSON.stringify({ messages: [{ id: "x" }] }), { status: 200 });
+    }
+    return realFetch(url as string, init);
+  }) as typeof fetch;
+  try {
+    await request(app).post("/webhook/whatsapp").send(makeWebhookPayload("m-real-1", "+234999000222", "hi"));
+    assert.ok(graphCalls.length >= 1);
+  } finally {
+    globalThis.fetch = realFetch;
+    setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", null);
+  }
+});
+
+test("POST /webhook/whatsapp does NOT deliver when sandbox-marked", async () => {
+  setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0" });
+  const graphCalls: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: unknown, init: RequestInit) => {
+    if (String(url).includes("graph.facebook.com")) {
+      graphCalls.push(String(url));
+      return new Response("{}", { status: 200 });
+    }
+    return realFetch(url as string, init);
+  }) as typeof fetch;
+  try {
+    await request(app).post("/webhook/whatsapp").set("X-SheTrades-Source", "sandbox").send(makeWebhookPayload("m-sb-1", "+234999000333", "hi"));
+    assert.equal(graphCalls.length, 0);
+  } finally {
+    globalThis.fetch = realFetch;
+    setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", null);
+  }
 });

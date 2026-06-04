@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getRuntimeOptionSet, getRuntimeText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson } from "../config-platform/runtime-config.js";
 import { prisma } from "../admin/prisma.js";
 import type { WhatsAppListSpec } from "./sender.js";
+import { sendWhatsAppMessage } from "./sender.js";
 
 export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "main_menu" | "module_menu";
 
@@ -980,7 +981,10 @@ async function recordAnalytics(session: UserSession): Promise<void> {
   }
 }
 
-export async function handleWhatsAppWebhook(payload: unknown): Promise<WhatsAppWebhookResult> {
+export async function handleWhatsAppWebhook(
+  payload: unknown,
+  opts: { deliver?: boolean } = {}
+): Promise<WhatsAppWebhookResult> {
   const inbound = extractInboundMessage(payload);
   if (!inbound) {
     return {
@@ -1006,6 +1010,14 @@ export async function handleWhatsAppWebhook(payload: unknown): Promise<WhatsAppW
   const result = transition(existingSession, inbound.text);
   await saveSession(inbound.from, existingSession);
   await recordAnalytics(existingSession);
+
+  if (opts.deliver) {
+    await sendWhatsAppMessage(inbound.from, {
+      text: result.reply,
+      ...(result.buttons ? { buttons: result.buttons } : {}),
+      ...(result.list ? { list: result.list } : {})
+    });
+  }
 
   return {
     status: "processed",
