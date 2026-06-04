@@ -4,7 +4,7 @@ import { prisma } from "../admin/prisma.js";
 import type { WhatsAppListSpec } from "./sender.js";
 import { sendWhatsAppMessage } from "./sender.js";
 
-export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "main_menu" | "module_menu";
+export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu";
 
 type AnalyticsEvent =
   | { type: "quiz_answered"; lessonKey: string; correct: boolean }
@@ -155,6 +155,12 @@ function languageLabel(language: "en" | "pcm" | "ig") {
 
 type StateRow = { id: string; title: string };
 
+// Sentinel id for the fixed "Others" escape-hatch row. It is appended by the
+// handler (never part of the admin-managed bot.state_options) so admins can't
+// remove it and "Others" never becomes a stored location value — selecting it
+// routes the learner to a free-text "type your state" step instead.
+const OTHER_STATE_ID = "__other__";
+
 function getStateRows(): StateRow[] {
   const configured = getRuntimeOptionSet("bot.state_options")
     .filter((item) => item.enabled)
@@ -168,8 +174,19 @@ function getStateRows(): StateRow[] {
   ];
 }
 
+// The full list shown to the learner: the managed states plus the fixed
+// "Others" row at the end.
+function getDisplayStateRows(lang: "en" | "pcm" | "ig"): StateRow[] {
+  return [...getStateRows(), { id: OTHER_STATE_ID, title: getPrompt("state_other_label", lang, "Others") }];
+}
+
 function resolveState(input: string, rows: StateRow[]): StateRow | null {
   const norm = input.trim().toLowerCase();
+  // Always accept the literal "other"/"others" for the escape-hatch row,
+  // regardless of how its label is localized.
+  if (norm === "other" || norm === "others") {
+    return rows.find((r) => r.id === OTHER_STATE_ID) ?? null;
+  }
   const asNum = Number(norm);
   if (Number.isInteger(asNum) && asNum >= 1 && asNum <= rows.length) {
     return rows[asNum - 1] ?? null;
@@ -380,6 +397,16 @@ function getPrompt(
       en: "Choose state",
       pcm: "Choose state",
       ig: "Họrọ steeti"
+    },
+    "state_other_label": {
+      en: "Others",
+      pcm: "Others",
+      ig: "Ndị ọzọ"
+    },
+    "custom_state_prompt": {
+      en: "Please type the name of your state.",
+      pcm: "Abeg type the name of your state.",
+      ig: "Biko dee aha steeti gị."
     }
   };
 
@@ -450,7 +477,7 @@ function transition(
     session.language = language;
     session.state = "awaiting_state";
     session.lastUpdatedAt = nowIso();
-    const stateRows = getStateRows();
+    const stateRows = getDisplayStateRows(language);
     const stateList = buildStateListReply(language, stateRows);
     return {
       state: session.state,
@@ -460,7 +487,7 @@ function transition(
   }
 
   if (session.state === "awaiting_state") {
-    const rows = getStateRows();
+    const rows = getDisplayStateRows(lang);
     const chosen = resolveState(normalized, rows);
     if (!chosen) {
       const list = buildStateListReply(lang, rows);
@@ -470,7 +497,38 @@ function transition(
         list: list.list
       };
     }
+    if (chosen.id === OTHER_STATE_ID) {
+      // Escape hatch: ask the learner to type their state instead of picking
+      // from the managed list.
+      session.state = "awaiting_custom_state";
+      session.lastUpdatedAt = nowIso();
+      return {
+        state: session.state,
+        reply: getPrompt("custom_state_prompt", lang, "Please type the name of your state.")
+      };
+    }
     session.location = chosen.title;
+    session.state = "main_menu";
+    session.lastUpdatedAt = nowIso();
+    return {
+      state: session.state,
+      reply: mainMenuText(session.name ?? "Learner"),
+      buttons: ["1. Start Learning", "2. My Progress", "3. Change Language"]
+    };
+  }
+
+  if (session.state === "awaiting_custom_state") {
+    // Free-text state entry after the learner chose "Others". Preserve the
+    // case the learner typed; require at least 2 non-space characters; cap at
+    // 60 chars for storage.
+    const custom = safeText.trim();
+    if (custom.length < 2) {
+      return {
+        state: "awaiting_custom_state",
+        reply: getPrompt("custom_state_prompt", lang, "Please type the name of your state.")
+      };
+    }
+    session.location = custom.slice(0, 60);
     session.state = "main_menu";
     session.lastUpdatedAt = nowIso();
     return {
