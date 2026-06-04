@@ -4,12 +4,23 @@ import { useEffect, useRef, useState } from "react";
 import { ADMIN_CONFIG_API_BASE_URL } from "../../lib/admin-config-auth";
 import { Badge, Button } from "../ui";
 
+type ListSection = {
+  title?: string;
+  rows: Array<{ id: string; title: string }>;
+};
+
+type MessageList = {
+  button: string;
+  sections: ListSection[];
+};
+
 type Message = {
   id: string;
   sender: "user" | "bot" | "system";
   text: string;
   timestamp: string;
   buttons?: string[];
+  list?: MessageList;
 };
 
 type SessionInfo = {
@@ -17,6 +28,7 @@ type SessionInfo = {
   state: string;
   name?: string;
   language?: string;
+  location?: string;
   lastUpdatedAt?: string;
 };
 
@@ -132,7 +144,8 @@ export function WhatsAppSandboxSimulator() {
       const res = await fetch(`${ADMIN_CONFIG_API_BASE_URL}/webhook/whatsapp`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "X-SheTrades-Source": "sandbox"
         },
         body: JSON.stringify(payload)
       });
@@ -151,7 +164,8 @@ export function WhatsAppSandboxSimulator() {
             sender: "bot",
             text: result.reply,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            buttons: result.buttons
+            buttons: result.buttons,
+            list: result.list
           }
         ]);
       } else if (result.status === "duplicate") {
@@ -292,6 +306,28 @@ export function WhatsAppSandboxSimulator() {
                             ))}
                           </div>
                         )}
+                        {msg.sender === "bot" && msg.list && msg.list.sections.length > 0 && (
+                          <div className="chat-bubble-buttons-container">
+                            {msg.list.sections.map((section, sIdx) => (
+                              <div key={sIdx}>
+                                {section.title ? (
+                                  <div className="chat-bubble-list-section-title">{section.title}</div>
+                                ) : null}
+                                {section.rows.map((row) => (
+                                  <button
+                                    key={row.id}
+                                    type="button"
+                                    disabled={isLoading}
+                                    onClick={() => void handleSend(undefined, row.title)}
+                                    className="chat-bubble-button"
+                                  >
+                                    {row.title}
+                                  </button>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -383,6 +419,12 @@ export function WhatsAppSandboxSimulator() {
                     ) : (
                       <span className="state-value-text">n/a</span>
                     )}
+                  </td>
+                </tr>
+                <tr>
+                  <td>State / Location</td>
+                  <td>
+                    <span className="state-value-text">{session?.location ?? "—"}</span>
                   </td>
                 </tr>
                 {session?.lastUpdatedAt ? (
