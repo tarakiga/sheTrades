@@ -89,7 +89,7 @@ async function ensureDocument(
   const existing = await requestJson<DocumentEnvelope | { message?: string }>(
     baseUrl,
     token,
-    `/api/config/admin/content/documents/${encodedKey}`
+    `/api/config/admin/options/documents/${encodedKey}`
   );
   if (existing.status === 200 && existing.body && "document" in existing.body) {
     return existing.body;
@@ -109,7 +109,7 @@ async function ensureDocument(
         draft: { id: string };
       }
     | { message?: string }
-  >(baseUrl, token, "/api/config/admin/content/documents", {
+  >(baseUrl, token, "/api/config/admin/options/documents", {
     method: "POST",
     body: JSON.stringify({
       key: entry.key,
@@ -145,7 +145,7 @@ async function updateDraftAndPublish(baseUrl: string, token: string, entry: Seed
   const updated = await requestJson<{ draft: { id: string } } | { message?: string }>(
     baseUrl,
     token,
-    `/api/config/admin/content/documents/${encodedKey}/draft`,
+    `/api/config/admin/options/documents/${encodedKey}/draft`,
     {
       method: "PUT",
       body: JSON.stringify({
@@ -166,7 +166,7 @@ async function updateDraftAndPublish(baseUrl: string, token: string, entry: Seed
   const published = await requestJson<{ message?: string }>(
     baseUrl,
     token,
-    `/api/config/admin/content/documents/${encodedKey}/publish`,
+    `/api/config/admin/options/documents/${encodedKey}/publish`,
     {
       method: "POST",
       body: JSON.stringify({
