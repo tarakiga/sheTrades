@@ -45,7 +45,7 @@ export function createApp() {
       res.setHeader("Access-Control-Allow-Credentials", "true");
       res.setHeader(
         "Access-Control-Allow-Headers",
-        "authorization, content-type, x-admin-role, x-admin-token"
+        "authorization, content-type, x-admin-role, x-admin-token, x-shetrades-source"
       );
       res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
     }
