@@ -304,3 +304,22 @@ test(
     assert.ok(response.body.message);
   }
 );
+
+test("GET /api/admin/users/:phone returns 404 for unknown learner", async () => {
+  await request(app).get("/api/admin/users/%2B234000000nope").expect(404);
+});
+
+test("GET /api/admin/users/export returns CSV with the expected header", async () => {
+  const res = await request(app).get("/api/admin/users/export").expect(200);
+  assert.match(res.headers["content-type"] ?? "", /text\/csv/);
+  assert.match(res.headers["content-disposition"] ?? "", /attachment; filename="users-/);
+  const firstLine = res.text.split("\n")[0];
+  assert.equal(firstLine, "Name,Phone,Location,Language,Completion,Status,Flagged,Follow-up Note");
+});
+
+test("POST /api/admin/users/:phone/flag returns 404 for unknown learner", async () => {
+  await request(app)
+    .post("/api/admin/users/%2B234000nope/flag")
+    .send({ flagged: true })
+    .expect(404);
+});

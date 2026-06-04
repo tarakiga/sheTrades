@@ -9,6 +9,7 @@ import {
   getUsersData,
   type RewardsDataFilters
 } from "../admin/data.js";
+import { getLearnerDetail } from "../admin/users-detail.js";
 import { prisma } from "../admin/prisma.js";
 import { getRuntimePayoutsConfig } from "../config-platform/runtime-config.js";
 
@@ -50,6 +51,90 @@ adminRouter.get("/users", async (_req, res, next) => {
   try {
     const payload = await getUsersData();
     res.status(200).json(payload);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/users/export", async (_req, res, next) => {
+  try {
+    const data = await getUsersData();
+    const escape = (v: unknown) => {
+      if (v === null || v === undefined) return "";
+      const s = String(v).replace(/"/g, '""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+    const header = "Name,Phone,Location,Language,Completion,Status,Flagged,Follow-up Note";
+    const rows = data.users.map((u) =>
+      [u.name, u.phone, u.location, u.language, u.completion, u.status, u.flaggedForFollowUp ? "Yes" : "No", ""]
+        .map(escape)
+        .join(",")
+    );
+    const filename = `users-${new Date().toISOString().slice(0, 10)}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.status(200).send([header, ...rows].join("\n"));
+  } catch (error) {
+    next(error);
+  }
+});
+
+const flagBodySchema = z.object({
+  flagged: z.boolean(),
+  note: z.string().max(500).optional()
+});
+
+adminRouter.post("/users/:phone/flag", async (req, res, next) => {
+  try {
+    const phone = String(req.params.phone);
+    const body = flagBodySchema.parse(req.body);
+    const existing = await prisma.user.findUnique({ where: { phone } });
+    if (!existing) {
+      res.status(404).json({ message: "Learner not found." });
+      return;
+    }
+    const updated = await prisma.user.update({
+      where: { phone },
+      data: {
+        flaggedForFollowUp: body.flagged,
+        followUpNote: body.flagged ? body.note ?? null : null
+      }
+    });
+    console.log(JSON.stringify({
+      event: "users.admin_action",
+      action: body.flagged ? "flag" : "unflag",
+      phone,
+      note: body.flagged ? body.note ?? null : null
+    }));
+    res.status(200).json({
+      id: updated.id,
+      name: updated.name,
+      phone: updated.phone,
+      location: updated.location,
+      language: updated.language,
+      status: updated.status,
+      flaggedForFollowUp: updated.flaggedForFollowUp,
+      followUpNote: updated.followUpNote,
+      createdAt: updated.createdAt.toISOString()
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ message: error.issues[0]?.message ?? "Invalid request payload." });
+      return;
+    }
+    next(error);
+  }
+});
+
+adminRouter.get("/users/:phone", async (req, res, next) => {
+  try {
+    const phone = String(req.params.phone);
+    const detail = await getLearnerDetail(phone);
+    if (!detail) {
+      res.status(404).json({ message: "Learner not found." });
+      return;
+    }
+    res.status(200).json(detail);
   } catch (error) {
     next(error);
   }
