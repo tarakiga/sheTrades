@@ -12,8 +12,17 @@ import {
 import { getLearnerDetail } from "../admin/users-detail.js";
 import { prisma } from "../admin/prisma.js";
 import { getRuntimePayoutsConfig } from "../config-platform/runtime-config.js";
+import { authenticateJwt } from "../auth/jwt-rbac.js";
 
 export const adminRouter = Router();
+
+// Gate the entire admin data + rewards + users API behind a valid admin
+// session JWT (same token the admin login mints and the config-admin router
+// already validates). The login/profile routes live on the separate
+// adminAuthRouter and are unaffected; the donor-export reportsRouter is
+// mounted separately with its own token. The dashboard attaches the stored
+// JWT to every /api/admin/* call (see dashboard/lib/admin/api.ts authHeaders).
+adminRouter.use(authenticateJwt);
 
 function buildRewardsFilters(req: Request, limitOverride?: number): RewardsDataFilters {
   const filters: RewardsDataFilters = {};
