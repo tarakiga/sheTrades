@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Badge, Button, Card, Table, Tabs } from "../../../components/ui";
 import { IntegrationConfigDrawer } from "../../../components/integration/IntegrationConfigDrawer";
 import { IntegrationPreviewDrawer } from "../../../components/integration/IntegrationPreviewDrawer";
+import { RewardRulesWorkspace } from "../../../components/integration/RewardRulesWorkspace";
 import {
   createEmptyNotificationForm,
   createEmptyWhatsAppForm,
@@ -272,6 +273,13 @@ export function IntegrationWorkspacePreview() {
         onClose={() => setPreviewProvider(null)}
         onEdit={() => setDrawerProvider("notification")}
       />
+
+      <Card
+        title="Reward Rules Workspace"
+        description="Inline workspace for the reward.rules.primary config document. Renders in create-mode/empty state when no live document exists."
+      >
+        <RewardRulesWorkspace />
+      </Card>
     </div>
   );
 }
