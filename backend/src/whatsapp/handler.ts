@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getRuntimeOptionSet, getRuntimeText, getRuntimeLessons, RuntimeLesson } from "../config-platform/runtime-config.js";
+import { getRuntimeOptionSet, getRuntimeText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson } from "../config-platform/runtime-config.js";
 import { prisma } from "../admin/prisma.js";
 
 export type ConversationState = "awaiting_name" | "awaiting_language" | "main_menu" | "module_menu";
@@ -870,9 +870,15 @@ async function recordAnalytics(session: UserSession): Promise<void> {
           }
         });
       } else if (event.type === "module_completed") {
-        const parsedAmount = Number(process.env.REWARD_DEFAULT_AMOUNT);
-        const amount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 500;
-        const channel = (process.env.REWARD_DEFAULT_CHANNEL ?? "airtime").trim() || "airtime";
+        const rule = getRuntimeRewardRules();
+        if (rule && rule.enabled === false) {
+          // Rewards disabled by the admin reward rule — skip creating a reward.
+          continue;
+        }
+        const envAmount = Number(process.env.REWARD_DEFAULT_AMOUNT);
+        const fallbackAmount = Number.isFinite(envAmount) && envAmount > 0 ? envAmount : 500;
+        const amount = rule?.amount ?? fallbackAmount;
+        const channel = rule?.channel ?? ((process.env.REWARD_DEFAULT_CHANNEL ?? "airtime").trim() || "airtime");
         // Guard against an empty or whitespace-only module name, which would
         // otherwise collapse the (userId, module) dedup key for the user.
         const moduleKey = (event.module ?? "").trim() || "Unknown";
