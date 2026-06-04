@@ -1,15 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { sendWhatsAppMessage, type OutboundReply } from "./sender.js";
-import * as runtimeConfig from "../config-platform/runtime-config.js";
+import { setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
 
-const realCfg = runtimeConfig.getRuntimeWhatsAppConfig;
+// getRuntimeWhatsAppConfig() reads integration.whatsapp.primary from the
+// in-memory runtime cache. ESM named exports cannot be monkeypatched (the
+// module namespace is read-only on Node 24), so we stub via the project's
+// dedicated test seam instead.
+const WA_KEY = "integration.whatsapp.primary";
+const cfg = { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0" };
 
-function stubConfig(cfg: unknown) {
-  (runtimeConfig as unknown as { getRuntimeWhatsAppConfig: () => unknown }).getRuntimeWhatsAppConfig = () => cfg;
-}
-function restoreConfig() {
-  (runtimeConfig as unknown as { getRuntimeWhatsAppConfig: typeof realCfg }).getRuntimeWhatsAppConfig = realCfg;
+function publishConfig(value: unknown) {
+  setRuntimeIntegrationConfigForTests(WA_KEY, value);
 }
 
 function stubFetch(status = 200, body: unknown = { messages: [{ id: "wamid.1" }] }) {
@@ -21,19 +23,19 @@ function stubFetch(status = 200, body: unknown = { messages: [{ id: "wamid.1" }]
   return calls;
 }
 
-const cfg = { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0" };
-
 test("no-op (no fetch) when no WhatsApp config is published", async () => {
-  stubConfig(null);
+  publishConfig(null);
   let fetched = false;
-  globalThis.fetch = (async () => { fetched = true; return new Response("{}"); }) as typeof fetch;
+  globalThis.fetch = (async () => {
+    fetched = true;
+    return new Response("{}");
+  }) as typeof fetch;
   await sendWhatsAppMessage("+234800", { text: "hi" });
   assert.equal(fetched, false);
-  restoreConfig();
 });
 
 test("sends a text message to the correct URL with bearer auth", async () => {
-  stubConfig(cfg);
+  publishConfig(cfg);
   const calls = stubFetch();
   await sendWhatsAppMessage("+234800", { text: "hello" });
   assert.equal(calls.length, 1);
@@ -45,11 +47,11 @@ test("sends a text message to the correct URL with bearer auth", async () => {
   assert.equal(sent.to, "+234800");
   assert.equal(sent.type, "text");
   assert.equal(sent.text.body, "hello");
-  restoreConfig();
+  publishConfig(null);
 });
 
 test("sends interactive buttons (max 3, reply shape)", async () => {
-  stubConfig(cfg);
+  publishConfig(cfg);
   const calls = stubFetch();
   await sendWhatsAppMessage("+234800", { text: "pick", buttons: ["A", "B", "C", "D"] });
   const sent = JSON.parse(calls[0]!.init.body as string);
@@ -58,15 +60,26 @@ test("sends interactive buttons (max 3, reply shape)", async () => {
   assert.equal(sent.interactive.action.buttons.length, 3);
   assert.equal(sent.interactive.action.buttons[0].type, "reply");
   assert.equal(sent.interactive.action.buttons[0].reply.title, "A");
-  restoreConfig();
+  publishConfig(null);
 });
 
 test("sends an interactive list", async () => {
-  stubConfig(cfg);
+  publishConfig(cfg);
   const calls = stubFetch();
   const reply: OutboundReply = {
     text: "Which state?",
-    list: { button: "Choose state", sections: [{ title: "States", rows: [{ id: "anambra", title: "Anambra" }, { id: "delta", title: "Delta" }] }] }
+    list: {
+      button: "Choose state",
+      sections: [
+        {
+          title: "States",
+          rows: [
+            { id: "anambra", title: "Anambra" },
+            { id: "delta", title: "Delta" }
+          ]
+        }
+      ]
+    }
   };
   await sendWhatsAppMessage("+234800", reply);
   const sent = JSON.parse(calls[0]!.init.body as string);
@@ -75,21 +88,21 @@ test("sends an interactive list", async () => {
   assert.equal(sent.interactive.action.button, "Choose state");
   assert.equal(sent.interactive.action.sections[0].rows.length, 2);
   assert.equal(sent.interactive.action.sections[0].rows[1].title, "Delta");
-  restoreConfig();
+  publishConfig(null);
 });
 
 test("truncates over-long button and row titles", async () => {
-  stubConfig(cfg);
+  publishConfig(cfg);
   const calls = stubFetch();
   await sendWhatsAppMessage("+234800", { text: "x", buttons: ["A".repeat(40)] });
   const sent = JSON.parse(calls[0]!.init.body as string);
   assert.ok(sent.interactive.action.buttons[0].reply.title.length <= 20);
-  restoreConfig();
+  publishConfig(null);
 });
 
 test("does not throw on non-2xx", async () => {
-  stubConfig(cfg);
+  publishConfig(cfg);
   stubFetch(500, { error: "boom" });
   await sendWhatsAppMessage("+234800", { text: "hi" }); // must resolve, not reject
-  restoreConfig();
+  publishConfig(null);
 });
