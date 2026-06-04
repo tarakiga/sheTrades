@@ -5955,6 +5955,334 @@ button.needs-attention-panel__item:focus {
 }
 
 /* -------------------------------------------------------------
+ * LearnerDetailDrawer
+ * Right-side slide-out for learner detail. Shares the same shell
+ * tokens (--shadow-drawer, animations, spacing) as the reward
+ * detail drawer.
+ * ------------------------------------------------------------- */
+
+.learner-detail-drawer {
+  inset: 0;
+  position: fixed;
+  z-index: 40;
+}
+
+.learner-detail-drawer__backdrop {
+  background: rgba(15, 23, 42, 0.48);
+  border: none;
+  cursor: pointer;
+  inset: 0;
+  opacity: 0;
+  padding: 0;
+  position: absolute;
+  animation: ui-fade-in 0.22s ease forwards;
+}
+
+.learner-detail-drawer__panel {
+  background: var(--color-neutral-0);
+  box-shadow: var(--shadow-drawer);
+  display: grid;
+  gap: var(--space-4);
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  margin-left: auto;
+  max-width: 100%;
+  overflow: hidden;
+  padding: var(--space-6);
+  position: relative;
+  width: min(480px, 100vw);
+  animation: ui-drawer-enter 0.28s cubic-bezier(0.2, 0.9, 0.22, 1) forwards;
+  transform: translateX(24px);
+}
+
+.learner-detail-drawer__header {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.learner-detail-drawer__heading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.learner-detail-drawer__title {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-xl);
+  margin: 0;
+}
+
+.learner-detail-drawer__close {
+  background: transparent;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-700);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
+}
+
+.learner-detail-drawer__close:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.learner-detail-drawer__content {
+  display: grid;
+  align-content: start;
+  gap: var(--space-5);
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.learner-detail-drawer__placeholder {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  margin: 0;
+  padding: var(--space-4) 0;
+  text-align: center;
+}
+
+.learner-detail-drawer__placeholder--error {
+  color: var(--color-danger-700);
+}
+
+.learner-detail-drawer__section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.learner-detail-drawer__identity {
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.learner-detail-drawer__identity-row {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.learner-detail-drawer__label {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.learner-detail-drawer__value {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-align: right;
+}
+
+.learner-detail-drawer__section-title {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.learner-detail-drawer__details {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.learner-detail-drawer__details-row {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.learner-detail-drawer__details-row .learner-detail-drawer__value {
+  text-align: left;
+}
+
+.learner-detail-drawer__empty {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.learner-detail-drawer__list {
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.learner-detail-drawer__list-item {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.learner-detail-drawer__list-item-label {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.learner-detail-drawer__list-item-meta {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.learner-detail-drawer__list-item-value {
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.learner-detail-drawer__reward-amount {
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.learner-detail-drawer__attempt-count {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+}
+
+.learner-detail-drawer__followup {
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.learner-detail-drawer__followup-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.learner-detail-drawer__field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.learner-detail-drawer__field-label {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.learner-detail-drawer__textarea {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-900);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  min-height: 72px;
+  padding: var(--space-2) var(--space-3);
+  resize: vertical;
+  width: 100%;
+}
+
+.learner-detail-drawer__textarea:focus-visible {
+  border-color: var(--color-neutral-900);
+  outline: 2px solid var(--color-neutral-900);
+  outline-offset: 1px;
+}
+
+.learner-detail-drawer__footer {
+  align-items: center;
+  border-top: 1px solid var(--color-neutral-100);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  padding-top: var(--space-4);
+}
+
+.learner-detail-drawer__btn {
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-4);
+  transition: background-color 120ms ease, border-color 120ms ease,
+    color 120ms ease, opacity 120ms ease;
+}
+
+.learner-detail-drawer__btn:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.learner-detail-drawer__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.learner-detail-drawer__btn--primary {
+  background: var(--color-neutral-900);
+  border: 1px solid var(--color-neutral-900);
+  color: var(--color-neutral-0);
+}
+
+.learner-detail-drawer__btn--primary:hover:not(:disabled) {
+  background: var(--color-brand-700);
+  border-color: var(--color-brand-700);
+}
+
+.learner-detail-drawer__btn--secondary {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  color: var(--color-neutral-900);
+}
+
+.learner-detail-drawer__btn--secondary:hover:not(:disabled) {
+  background: var(--color-neutral-100);
+  border-color: var(--color-neutral-300);
+}
+
+/* Preview frame overrides for workshop rendering */
+
+.preview-drawer-frame .learner-detail-drawer {
+  inset: auto;
+  position: relative;
+  z-index: auto;
+}
+
+.preview-drawer-frame .learner-detail-drawer__backdrop {
+  display: none;
+}
+
+.preview-drawer-frame .learner-detail-drawer__panel {
+  animation: none;
+  box-shadow: none;
+  height: 100%;
+  margin: 0;
+  transform: none;
+  width: 100%;
+}
+
+/* -------------------------------------------------------------
  * Manual reward drawer
  * Right-side slide-out for issuing rewards by hand. Re-uses the
  * same drawer shell tokens (--shadow-drawer, ESC/backdrop close)

@@ -27,6 +27,7 @@ import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
 import { PreviewSelectTabsDemo } from "./PreviewSelectTabsDemo";
 import { RewardsWorkspacePreview } from "./RewardsWorkspacePreview";
 import { TranslationRequestWorkflowPreview } from "./TranslationRequestWorkflowPreview";
+import { UsersWorkspacePreview } from "./UsersWorkspacePreview";
 
 type LearnerRow = {
   name: string;
@@ -278,6 +279,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <OverviewUsersWorkspacePreview />
+        </Card>
+
+        <Card
+          title={t("preview.usersWorkspace.title", "Users Workspace — Learner Detail Drawer")}
+          description={t(
+            "preview.usersWorkspace.description",
+            "Preview the learner detail drawer: identity, follow-up flag, session, progress, quiz attempts, and rewards sections."
+          )}
+        >
+          <UsersWorkspacePreview />
         </Card>
 
         <Card
