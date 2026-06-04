@@ -139,3 +139,5 @@ This document consolidates the implementation task roadmap in one place.
 - PRD product scope and architecture: `PRD.md`
 - Task execution history and per-task verification details: `handoff.md`
 - This file is a clean index to make sequencing and planning easy before execution.
+
+- `[x]` State-selection onboarding (WhatsApp List Message, admin-managed bot.state_options seeded Anambra/Delta, persists users.location) + live Meta Cloud API outbound sender (text/button/list, gated by published config, sandbox-safe via X-SheTrades-Source).
