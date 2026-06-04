@@ -13,7 +13,8 @@
     "smoke:payouts": "tsx src/smoke/payouts-smoke.ts",
     "validate:reliability": "tsx src/validation/reliability-check.ts",
     "seed:admin-ui-copy": "tsx src/config-platform/seed-admin-ui-copy.ts",
-    "seed:lessons": "tsx src/config-platform/seed-lessons.ts"
+    "seed:lessons": "tsx src/config-platform/seed-lessons.ts",
+    "seed:state-options": "tsx src/config-platform/seed-state-options.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.5.0",
