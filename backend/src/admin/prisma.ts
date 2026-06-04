@@ -241,8 +241,17 @@ export async function initializeAdminViews() {
     logger.info("Initializing admin dashboard views...");
     
     // admin_users_view
+    // Postgres CREATE OR REPLACE VIEW is append-only: it rejects any change
+    // that reorders or removes existing columns (it can only ADD new columns
+    // at the end). Adding "flaggedForFollowUp" before the existing
+    // "completion" column is exactly such a rejected change, so the CREATE OR
+    // REPLACE silently failed and left the old column-less view in place —
+    // which then made `SELECT "flaggedForFollowUp" FROM admin_users_view`
+    // throw and the directory fall back to an empty list. DROP first so the
+    // column set can change freely; this is a leaf view with no dependents.
+    await prisma.$executeRawUnsafe(`DROP VIEW IF EXISTS admin_users_view;`);
     await prisma.$executeRawUnsafe(`
-      CREATE OR REPLACE VIEW admin_users_view AS
+      CREATE VIEW admin_users_view AS
       SELECT
         id,
         name,
