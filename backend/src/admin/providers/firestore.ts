@@ -66,7 +66,18 @@ export async function fetchUsersFromFirestore(): Promise<UsersPageData | null> {
       policy.retryDelayMs,
       isRetryableFirestoreError
     );
-    const users = snapshot.docs.map((doc) => doc.data()) as UsersPageData["users"];
+    const users: UsersPageData["users"] = snapshot.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        name: String(d["name"] ?? ""),
+        phone: String(d["phone"] ?? ""),
+        location: String(d["location"] ?? ""),
+        language: String(d["language"] ?? ""),
+        completion: String(d["completion"] ?? ""),
+        status: (d["status"] === "At Risk" ? "At Risk" : "Active") as "Active" | "At Risk",
+        flaggedForFollowUp: Boolean(d["flaggedForFollowUp"] ?? false)
+      };
+    });
     return { users };
   } catch (error) {
     logger.error("admin.firestore.users_failed", error, {

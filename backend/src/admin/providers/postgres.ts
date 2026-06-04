@@ -80,10 +80,11 @@ export async function fetchUsersFromPostgres(): Promise<UsersPageData | null> {
       language: string;
       completion: string;
       status: "Active" | "At Risk";
+      flaggedForFollowUp: boolean;
     }>(
-      `SELECT name, phone, location, language, completion, status FROM ${mappings.usersView} LIMIT 200`
+      `SELECT name, phone, location, language, completion, status, "flaggedForFollowUp" FROM ${mappings.usersView} LIMIT 200`
     );
-    return { users: rows };
+    return { users: rows.map((r) => ({ ...r, flaggedForFollowUp: Boolean(r.flaggedForFollowUp) })) };
   } catch (error) {
     logger.error("admin.postgres.users_failed", error, { view: mappings.usersView });
     throw error;

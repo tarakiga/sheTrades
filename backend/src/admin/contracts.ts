@@ -5,6 +5,7 @@ export type UserRow = {
   language: string;
   completion: string;
   status: "Active" | "At Risk";
+  flaggedForFollowUp: boolean;
 };
 
 export type UsersPageData = {
