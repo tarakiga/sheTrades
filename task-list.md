@@ -47,3 +47,8 @@ Plan: `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
 - [x] Task 18: `PayoutsProviderSelector` + `PayoutsCredentialFields` + preview
 - [x] Task 19: Registered Payouts tab in `IntegrationSettingsWorkspace`
 - [x] Task 20: Staging payouts smoke script + CI wire-up + handoff entry. Cloud Scheduler / Secret Manager creation deferred to operator (commands documented in `handoff.md`).
+
+## 2026-06-04: Cloud Scheduler worker + /users functionality + Reward Rules tab
+- `[x]` Set up the staging payouts Cloud Scheduler worker (API enable, secret, token mount, every-5-min job; verified a scheduler-triggered tick reaches the worker).
+- `[x]` /users page functional: learner-detail drawer (Preview), flag-for-follow-up (toggle + note + flagged badge), CSV export; Contact + Create Import Batch shown disabled with "coming soon". Backend: GET /api/admin/users/:phone, POST /users/:phone/flag, GET /users/export; new User.flaggedForFollowUp + followUpNote columns.
+- `[x]` Reward Rules tab on /settings (after Integration): admin-managed reward amount/channel/enabled via config-platform doc reward.rules.primary; WhatsApp handler honors it with the env var as fallback.
