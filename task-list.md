@@ -52,3 +52,95 @@ Plan: `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
 - `[x]` Set up the staging payouts Cloud Scheduler worker (API enable, secret, token mount, every-5-min job; verified a scheduler-triggered tick reaches the worker).
 - `[x]` /users page functional: learner-detail drawer (Preview), flag-for-follow-up (toggle + note + flagged badge), CSV export; Contact + Create Import Batch shown disabled with "coming soon". Backend: GET /api/admin/users/:phone, POST /users/:phone/flag, GET /users/export; new User.flaggedForFollowUp + followUpNote columns.
 - `[x]` Reward Rules tab on /settings (after Integration): admin-managed reward amount/channel/enabled via config-platform doc reward.rules.primary; WhatsApp handler honors it with the env var as fallback.
+
+## 2026-06-04: Audit gap-clearing (DONE)
+- `[x]` Critical: gate all `/api/admin/*` behind `authenticateJwt` + attach Bearer token on the frontend; converted /dashboard, /analytics, /reports to client components (revs 00058–00060).
+- `[x]` Manual reward picker fixed: `/rewards/manual` resolves by phone; picker lists all learners from `/api/admin/users`.
+- `[x]` Payouts "Test Connection" (`POST /api/integrations/admin/payouts/test` + button).
+- `[x]` Donor-export reports token fails closed (no hardcoded fallback).
+- `[x]` UI honesty pass: login Enter-to-submit, open-learner nav, "Configure Milestone Rule" → /settings, disabled "(coming soon)" buttons, Realtime-Sync stub copy.
+
+---
+
+## Remaining Gaps Backlog — full detail + file:line in `docs/remaining-gaps.md` (2026-06-04)
+
+### A. Security & access control (HIGH first)
+- `[ ]` GAP-A1 (HIGH): Gate `POST /webhook/whatsapp/reset` (currently public; wipes all UserSession rows). `backend/src/routes/webhook.ts:38`
+- `[ ]` GAP-A2 (HIGH): Gate `GET /webhook/whatsapp/session/:phone` (currently public; leaks learner PII). `webhook.ts:47`
+- `[ ]` GAP-A3 (HIGH): Add `requireRoles(["editor","admin"])` to adminRouter mutations (flag / retry / mark-issued / manual). Currently any valid JWT (incl. viewer) can mutate. `admin.ts:25`
+- `[ ]` GAP-A4 (HIGH): Fix audit-log actor — read `req.authUser` not `(req as any).adminUser` (actorId always null today); add `updatedAt`/version to log lines. `admin.ts:267,305,346`
+- `[ ]` GAP-A5 (HIGH): Replace real secrets in `.env.example` with placeholders (live JWT secret + `ADMIN_AUTH_BOOTSTRAP_PASSWORD`); rotate the staging bootstrap password.
+- `[ ]` GAP-A6 (MED): Gate or remove legacy in-memory routers mounted at `/api`: `content.ts` (lesson CRUD/publish), `learning.ts` (GET /users/:phone, POST /progress), `rewards.ts`.
+- `[ ]` GAP-A7 (MED): `reliability-check.ts:57` re-introduces the hardcoded `local-dev-reports-token` — use env only.
+- `[ ]` GAP-A8 (MED): Enforce inbound Meta webhook signature (`X-Hub-Signature-256` + appSecret).
+
+### B. "No hardcoded values" mandate (CLAUDE.md)
+- `[ ]` GAP-B1 (HIGH): Move all bot conversation copy + menu/language button labels to config (`getPrompt()` table + hardcoded arrays in `handler.ts:~335-637`) via `getRuntimeText()`/`getRuntimeOptionSet()` + seeds.
+- `[ ]` GAP-B2 (MED): Analytics live SQL hardcodes `'Anambra'`/`'Delta'` — drive from `FS_LOCATION_VALUE_*`. `admin/providers/postgres.ts:164`
+- `[ ]` GAP-B3 (MED): Frontend hardcoded option sets/copy → config: analytics/dashboard tabs, reports presets, RewardRules channel options, RewardsToolbar pills/date-ranges, manual reward defaults, AdminShell nav.
+- `[ ]` GAP-B4 (MED): Hardcoded thresholds → env/config: worker batch/retry/delay; legacy engine pass-%/lessons-per-module/reward amount.
+
+### C. Bot conversation-flow correctness
+- `[ ]` GAP-C1 (HIGH): Fix stuck state when `awaitingQuizAnswer` but quiz item is undefined (reset + re-prompt). `handler.ts:703`
+- `[ ]` GAP-C2 (HIGH): Mark message processed only AFTER `saveSession` succeeds (avoid dropping Meta retries on DB failure). `handler.ts:~1067`
+- `[ ]` GAP-C3 (MED): DB/Redis-backed `processedMessageIds` (cross-replica + bounded).
+- `[ ]` GAP-C4 (MED): Module selection name-matching (not numeric-only); resolve `list_reply` by `id` not `title`.
+- `[ ]` GAP-C5 (MED): Localize invalid-state re-prompt + progress summary; drop `lessons.length || 6` magic total.
+- `[ ]` GAP-C6 (MED): Report exports query real data (not `buildMockRows`). `reports/export-service.ts`
+- `[ ]` GAP-C7 (LOW): Emit `lesson_viewed` analytics event; paginate module buttons when >3 (sender truncation).
+
+### D. Resilience / scaling / validation
+- `[ ]` GAP-D1 (MED): Persist in-memory singletons (admin sessions, translation requests, export jobs) to Postgres. (Admin sessions covered by the Admin-Users module below.)
+- `[ ]` GAP-D2 (MED): Validate admin reward filters (from/to/limit/q/cursor) with Zod coercion + caps. `admin.ts:33-40`
+
+### E. Config API contract & caching (mandate)
+- `[ ]` GAP-E1 (MED): Frontend config contracts → Zod, validated on the client. `dashboard/lib/config/contracts.ts`
+- `[ ]` GAP-E2 (MED): Replace blanket `cache:"no-store"` with ETag/version-tag revalidation (SWR/React Query or `next.revalidate`). `dashboard/lib/config/api.ts:7`
+
+### F. CI / tests / migrations
+- `[ ]` GAP-F1 (HIGH): Run the test suite in CI (`npm run test -w @shetrades/backend`, with a Postgres service) + `next build` for the dashboard. `.github/workflows/ci.yml`
+- `[ ]` GAP-F2 (MED): Adopt Prisma migrations (replace hand-coded `ensurePrismaTables`).
+- `[ ]` GAP-F3 (MED): Add `POSTGRES_URL` to `.env.example`.
+
+### G. Required documentation deliverable
+- `[ ]` GAP-G1 (HIGH): Write `docs/admin-how-to-guide.md` — add/edit/publish content, manage permissions, rollbacks, caching troubleshooting.
+
+### H. UI quality / a11y / design tokens
+- `[ ]` GAP-H1 (MED): Page data loads catch fetch errors → error state (no infinite spinner). users/reports/analytics pages.
+- `[ ]` GAP-H2 (MED): Tokenize raw inline styles/hex in ConfigAdminManager, ConfigEditorDrawer, GuidedInternalNameBuilder, RichTextEditor.
+- `[ ]` GAP-H3 (MED): a11y — Tabs descriptive labels, toggle `aria-pressed`, language-toggle tab roles, icon-button `aria-label`.
+- `[ ]` GAP-H4 (LOW): Add preview entries for AdminWorkspaceMetricStrip, RichTextEditor, Textarea, AdminRouteLoading.
+
+---
+
+## Admin User Management Module (NEW) — "Admins" tab on `/settings` after Rewards
+
+Goal: a role-gated module to add platform admins, assign roles, and suspend/reactivate them.
+Confirmed constraints from the codebase:
+- Admin users + sessions are currently **in-memory** (`AdminAuthService` `Map`) — they do NOT survive restarts or span Cloud Run replicas. **Persistence is the prerequisite, not optional.**
+- Roles already exist and gate the API: `admin` | `editor` | `viewer`. Status field exists: `active` | `disabled` (extend → `suspended`).
+- Design defaults (adjust if desired): only role `admin` can manage admins; new admins are created with a temporary password (admin communicates it; user changes it via existing ProfilePasswordForm); guardrails prevent suspending/demoting yourself or the last active admin; every mutation is audit-logged (updated_by/updated_at).
+
+### Phase A — Persistence foundation (also clears GAP-D1 for sessions)
+- `[ ]` AUM-A1: Add `admin_users` + `admin_sessions` tables (Prisma model + `ensurePrismaTables` ALTERs, or a migration if GAP-F2 lands first). Columns: id, email (unique), fullName, role, status, passwordHash, avatarUrl, createdAt, updatedAt, lastLoginAt, createdBy.
+- `[ ]` AUM-A2: Swap `AdminAuthService` from `Map` to a Prisma-backed repository; keep bootstrap-from-env when the table is empty; sessions persisted + validated against DB (so a session minted on one instance works on another, and suspending a user invalidates sessions).
+- `[ ]` AUM-A3: Tests for repository (create/find/update/suspend, bootstrap-once, session lookup).
+
+### Phase B — Backend admin-management API (gated `authenticateJwt` + `requireRoles(["admin"])`)
+- `[ ]` AUM-B1: `GET /api/admin/admins` — list (id, name, email, role, status, lastLoginAt).
+- `[ ]` AUM-B2: `POST /api/admin/admins` — create {email, fullName, role, tempPassword}; Zod validation (email format, role enum, password policy, duplicate email).
+- `[ ]` AUM-B3: `PATCH /api/admin/admins/:id/role` — change role (guard: not last admin / not self-demote).
+- `[ ]` AUM-B4: `POST /api/admin/admins/:id/suspend` + `/reactivate` — toggle status (guard: not self, not last active admin); invalidate suspended user's sessions.
+- `[ ]` AUM-B5: `POST /api/admin/admins/:id/reset-password` (optional) — set a new temp password.
+- `[ ]` AUM-B6: Audit-log every mutation (actor from `req.authUser`, action, target, timestamp). Route + service tests incl. auth/role/guardrail cases.
+
+### Phase C — Frontend "Admins" workspace + tab
+- `[ ]` AUM-C1: Client API helpers in the admin-config client (list/create/role/suspend/reactivate) with Bearer token.
+- `[ ]` AUM-C2: `AdminUsersWorkspace` component (shared UI library: Table, Badge for role/status, Button, ConfirmationModal, drawer/form for create + role change). Built to enterprise/a11y standard.
+- `[ ]` AUM-C3: Register as the "Admins" tab in `IntegrationSettingsWorkspace` (after the Rewards tab) at `/settings`.
+- `[ ]` AUM-C4: Add a preview/story entry for `AdminUsersWorkspace`.
+
+### Phase D — Verify, document, deploy
+- `[ ]` AUM-D1: Typecheck + build (backend + dashboard); run new tests; manual e2e on staging (create → login as new admin → suspend → login blocked → reactivate).
+- `[ ]` AUM-D2: Document in `docs/admin-how-to-guide.md` (ties into GAP-G1): managing admins, roles, suspension, password resets.
+- `[ ]` AUM-D3: Deploy backend (Cloud Run) + push (Vercel); update handoff.md.
