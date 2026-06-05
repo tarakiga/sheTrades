@@ -37,3 +37,14 @@ test("GET /api/admin/team with an editor token returns 403", async () => {
 test("POST /api/admin/team without a token returns 401", async () => {
   await request(app).post("/api/admin/team").send({}).expect(401);
 });
+
+test("DELETE /api/admin/team/:id without a token returns 401", async () => {
+  await request(app).delete("/api/admin/team/some-id").expect(401);
+});
+
+test("DELETE /api/admin/team/:id with a viewer token returns 403", async () => {
+  await request(app)
+    .delete("/api/admin/team/some-id")
+    .set("Authorization", `Bearer ${token("viewer")}`)
+    .expect(403);
+});

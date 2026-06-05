@@ -101,16 +101,25 @@ export function AdminTeamWorkspacePreview() {
               {
                 key: "id",
                 header: "Actions",
-                render: (_value, row) =>
-                  row.status === "active" ? (
-                    <Button variant="secondary" disabled={row.id === "1"} onClick={() => undefined}>
-                      Suspend
-                    </Button>
-                  ) : (
+                render: (_value, row) => (
+                  <div className="admin-team-actions">
                     <Button variant="secondary" onClick={() => undefined}>
-                      Reactivate
+                      Reset password
                     </Button>
-                  )
+                    {row.status === "active" ? (
+                      <Button variant="secondary" disabled={row.id === "1"} onClick={() => undefined}>
+                        Suspend
+                      </Button>
+                    ) : (
+                      <Button variant="secondary" onClick={() => undefined}>
+                        Reactivate
+                      </Button>
+                    )}
+                    <Button variant="danger" disabled={row.id === "1"} onClick={() => undefined}>
+                      Delete
+                    </Button>
+                  </div>
+                )
               }
             ]}
             rows={MOCK_ADMINS}

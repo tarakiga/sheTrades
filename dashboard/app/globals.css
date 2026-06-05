@@ -6917,3 +6917,4 @@ button.needs-attention-panel__item:focus {
    (the trigger is named by its selected value; column header says "Role"). */
 .admin-team-role-select .ui-select-field__label { display: none; }
 .admin-team-role-select { min-width: 9.5rem; }
+.admin-team-actions { display: flex; flex-wrap: wrap; gap: var(--space-2, 0.5rem); }

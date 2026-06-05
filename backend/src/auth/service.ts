@@ -468,6 +468,22 @@ export class AdminAuthService {
     });
   }
 
+  async deleteAccount(targetId: string, actorId: string): Promise<void> {
+    await this.ensureBootstrapped();
+    const target = await this.getRecordByIdOrThrow(targetId);
+    if (actorId === targetId) {
+      throw new Error("You cannot delete your own account.");
+    }
+    if (target.role === "admin" && target.status === "active") {
+      const activeAdmins = await this.countActiveAdmins();
+      if (activeAdmins <= 1) {
+        throw new Error("At least one active admin must remain.");
+      }
+    }
+    await prisma.adminAccount.delete({ where: { id: targetId } });
+    this.revokeSessionsForUser(targetId);
+  }
+
   async resetForTests() {
     this.sessionsById.clear();
     this.bootstrapAttempted = false;

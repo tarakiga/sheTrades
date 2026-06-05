@@ -122,3 +122,14 @@ adminTeamRouter.post("/:id/reset-password", async (req, res, next) => {
     respondError(error, res, next);
   }
 });
+
+adminTeamRouter.delete("/:id", async (req, res, next) => {
+  try {
+    const actorId = req.authUser?.id ?? "";
+    await authService.deleteAccount(String(req.params.id), actorId);
+    logAction(actorId, "delete", String(req.params.id));
+    res.status(200).json({ message: "Admin account deleted." });
+  } catch (error) {
+    respondError(error, res, next);
+  }
+});

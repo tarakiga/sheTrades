@@ -89,6 +89,11 @@ export function AdminTeamWorkspace() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingRowId, setPendingRowId] = useState<string | null>(null);
   const [suspendTarget, setSuspendTarget] = useState<ManagedAdmin | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ManagedAdmin | null>(null);
+  const [resetTarget, setResetTarget] = useState<ManagedAdmin | null>(null);
+  const [resetValue, setResetValue] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
   const selfId = useMemo(() => (token ? decodeJwtSub(token) : null), [token]);
 
@@ -232,6 +237,52 @@ export function AdminTeamWorkspace() {
     }
   }
 
+  function openReset(admin: ManagedAdmin) {
+    setIsCreating(false);
+    setResetTarget(admin);
+    setResetValue("");
+    setResetError("");
+  }
+
+  async function submitReset() {
+    if (!resetTarget) return;
+    if (resetValue.trim().length < 10) {
+      setResetError("Temporary password must be at least 10 characters.");
+      return;
+    }
+    try {
+      setIsResetting(true);
+      await request(`/api/admin/team/${encodeURIComponent(resetTarget.id)}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({ password: resetValue.trim() })
+      });
+      setFeedback({
+        tone: "success",
+        text: `Temporary password set for ${resetTarget.fullName}. Share it securely — they can change it after signing in.`
+      });
+      setResetTarget(null);
+      setResetValue("");
+    } catch (error) {
+      setResetError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
+  async function deleteAdmin(admin: ManagedAdmin) {
+    try {
+      setPendingRowId(admin.id);
+      await request(`/api/admin/team/${encodeURIComponent(admin.id)}`, { method: "DELETE" });
+      setFeedback({ tone: "success", text: `${admin.fullName} deleted.` });
+      await refresh();
+    } catch (error) {
+      setFeedback({ tone: "danger", text: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setPendingRowId(null);
+      setDeleteTarget(null);
+    }
+  }
+
   return (
     <section className="integration-workspace">
       <header className="integration-workspace__header">
@@ -317,6 +368,40 @@ export function AdminTeamWorkspace() {
         </section>
       ) : null}
 
+      {resetTarget ? (
+        <section className="integration-workspace__editor">
+          <div className="integration-workspace__editor-header">
+            <div>
+              <h4 className="integration-workspace__editor-title">
+                Reset password — {resetTarget.fullName}
+              </h4>
+              <p className="integration-workspace__editor-description">
+                Set a new temporary password and share it securely. {resetTarget.fullName} can
+                change it from their profile after signing in.
+              </p>
+            </div>
+          </div>
+          <div className="integration-workspace__editor-body">
+            <Input
+              id="admin-team-reset-password"
+              label="New temporary password"
+              value={resetValue}
+              onChange={(event) => setResetValue(event.target.value)}
+              hint="At least 10 characters."
+              {...(resetError ? { error: resetError } : {})}
+            />
+          </div>
+          <div className="integration-workspace__editor-footer">
+            <Button variant="secondary" onClick={() => setResetTarget(null)}>
+              Cancel
+            </Button>
+            <Button loading={isResetting} onClick={() => void submitReset()}>
+              Set Temporary Password
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
       {loadError ? (
         <EmptyState title="Access Required" description={loadError} action={undefined} />
       ) : loading ? (
@@ -377,24 +462,41 @@ export function AdminTeamWorkspace() {
               {
                 key: "id",
                 header: "Actions",
-                render: (_value, row) =>
-                  row.status === "active" ? (
-                    <Button
-                      variant="secondary"
-                      disabled={row.id === selfId || pendingRowId === row.id}
-                      onClick={() => setSuspendTarget(row)}
-                    >
-                      Suspend
-                    </Button>
-                  ) : (
+                render: (_value, row) => (
+                  <div className="admin-team-actions">
                     <Button
                       variant="secondary"
                       disabled={pendingRowId === row.id}
-                      onClick={() => void setStatus(row, "reactivate")}
+                      onClick={() => openReset(row)}
                     >
-                      Reactivate
+                      Reset password
                     </Button>
-                  )
+                    {row.status === "active" ? (
+                      <Button
+                        variant="secondary"
+                        disabled={row.id === selfId || pendingRowId === row.id}
+                        onClick={() => setSuspendTarget(row)}
+                      >
+                        Suspend
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        disabled={pendingRowId === row.id}
+                        onClick={() => void setStatus(row, "reactivate")}
+                      >
+                        Reactivate
+                      </Button>
+                    )}
+                    <Button
+                      variant="danger"
+                      disabled={row.id === selfId || pendingRowId === row.id}
+                      onClick={() => setDeleteTarget(row)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                )
               }
             ]}
             rows={admins}
@@ -416,6 +518,23 @@ export function AdminTeamWorkspace() {
         onCancel={() => setSuspendTarget(null)}
         onConfirm={() => {
           if (suspendTarget) void setStatus(suspendTarget, "suspend");
+        }}
+      />
+
+      <ConfirmationModal
+        open={deleteTarget !== null}
+        title="Delete admin?"
+        description={
+          deleteTarget
+            ? `${deleteTarget.fullName} (${deleteTarget.email}) will be permanently removed and can no longer sign in. This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        tone="danger"
+        cancelLabel="Cancel"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) void deleteAdmin(deleteTarget);
         }}
       />
     </section>
