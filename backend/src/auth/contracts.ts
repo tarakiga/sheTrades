@@ -15,6 +15,28 @@ export const adminSafeUserSchema = z.object({
 });
 export type AdminSafeUser = z.infer<typeof adminSafeUserSchema>;
 
+// Admin team-management (managing other admin accounts)
+export const adminManagedUserSchema = adminSafeUserSchema.extend({
+  createdAt: z.string().datetime()
+});
+export type AdminManagedUser = z.infer<typeof adminManagedUserSchema>;
+
+export const createAdminRequestSchema = z.object({
+  email: z.string().trim().email(),
+  fullName: z.string().trim().min(1).max(120),
+  role: roleSchema,
+  password: z.string().min(10).max(200)
+});
+export type CreateAdminRequest = z.infer<typeof createAdminRequestSchema>;
+
+export const updateAdminRoleRequestSchema = z.object({ role: roleSchema });
+export type UpdateAdminRoleRequest = z.infer<typeof updateAdminRoleRequestSchema>;
+
+export const resetAdminPasswordRequestSchema = z.object({
+  password: z.string().min(10).max(200)
+});
+export type ResetAdminPasswordRequest = z.infer<typeof resetAdminPasswordRequestSchema>;
+
 export const adminSessionSchema = z.object({
   id: z.string().min(1),
   adminUserId: z.string().min(1),

@@ -68,6 +68,22 @@ model QuizAttempt {
   @@map("quiz_attempts")
 }
 
+model AdminAccount {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  fullName     String
+  passwordHash String
+  role         String    @default("admin")
+  status       String    @default("active")
+  avatarUrl    String    @default("")
+  lastLoginAt  DateTime?
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("admin_accounts")
+}
+
 model Reward {
   id                String     @id @default(uuid())
   userId            String

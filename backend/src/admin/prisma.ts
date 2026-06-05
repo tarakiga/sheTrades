@@ -228,6 +228,28 @@ export async function ensurePrismaTables() {
       END $$;
     `);
 
+    // admin_accounts (admin DASHBOARD users — distinct from the learner
+    // `users` table and the `admin_users_view` view over it). Backs the
+    // Admin User Management module so admins survive restarts / replicas.
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS admin_accounts (id TEXT PRIMARY KEY);`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS email TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS "fullName" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS "passwordHash" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'admin';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT NOT NULL DEFAULT '';`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS "lastLoginAt" TIMESTAMP(3);`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS "createdBy" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
+    await prisma.$executeRawUnsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'admin_accounts_email_key') THEN
+          ALTER TABLE admin_accounts ADD CONSTRAINT admin_accounts_email_key UNIQUE (email);
+        END IF;
+      END $$;
+    `);
+
     logger.info("Prisma-managed tables ensured.");
   } catch (error) {
     logger.error("Failed to ensure Prisma tables; admin/sandbox features may not work.", error);

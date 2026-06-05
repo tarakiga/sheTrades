@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import type {
+  AdminManagedUser,
   AdminSafeUser,
   AdminSession,
   ChangePasswordRequest,
@@ -8,6 +9,7 @@ import type {
 } from "./contracts.js";
 import { adminSessionSchema, adminUserStatusSchema } from "./contracts.js";
 import { getJwtConfig, signJwtHs256, type AuthRole, type JwtClaims } from "./token.js";
+import { prisma } from "../admin/prisma.js";
 
 type AdminUserRecord = {
   id: string;
@@ -36,12 +38,50 @@ type BootstrapUserInput = {
   status?: "active" | "disabled";
 };
 
+// The Prisma row shape for an admin_accounts record (kept local so this module
+// does not depend on generated type names beyond the client surface).
+type AdminAccountRow = {
+  id: string;
+  email: string;
+  fullName: string;
+  passwordHash: string;
+  role: string;
+  status: string;
+  avatarUrl: string;
+  lastLoginAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 function nowIso() {
   return new Date().toISOString();
 }
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+function toRole(value: string): AuthRole {
+  return value === "admin" || value === "editor" || value === "viewer" ? value : "viewer";
+}
+
+function toStatus(value: string): "active" | "disabled" {
+  return value === "disabled" ? "disabled" : "active";
+}
+
+function accountRowToRecord(row: AdminAccountRow): AdminUserRecord {
+  return {
+    id: row.id,
+    email: row.email,
+    fullName: row.fullName,
+    passwordHash: row.passwordHash,
+    role: toRole(row.role),
+    status: toStatus(row.status),
+    avatarUrl: row.avatarUrl ?? "",
+    lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  };
 }
 
 function hashPassword(password: string) {
@@ -143,50 +183,71 @@ function toSafeUser(record: AdminUserRecord): AdminSafeUser {
   };
 }
 
+function toManagedUser(record: AdminUserRecord): AdminManagedUser {
+  return { ...toSafeUser(record), createdAt: record.createdAt };
+}
+
+/**
+ * Admin accounts are persisted in Postgres (admin_accounts) so they survive
+ * Cloud Run restarts and are consistent across instances. Sessions remain an
+ * in-memory map for now (a session minted on one instance is not yet shared
+ * with another — tracked as GAP-D1); because every authenticated request
+ * re-loads the account from the DB and checks status, suspending an admin
+ * takes effect immediately regardless.
+ */
 export class AdminAuthService {
-  private readonly usersById = new Map<string, AdminUserRecord>();
-  private readonly userIdsByEmail = new Map<string, string>();
   private readonly sessionsById = new Map<string, AdminSession>();
   private bootstrapAttempted = false;
-
-  private upsertUser(record: AdminUserRecord) {
-    this.usersById.set(record.id, record);
-    this.userIdsByEmail.set(record.email, record.id);
-  }
 
   private async ensureBootstrapped() {
     if (this.bootstrapAttempted) {
       return;
     }
-
     this.bootstrapAttempted = true;
+
     const seeds = parseBootstrapUsersFromEnv();
     for (const seed of seeds) {
       const email = normalizeEmail(seed.email);
-      const existingId = this.userIdsByEmail.get(email);
-      const timestamp = nowIso();
-      const record: AdminUserRecord = {
-        id: existingId ?? randomUUID(),
-        email,
-        fullName: seed.fullName.trim(),
-        passwordHash: hashPassword(seed.password),
-        role: seed.role ?? "admin",
-        status: seed.status ?? "active",
-        avatarUrl: seed.avatarUrl?.trim() ?? "",
-        lastLoginAt: null,
-        createdAt: existingId ? this.usersById.get(existingId)?.createdAt ?? timestamp : timestamp,
-        updatedAt: timestamp
-      };
-      this.upsertUser(record);
+      // Create-only: never overwrite an existing account (an admin may have
+      // changed their password or role after the initial seed).
+      await prisma.adminAccount.upsert({
+        where: { email },
+        update: {},
+        create: {
+          email,
+          fullName: seed.fullName.trim(),
+          passwordHash: hashPassword(seed.password),
+          role: seed.role ?? "admin",
+          status: seed.status ?? "active",
+          avatarUrl: seed.avatarUrl?.trim() ?? ""
+        }
+      });
     }
   }
 
-  private getUserByIdOrThrow(userId: string) {
-    const user = this.usersById.get(userId);
-    if (!user) {
+  private async findRecordByEmail(email: string): Promise<AdminUserRecord | null> {
+    const row = await prisma.adminAccount.findUnique({ where: { email: normalizeEmail(email) } });
+    return row ? accountRowToRecord(row as AdminAccountRow) : null;
+  }
+
+  private async getRecordByIdOrThrow(userId: string): Promise<AdminUserRecord> {
+    const row = await prisma.adminAccount.findUnique({ where: { id: userId } });
+    if (!row) {
       throw new Error("Admin user could not be found.");
     }
-    return user;
+    return accountRowToRecord(row as AdminAccountRow);
+  }
+
+  private countActiveAdmins(): Promise<number> {
+    return prisma.adminAccount.count({ where: { role: "admin", status: "active" } });
+  }
+
+  private revokeSessionsForUser(userId: string) {
+    for (const session of this.sessionsById.values()) {
+      if (session.adminUserId === userId && !session.revokedAt) {
+        this.sessionsById.set(session.id, { ...session, revokedAt: nowIso() });
+      }
+    }
   }
 
   private createSessionForUser(user: AdminUserRecord) {
@@ -223,28 +284,27 @@ export class AdminAuthService {
 
   async login(input: LoginRequest) {
     await this.ensureBootstrapped();
-    const email = normalizeEmail(input.email);
-    const userId = this.userIdsByEmail.get(email);
-    if (!userId) {
+    const user = await this.findRecordByEmail(input.email);
+    if (!user) {
       throw new Error("Invalid email or password.");
     }
-
-    const user = this.getUserByIdOrThrow(userId);
     if (user.status !== "active") {
       throw new Error("This admin account is disabled.");
     }
-
     if (!verifyPassword(input.password, user.passwordHash)) {
       throw new Error("Invalid email or password.");
     }
 
-    const loginAt = nowIso();
+    const loginAt = new Date();
+    await prisma.adminAccount.update({
+      where: { id: user.id },
+      data: { lastLoginAt: loginAt }
+    });
     const nextUser: AdminUserRecord = {
       ...user,
-      lastLoginAt: loginAt,
-      updatedAt: loginAt
+      lastLoginAt: loginAt.toISOString(),
+      updatedAt: loginAt.toISOString()
     };
-    this.upsertUser(nextUser);
 
     const { token, session } = this.createSessionForUser(nextUser);
     return {
@@ -271,7 +331,7 @@ export class AdminAuthService {
       throw new Error("Session is expired.");
     }
 
-    const user = this.getUserByIdOrThrow(session.adminUserId);
+    const user = await this.getRecordByIdOrThrow(session.adminUserId);
     if (user.status !== "active") {
       throw new Error("This admin account is disabled.");
     }
@@ -289,7 +349,6 @@ export class AdminAuthService {
   }
 
   async logout(sessionId: string) {
-    await this.ensureBootstrapped();
     const session = this.sessionsById.get(sessionId);
     if (!session) {
       throw new Error("Session could not be found.");
@@ -302,36 +361,121 @@ export class AdminAuthService {
 
   async updateProfile(userId: string, input: UpdateProfileRequest) {
     await this.ensureBootstrapped();
-    const user = this.getUserByIdOrThrow(userId);
-    const nextUser: AdminUserRecord = {
-      ...user,
-      fullName: input.fullName.trim(),
-      avatarUrl: input.avatarUrl.trim(),
-      updatedAt: nowIso()
-    };
-    this.upsertUser(nextUser);
-    return toSafeUser(nextUser);
+    const row = await prisma.adminAccount.update({
+      where: { id: userId },
+      data: { fullName: input.fullName.trim(), avatarUrl: input.avatarUrl.trim() }
+    });
+    return toSafeUser(accountRowToRecord(row as AdminAccountRow));
   }
 
   async changePassword(userId: string, input: ChangePasswordRequest) {
     await this.ensureBootstrapped();
-    const user = this.getUserByIdOrThrow(userId);
+    const user = await this.getRecordByIdOrThrow(userId);
     if (!verifyPassword(input.currentPassword, user.passwordHash)) {
       throw new Error("Current password is incorrect.");
     }
-    const nextUser: AdminUserRecord = {
-      ...user,
-      passwordHash: hashPassword(input.newPassword),
-      updatedAt: nowIso()
-    };
-    this.upsertUser(nextUser);
+    await prisma.adminAccount.update({
+      where: { id: userId },
+      data: { passwordHash: hashPassword(input.newPassword) }
+    });
   }
 
-  resetForTests() {
-    this.usersById.clear();
-    this.userIdsByEmail.clear();
+  // ---------------------------------------------------------------------------
+  // Admin team management (gated to role "admin" at the route layer)
+  // ---------------------------------------------------------------------------
+
+  async listAccounts(): Promise<AdminManagedUser[]> {
+    await this.ensureBootstrapped();
+    const rows = await prisma.adminAccount.findMany({ orderBy: { createdAt: "asc" } });
+    return rows.map((row) => toManagedUser(accountRowToRecord(row as AdminAccountRow)));
+  }
+
+  async createAccount(
+    input: { email: string; fullName: string; role: AuthRole; password: string },
+    createdById: string | null
+  ): Promise<AdminManagedUser> {
+    await this.ensureBootstrapped();
+    const email = normalizeEmail(input.email);
+    const existing = await prisma.adminAccount.findUnique({ where: { email } });
+    if (existing) {
+      throw new Error("An admin with this email already exists.");
+    }
+    const row = await prisma.adminAccount.create({
+      data: {
+        email,
+        fullName: input.fullName.trim(),
+        passwordHash: hashPassword(input.password),
+        role: input.role,
+        status: "active",
+        avatarUrl: "",
+        createdBy: createdById
+      }
+    });
+    return toManagedUser(accountRowToRecord(row as AdminAccountRow));
+  }
+
+  async updateRole(
+    targetId: string,
+    role: AuthRole,
+    actorId: string
+  ): Promise<AdminManagedUser> {
+    await this.ensureBootstrapped();
+    const target = await this.getRecordByIdOrThrow(targetId);
+    if (actorId === targetId && role !== "admin") {
+      throw new Error("You cannot change your own role.");
+    }
+    if (target.role === "admin" && role !== "admin" && target.status === "active") {
+      const activeAdmins = await this.countActiveAdmins();
+      if (activeAdmins <= 1) {
+        throw new Error("At least one active admin must remain.");
+      }
+    }
+    const row = await prisma.adminAccount.update({ where: { id: targetId }, data: { role } });
+    return toManagedUser(accountRowToRecord(row as AdminAccountRow));
+  }
+
+  async setStatus(
+    targetId: string,
+    status: "active" | "disabled",
+    actorId: string
+  ): Promise<AdminManagedUser> {
+    await this.ensureBootstrapped();
+    const target = await this.getRecordByIdOrThrow(targetId);
+    if (status === "disabled") {
+      if (actorId === targetId) {
+        throw new Error("You cannot suspend your own account.");
+      }
+      if (target.role === "admin" && target.status === "active") {
+        const activeAdmins = await this.countActiveAdmins();
+        if (activeAdmins <= 1) {
+          throw new Error("At least one active admin must remain.");
+        }
+      }
+    }
+    const row = await prisma.adminAccount.update({ where: { id: targetId }, data: { status } });
+    if (status === "disabled") {
+      this.revokeSessionsForUser(targetId);
+    }
+    return toManagedUser(accountRowToRecord(row as AdminAccountRow));
+  }
+
+  async resetPassword(targetId: string, newPassword: string): Promise<void> {
+    await this.ensureBootstrapped();
+    await this.getRecordByIdOrThrow(targetId);
+    await prisma.adminAccount.update({
+      where: { id: targetId },
+      data: { passwordHash: hashPassword(newPassword) }
+    });
+  }
+
+  async resetForTests() {
     this.sessionsById.clear();
     this.bootstrapAttempted = false;
+    try {
+      await prisma.adminAccount.deleteMany({});
+    } catch {
+      // Best-effort: tests that do not provision Postgres can ignore this.
+    }
   }
 }
 

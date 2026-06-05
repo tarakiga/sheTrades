@@ -46,7 +46,7 @@ function bootstrapEnv(overrides: Record<string, string | undefined> = {}) {
 }
 
 test("admin auth login returns session token and user payload", { concurrency: false }, async () => {
-  authService.resetForTests();
+  await authService.resetForTests();
   await withEnv(bootstrapEnv(), async () => {
     const response = await request(app).post("/api/admin/auth/login").send({
       email: "admin@shetrades.test",
@@ -62,7 +62,7 @@ test("admin auth login returns session token and user payload", { concurrency: f
 });
 
 test("admin auth rejects disabled bootstrap account", { concurrency: false }, async () => {
-  authService.resetForTests();
+  await authService.resetForTests();
   await withEnv(bootstrapEnv({ ADMIN_AUTH_BOOTSTRAP_STATUS: "disabled" }), async () => {
     const response = await request(app).post("/api/admin/auth/login").send({
       email: "admin@shetrades.test",
@@ -75,7 +75,7 @@ test("admin auth rejects disabled bootstrap account", { concurrency: false }, as
 });
 
 test("admin auth me and profile update work with session token", { concurrency: false }, async () => {
-  authService.resetForTests();
+  await authService.resetForTests();
   await withEnv(bootstrapEnv(), async () => {
     const loginResponse = await request(app).post("/api/admin/auth/login").send({
       email: "admin@shetrades.test",
@@ -106,7 +106,7 @@ test("admin auth me and profile update work with session token", { concurrency: 
 });
 
 test("admin auth change-password rotates credentials", { concurrency: false }, async () => {
-  authService.resetForTests();
+  await authService.resetForTests();
   await withEnv(bootstrapEnv(), async () => {
     const loginResponse = await request(app).post("/api/admin/auth/login").send({
       email: "admin@shetrades.test",
@@ -138,7 +138,7 @@ test("admin auth change-password rotates credentials", { concurrency: false }, a
 });
 
 test("admin auth logout revokes session token", { concurrency: false }, async () => {
-  authService.resetForTests();
+  await authService.resetForTests();
   await withEnv(bootstrapEnv(), async () => {
     const loginResponse = await request(app).post("/api/admin/auth/login").send({
       email: "admin@shetrades.test",
@@ -161,7 +161,7 @@ test("admin auth logout revokes session token", { concurrency: false }, async ()
 });
 
 test("new session token is accepted by existing protected config routes", { concurrency: false }, async () => {
-  authService.resetForTests();
+  await authService.resetForTests();
   await withEnv(bootstrapEnv(), async () => {
     const loginResponse = await request(app).post("/api/admin/auth/login").send({
       email: "admin@shetrades.test",
