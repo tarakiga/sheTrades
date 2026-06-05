@@ -6912,3 +6912,8 @@ button.needs-attention-panel__item:focus {
   color: var(--color-danger-700);
 }
 
+
+/* Admin Team workspace — inline role select hides its redundant label
+   (the trigger is named by its selected value; column header says "Role"). */
+.admin-team-role-select .ui-select-field__label { display: none; }
+.admin-team-role-select { min-width: 9.5rem; }

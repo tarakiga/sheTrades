@@ -4,10 +4,11 @@ import { Badge, Card, SectionHeader } from "../../../components/ui";
 import { ConfigAdminManager } from "../../../components/config/ConfigAdminManager";
 import { IntegrationSettingsWorkspace } from "../../../components/integration/IntegrationSettingsWorkspace";
 import { RewardRulesWorkspace } from "../../../components/integration/RewardRulesWorkspace";
+import { AdminTeamWorkspace } from "../../../components/admin-team/AdminTeamWorkspace";
 import { getPublicConfigNamespace } from "../../../lib/config/api";
 import { getAdminUiCopy } from "../../../lib/config/admin-ui-copy";
 
-type SettingsTabId = "options" | "legal" | "integration" | "rewards";
+type SettingsTabId = "options" | "legal" | "integration" | "rewards" | "admins";
 
 type SettingsPageProps = {
   searchParams?: Promise<{
@@ -57,13 +58,32 @@ const TABS_BY_ID: Record<SettingsTabId, TabConfig> = {
     titleFallback: "Rewards",
     hintKey: "settings.tab.rewards.hint",
     hintFallback: "Reward amount and delivery"
+  },
+  admins: {
+    id: "admins",
+    titleKey: "settings.tab.admins",
+    titleFallback: "Admins",
+    hintKey: "settings.tab.admins.hint",
+    hintFallback: "Manage admin users and roles"
   }
 };
 
-const TABS: Array<TabConfig> = [TABS_BY_ID.options, TABS_BY_ID.legal, TABS_BY_ID.integration, TABS_BY_ID.rewards];
+const TABS: Array<TabConfig> = [
+  TABS_BY_ID.options,
+  TABS_BY_ID.legal,
+  TABS_BY_ID.integration,
+  TABS_BY_ID.rewards,
+  TABS_BY_ID.admins
+];
 
 function resolveActiveTab(raw: string | undefined): SettingsTabId {
-  if (raw === "options" || raw === "legal" || raw === "integration" || raw === "rewards") {
+  if (
+    raw === "options" ||
+    raw === "legal" ||
+    raw === "integration" ||
+    raw === "rewards" ||
+    raw === "admins"
+  ) {
     return raw;
   }
   return "options";
@@ -139,6 +159,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         <IntegrationSettingsWorkspace copy={copy.map} />
       ) : activeTab.id === "rewards" ? (
         <RewardRulesWorkspace />
+      ) : activeTab.id === "admins" ? (
+        <AdminTeamWorkspace />
       ) : activeTab.namespace && activeTab.defaultType ? (
         <ConfigAdminManager
           namespace={activeTab.namespace}

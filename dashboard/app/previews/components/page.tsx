@@ -24,6 +24,7 @@ import { IntegrationWorkspacePreview } from "./IntegrationWorkspacePreview";
 import { OverlayPreviewDemo } from "./OverlayPreviewDemo";
 import { OverviewUsersWorkspacePreview } from "./OverviewUsersWorkspacePreview";
 import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
+import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { PreviewSelectTabsDemo } from "./PreviewSelectTabsDemo";
 import { RewardsWorkspacePreview } from "./RewardsWorkspacePreview";
 import { TranslationRequestWorkflowPreview } from "./TranslationRequestWorkflowPreview";
@@ -322,6 +323,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <PayoutsIntegrationPreview />
+        </Card>
+
+        <Card
+          title={t("preview.adminTeam.title", "Admin Team — manage admins & roles")}
+          description={t(
+            "preview.adminTeam.description",
+            "Preview the admin directory: inline role assignment, active/suspended status, and per-row suspend/reactivate with self-action guards."
+          )}
+        >
+          <AdminTeamWorkspacePreview />
         </Card>
 
         <Card
