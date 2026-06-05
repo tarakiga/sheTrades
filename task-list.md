@@ -122,25 +122,25 @@ Confirmed constraints from the codebase:
 - Design defaults (adjust if desired): only role `admin` can manage admins; new admins are created with a temporary password (admin communicates it; user changes it via existing ProfilePasswordForm); guardrails prevent suspending/demoting yourself or the last active admin; every mutation is audit-logged (updated_by/updated_at).
 
 ### Phase A — Persistence foundation (also clears GAP-D1 for sessions)
-- `[ ]` AUM-A1: Add `admin_users` + `admin_sessions` tables (Prisma model + `ensurePrismaTables` ALTERs, or a migration if GAP-F2 lands first). Columns: id, email (unique), fullName, role, status, passwordHash, avatarUrl, createdAt, updatedAt, lastLoginAt, createdBy.
-- `[ ]` AUM-A2: Swap `AdminAuthService` from `Map` to a Prisma-backed repository; keep bootstrap-from-env when the table is empty; sessions persisted + validated against DB (so a session minted on one instance works on another, and suspending a user invalidates sessions).
-- `[ ]` AUM-A3: Tests for repository (create/find/update/suspend, bootstrap-once, session lookup).
+- `[x]` AUM-A1: Add `admin_users` + `admin_sessions` tables (Prisma model + `ensurePrismaTables` ALTERs, or a migration if GAP-F2 lands first). Columns: id, email (unique), fullName, role, status, passwordHash, avatarUrl, createdAt, updatedAt, lastLoginAt, createdBy.
+- `[x]` AUM-A2: Swap `AdminAuthService` from `Map` to a Prisma-backed repository; keep bootstrap-from-env when the table is empty; sessions persisted + validated against DB (so a session minted on one instance works on another, and suspending a user invalidates sessions).
+- `[x]` AUM-A3: Tests for repository (create/find/update/suspend, bootstrap-once, session lookup).
 
 ### Phase B — Backend admin-management API (gated `authenticateJwt` + `requireRoles(["admin"])`)
-- `[ ]` AUM-B1: `GET /api/admin/admins` — list (id, name, email, role, status, lastLoginAt).
-- `[ ]` AUM-B2: `POST /api/admin/admins` — create {email, fullName, role, tempPassword}; Zod validation (email format, role enum, password policy, duplicate email).
-- `[ ]` AUM-B3: `PATCH /api/admin/admins/:id/role` — change role (guard: not last admin / not self-demote).
-- `[ ]` AUM-B4: `POST /api/admin/admins/:id/suspend` + `/reactivate` — toggle status (guard: not self, not last active admin); invalidate suspended user's sessions.
-- `[ ]` AUM-B5: `POST /api/admin/admins/:id/reset-password` (optional) — set a new temp password.
-- `[ ]` AUM-B6: Audit-log every mutation (actor from `req.authUser`, action, target, timestamp). Route + service tests incl. auth/role/guardrail cases.
+- `[x]` AUM-B1: `GET /api/admin/admins` — list (id, name, email, role, status, lastLoginAt).
+- `[x]` AUM-B2: `POST /api/admin/admins` — create {email, fullName, role, tempPassword}; Zod validation (email format, role enum, password policy, duplicate email).
+- `[x]` AUM-B3: `PATCH /api/admin/admins/:id/role` — change role (guard: not last admin / not self-demote).
+- `[x]` AUM-B4: `POST /api/admin/admins/:id/suspend` + `/reactivate` — toggle status (guard: not self, not last active admin); invalidate suspended user's sessions.
+- `[x]` AUM-B5: `POST /api/admin/admins/:id/reset-password` (optional) — set a new temp password.
+- `[x]` AUM-B6: Audit-log every mutation (actor from `req.authUser`, action, target, timestamp). Route + service tests incl. auth/role/guardrail cases.
 
 ### Phase C — Frontend "Admins" workspace + tab
-- `[ ]` AUM-C1: Client API helpers in the admin-config client (list/create/role/suspend/reactivate) with Bearer token.
-- `[ ]` AUM-C2: `AdminUsersWorkspace` component (shared UI library: Table, Badge for role/status, Button, ConfirmationModal, drawer/form for create + role change). Built to enterprise/a11y standard.
-- `[ ]` AUM-C3: Register as the "Admins" tab in `IntegrationSettingsWorkspace` (after the Rewards tab) at `/settings`.
-- `[ ]` AUM-C4: Add a preview/story entry for `AdminUsersWorkspace`.
+- `[x]` AUM-C1: Client API helpers in the admin-config client (list/create/role/suspend/reactivate) with Bearer token.
+- `[x]` AUM-C2: `AdminUsersWorkspace` component (shared UI library: Table, Badge for role/status, Button, ConfirmationModal, drawer/form for create + role change). Built to enterprise/a11y standard.
+- `[x]` AUM-C3: Register as the "Admins" tab in `IntegrationSettingsWorkspace` (after the Rewards tab) at `/settings`.
+- `[x]` AUM-C4: Add a preview/story entry for `AdminUsersWorkspace`.
 
 ### Phase D — Verify, document, deploy
-- `[ ]` AUM-D1: Typecheck + build (backend + dashboard); run new tests; manual e2e on staging (create → login as new admin → suspend → login blocked → reactivate).
+- `[x]` AUM-D1: Typecheck + build (backend + dashboard); run new tests; manual e2e on staging (create → login as new admin → suspend → login blocked → reactivate).
 - `[ ]` AUM-D2: Document in `docs/admin-how-to-guide.md` (ties into GAP-G1): managing admins, roles, suspension, password resets.
-- `[ ]` AUM-D3: Deploy backend (Cloud Run) + push (Vercel); update handoff.md.
+- `[x]` AUM-D3: Deploy backend (Cloud Run) + push (Vercel); update handoff.md.

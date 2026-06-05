@@ -265,3 +265,24 @@ Shipped + verified on staging (backend revs 00059-fwr, 00060-94c; frontend via V
 - **`/api/rewards/*` (rewardsRouter) auth gate** — left ungated on purpose. It's the *legacy in-memory* reward service (audit log + `issueReward`), reached over HTTP only by `rewards.test.ts`; the bot calls `issueReward()` as a function import, not HTTP. The real money path (Prisma `reward` table) goes through the now-gated `adminRouter` + the Cloud Scheduler worker. Gating it would break tests for ~no security gain. Revisit if that surface is ever exposed publicly.
 - **Bot `processedMessageIds` in-memory dedup** won't span Cloud Run replicas — needs a DB-backed dedup (e.g. a `processed_messages` table or Redis). Not yet done.
 - **`/reports` presets hardcoded** — should move to config like other content; deferred (config work, low pilot impact).
+
+
+### 2026-06-04: Admin User Management module (DONE — verified live)
+
+A role-gated module to manage platform admins, added as the **"Admins" tab on /settings** (after Rewards).
+
+**Persistence (the prerequisite):** admin accounts were in-memory (`AdminAuthService` Map) — they did not survive restarts or span Cloud Run replicas. Added a Postgres `admin_accounts` table (Prisma model + `ensurePrismaTables` bootstrap) and rewrote the service to store accounts in the DB. Bootstrap-from-env is now **create-only** (never clobbers a changed password). **Sessions remain in-memory** for now (GAP-D1) — but because every authenticated request re-loads the account from the DB and checks `status`, suspending an admin takes effect immediately. Verified login still works after the swap.
+
+**Backend** (`/api/admin/team`, gated `authenticateJwt` + `requireRoles(["admin"])`, mounted before adminRouter): GET list, POST create, PATCH `/:id/role`, POST `/:id/suspend` + `/reactivate` + `/reset-password`. Guardrails: cannot suspend/demote yourself, at least one active admin must remain, duplicate email → 409. Audit-logged. New auth contracts (createAdmin/updateRole/resetPassword/managedUser schemas). DB-free gating test (`admin-team.test.ts`, 4 tests) + `admin-auth.test.ts` now awaits the async `resetForTests`.
+
+**Frontend** (`AdminTeamWorkspace.tsx`): list, Add Admin (email/name/role/temp password), inline role assignment, suspend/reactivate with a confirmation modal. Self-row actions disabled client-side (backend enforces regardless). Registered as the Admins settings tab + an isolated preview entry.
+
+**Verified end-to-end on live dashboard (she-trades.vercel.app):** login → Admins tab renders after Rewards → DB-backed list → self-row role select + Suspend disabled → Reactivate then Suspend (with confirm modal) both mutate + show feedback + refresh. Backend curl also confirmed: known-email create 201, duplicate 409, suspend→login 401, reactivate→login 200, self-suspend 400.
+
+**Decisions / defaults:** roles reuse the existing `admin`/`editor`/`viewer` RBAC; new admins get a **temporary password set by the creator** (changed via the existing profile form); "suspend" maps to status `disabled`. Reset-password endpoint exists but is not yet surfaced in the UI.
+
+**Notes / leftovers:**
+- A QA test admin `qa-temp-admin@shetrades.test` (role editor, **suspended**) exists in staging from verification — harmless; delete from DB if undesired.
+- AUM-A3 covered by a DB-free gating test only; a full repository unit test needs a Postgres test DB (ties into GAP-F1).
+- AUM-D2 (admin how-to doc) still open — folds into GAP-G1.
+- Deployed: backend rev 00061-zqs; frontend via Vercel (commit a6babc9).
