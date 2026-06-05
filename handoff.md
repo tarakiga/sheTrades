@@ -286,3 +286,13 @@ A role-gated module to manage platform admins, added as the **"Admins" tab on /s
 - AUM-A3 covered by a DB-free gating test only; a full repository unit test needs a Postgres test DB (ties into GAP-F1).
 - AUM-D2 (admin how-to doc) still open — folds into GAP-G1.
 - Deployed: backend rev 00061-zqs; frontend via Vercel (commit a6babc9).
+
+### 2026-06-04: Admins tab — reset-password + delete (DONE — verified live)
+
+Extended the Admin Team module with the two remaining row actions:
+- **Reset password** (surfaced the existing `POST /api/admin/team/:id/reset-password`): per-row "Reset password" → inline panel → set a new temp password. Verified: reset → login with new password 200, old password 401.
+- **Delete** (new `DELETE /api/admin/team/:id`, admin-only): per-row danger button → confirmation modal. Guardrails: cannot delete yourself, at least one active admin must remain; session revoked on delete. Verified: delete → login 401 + gone from list; self-delete → 400.
+
+Self-row Suspend + Delete are disabled in the UI; Reset password is allowed on any row. Verified end-to-end on she-trades.vercel.app (reset panel, delete confirm modal, "deleted" feedback, row removed). Backend rev 00062-lkd; frontend commit 7f07f34. Both QA test admins removed — staging clean.
+
+Note: each backend redeploy clears in-memory sessions, so admins must re-login after a deploy (the documented GAP-D1 session-persistence follow-up).
