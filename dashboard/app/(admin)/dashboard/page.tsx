@@ -82,8 +82,7 @@ export default function AdminDashboardOverviewPage() {
     completionRate: "0%",
     passRate: "0%",
     funnelOverall: "",
-    funnelAnambra: "",
-    funnelDelta: ""
+    stateFunnels: []
   };
 
   const rewardRows = useMemo(
@@ -416,18 +415,13 @@ export default function AdminDashboardOverviewPage() {
                   {
                     id: "funnel",
                     label: "Funnel",
-                    content: analyticsData.funnelOverall
+                    content: analyticsData.funnelOverall || "No funnel data yet."
                   },
-                  {
-                    id: "state",
-                    label: "By State",
-                    content: analyticsData.funnelAnambra
-                  },
-                  {
-                    id: "language",
-                    label: "By Language",
-                    content: analyticsData.funnelDelta
-                  }
+                  ...analyticsData.stateFunnels.map((sf) => ({
+                    id: `state-${sf.state.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+                    label: sf.state,
+                    content: `Completion ${sf.completionRate} | Pass ${sf.passRate}`
+                  }))
                 ]}
               />
             </div>

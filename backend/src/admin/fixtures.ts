@@ -16,8 +16,7 @@ export const fallbackAnalyticsData: AnalyticsPageData = {
   completionRate: "0%",
   passRate: "0%",
   funnelOverall: getRuntimeText("analytics.fallback.overall", "No live analytics available."),
-  funnelAnambra: getRuntimeText("analytics.fallback.anambra", "No live analytics available."),
-  funnelDelta: getRuntimeText("analytics.fallback.delta", "No live analytics available.")
+  stateFunnels: []
 };
 
 export const fallbackContentData: ContentPageData = {

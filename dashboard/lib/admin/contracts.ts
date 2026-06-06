@@ -45,13 +45,21 @@ export type UsersPageData = {
   users: Array<UserRow>;
 };
 
+export type StateFunnel = {
+  state: string;
+  registered: number;
+  completed: number;
+  passed: number;
+  completionRate: string;
+  passRate: string;
+};
+
 export type AnalyticsPageData = {
   registrationRate: string;
   completionRate: string;
   passRate: string;
   funnelOverall: string;
-  funnelAnambra: string;
-  funnelDelta: string;
+  stateFunnels: StateFunnel[];
 };
 
 export type LessonRow = {

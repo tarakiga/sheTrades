@@ -12,8 +12,8 @@ import { getDataAccessPolicy } from "../config.js";
 import { logger } from "../../lib/logging.js";
 import { withRetry } from "../../lib/retry.js";
 import {
-  normalizeLiveAggregateRow,
-  toAnalyticsPageDataFromLiveAggregate
+  toAnalyticsPageDataFromLiveAggregate,
+  type LiveAnalyticsAggregate
 } from "./analytics-live.js";
 
 let firestore: Firestore | null = null;
@@ -154,24 +154,31 @@ export async function fetchAnalyticsFromFirestore(): Promise<AnalyticsPageData |
         isRetryableFirestoreError
       );
 
-      const aggregate = normalizeLiveAggregateRow({
+      const aggregate: LiveAnalyticsAggregate = {
         registeredCount: registeredCountSnap.data().count,
         startedCount: startedCountSnap.data().count,
         completedCount: completedCountSnap.data().count,
         attemptedCount: attemptedCountSnap.data().count,
         passedCount: passedCountSnap.data().count,
-        anambraRegisteredCount: anambraRegisteredCountSnap.data().count,
-        anambraCompletedCount: anambraCompletedCountSnap.data().count,
-        anambraPassedCount: anambraPassedCountSnap.data().count,
-        deltaRegisteredCount: deltaRegisteredCountSnap.data().count,
-        deltaCompletedCount: deltaCompletedCountSnap.data().count,
-        deltaPassedCount: deltaPassedCountSnap.data().count
-      });
+        // Firestore can't GROUP BY cheaply, so it reports the configured pilot
+        // states. (Postgres — the primary provider — is fully dynamic.)
+        stateCounts: [
+          {
+            state: mappings.anambraLocationValue,
+            registered: anambraRegisteredCountSnap.data().count,
+            completed: anambraCompletedCountSnap.data().count,
+            passed: anambraPassedCountSnap.data().count
+          },
+          {
+            state: mappings.deltaLocationValue,
+            registered: deltaRegisteredCountSnap.data().count,
+            completed: deltaCompletedCountSnap.data().count,
+            passed: deltaPassedCountSnap.data().count
+          }
+        ]
+      };
 
-      return toAnalyticsPageDataFromLiveAggregate(aggregate, {
-        anambraLabel: mappings.anambraLocationValue,
-        deltaLabel: mappings.deltaLocationValue
-      });
+      return toAnalyticsPageDataFromLiveAggregate(aggregate);
     }
 
     const doc = await withRetry(
@@ -185,7 +192,14 @@ export async function fetchAnalyticsFromFirestore(): Promise<AnalyticsPageData |
       isRetryableFirestoreError
     );
     if (!doc.exists) return null;
-    return doc.data() as AnalyticsPageData;
+    const data = (doc.data() ?? {}) as Record<string, unknown>;
+    return {
+      registrationRate: String(data.registrationRate ?? "0%"),
+      completionRate: String(data.completionRate ?? "0%"),
+      passRate: String(data.passRate ?? "0%"),
+      funnelOverall: String(data.funnelOverall ?? ""),
+      stateFunnels: []
+    };
   } catch (error) {
     logger.error("admin.firestore.analytics_failed", error, {
       collection: mappings.analyticsCollection,

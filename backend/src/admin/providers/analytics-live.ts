@@ -1,4 +1,12 @@
-import type { AnalyticsPageData } from "../contracts.js";
+import type { AnalyticsPageData, StateFunnel } from "../contracts.js";
+
+/** Raw per-state learner counts (one row per location). */
+export type LiveStateCount = {
+  state: string;
+  registered: number;
+  completed: number;
+  passed: number;
+};
 
 export type LiveAnalyticsAggregate = {
   registeredCount: number;
@@ -6,17 +14,7 @@ export type LiveAnalyticsAggregate = {
   completedCount: number;
   attemptedCount: number;
   passedCount: number;
-  anambraRegisteredCount: number;
-  anambraCompletedCount: number;
-  anambraPassedCount: number;
-  deltaRegisteredCount: number;
-  deltaCompletedCount: number;
-  deltaPassedCount: number;
-};
-
-export type LiveAnalyticsRegionLabels = {
-  anambraLabel: string;
-  deltaLabel: string;
+  stateCounts: LiveStateCount[];
 };
 
 function percent(numerator: number, denominator: number) {
@@ -31,42 +29,61 @@ function toFiniteNumber(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function normalizeLiveAggregateRow(
-  row: Partial<Record<keyof LiveAnalyticsAggregate, unknown>>
-): LiveAnalyticsAggregate {
+/** Normalize the single overall-aggregate row (the five funnel counts). */
+export function normalizeOverallCounts(
+  row: Partial<Record<"registeredCount" | "startedCount" | "completedCount" | "attemptedCount" | "passedCount", unknown>>
+): Pick<
+  LiveAnalyticsAggregate,
+  "registeredCount" | "startedCount" | "completedCount" | "attemptedCount" | "passedCount"
+> {
   return {
     registeredCount: toFiniteNumber(row.registeredCount),
     startedCount: toFiniteNumber(row.startedCount),
     completedCount: toFiniteNumber(row.completedCount),
     attemptedCount: toFiniteNumber(row.attemptedCount),
-    passedCount: toFiniteNumber(row.passedCount),
-    anambraRegisteredCount: toFiniteNumber(row.anambraRegisteredCount),
-    anambraCompletedCount: toFiniteNumber(row.anambraCompletedCount),
-    anambraPassedCount: toFiniteNumber(row.anambraPassedCount),
-    deltaRegisteredCount: toFiniteNumber(row.deltaRegisteredCount),
-    deltaCompletedCount: toFiniteNumber(row.deltaCompletedCount),
-    deltaPassedCount: toFiniteNumber(row.deltaPassedCount)
+    passedCount: toFiniteNumber(row.passedCount)
   };
 }
 
+/** Normalize the GROUP BY-location rows into per-state counts. */
+export function normalizeStateCounts(
+  rows: Array<Partial<Record<"state" | "registered" | "completed" | "passed", unknown>>>
+): LiveStateCount[] {
+  return rows
+    .map((row) => ({
+      state: typeof row.state === "string" ? row.state.trim() : "",
+      registered: toFiniteNumber(row.registered),
+      completed: toFiniteNumber(row.completed),
+      passed: toFiniteNumber(row.passed)
+    }))
+    .filter((row) => row.state.length > 0);
+}
+
+export function toStateFunnels(stateCounts: LiveStateCount[]): StateFunnel[] {
+  return stateCounts.map((row) => ({
+    state: row.state,
+    registered: row.registered,
+    completed: row.completed,
+    passed: row.passed,
+    completionRate: percent(row.completed, row.registered),
+    passRate: percent(row.passed, row.registered)
+  }));
+}
+
 export function toAnalyticsPageDataFromLiveAggregate(
-  aggregate: LiveAnalyticsAggregate,
-  labels: LiveAnalyticsRegionLabels
+  aggregate: LiveAnalyticsAggregate
 ): AnalyticsPageData {
   const registrationRate = percent(aggregate.startedCount, aggregate.registeredCount);
   const completionRate = percent(aggregate.completedCount, aggregate.registeredCount);
   const passRate = percent(aggregate.passedCount, aggregate.attemptedCount);
 
   const funnelOverall = `Registered ${aggregate.registeredCount} -> Started ${aggregate.startedCount} -> Completed ${aggregate.completedCount} -> Quiz Attempt ${aggregate.attemptedCount} -> Passed ${aggregate.passedCount}`;
-  const funnelAnambra = `Completion ${percent(aggregate.anambraCompletedCount, aggregate.anambraRegisteredCount)} | Pass ${percent(aggregate.anambraPassedCount, aggregate.anambraRegisteredCount)} (${labels.anambraLabel})`;
-  const funnelDelta = `Completion ${percent(aggregate.deltaCompletedCount, aggregate.deltaRegisteredCount)} | Pass ${percent(aggregate.deltaPassedCount, aggregate.deltaRegisteredCount)} (${labels.deltaLabel})`;
 
   return {
     registrationRate,
     completionRate,
     passRate,
     funnelOverall,
-    funnelAnambra,
-    funnelDelta
+    stateFunnels: toStateFunnels(aggregate.stateCounts)
   };
 }

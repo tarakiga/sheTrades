@@ -25,9 +25,12 @@ const FALLBACK_DATA: AnalyticsPageData = {
   completionRate: "0%",
   passRate: "0%",
   funnelOverall: "No published analytics funnel configuration available.",
-  funnelAnambra: "No state analytics available.",
-  funnelDelta: "No state analytics available."
+  stateFunnels: []
 };
+
+function stateTabId(state: string): string {
+  return `state-${state.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}
 
 export default function AnalyticsPage() {
   const [result, setResult] = useState<ApiResult<AnalyticsPageData> | null>(null);
@@ -129,16 +132,11 @@ export default function AnalyticsPage() {
                       label: "Overall",
                       content: data.funnelOverall
                     },
-                    {
-                      id: "anambra",
-                      label: "Anambra",
-                      content: data.funnelAnambra
-                    },
-                    {
-                      id: "delta",
-                      label: "Delta",
-                      content: data.funnelDelta
-                    }
+                    ...data.stateFunnels.map((sf) => ({
+                      id: stateTabId(sf.state),
+                      label: sf.state,
+                      content: `Completion ${sf.completionRate} | Pass ${sf.passRate} · ${sf.registered} registered, ${sf.completed} completed, ${sf.passed} passed`
+                    }))
                   ]}
                 />
               </AdminInsightPanel>

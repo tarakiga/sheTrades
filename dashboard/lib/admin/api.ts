@@ -55,8 +55,7 @@ export function getAnalyticsPageData() {
     completionRate: "0%",
     passRate: "0%",
     funnelOverall: "No published analytics funnel configuration available.",
-    funnelAnambra: "No state analytics available.",
-    funnelDelta: "No state analytics available."
+    stateFunnels: []
   };
   return fetchWithFallback<AnalyticsPageData>("/api/admin/analytics", fallback);
 }

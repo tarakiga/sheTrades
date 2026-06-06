@@ -13,8 +13,10 @@ import { logger } from "../../lib/logging.js";
 import { withRetry } from "../../lib/retry.js";
 import { getPostgresSslConfig } from "../pg-tls.js";
 import {
-  normalizeLiveAggregateRow,
-  toAnalyticsPageDataFromLiveAggregate
+  normalizeOverallCounts,
+  normalizeStateCounts,
+  toAnalyticsPageDataFromLiveAggregate,
+  type LiveAnalyticsAggregate
 } from "./analytics-live.js";
 
 let pool: Pool | null = null;
@@ -99,25 +101,10 @@ export async function fetchAnalyticsFromPostgres(): Promise<AnalyticsPageData | 
 
   try {
     if (strategy === "live") {
-      const rows = await queryWithPolicy<{
-        registeredCount: number;
-        startedCount: number;
-        completedCount: number;
-        attemptedCount: number;
-        passedCount: number;
-        anambraRegisteredCount: number;
-        anambraCompletedCount: number;
-        anambraPassedCount: number;
-        deltaRegisteredCount: number;
-        deltaCompletedCount: number;
-        deltaPassedCount: number;
-      }>(
-        // Identifiers are interpolated from validated mappings (allow-listed
-        // by sqlIdentifierSchema / sqlColumnIdentifierSchema) and wrapped in
-        // double quotes here so Postgres preserves case. Without quoting,
-        // camelCase Prisma columns like "userId" / "completionPercentage"
-        // get folded to lowercase by the parser and never match.
-        `WITH base_users AS (
+      // Identifiers are interpolated from validated mappings (allow-listed by
+      // sqlIdentifierSchema / sqlColumnIdentifierSchema) and double-quoted so
+      // Postgres preserves the camelCase Prisma column names.
+      const cte = `WITH base_users AS (
            SELECT
              u."${mappings.usersIdColumn}" AS user_id,
              u."${mappings.usersLocationColumn}" AS user_location
@@ -137,39 +124,64 @@ export async function fetchAnalyticsFromPostgres(): Promise<AnalyticsPageData | 
              COUNT(*)::numeric AS attempt_count
            FROM "${mappings.quizAttemptsTable}" q
            GROUP BY q."${mappings.quizUserIdColumn}"
-         )
+         )`;
+
+      const overallRows = await queryWithPolicy<Record<string, unknown>>(
+        `${cte}
          SELECT
            COUNT(*)::numeric AS "registeredCount",
            COUNT(*) FILTER (WHERE COALESCE(ppu.completion_pct, 0) > 0)::numeric AS "startedCount",
            COUNT(*) FILTER (WHERE COALESCE(ppu.completion_pct, 0) >= 100)::numeric AS "completedCount",
            COUNT(*) FILTER (WHERE COALESCE(qpu.attempt_count, 0) > 0)::numeric AS "attemptedCount",
-           COUNT(*) FILTER (WHERE COALESCE(qpu.has_passed, false))::numeric AS "passedCount",
-           COUNT(*) FILTER (WHERE bu.user_location = 'Anambra')::numeric AS "anambraRegisteredCount",
-           COUNT(*) FILTER (WHERE bu.user_location = 'Anambra' AND COALESCE(ppu.completion_pct, 0) >= 100)::numeric AS "anambraCompletedCount",
-           COUNT(*) FILTER (WHERE bu.user_location = 'Anambra' AND COALESCE(qpu.has_passed, false))::numeric AS "anambraPassedCount",
-           COUNT(*) FILTER (WHERE bu.user_location = 'Delta')::numeric AS "deltaRegisteredCount",
-           COUNT(*) FILTER (WHERE bu.user_location = 'Delta' AND COALESCE(ppu.completion_pct, 0) >= 100)::numeric AS "deltaCompletedCount",
-           COUNT(*) FILTER (WHERE bu.user_location = 'Delta' AND COALESCE(qpu.has_passed, false))::numeric AS "deltaPassedCount"
+           COUNT(*) FILTER (WHERE COALESCE(qpu.has_passed, false))::numeric AS "passedCount"
          FROM base_users bu
          LEFT JOIN progress_per_user ppu ON ppu.user_id = bu.user_id
          LEFT JOIN quiz_per_user qpu ON qpu.user_id = bu.user_id`
       );
 
-      const first = rows[0];
-      if (!first) {
+      const overall = overallRows[0];
+      if (!overall) {
         return null;
       }
-      const aggregate = normalizeLiveAggregateRow(first);
-      return toAnalyticsPageDataFromLiveAggregate(aggregate, {
-        anambraLabel: "Anambra",
-        deltaLabel: "Delta"
-      });
+
+      // Dynamic per-state breakdown: one row per location the learners
+      // actually have (any state, including ones admins add later).
+      const stateRows = await queryWithPolicy<Record<string, unknown>>(
+        `${cte}
+         SELECT
+           bu.user_location AS "state",
+           COUNT(*)::numeric AS "registered",
+           COUNT(*) FILTER (WHERE COALESCE(ppu.completion_pct, 0) >= 100)::numeric AS "completed",
+           COUNT(*) FILTER (WHERE COALESCE(qpu.has_passed, false))::numeric AS "passed"
+         FROM base_users bu
+         LEFT JOIN progress_per_user ppu ON ppu.user_id = bu.user_id
+         LEFT JOIN quiz_per_user qpu ON qpu.user_id = bu.user_id
+         WHERE bu.user_location IS NOT NULL AND TRIM(bu.user_location) <> ''
+         GROUP BY bu.user_location
+         ORDER BY "registered" DESC, bu.user_location ASC`
+      );
+
+      const aggregate: LiveAnalyticsAggregate = {
+        ...normalizeOverallCounts(overall),
+        stateCounts: normalizeStateCounts(stateRows)
+      };
+      return toAnalyticsPageDataFromLiveAggregate(aggregate);
     }
 
-    const rows = await queryWithPolicy<AnalyticsPageData>(
-      `SELECT registration_rate AS "registrationRate", completion_rate AS "completionRate", pass_rate AS "passRate", funnel_overall AS "funnelOverall", funnel_anambra AS "funnelAnambra", funnel_delta AS "funnelDelta" FROM ${mappings.analyticsSnapshotTable} LIMIT 1`
+    const rows = await queryWithPolicy<Record<string, unknown>>(
+      `SELECT registration_rate AS "registrationRate", completion_rate AS "completionRate", pass_rate AS "passRate", funnel_overall AS "funnelOverall" FROM ${mappings.analyticsSnapshotTable} LIMIT 1`
     );
-    return rows[0] ?? null;
+    const snapshot = rows[0];
+    if (!snapshot) {
+      return null;
+    }
+    return {
+      registrationRate: String(snapshot.registrationRate ?? "0%"),
+      completionRate: String(snapshot.completionRate ?? "0%"),
+      passRate: String(snapshot.passRate ?? "0%"),
+      funnelOverall: String(snapshot.funnelOverall ?? ""),
+      stateFunnels: []
+    };
   } catch (error) {
     logger.error("admin.postgres.analytics_failed", error, {
       table: mappings.analyticsSnapshotTable,

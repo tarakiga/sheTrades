@@ -1,18 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  normalizeLiveAggregateRow,
+  normalizeOverallCounts,
+  normalizeStateCounts,
   toAnalyticsPageDataFromLiveAggregate
 } from "./analytics-live.js";
 
-test("normalizeLiveAggregateRow coerces unknown values to safe numbers", () => {
-  const normalized = normalizeLiveAggregateRow({
+test("normalizeOverallCounts coerces unknown values to safe numbers", () => {
+  const normalized = normalizeOverallCounts({
     registeredCount: "10",
     startedCount: 5,
     completedCount: "3",
     attemptedCount: "7",
-    passedCount: "x",
-    anambraRegisteredCount: undefined
+    passedCount: "x"
   });
 
   assert.equal(normalized.registeredCount, 10);
@@ -20,27 +20,32 @@ test("normalizeLiveAggregateRow coerces unknown values to safe numbers", () => {
   assert.equal(normalized.completedCount, 3);
   assert.equal(normalized.attemptedCount, 7);
   assert.equal(normalized.passedCount, 0);
-  assert.equal(normalized.anambraRegisteredCount, 0);
-  assert.equal(normalized.deltaPassedCount, 0);
 });
 
-test("toAnalyticsPageDataFromLiveAggregate returns stable funnel and percentage semantics", () => {
-  const data = toAnalyticsPageDataFromLiveAggregate(
-    {
-      registeredCount: 100,
-      startedCount: 80,
-      completedCount: 55,
-      attemptedCount: 50,
-      passedCount: 35,
-      anambraRegisteredCount: 40,
-      anambraCompletedCount: 24,
-      anambraPassedCount: 20,
-      deltaRegisteredCount: 30,
-      deltaCompletedCount: 12,
-      deltaPassedCount: 9
-    },
-    { anambraLabel: "Anambra", deltaLabel: "Delta" }
-  );
+test("normalizeStateCounts coerces and drops empty-state rows", () => {
+  const rows = normalizeStateCounts([
+    { state: "Anambra", registered: "40", completed: 24, passed: "20" },
+    { state: "  ", registered: 5, completed: 1, passed: 0 },
+    { state: "Lagos", registered: 10, completed: "5", passed: 4 }
+  ]);
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows[0], { state: "Anambra", registered: 40, completed: 24, passed: 20 });
+  assert.equal(rows[1]?.state, "Lagos");
+});
+
+test("toAnalyticsPageDataFromLiveAggregate returns overall + dynamic per-state funnels", () => {
+  const data = toAnalyticsPageDataFromLiveAggregate({
+    registeredCount: 100,
+    startedCount: 80,
+    completedCount: 55,
+    attemptedCount: 50,
+    passedCount: 35,
+    stateCounts: [
+      { state: "Anambra", registered: 40, completed: 24, passed: 20 },
+      { state: "Delta", registered: 30, completed: 12, passed: 9 },
+      { state: "Lagos", registered: 10, completed: 5, passed: 4 }
+    ]
+  });
 
   assert.equal(data.registrationRate, "80.0%");
   assert.equal(data.completionRate, "55.0%");
@@ -49,6 +54,15 @@ test("toAnalyticsPageDataFromLiveAggregate returns stable funnel and percentage 
     data.funnelOverall,
     "Registered 100 -> Started 80 -> Completed 55 -> Quiz Attempt 50 -> Passed 35"
   );
-  assert.equal(data.funnelAnambra, "Completion 60.0% | Pass 50.0% (Anambra)");
-  assert.equal(data.funnelDelta, "Completion 40.0% | Pass 30.0% (Delta)");
+  assert.equal(data.stateFunnels.length, 3);
+  assert.deepEqual(data.stateFunnels[0], {
+    state: "Anambra",
+    registered: 40,
+    completed: 24,
+    passed: 20,
+    completionRate: "60.0%",
+    passRate: "50.0%"
+  });
+  assert.equal(data.stateFunnels[2]?.state, "Lagos");
+  assert.equal(data.stateFunnels[2]?.completionRate, "50.0%");
 });
