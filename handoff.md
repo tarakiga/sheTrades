@@ -371,3 +371,16 @@ Follow-up (optional): the tour step copy is currently in-code; it could be made 
 - **Tour on the create-content form:** new `ContentFormWalkthrough` mounted inside `ConfigEditorDrawer` (content namespace only). A 6-step guided spotlight tour over the form itself — Visual-Wizard/JSON toggle, the step-progress bar, the current step panel, and the save/publish footer. Auto-shows once when the form first opens (localStorage `shetrades.content.form.tour.v1`) and replayable via a "Tour this form" button in the drawer header. The tour (z-index 1200) layers above the SideDrawer, so the spotlight highlights elements INSIDE the drawer. Verified live: opening Create Content auto-launched the tour; step 3 spotlit the wizard progress bar with the rest dimmed. (commit 531b55c)
 
 - **Fix:** guided-tour spotlight could land off-screen (horizontal scroll) when a target was a wide element inside a horizontally-scrollable drawer. Now the spotlight rect is clamped fully within the viewport, the overlay clips overflow, and the tour only scrolls vertically (never horizontally). Verified at 980px: spotlight + card within viewport, 0 document horizontal overflow. (commit fe8ee8f)
+
+### 2026-06-06: Form-tour regression FIXED — portal overlay out of the drawer transform (verified live)
+
+- **Symptom:** the create-content form tour rendered as a flat dim overlay with **no visible spotlight cutout and no tooltip card** ("just an overlay … going off screen"). Earlier off-screen complaint had the same root cause.
+- **Root cause:** `GuidedTour` rendered *inline* inside `ConfigEditorDrawer`, which lives in the `SideDrawer`. The drawer's sliding **panel uses a CSS `transform`**, and a transformed ancestor becomes the containing block for `position: fixed` descendants. So the whole overlay (backdrop + spotlight + card) was trapped in the drawer's coordinate space: the centered card computed `left: 50%` of the **panel** width (~372px) instead of the viewport (720px at 1440), and the spotlight's viewport-based coords no longer mapped to the real viewport — pushing it off-screen / invisible. The previous viewport clamp then shrank it to an invisible edge sliver.
+- **Fix (`components/ui/GuidedTour.tsx`, commit 5b9e27b):**
+  1. Render the overlay through `createPortal(…, document.body)` so it positions against the **real viewport** regardless of any transformed ancestor (SSR-guarded with `typeof document === "undefined"`).
+  2. Added an off-screen/zero-size guard in `measure()`: if a target measures fully outside the viewport or zero-size, fall back to the **centered card** instead of a clamped sliver.
+- **Verified live** (she-trades.vercel.app/content, Create Content → "Tour this form", 1440×820):
+  - `.guided-tour` parent === `document.body` (portaled).
+  - Step 1 (centered): card `left` computes **720px** = viewport centre (was 372px). `cardCenterX === viewportCenterX`.
+  - Step 3 (`.wizard-progress`): spotlight `696,217 713×96` exactly wraps target `704,225 697×80` (+8px pad), within viewport, aligned; card within viewport; **0 horizontal overflow**. Screenshot confirms clean spotlight + card.
+  - Step 4 (`.wizard-panel`, tall 530px): spotlight bounded within viewport, card auto-placed above it, 0 horizontal overflow.
