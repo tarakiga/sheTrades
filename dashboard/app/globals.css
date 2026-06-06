@@ -7094,6 +7094,7 @@ button.needs-attention-panel__item:focus {
   position: fixed;
   inset: 0;
   z-index: 1200;
+  overflow: hidden;
 }
 .guided-tour__backdrop {
   position: absolute;

@@ -81,10 +81,12 @@ export function GuidedTour({ open, steps, onClose, labels }: GuidedTourProps): R
     }
 
     const r = el.getBoundingClientRect();
-    const top = Math.max(8, r.top - SPOTLIGHT_PADDING);
-    const left = Math.max(8, r.left - SPOTLIGHT_PADDING);
-    const width = Math.min(vw - 16, r.width + SPOTLIGHT_PADDING * 2);
-    const height = r.height + SPOTLIGHT_PADDING * 2;
+    // Clamp the spotlight fully inside the viewport so it never lands off-screen
+    // (e.g. a wide element inside a horizontally-scrollable drawer).
+    const top = Math.max(8, Math.min(r.top - SPOTLIGHT_PADDING, vh - 48));
+    const left = Math.max(8, Math.min(r.left - SPOTLIGHT_PADDING, vw - 48));
+    const width = Math.max(24, Math.min(r.width + SPOTLIGHT_PADDING * 2, vw - left - 8));
+    const height = Math.max(24, Math.min(r.height + SPOTLIGHT_PADDING * 2, vh - top - 8));
     setSpot({ top, left, width, height });
 
     const cardH = cardRef.current?.offsetHeight ?? 180;
@@ -99,7 +101,16 @@ export function GuidedTour({ open, steps, onClose, labels }: GuidedTourProps): R
   useLayoutEffect(() => {
     if (!open || !step) return;
     const el = step.target ? document.querySelector<HTMLElement>(step.target) : null;
-    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (el) {
+      const r = el.getBoundingClientRect();
+      // Only scroll (vertically) when the target isn't already in view — and
+      // never scroll horizontally (inline: "nearest"), which would shove a
+      // horizontally-overflowing drawer sideways.
+      const visibleVertically = r.top >= 64 && r.bottom <= window.innerHeight - 64;
+      if (!visibleVertically) {
+        el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+      }
+    }
     const raf = window.requestAnimationFrame(measure);
     const t = window.setTimeout(measure, 320); // after smooth scroll settles
     return () => {
