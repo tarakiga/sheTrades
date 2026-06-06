@@ -223,3 +223,11 @@ test("POST /webhook/whatsapp does NOT deliver when sandbox-marked", async () => 
     setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", null);
   }
 });
+
+test("POST /webhook/whatsapp/reset without a token returns 401", async () => {
+  await request(app).post("/webhook/whatsapp/reset").expect(401);
+});
+
+test("GET /webhook/whatsapp/session/:phone without a token returns 401", async () => {
+  await request(app).get("/webhook/whatsapp/session/2348000000000").expect(401);
+});

@@ -12,7 +12,10 @@ import {
 import { getLearnerDetail } from "../admin/users-detail.js";
 import { prisma } from "../admin/prisma.js";
 import { getRuntimePayoutsConfig } from "../config-platform/runtime-config.js";
-import { authenticateJwt } from "../auth/jwt-rbac.js";
+import { authenticateJwt, requireRoles } from "../auth/jwt-rbac.js";
+
+// Mutating admin actions require at least editor (viewers are read-only).
+const requireWriteAccess = requireRoles(["editor", "admin"]);
 
 export const adminRouter = Router();
 
@@ -100,7 +103,7 @@ const flagBodySchema = z.object({
   note: z.string().max(500).optional()
 });
 
-adminRouter.post("/users/:phone/flag", async (req, res, next) => {
+adminRouter.post("/users/:phone/flag", requireWriteAccess, async (req, res, next) => {
   try {
     const phone = String(req.params.phone);
     const body = flagBodySchema.parse(req.body);
@@ -120,7 +123,10 @@ adminRouter.post("/users/:phone/flag", async (req, res, next) => {
       event: "users.admin_action",
       action: body.flagged ? "flag" : "unflag",
       phone,
-      note: body.flagged ? body.note ?? null : null
+      note: body.flagged ? body.note ?? null : null,
+      actorId: req.authUser?.id ?? null,
+      actorRole: req.authUser?.role ?? null,
+      updatedAt: new Date().toISOString()
     }));
     res.status(200).json({
       id: updated.id,
@@ -237,7 +243,7 @@ adminRouter.get("/reports", async (_req, res, next) => {
   }
 });
 
-adminRouter.post("/rewards/:id/retry", async (req, res, next) => {
+adminRouter.post("/rewards/:id/retry", requireWriteAccess, async (req, res, next) => {
   try {
     const { id } = rewardIdParamsSchema.parse(req.params);
     const existing = await prisma.reward.findUnique({ where: { id } });
@@ -264,8 +270,9 @@ adminRouter.post("/rewards/:id/retry", async (req, res, next) => {
         event: "payouts.admin_action",
         action: "retry",
         rewardId: id,
-        actorId: (req as any).adminUser?.id ?? null,
-        actorRole: (req as any).adminUser?.role ?? null
+        actorId: req.authUser?.id ?? null,
+        updatedAt: new Date().toISOString(),
+        actorRole: req.authUser?.role ?? null
       })
     );
     res.status(200).json({ message: "Queued for next dispatch (≤5 min)" });
@@ -278,7 +285,7 @@ adminRouter.post("/rewards/:id/retry", async (req, res, next) => {
   }
 });
 
-adminRouter.post("/rewards/:id/mark-issued", async (req, res, next) => {
+adminRouter.post("/rewards/:id/mark-issued", requireWriteAccess, async (req, res, next) => {
   try {
     const { id } = rewardIdParamsSchema.parse(req.params);
     const body = markIssuedBodySchema.parse(req.body);
@@ -302,8 +309,9 @@ adminRouter.post("/rewards/:id/mark-issued", async (req, res, next) => {
         event: "payouts.admin_action",
         action: "mark_issued",
         rewardId: id,
-        actorId: (req as any).adminUser?.id ?? null,
-        actorRole: (req as any).adminUser?.role ?? null,
+        actorId: req.authUser?.id ?? null,
+        updatedAt: new Date().toISOString(),
+        actorRole: req.authUser?.role ?? null,
         note: body.note
       })
     );
@@ -317,7 +325,7 @@ adminRouter.post("/rewards/:id/mark-issued", async (req, res, next) => {
   }
 });
 
-adminRouter.post("/rewards/manual", async (req, res, next) => {
+adminRouter.post("/rewards/manual", requireWriteAccess, async (req, res, next) => {
   try {
     const body = manualRewardBodySchema.parse(req.body);
     const user = body.userId
@@ -343,8 +351,9 @@ adminRouter.post("/rewards/manual", async (req, res, next) => {
         event: "payouts.admin_action",
         action: "manual_create",
         rewardId: created.id,
-        actorId: (req as any).adminUser?.id ?? null,
-        actorRole: (req as any).adminUser?.role ?? null,
+        actorId: req.authUser?.id ?? null,
+        updatedAt: new Date().toISOString(),
+        actorRole: req.authUser?.role ?? null,
         amount: body.amount
       })
     );

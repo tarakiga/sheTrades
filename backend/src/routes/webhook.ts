@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getRuntimeWhatsAppConfig } from "../config-platform/runtime-config.js";
 import { handleWhatsAppWebhook, resetWhatsAppState, getWhatsAppSession } from "../whatsapp/handler.js";
+import { authenticateJwt } from "../auth/jwt-rbac.js";
 
 export const webhookRouter = Router();
 
@@ -35,7 +36,12 @@ webhookRouter.post("/whatsapp", async (req, res, next) => {
   }
 });
 
-webhookRouter.post("/whatsapp/reset", async (req, res, next) => {
+// The two endpoints below are admin/debug tools (used by the dashboard
+// WhatsApp sandbox simulator) — NOT Meta-facing. They are gated behind an
+// admin session JWT so the public webhook surface cannot wipe learner
+// sessions or read learner PII. (The Meta GET/POST /whatsapp routes above
+// stay public; Meta authenticates via the verify token / signature.)
+webhookRouter.post("/whatsapp/reset", authenticateJwt, async (req, res, next) => {
   try {
     await resetWhatsAppState();
     res.status(200).json({ message: "WhatsApp sandbox sessions have been reset." });
@@ -44,9 +50,9 @@ webhookRouter.post("/whatsapp/reset", async (req, res, next) => {
   }
 });
 
-webhookRouter.get("/whatsapp/session/:phone", async (req, res, next) => {
+webhookRouter.get("/whatsapp/session/:phone", authenticateJwt, async (req, res, next) => {
   try {
-    const session = await getWhatsAppSession(req.params.phone);
+    const session = await getWhatsAppSession(String(req.params.phone));
     if (!session) {
       res.status(404).json({ message: "Session not found." });
       return;

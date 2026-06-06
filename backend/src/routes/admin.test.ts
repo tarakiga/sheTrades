@@ -396,3 +396,21 @@ test("POST /api/admin/users/:phone/flag returns 404 for unknown learner", async 
     .send({ flagged: true })
     .expect(404);
 });
+
+const VIEWER_TOKEN = createToken("viewer", process.env.ADMIN_CONFIG_JWT_SECRET as string);
+
+test("POST /api/admin/rewards/manual with a viewer token returns 403", async () => {
+  await request(app)
+    .post("/api/admin/rewards/manual")
+    .set("Authorization", `Bearer ${VIEWER_TOKEN}`)
+    .send({ phone: "+2340000000000", amount: 500, note: "viewer should be blocked" })
+    .expect(403);
+});
+
+test("POST /api/admin/users/:phone/flag with a viewer token returns 403", async () => {
+  await request(app)
+    .post("/api/admin/users/+2340000000000/flag")
+    .set("Authorization", `Bearer ${VIEWER_TOKEN}`)
+    .send({ flagged: true })
+    .expect(403);
+});

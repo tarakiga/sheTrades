@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ADMIN_CONFIG_API_BASE_URL } from "../../lib/admin-config-auth";
+import { ADMIN_CONFIG_API_BASE_URL, getStoredAdminConfigToken } from "../../lib/admin-config-auth";
 import { Badge, Button } from "../ui";
 
 type ListSection = {
@@ -63,8 +63,10 @@ export function WhatsAppSandboxSimulator() {
     if (!phoneNum.trim()) return;
     try {
       setIsFetchingSession(true);
+      const sessionToken = getStoredAdminConfigToken();
       const res = await fetch(
-        `${ADMIN_CONFIG_API_BASE_URL}/webhook/whatsapp/session/${encodeURIComponent(phoneNum.trim())}`
+        `${ADMIN_CONFIG_API_BASE_URL}/webhook/whatsapp/session/${encodeURIComponent(phoneNum.trim())}`,
+        sessionToken ? { headers: { authorization: `Bearer ${sessionToken}` } } : undefined
       );
       if (res.ok) {
         const data = await res.json();
@@ -213,8 +215,10 @@ export function WhatsAppSandboxSimulator() {
     setIsResetting(true);
     setFeedback(null);
     try {
+      const resetToken = getStoredAdminConfigToken();
       const res = await fetch(`${ADMIN_CONFIG_API_BASE_URL}/webhook/whatsapp/reset`, {
-        method: "POST"
+        method: "POST",
+        headers: resetToken ? { authorization: `Bearer ${resetToken}` } : {}
       });
       if (res.ok) {
         setSession(null);
