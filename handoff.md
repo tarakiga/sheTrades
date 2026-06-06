@@ -334,3 +334,15 @@ The `getPrompt()` table (13 localized conversation strings: quiz/correct/incorre
 **GAP-B remaining are STRUCTURAL (not simple swaps), need a small design decision:**
 - **B2** — analytics live SQL has TWO hardcoded state columns (Anambra/Delta) + the contract has `funnelAnambra`/`funnelDelta` fields. Truly dynamic per-state analytics means grouping by location (N states) and reshaping the contract + the frontend tabs — a redesign, not an env swap. (A minimal env-parameterization of just the two pilot states is possible but stays two-state.)
 - **B3** — frontend hardcoded option sets (analytics/dashboard state tabs, reports presets, RewardsToolbar pills/date-ranges, manual-reward defaults, AdminShell nav). Some (state tabs) are coupled to B2's two-state structure.
+
+### 2026-06-04: GAP-B2 + state-tabs of B3 — dynamic per-state analytics (DONE, rev 00067-n2s)
+
+Replaced the hardcoded two-state (Anambra/Delta) analytics with a fully dynamic per-state breakdown.
+- **Contract:** `AnalyticsPageData.funnelAnambra/funnelDelta` -> `stateFunnels: StateFunnel[]` (state, registered, completed, passed, completionRate, passRate). Mirrored backend + frontend.
+- **Postgres (primary):** live query now does `GROUP BY user_location` (one row per state) + a separate overall aggregate. Any location a learner has shows up — including custom "Others" states.
+- **Firestore (secondary):** maps its two configured pilot-state counts into the new shape (can't GROUP BY cheaply); snapshot strategy returns overall + empty stateFunnels.
+- **Frontend:** analytics + dashboard funnel panels render an "Overall" tab plus one tab per state, dynamically from stateFunnels.
+- **Verified live:** `/api/admin/analytics` returns 4 states (Anambra, Benue, Delta, Lagos) reflecting actual learner data — Benue/Lagos are custom "Others" states that were previously invisible. Frontend tablist renders: Overall · Anambra · Benue · Delta · Lagos. analytics-live tests updated + pass; typecheck/build clean.
+- **Note:** learners with no location are (correctly) excluded from per-state rows but counted in the overall funnel.
+
+**GAP-B3 remaining (the non-state-tab items):** reports presets, RewardsToolbar status pills / date-range options, manual-reward defaults (amount/channel), AdminShell nav set. These are independent hardcoded option sets (not coupled to the analytics redesign).
