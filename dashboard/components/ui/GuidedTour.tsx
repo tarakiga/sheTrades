@@ -9,6 +9,7 @@ import {
   useState,
   type ReactElement
 } from "react";
+import { createPortal } from "react-dom";
 
 export type TourStep = {
   /** CSS selector for the element to spotlight. Omit for a centered step. */
@@ -81,6 +82,16 @@ export function GuidedTour({ open, steps, onClose, labels }: GuidedTourProps): R
     }
 
     const r = el.getBoundingClientRect();
+    // If the target is zero-size or sits fully outside the viewport (couldn't be
+    // scrolled into view), fall back to a centered, no-spotlight card rather than
+    // rendering an invisible sliver clamped to a viewport edge.
+    const offscreen =
+      r.width < 1 || r.height < 1 || r.bottom <= 0 || r.top >= vh || r.right <= 0 || r.left >= vw;
+    if (offscreen) {
+      setSpot(null);
+      setCard({ top: vh / 2, left: vw / 2, placement: "center" });
+      return;
+    }
     // Clamp the spotlight fully inside the viewport so it never lands off-screen
     // (e.g. a wide element inside a horizontally-scrollable drawer).
     const top = Math.max(8, Math.min(r.top - SPOTLIGHT_PADDING, vh - 48));
@@ -158,7 +169,7 @@ export function GuidedTour({ open, steps, onClose, labels }: GuidedTourProps): R
     };
   }, [open, onClose, total, index]);
 
-  if (!open || !step) return null;
+  if (!open || !step || typeof document === "undefined") return null;
 
   const handleNext = () => {
     if (isLast) onClose();
@@ -169,7 +180,11 @@ export function GuidedTour({ open, steps, onClose, labels }: GuidedTourProps): R
     .replace("{current}", String(index + 1))
     .replace("{total}", String(total));
 
-  return (
+  // Render through a portal to document.body so the overlay is positioned
+  // against the real viewport. Rendered inline, a transformed ancestor (e.g. a
+  // sliding SideDrawer panel) becomes the containing block for our
+  // position:fixed layer, trapping the spotlight + card inside the drawer.
+  return createPortal(
     <div className="guided-tour" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={bodyId}>
       {spot ? (
         <div
@@ -223,6 +238,7 @@ export function GuidedTour({ open, steps, onClose, labels }: GuidedTourProps): R
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
