@@ -354,3 +354,13 @@ Replaced the hardcoded two-state (Anambra/Delta) analytics with a fully dynamic 
 - **AdminShell nav**: labels were already config-driven (copyKeys resolved from admin-ui-copy); the nav SET is route-structural and intentionally code-defined (adding a nav item requires a route/page) — not "admin-editable content".
 
 **GAP-B is now fully done:** B1 (bot copy), B2 (dynamic per-state analytics), B3 (frontend option sets), B4 (payout thresholds env).
+
+### 2026-06-04: Interactive /content walkthrough (premium guided tour) — DONE, verified live
+
+Added a Fortune-500-style guided spotlight tour to /content to help non-technical admins.
+- New reusable **GuidedTour** UI component (`components/ui/GuidedTour.tsx`): dimmed backdrop with an animated spotlight cutout (CSS box-shadow technique) over each real element + a gold ring (brand accent); polished tooltip card with step counter, progress dots, Back/Next/Skip; keyboard (←/→/Enter/Esc), scroll-into-view, body scroll-lock, focus, ARIA dialog. Design-system tokens only.
+- **ContentWalkthrough** (`components/content/ContentWalkthrough.tsx`): 6 plain-language steps over the /content workspace (welcome → create+find → library table → draft/publish safety → translations → outro). Auto-shows once per browser (localStorage `shetrades.content.tour.v1`); replayable via a "Take a tour" button in the page header.
+- `data-tour` anchors added to the content toolbar + review table; translations panel anchored on the page. Workshop preview entry added (`GuidedTourPreview`).
+- Verified live on she-trades.vercel.app/content: auto-opened on first visit; spotlight precisely highlights the toolbar with the rest dimmed; step counter/dots/controls all work. (frontend-only; commit 091d2ab)
+
+Follow-up (optional): the tour step copy is currently in-code; it could be made admin-editable via a content config doc + the existing getRuntimeText pattern.
