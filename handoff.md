@@ -325,3 +325,12 @@ The `getPrompt()` table (13 localized conversation strings: quiz/correct/incorre
 **To roll out elsewhere:** run `BOT_PROMPTS_SEED_BASE_URL=<api> ADMIN_CONFIG_JWT_SECRET=<secret> npm run seed:bot-prompts -w @shetrades/backend` once per environment (idempotent).
 
 **GAP-B remaining (MED):** B2 (analytics SQL hardcodes Anambra/Delta → env), B3 (frontend hardcoded option sets: analytics/dashboard tabs, reports presets, RewardsToolbar pills, manual reward defaults, AdminShell nav), B4 (worker/engine thresholds → env).
+
+### 2026-06-04: Premium sidebar facelift + GAP-B4 (payout thresholds -> env)
+
+- **Sidebar facelift (requested):** reworked the bare white sidebar into a premium dark "command rail" using the existing brand palette (deep-teal gradient + gold accent). Gold monogram brand mark + "Admin Console" subtitle; nav grouped into labeled sections (Engagement / Operations / Configuration) with line icons; premium active state (elevated surface + gold icon + gold rail indicator) + hover micro-interaction; profile card restyled for the dark rail (scoped so /profile is untouched). All new colors/gradients/shadows are design tokens added to :root; labels stay config-driven. Verified live (screenshot). Commit 2a0b8b5.
+- **GAP-B4 (DONE):** payout worker thresholds `BATCH_LIMIT`/`RETRY_CEILING`/`BASE_DELAY_MS` now read from env (`PAYOUTS_BATCH_LIMIT`/`PAYOUTS_RETRY_CEILING`/`PAYOUTS_BASE_DELAY_MS`) with the current values as defaults; documented in .env.example. (The legacy in-memory engine constants are not on the live path — left as-is.)
+
+**GAP-B remaining are STRUCTURAL (not simple swaps), need a small design decision:**
+- **B2** — analytics live SQL has TWO hardcoded state columns (Anambra/Delta) + the contract has `funnelAnambra`/`funnelDelta` fields. Truly dynamic per-state analytics means grouping by location (N states) and reshaping the contract + the frontend tabs — a redesign, not an env swap. (A minimal env-parameterization of just the two pilot states is possible but stays two-state.)
+- **B3** — frontend hardcoded option sets (analytics/dashboard state tabs, reports presets, RewardsToolbar pills/date-ranges, manual-reward defaults, AdminShell nav). Some (state tabs) are coupled to B2's two-state structure.

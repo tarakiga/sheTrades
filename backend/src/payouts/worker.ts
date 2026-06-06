@@ -17,9 +17,18 @@ type DispatchTickOptions = {
   batchLimit?: number;
 };
 
-const BATCH_LIMIT = 50;
-const RETRY_CEILING = 3;
-const BASE_DELAY_MS = 5 * 60_000;
+// Payout dispatch policy. Configurable via env (with safe defaults) so
+// throughput / retry behaviour can change without a code deploy.
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+const BATCH_LIMIT = envInt("PAYOUTS_BATCH_LIMIT", 50);
+const RETRY_CEILING = envInt("PAYOUTS_RETRY_CEILING", 3);
+const BASE_DELAY_MS = envInt("PAYOUTS_BASE_DELAY_MS", 5 * 60_000);
 
 export async function dispatchTick(opts: DispatchTickOptions = {}): Promise<DispatchTickSummary> {
   const started = new Date();
