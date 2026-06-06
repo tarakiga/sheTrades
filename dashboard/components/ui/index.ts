@@ -22,6 +22,8 @@ export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 export { FilterChipGroup } from "./FilterChipGroup";
 export type { FilterChipGroupProps } from "./FilterChipGroup";
+export { GuidedTour } from "./GuidedTour";
+export type { GuidedTourProps, TourStep, GuidedTourLabels } from "./GuidedTour";
 export { IconActionButton } from "./IconActionButton";
 export type { IconActionButtonProps } from "./IconActionButton";
 export { Input } from "./Input";

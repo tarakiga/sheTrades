@@ -94,6 +94,11 @@
   --sidebar-shadow: 4px 0 28px rgba(8, 15, 18, 0.16);
   --sidebar-mark-gradient: linear-gradient(135deg, var(--color-accent-400), var(--color-accent-600));
   --sidebar-mark-glow: 0 6px 16px rgba(255, 190, 34, 0.3);
+
+  /* Guided tour (interactive walkthrough) */
+  --tour-overlay: rgba(13, 20, 23, 0.62);
+  --tour-ring: var(--color-accent-400);
+  --tour-glow: rgba(255, 190, 34, 0.35);
   --control-height-md: 40px;
   --focus-ring: 0 0 0 3px rgba(51, 78, 88, 0.24);
 }
@@ -7083,3 +7088,130 @@ button.needs-attention-panel__item:focus {
 .admin-team-role-select .ui-select-field__label { display: none; }
 .admin-team-role-select { min-width: 9.5rem; }
 .admin-team-actions { display: flex; flex-wrap: wrap; gap: var(--space-2, 0.5rem); }
+
+/* ── Guided tour / interactive walkthrough ─────────────────────────────── */
+.guided-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+.guided-tour__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--tour-overlay);
+}
+.guided-tour__spotlight {
+  position: absolute;
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 0 0 9999px var(--tour-overlay),
+    0 0 0 2px var(--tour-ring),
+    0 0 28px 6px var(--tour-glow);
+  transition:
+    top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+.guided-tour__card {
+  position: absolute;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5);
+  outline: none;
+  animation: guided-tour-pop 0.22s ease;
+}
+.guided-tour__card--center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100vw - 2rem));
+}
+.guided-tour__step {
+  color: var(--color-accent-600);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin: 0 0 var(--space-2);
+  text-transform: uppercase;
+}
+.guided-tour__title {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-2);
+}
+.guided-tour__body {
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+  margin: 0 0 var(--space-4);
+}
+.guided-tour__footer {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+.guided-tour__dots {
+  display: flex;
+  gap: 6px;
+}
+.guided-tour__dot {
+  background: var(--color-neutral-200);
+  border-radius: var(--radius-full);
+  height: 6px;
+  transition: all 0.2s ease;
+  width: 6px;
+}
+.guided-tour__dot--active {
+  background: var(--color-accent-400);
+  width: 18px;
+}
+.guided-tour__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+.guided-tour__btn {
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  transition: all 0.15s ease;
+}
+.guided-tour__btn--primary {
+  background: var(--color-brand-500);
+  color: var(--color-neutral-0);
+}
+.guided-tour__btn--primary:hover {
+  background: var(--color-brand-600);
+}
+.guided-tour__btn--secondary {
+  background: var(--color-neutral-0);
+  border-color: var(--color-neutral-200);
+  color: var(--color-neutral-700);
+}
+.guided-tour__btn--secondary:hover {
+  background: var(--color-neutral-100);
+}
+.guided-tour__btn--ghost {
+  background: transparent;
+  color: var(--color-neutral-500);
+}
+.guided-tour__btn--ghost:hover {
+  color: var(--color-neutral-700);
+}
+@keyframes guided-tour-pop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

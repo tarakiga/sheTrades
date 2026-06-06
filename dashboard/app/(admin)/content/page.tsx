@@ -1,5 +1,6 @@
 import { ConfigAdminManager } from "../../../components/config/ConfigAdminManager";
 import { ContentTranslationQueuePanel } from "../../../components/content/ContentTranslationQueuePanel";
+import { ContentWalkthrough } from "../../../components/content/ContentWalkthrough";
 import { Badge, SectionHeader } from "../../../components/ui";
 import { getAdminUiCopy } from "../../../lib/config/admin-ui-copy";
 
@@ -16,11 +17,14 @@ export default async function ContentPage() {
           "Manage lessons, message copy, and learning content from one premium workspace."
         )}
         actions={
-          <Badge variant={copy.source === "live" ? "success" : "warning"}>
-            {copy.source === "live"
-              ? t("common.liveData", "Live Data")
-              : t("common.fallbackData", "Fallback Data")}
-          </Badge>
+          <div className="preview-row">
+            <Badge variant={copy.source === "live" ? "success" : "warning"}>
+              {copy.source === "live"
+                ? t("common.liveData", "Live Data")
+                : t("common.fallbackData", "Fallback Data")}
+            </Badge>
+            <ContentWalkthrough label={t("content.tour.cta", "Take a tour")} />
+          </div>
         }
       />
       {copy.message ? <p className="admin-inline-note">{copy.message}</p> : null}
@@ -55,7 +59,7 @@ export default async function ContentPage() {
         }}
       />
 
-      <section className="content-page__support">
+      <section className="content-page__support" data-tour="content-translations">
         <ContentTranslationQueuePanel />
       </section>
     </main>

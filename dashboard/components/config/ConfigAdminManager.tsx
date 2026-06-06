@@ -1801,6 +1801,7 @@ export function ConfigAdminManager({
         </section>
       ) : null}
 
+      <div data-tour="content-toolbar">
       <SettingsWorkspaceToolbar
         actionLabel={presentation?.actionLabel ?? t("configAdmin.create.submit", "Add New")}
         actionHint={
@@ -1823,6 +1824,7 @@ export function ConfigAdminManager({
         filterAriaLabel={t("configAdmin.filter.aria", "Item filters")}
         categoryFilter={categoryFilter}
       />
+      </div>
 
       {workflowFeedback ? (
         <div className="settings-workspace__feedback">
@@ -1847,7 +1849,7 @@ export function ConfigAdminManager({
           }
         />
       ) : (
-        <section className="settings-workspace__table-shell">
+        <section className="settings-workspace__table-shell" data-tour="content-table">
           <div className="settings-workspace__table-header">
             <div>
               <h3 className="settings-workspace__table-title">

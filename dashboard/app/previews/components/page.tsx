@@ -25,6 +25,7 @@ import { OverlayPreviewDemo } from "./OverlayPreviewDemo";
 import { OverviewUsersWorkspacePreview } from "./OverviewUsersWorkspacePreview";
 import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
 import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
+import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewSelectTabsDemo } from "./PreviewSelectTabsDemo";
 import { RewardsWorkspacePreview } from "./RewardsWorkspacePreview";
 import { TranslationRequestWorkflowPreview } from "./TranslationRequestWorkflowPreview";
@@ -333,6 +334,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <AdminTeamWorkspacePreview />
+        </Card>
+
+        <Card
+          title={t("preview.guidedTour.title", "Guided Tour — interactive walkthrough")}
+          description={t(
+            "preview.guidedTour.description",
+            "Spotlight onboarding tour: dimmed backdrop, animated highlight, progress dots, keyboard support, and centered intro/outro steps."
+          )}
+        >
+          <GuidedTourPreview />
         </Card>
 
         <Card
