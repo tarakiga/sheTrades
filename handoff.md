@@ -296,3 +296,14 @@ Extended the Admin Team module with the two remaining row actions:
 Self-row Suspend + Delete are disabled in the UI; Reset password is allowed on any row. Verified end-to-end on she-trades.vercel.app (reset panel, delete confirm modal, "deleted" feedback, row removed). Backend rev 00062-lkd; frontend commit 7f07f34. Both QA test admins removed — staging clean.
 
 Note: each backend redeploy clears in-memory sessions, so admins must re-login after a deploy (the documented GAP-D1 session-persistence follow-up).
+
+### 2026-06-04: Security HIGHs GAP-A1..A5 (DONE — verified on staging rev 00063-cr9)
+
+- **A1/A2:** `POST /webhook/whatsapp/reset` (wiped all learner sessions) and `GET /webhook/whatsapp/session/:phone` (PII) are now gated behind `authenticateJwt` — they were public. The Meta-facing `GET/POST /whatsapp` stay public (verified: POST→200, verify GET→403, not 401). The dashboard WhatsApp sandbox simulator now sends the admin token on both calls. Verified: reset/session no-token → 401; session +token → 404 (reaches handler).
+- **A3:** mutating adminRouter routes (flag, reward retry/mark-issued/manual) now require role `editor|admin` (`requireWriteAccess`). Viewers were able to mutate. Verified: viewer token → 403 (unit tests); admin flag-write → 200; admin reads → 200.
+- **A4:** audit logs read `req.authUser` (was `(req as any).adminUser`, so `actorId` was always null) and now include `updatedAt`; the flag action logs the actor too.
+- **A5:** `.env.example` real-looking JWT secret + bootstrap password/email replaced with placeholders. The actual staging values live in the gitignored `cloudrun-staging-env.yaml` and DIFFER from the committed ones, so there was no production-forge risk and no rotation is required.
+
+**New finding (out of A1–A5 scope, worth tracking):** the manual-reward route inserts `module: "Manual"` against `reward`'s `@@unique([userId, module])`, so a learner can only ever receive ONE manual reward (a 2nd attempt 500s on the unique violation). Should use a unique per-issuance module value (e.g. `Manual-<timestamp>`) or relax the constraint for manual rewards, and map P2002 → 409.
+
+**Recommendation (not committed, ops):** the staging `ADMIN_CONFIG_JWT_SECRET` is a weak/guessable string in the gitignored env file — set a long random secret in staging/prod via Secret Manager.

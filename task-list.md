@@ -65,11 +65,11 @@ Plan: `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
 ## Remaining Gaps Backlog — full detail + file:line in `docs/remaining-gaps.md` (2026-06-04)
 
 ### A. Security & access control (HIGH first)
-- `[ ]` GAP-A1 (HIGH): Gate `POST /webhook/whatsapp/reset` (currently public; wipes all UserSession rows). `backend/src/routes/webhook.ts:38`
-- `[ ]` GAP-A2 (HIGH): Gate `GET /webhook/whatsapp/session/:phone` (currently public; leaks learner PII). `webhook.ts:47`
-- `[ ]` GAP-A3 (HIGH): Add `requireRoles(["editor","admin"])` to adminRouter mutations (flag / retry / mark-issued / manual). Currently any valid JWT (incl. viewer) can mutate. `admin.ts:25`
-- `[ ]` GAP-A4 (HIGH): Fix audit-log actor — read `req.authUser` not `(req as any).adminUser` (actorId always null today); add `updatedAt`/version to log lines. `admin.ts:267,305,346`
-- `[ ]` GAP-A5 (HIGH): Replace real secrets in `.env.example` with placeholders (live JWT secret + `ADMIN_AUTH_BOOTSTRAP_PASSWORD`); rotate the staging bootstrap password.
+- `[x]` GAP-A1 (HIGH): Gate `POST /webhook/whatsapp/reset` (currently public; wipes all UserSession rows). `backend/src/routes/webhook.ts:38`
+- `[x]` GAP-A2 (HIGH): Gate `GET /webhook/whatsapp/session/:phone` (currently public; leaks learner PII). `webhook.ts:47`
+- `[x]` GAP-A3 (HIGH): Add `requireRoles(["editor","admin"])` to adminRouter mutations (flag / retry / mark-issued / manual). Currently any valid JWT (incl. viewer) can mutate. `admin.ts:25`
+- `[x]` GAP-A4 (HIGH): Fix audit-log actor — read `req.authUser` not `(req as any).adminUser` (actorId always null today); add `updatedAt`/version to log lines. `admin.ts:267,305,346`
+- `[x]` GAP-A5 (HIGH): Replace real secrets in `.env.example` with placeholders (live JWT secret + `ADMIN_AUTH_BOOTSTRAP_PASSWORD`); rotate the staging bootstrap password.
 - `[ ]` GAP-A6 (MED): Gate or remove legacy in-memory routers mounted at `/api`: `content.ts` (lesson CRUD/publish), `learning.ts` (GET /users/:phone, POST /progress), `rewards.ts`.
 - `[ ]` GAP-A7 (MED): `reliability-check.ts:57` re-introduces the hardcoded `local-dev-reports-token` — use env only.
 - `[ ]` GAP-A8 (MED): Enforce inbound Meta webhook signature (`X-Hub-Signature-256` + appSecret).
