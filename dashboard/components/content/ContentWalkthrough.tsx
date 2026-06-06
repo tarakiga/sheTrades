@@ -67,7 +67,22 @@ export function ContentWalkthrough({ label = "Take a tour" }: ContentWalkthrough
 
   return (
     <>
-      <Button variant="secondary" onClick={() => setOpen(true)}>
+      <Button variant="secondary" className="content-tour-cta" onClick={() => setOpen(true)}>
+        <svg
+          className="content-tour-cta__icon"
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3Z" />
+          <path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2Z" />
+        </svg>
         {label}
       </Button>
       <GuidedTour open={open} steps={STEPS} onClose={handleClose} />

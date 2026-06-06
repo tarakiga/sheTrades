@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Badge, Button, Input, SideDrawer, Textarea, RichTextEditor } from "../ui";
+import { ContentFormWalkthrough } from "../content/ContentFormWalkthrough";
 
 type WorkflowFeedback = {
   tone: "info" | "success" | "warning" | "danger";
@@ -600,6 +601,11 @@ export function ConfigEditorDrawer({
         <div className="settings-editor-drawer__meta">
           <Badge variant="info">{namespaceLabel}</Badge>
           <Badge variant="neutral">{mode === "create" ? "New Item" : "Editing Draft"}</Badge>
+          {namespace === "content" ? (
+            <span className="settings-editor-drawer__tour">
+              <ContentFormWalkthrough />
+            </span>
+          ) : null}
         </div>
 
         {/* 1. Mode Selector Toggle */}
