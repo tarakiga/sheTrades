@@ -313,3 +313,15 @@ Note: each backend redeploy clears in-memory sessions, so admins must re-login a
 - **Protect root admin (requested):** the env-seeded admin(s) (`ADMIN_AUTH_BOOTSTRAP_EMAIL`, e.g. admin@shetrades.com) are flagged `protected` and cannot be deleted — `deleteAccount` rejects it (400 "This is a protected admin account and cannot be deleted.") and the dashboard disables the Delete button for protected rows. Verified on staging (rev 00064-rhf): list shows `protected=true`, DELETE → 400; UI Delete disabled.
 - **GAP-F1 (CI runs tests):** new `backend-tests` CI job spins up a Postgres service, runs the same schema bootstrap as startup (new `backend/src/scripts/setup-test-db.ts` → ensurePrismaTables + initializeAdminViews + runMigrations), then runs the suite **serially** (`test:ci` = `--test-concurrency=1`) so files don't race on the shared DB. Added a dashboard-build step to the quality job. **CAVEAT:** could not verify the run locally (no local Postgres — Docker daemon down — and `gh` unavailable). The job is structured correctly and mirrors how the suite runs with a DB; **watch the first GitHub Actions run** and fix any test that has hidden state assumptions.
 - **GAP-G1 (admin how-to doc):** wrote `docs/admin-how-to-guide.md` — add/edit/publish content (draft→publish), manage admins & permissions (roles, suspend, reset, delete + protected root), integrations + Test Connection, rollbacks, and caching troubleshooting. Also satisfies the prior AUM-D2.
+
+### 2026-06-04: GAP-B1 — bot conversation copy is now admin-editable (DONE — verified, rev 00065-lf9)
+
+The `getPrompt()` table (13 localized conversation strings: quiz/correct/incorrect/menu/state prompts) was the last block of hardcoded bot copy. Now:
+- The defaults live in a shared `backend/src/whatsapp/bot-prompts.ts` module.
+- `handler.getPrompt()` overlays published config from the content namespace (`bot.prompt.<key>` via `getRuntimeLocalizedText`) over those defaults — admins can edit any bot prompt from the dashboard with no deploy; the in-code default is the safe fallback so the flow never breaks if config is empty.
+- New `seed-bot-prompts.ts` (`npm run seed:bot-prompts`) publishes the editable baseline from the same defaults (no code/config drift). Seeded to staging: 13 docs published + served (public content API) and listed/editable in the admin content surface (each `ui_copy` doc with en/pcm/ig). Bot verified healthy after.
+- Note: menu/language button labels were ALREADY config-driven (`getRuntimeOptionSet("bot.language_options")`, `getRuntimeText("bot.main_menu"...)`) — so this completes the remaining hardcoded conversation copy. Same overlay mechanism those already-working paths use.
+
+**To roll out elsewhere:** run `BOT_PROMPTS_SEED_BASE_URL=<api> ADMIN_CONFIG_JWT_SECRET=<secret> npm run seed:bot-prompts -w @shetrades/backend` once per environment (idempotent).
+
+**GAP-B remaining (MED):** B2 (analytics SQL hardcodes Anambra/Delta → env), B3 (frontend hardcoded option sets: analytics/dashboard tabs, reports presets, RewardsToolbar pills, manual reward defaults, AdminShell nav), B4 (worker/engine thresholds → env).

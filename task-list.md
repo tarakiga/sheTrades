@@ -75,7 +75,7 @@ Plan: `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
 - `[ ]` GAP-A8 (MED): Enforce inbound Meta webhook signature (`X-Hub-Signature-256` + appSecret).
 
 ### B. "No hardcoded values" mandate (CLAUDE.md)
-- `[ ]` GAP-B1 (HIGH): Move all bot conversation copy + menu/language button labels to config (`getPrompt()` table + hardcoded arrays in `handler.ts:~335-637`) via `getRuntimeText()`/`getRuntimeOptionSet()` + seeds.
+- `[x]` GAP-B1 (HIGH): Move all bot conversation copy + menu/language button labels to config (`getPrompt()` table + hardcoded arrays in `handler.ts:~335-637`) via `getRuntimeText()`/`getRuntimeOptionSet()` + seeds.
 - `[ ]` GAP-B2 (MED): Analytics live SQL hardcodes `'Anambra'`/`'Delta'` — drive from `FS_LOCATION_VALUE_*`. `admin/providers/postgres.ts:164`
 - `[ ]` GAP-B3 (MED): Frontend hardcoded option sets/copy → config: analytics/dashboard tabs, reports presets, RewardRules channel options, RewardsToolbar pills/date-ranges, manual reward defaults, AdminShell nav.
 - `[ ]` GAP-B4 (MED): Hardcoded thresholds → env/config: worker batch/retry/delay; legacy engine pass-%/lessons-per-module/reward amount.
