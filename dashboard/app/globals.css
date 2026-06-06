@@ -76,6 +76,24 @@
   --layout-max-reading: 720px;
   --layout-sidebar-width: 272px;
   --layout-header-height: 72px;
+
+  /* Gold accent extensions (deeper stops for gradients) */
+  --color-accent-500: #f0a90e;
+  --color-accent-600: #d98e08;
+
+  /* Admin sidebar — premium dark "command rail" */
+  --sidebar-bg: linear-gradient(180deg, var(--color-brand-800) 0%, var(--color-brand-900) 100%);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-border-strong: rgba(255, 255, 255, 0.16);
+  --sidebar-text: rgba(233, 240, 243, 0.8);
+  --sidebar-text-strong: #ffffff;
+  --sidebar-text-muted: rgba(180, 198, 205, 0.5);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.055);
+  --sidebar-active-bg: rgba(255, 255, 255, 0.1);
+  --sidebar-accent: var(--color-accent-400);
+  --sidebar-shadow: 4px 0 28px rgba(8, 15, 18, 0.16);
+  --sidebar-mark-gradient: linear-gradient(135deg, var(--color-accent-400), var(--color-accent-600));
+  --sidebar-mark-glow: 0 6px 16px rgba(255, 190, 34, 0.3);
   --control-height-md: 40px;
   --focus-ring: 0 0 0 3px rgba(51, 78, 88, 0.24);
 }
@@ -3463,54 +3481,199 @@ body {
 }
 
 .admin-shell__sidebar {
-  background: var(--color-neutral-0);
-  border-right: 1px solid var(--color-neutral-100);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  box-shadow: var(--sidebar-shadow);
+  color: var(--sidebar-text);
   display: flex;
   flex-direction: column;
-  padding: var(--space-6);
+  padding: var(--space-6) var(--space-5) var(--space-5);
   position: sticky;
   top: 0;
   height: 100vh;
 }
 
 .admin-shell__brand {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
+  align-items: center;
+  border-bottom: 1px solid var(--sidebar-border);
+  display: flex;
+  gap: var(--space-3);
   margin-bottom: var(--space-5);
+  padding: 0 var(--space-2) var(--space-5);
+}
+
+.admin-shell__brand-mark {
+  align-items: center;
+  background: var(--sidebar-mark-gradient);
+  border-radius: var(--radius-md);
+  box-shadow: var(--sidebar-mark-glow);
+  color: var(--color-brand-900);
+  display: flex;
+  flex: 0 0 auto;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  height: 2.25rem;
+  justify-content: center;
+  letter-spacing: 0.02em;
+  width: 2.25rem;
+}
+
+.admin-shell__brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-shell__brand-name {
+  color: var(--sidebar-text-strong);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-shell__brand-sub {
+  color: var(--sidebar-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .admin-shell__nav {
-  display: grid;
-  gap: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  overflow-y: auto;
+}
+
+.admin-shell__nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.admin-shell__nav-section-label {
+  color: var(--sidebar-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  margin: 0 0 var(--space-1);
+  padding: 0 var(--space-3);
+  text-transform: uppercase;
 }
 
 .admin-shell__sidebar-footer {
+  border-top: 1px solid var(--sidebar-border);
   margin-top: auto;
   padding-top: var(--space-5);
 }
 
 .admin-shell__sidebar-status {
-  color: var(--color-neutral-600);
+  color: var(--sidebar-text-muted);
   font-size: var(--font-size-sm);
 }
 
 .admin-shell__nav-link {
+  align-items: center;
   border-radius: var(--radius-md);
-  color: var(--color-neutral-700);
+  color: var(--sidebar-text);
+  display: flex;
   font-size: var(--font-size-sm);
+  font-weight: 500;
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
+  position: relative;
   text-decoration: none;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.admin-shell__nav-link-rail {
+  background: var(--sidebar-accent);
+  border-radius: var(--radius-full);
+  bottom: 24%;
+  left: -2px;
+  opacity: 0;
+  position: absolute;
+  top: 24%;
+  transform: scaleY(0.35);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+  width: 3px;
+}
+
+.admin-shell__nav-icon {
+  color: var(--sidebar-text-muted);
+  flex: 0 0 auto;
+  transition: color 0.16s ease;
+}
+
+.admin-shell__nav-link-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-shell__nav-link:hover {
-  background: var(--color-neutral-100);
-  color: var(--color-neutral-900);
+  background: var(--sidebar-hover-bg);
+  color: var(--sidebar-text-strong);
+  transform: translateX(2px);
+}
+
+.admin-shell__nav-link:hover .admin-shell__nav-icon {
+  color: var(--sidebar-text-strong);
 }
 
 .admin-shell__nav-link--active {
-  background: var(--color-brand-50);
-  color: var(--color-brand-700);
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-text-strong);
   font-weight: 600;
+}
+
+.admin-shell__nav-link--active .admin-shell__nav-icon {
+  color: var(--sidebar-accent);
+}
+
+.admin-shell__nav-link--active .admin-shell__nav-link-rail {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+/* Profile card adapts to the dark rail (scoped to the sidebar only so the
+   shared card on /profile is unaffected). */
+.admin-shell__sidebar-footer .profile-sidebar-card {
+  background: var(--sidebar-hover-bg);
+  border: 1px solid var(--sidebar-border);
+}
+
+.admin-shell__sidebar-footer .profile-sidebar-card:hover {
+  background: var(--sidebar-active-bg);
+  border-color: var(--sidebar-border-strong);
+  box-shadow: none;
+}
+
+.admin-shell__sidebar-footer .profile-sidebar-card__avatar {
+  background: var(--sidebar-mark-gradient);
+}
+
+.admin-shell__sidebar-footer .profile-sidebar-card__avatar-fallback {
+  color: var(--color-brand-900);
+}
+
+.admin-shell__sidebar-footer .profile-sidebar-card__name {
+  color: var(--sidebar-text-strong);
+}
+
+.admin-shell__sidebar-footer .profile-sidebar-card__email {
+  color: var(--sidebar-text-muted);
 }
 
 .admin-shell__main {
