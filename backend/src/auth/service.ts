@@ -183,8 +183,23 @@ function toSafeUser(record: AdminUserRecord): AdminSafeUser {
   };
 }
 
+// The seed admin(s) defined via env (ADMIN_AUTH_BOOTSTRAP_*) are "protected":
+// they are the platform's root operator accounts and cannot be deleted, so the
+// dashboard can never lock itself out of admin management.
+function getProtectedAdminEmails(): Set<string> {
+  return new Set(parseBootstrapUsersFromEnv().map((seed) => normalizeEmail(seed.email)));
+}
+
+function isProtectedAdminEmail(email: string): boolean {
+  return getProtectedAdminEmails().has(normalizeEmail(email));
+}
+
 function toManagedUser(record: AdminUserRecord): AdminManagedUser {
-  return { ...toSafeUser(record), createdAt: record.createdAt };
+  return {
+    ...toSafeUser(record),
+    createdAt: record.createdAt,
+    protected: isProtectedAdminEmail(record.email)
+  };
 }
 
 /**
@@ -471,6 +486,9 @@ export class AdminAuthService {
   async deleteAccount(targetId: string, actorId: string): Promise<void> {
     await this.ensureBootstrapped();
     const target = await this.getRecordByIdOrThrow(targetId);
+    if (isProtectedAdminEmail(target.email)) {
+      throw new Error("This is a protected admin account and cannot be deleted.");
+    }
     if (actorId === targetId) {
       throw new Error("You cannot delete your own account.");
     }

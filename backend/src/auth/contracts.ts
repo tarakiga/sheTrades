@@ -17,7 +17,9 @@ export type AdminSafeUser = z.infer<typeof adminSafeUserSchema>;
 
 // Admin team-management (managing other admin accounts)
 export const adminManagedUserSchema = adminSafeUserSchema.extend({
-  createdAt: z.string().datetime()
+  createdAt: z.string().datetime(),
+  // True for the env-seeded root admin(s) — cannot be deleted.
+  protected: z.boolean()
 });
 export type AdminManagedUser = z.infer<typeof adminManagedUserSchema>;
 

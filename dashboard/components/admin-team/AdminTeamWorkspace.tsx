@@ -27,6 +27,7 @@ type ManagedAdmin = {
   avatarUrl: string;
   lastLoginAt: string | null;
   createdAt: string;
+  protected: boolean;
 };
 
 type FeedbackState = {
@@ -490,7 +491,7 @@ export function AdminTeamWorkspace() {
                     )}
                     <Button
                       variant="danger"
-                      disabled={row.id === selfId || pendingRowId === row.id}
+                      disabled={row.id === selfId || row.protected || pendingRowId === row.id}
                       onClick={() => setDeleteTarget(row)}
                     >
                       Delete

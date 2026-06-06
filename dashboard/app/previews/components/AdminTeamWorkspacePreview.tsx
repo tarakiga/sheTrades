@@ -9,6 +9,7 @@ type PreviewAdmin = {
   role: "admin" | "editor" | "viewer";
   status: "active" | "disabled";
   lastLoginAt: string;
+  protected: boolean;
 };
 
 const ROLE_OPTIONS = [
@@ -24,7 +25,8 @@ const MOCK_ADMINS: PreviewAdmin[] = [
     email: "ada@shetrades.com",
     role: "admin",
     status: "active",
-    lastLoginAt: "2026-06-04 09:12"
+    lastLoginAt: "2026-06-04 09:12",
+    protected: true
   },
   {
     id: "2",
@@ -32,7 +34,8 @@ const MOCK_ADMINS: PreviewAdmin[] = [
     email: "chidi@shetrades.com",
     role: "editor",
     status: "active",
-    lastLoginAt: "2026-06-03 17:40"
+    lastLoginAt: "2026-06-03 17:40",
+    protected: false
   },
   {
     id: "3",
@@ -40,7 +43,8 @@ const MOCK_ADMINS: PreviewAdmin[] = [
     email: "ngozi@shetrades.com",
     role: "viewer",
     status: "disabled",
-    lastLoginAt: "2026-05-28 11:02"
+    lastLoginAt: "2026-05-28 11:02",
+    protected: false
   }
 ];
 
@@ -115,7 +119,7 @@ export function AdminTeamWorkspacePreview() {
                         Reactivate
                       </Button>
                     )}
-                    <Button variant="danger" disabled={row.id === "1"} onClick={() => undefined}>
+                    <Button variant="danger" disabled={row.id === "1" || row.protected} onClick={() => undefined}>
                       Delete
                     </Button>
                   </div>

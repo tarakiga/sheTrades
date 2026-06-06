@@ -48,7 +48,7 @@ function respondError(error: unknown, res: Response, next: NextFunction) {
       res.status(409).json({ message: error.message });
       return;
     }
-    if (/must remain|your own/i.test(error.message)) {
+    if (/must remain|your own|cannot be deleted/i.test(error.message)) {
       res.status(400).json({ message: error.message });
       return;
     }
