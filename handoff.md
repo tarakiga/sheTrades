@@ -364,3 +364,8 @@ Added a Fortune-500-style guided spotlight tour to /content to help non-technica
 - Verified live on she-trades.vercel.app/content: auto-opened on first visit; spotlight precisely highlights the toolbar with the rest dimmed; step counter/dots/controls all work. (frontend-only; commit 091d2ab)
 
 Follow-up (optional): the tour step copy is currently in-code; it could be made admin-editable via a content config doc + the existing getRuntimeText pattern.
+
+### 2026-06-04: Content tours — form tour + prominent CTA (verified live)
+
+- **Prominent "Take a tour" CTA:** the content-page tour button (and the new form-tour button) now use an eye-catching gold style — gold border, soft gold fill, sparkle icon, and a subtle pulsing glow (respects prefers-reduced-motion). Verified live (gold border rgb(255,190,34)).
+- **Tour on the create-content form:** new `ContentFormWalkthrough` mounted inside `ConfigEditorDrawer` (content namespace only). A 6-step guided spotlight tour over the form itself — Visual-Wizard/JSON toggle, the step-progress bar, the current step panel, and the save/publish footer. Auto-shows once when the form first opens (localStorage `shetrades.content.form.tour.v1`) and replayable via a "Tour this form" button in the drawer header. The tour (z-index 1200) layers above the SideDrawer, so the spotlight highlights elements INSIDE the drawer. Verified live: opening Create Content auto-launched the tour; step 3 spotlit the wizard progress bar with the rest dimmed. (commit 531b55c)
