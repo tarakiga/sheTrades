@@ -346,3 +346,11 @@ Replaced the hardcoded two-state (Anambra/Delta) analytics with a fully dynamic 
 - **Note:** learners with no location are (correctly) excluded from per-state rows but counted in the overall funnel.
 
 **GAP-B3 remaining (the non-state-tab items):** reports presets, RewardsToolbar status pills / date-range options, manual-reward defaults (amount/channel), AdminShell nav set. These are independent hardcoded option sets (not coupled to the analytics redesign).
+
+### 2026-06-04: GAP-B3 remaining option-sets -> config (DONE, rev 00068-lr9). GAP-B fully complete.
+
+- **Manual-reward defaults** (amount/channel): now sourced from the published Reward Rule via `GET /api/admin/rewards` `meta.defaults` (the rewards page uses it, falling back to in-code 5000/airtime). Verified: staging returns `{amount:500, channel:airtime}` (the admin-set rule), so the manual drawer defaults to the configured amount, not a hardcode.
+- **Rewards toolbar status pills + date ranges** and **report presets**: read from published option sets (`rewards.status_options`, `rewards.date_range_options`, `reports.presets`) via a new `dashboard/lib/config/options.ts#fetchPublicOptionSet`, with the built-in sets as safe fallbacks. Status pill colour stays mapped by value (structural). New `seed:frontend-options` script publishes the editable baselines (seeded to staging: 4/4/3 items published + served).
+- **AdminShell nav**: labels were already config-driven (copyKeys resolved from admin-ui-copy); the nav SET is route-structural and intentionally code-defined (adding a nav item requires a route/page) — not "admin-editable content".
+
+**GAP-B is now fully done:** B1 (bot copy), B2 (dynamic per-state analytics), B3 (frontend option sets), B4 (payout thresholds env).
