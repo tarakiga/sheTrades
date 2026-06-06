@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getReportsPageData } from "../../../lib/admin/api";
 import type { ApiResult, ReportsPageData } from "../../../lib/admin/contracts";
+import { fetchPublicOptionSet } from "../../../lib/config/options";
 import {
   AdminReviewTableShell,
   AdminReviewWorkspace,
@@ -14,9 +15,43 @@ import {
   Tabs
 } from "../../../components/ui";
 
+type ReportPreset = { id: string; label: string; content: string };
+
+// Built-in defaults; overridden by the published `reports.presets` option set.
+const DEFAULT_PRESETS: ReportPreset[] = [
+  { id: "donor", label: "Donor", content: "Impact metrics, completion funnel, reward totals." },
+  { id: "ops", label: "Ops", content: "Daily completion deltas, drop-off list, exceptions." },
+  { id: "finance", label: "Finance", content: "Reward issuance ledger and reconciliations." }
+];
+
 export default function ReportsPage() {
   const [result, setResult] = useState<ApiResult<ReportsPageData> | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [presets, setPresets] = useState<ReportPreset[]>(DEFAULT_PRESETS);
+
+  // Report presets are config-driven (admin-editable) with the defaults above
+  // as the safe fallback.
+  useEffect(() => {
+    let cancelled = false;
+    fetchPublicOptionSet("reports.presets")
+      .then((items) => {
+        if (cancelled || items.length === 0) return;
+        setPresets(
+          items.map((item) => ({
+            id: item.value,
+            label: item.label,
+            content:
+              typeof item.metadata.description === "string" ? item.metadata.description : item.label
+          }))
+        );
+      })
+      .catch(() => {
+        /* keep defaults */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,24 +154,12 @@ export default function ReportsPage() {
             description="Configured export presets by stakeholder profile."
           >
             <Tabs
-              activeId="donor"
-              items={[
-                {
-                  id: "donor",
-                  label: "Donor",
-                  content: "Impact metrics, completion funnel, reward totals."
-                },
-                {
-                  id: "ops",
-                  label: "Ops",
-                  content: "Daily completion deltas, drop-off list, exceptions."
-                },
-                {
-                  id: "finance",
-                  label: "Finance",
-                  content: "Reward issuance ledger and reconciliations."
-                }
-              ]}
+              activeId={presets[0]?.id ?? "donor"}
+              items={presets.map((preset) => ({
+                id: preset.id,
+                label: preset.label,
+                content: preset.content
+              }))}
             />
           </Card>
 

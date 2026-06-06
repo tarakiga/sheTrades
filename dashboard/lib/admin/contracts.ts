@@ -94,6 +94,8 @@ export type RewardLogRow = {
 export type RewardsListMeta = {
   activeProvider: { key: "africas_talking" | "termii" | "reloadly"; sandbox: boolean } | null;
   nextCursor: string | null;
+  // Manual-reward defaults sourced from the published Reward Rule (admin-set).
+  defaults?: { amount: number; channel: string } | null;
 };
 
 export type RewardsPageData = {

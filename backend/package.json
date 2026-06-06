@@ -17,7 +17,8 @@
     "seed:admin-ui-copy": "tsx src/config-platform/seed-admin-ui-copy.ts",
     "seed:lessons": "tsx src/config-platform/seed-lessons.ts",
     "seed:state-options": "tsx src/config-platform/seed-state-options.ts",
-    "seed:bot-prompts": "tsx src/config-platform/seed-bot-prompts.ts"
+    "seed:bot-prompts": "tsx src/config-platform/seed-bot-prompts.ts",
+    "seed:frontend-options": "tsx src/config-platform/seed-frontend-options.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.5.0",

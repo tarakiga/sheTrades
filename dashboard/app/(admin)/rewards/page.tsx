@@ -16,6 +16,7 @@ import {
 } from "../../../components/rewards/ManualRewardDrawer";
 import type { NeedsAttentionItem } from "../../../components/rewards/NeedsAttentionPanel";
 import { Badge, Button, SectionHeader } from "../../../components/ui";
+import { fetchPublicOptionSet } from "../../../lib/config/options";
 import {
   createManualReward,
   downloadAdminCsv,
@@ -169,6 +170,40 @@ export default function RewardsPage() {
     };
   }, []);
 
+  // Toolbar status pills + date ranges are config-driven (admin-editable),
+  // falling back to the component's built-in sets when nothing is published.
+  const [statusOptions, setStatusOptions] =
+    useState<Array<{ value: RewardsToolbarStatus; label: string }>>();
+  const [dateRangeOptions, setDateRangeOptions] =
+    useState<Array<{ value: RewardsToolbarDateRange; label: string }>>();
+
+  useEffect(() => {
+    let cancelled = false;
+    const knownStatus = new Set<RewardsToolbarStatus>(["All", "Issued", "Pending", "Failed"]);
+    const knownRange = new Set<RewardsToolbarDateRange>(["24h", "7d", "30d", "custom"]);
+    Promise.all([
+      fetchPublicOptionSet("rewards.status_options"),
+      fetchPublicOptionSet("rewards.date_range_options")
+    ])
+      .then(([statusCfg, rangeCfg]) => {
+        if (cancelled) return;
+        const status = statusCfg
+          .filter((o) => knownStatus.has(o.value as RewardsToolbarStatus))
+          .map((o) => ({ value: o.value as RewardsToolbarStatus, label: o.label }));
+        if (status.length) setStatusOptions(status);
+        const ranges = rangeCfg
+          .filter((o) => knownRange.has(o.value as RewardsToolbarDateRange))
+          .map((o) => ({ value: o.value as RewardsToolbarDateRange, label: o.label }));
+        if (ranges.length) setDateRangeOptions(ranges);
+      })
+      .catch(() => {
+        /* keep built-in defaults */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const params = useMemo<RewardsListParams>(
     () => buildParams(status, dateRange, query),
     [status, dateRange, query]
@@ -200,7 +235,9 @@ export default function RewardsPage() {
   }, [params]);
 
   const rewards = result?.data.rewards ?? [];
-  const meta = result?.data.meta ?? { activeProvider: null, nextCursor: null };
+  const meta = result?.data.meta ?? { activeProvider: null, nextCursor: null, defaults: null };
+  const manualAmount = meta.defaults?.amount ?? DEFAULT_MANUAL_AMOUNT;
+  const manualChannel = meta.defaults?.channel ?? DEFAULT_MANUAL_CHANNEL;
 
   const issued = useMemo(
     () => rewards.filter((row) => row.status === "Issued").length,
@@ -365,6 +402,8 @@ export default function RewardsPage() {
         query={query}
         onQueryChange={setQuery}
         onExportClick={handleExportClick}
+        {...(statusOptions ? { statusOptions } : {})}
+        {...(dateRangeOptions ? { dateRangeOptions } : {})}
       />
 
       <RewardsTable
@@ -388,8 +427,8 @@ export default function RewardsPage() {
         open={manualOpen}
         onClose={() => setManualOpen(false)}
         onSubmit={handleCreateManual}
-        defaultAmount={DEFAULT_MANUAL_AMOUNT}
-        defaultChannel={DEFAULT_MANUAL_CHANNEL}
+        defaultAmount={manualAmount}
+        defaultChannel={manualChannel}
         learners={learnerOptions}
       />
     </main>

@@ -20,6 +20,10 @@ export type RewardsToolbarProps = {
   onQueryChange: (next: string) => void;
   onExportClick: () => void;
   exporting?: boolean;
+  // Optional config-driven option sets; default to the built-in sets below so
+  // previews and tests keep working without config.
+  statusOptions?: ReadonlyArray<{ value: RewardsToolbarStatus; label: string }>;
+  dateRangeOptions?: ReadonlyArray<{ value: RewardsToolbarDateRange; label: string }>;
 };
 
 type StatusPill = {
@@ -47,11 +51,29 @@ const DATE_RANGE_OPTIONS: ReadonlyArray<DateRangeOption> = [
   { value: "custom", label: "Custom…" }
 ];
 
+// The pill colour is structural (tied to status semantics), so it's mapped by
+// value here while labels/order can be config-driven via statusOptions.
+const STATUS_MODIFIER: Record<RewardsToolbarStatus, string> = {
+  All: "rewards-toolbar__pill--all",
+  Issued: "rewards-toolbar__pill--issued",
+  Pending: "rewards-toolbar__pill--pending",
+  Failed: "rewards-toolbar__pill--failed"
+};
+
 const SEARCH_DEBOUNCE_MS = 300;
 
 export function RewardsToolbar(props: RewardsToolbarProps): ReactElement {
   const exporting = props.exporting === true;
   const [searchDraft, setSearchDraft] = useState<string>(props.query);
+
+  const pills: ReadonlyArray<StatusPill> = (
+    props.statusOptions ?? STATUS_PILLS
+  ).map((option) => ({
+    value: option.value,
+    label: option.label,
+    modifier: STATUS_MODIFIER[option.value] ?? ""
+  }));
+  const ranges: ReadonlyArray<DateRangeOption> = props.dateRangeOptions ?? DATE_RANGE_OPTIONS;
 
   // Sync local draft when the upstream query value is reset externally
   // (e.g., parent clears the filter). We compare against the debounced
@@ -101,7 +123,7 @@ export function RewardsToolbar(props: RewardsToolbarProps): ReactElement {
         role="group"
         aria-label="Filter by status"
       >
-        {STATUS_PILLS.map((pill) => {
+        {pills.map((pill) => {
           const isActive = pill.value === props.status;
           const className = [
             "rewards-toolbar__pill",
@@ -138,7 +160,7 @@ export function RewardsToolbar(props: RewardsToolbarProps): ReactElement {
           value={props.dateRange}
           onChange={handleDateRangeChange}
         >
-          {DATE_RANGE_OPTIONS.map((option) => (
+          {ranges.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

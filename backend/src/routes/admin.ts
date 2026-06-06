@@ -11,7 +11,7 @@ import {
 } from "../admin/data.js";
 import { getLearnerDetail } from "../admin/users-detail.js";
 import { prisma } from "../admin/prisma.js";
-import { getRuntimePayoutsConfig } from "../config-platform/runtime-config.js";
+import { getRuntimePayoutsConfig, getRuntimeRewardRules } from "../config-platform/runtime-config.js";
 import { authenticateJwt, requireRoles } from "../auth/jwt-rbac.js";
 
 // Mutating admin actions require at least editor (viewers are read-only).
@@ -188,9 +188,13 @@ adminRouter.get("/rewards", async (req, res, next) => {
     const activeProvider = config
       ? { key: config.provider, sandbox: config.sandbox }
       : null;
+    // Manual-reward defaults come from the published Reward Rule (admin-set),
+    // so the UI never hardcodes the amount/channel.
+    const rule = getRuntimeRewardRules();
+    const defaults = rule ? { amount: rule.amount, channel: rule.channel } : null;
     res.status(200).json({
       ...data,
-      meta: { ...data.meta, activeProvider }
+      meta: { ...data.meta, activeProvider, defaults }
     });
   } catch (error) {
     next(error);
