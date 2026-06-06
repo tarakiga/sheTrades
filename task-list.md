@@ -98,12 +98,12 @@ Plan: `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
 - `[ ]` GAP-E2 (MED): Replace blanket `cache:"no-store"` with ETag/version-tag revalidation (SWR/React Query or `next.revalidate`). `dashboard/lib/config/api.ts:7`
 
 ### F. CI / tests / migrations
-- `[ ]` GAP-F1 (HIGH): Run the test suite in CI (`npm run test -w @shetrades/backend`, with a Postgres service) + `next build` for the dashboard. `.github/workflows/ci.yml`
+- `[x]` GAP-F1 (HIGH): Run the test suite in CI (`npm run test -w @shetrades/backend`, with a Postgres service) + `next build` for the dashboard. `.github/workflows/ci.yml`
 - `[ ]` GAP-F2 (MED): Adopt Prisma migrations (replace hand-coded `ensurePrismaTables`).
 - `[ ]` GAP-F3 (MED): Add `POSTGRES_URL` to `.env.example`.
 
 ### G. Required documentation deliverable
-- `[ ]` GAP-G1 (HIGH): Write `docs/admin-how-to-guide.md` — add/edit/publish content, manage permissions, rollbacks, caching troubleshooting.
+- `[x]` GAP-G1 (HIGH): Write `docs/admin-how-to-guide.md` — add/edit/publish content, manage permissions, rollbacks, caching troubleshooting.
 
 ### H. UI quality / a11y / design tokens
 - `[ ]` GAP-H1 (MED): Page data loads catch fetch errors → error state (no infinite spinner). users/reports/analytics pages.
@@ -142,5 +142,5 @@ Confirmed constraints from the codebase:
 
 ### Phase D — Verify, document, deploy
 - `[x]` AUM-D1: Typecheck + build (backend + dashboard); run new tests; manual e2e on staging (create → login as new admin → suspend → login blocked → reactivate).
-- `[ ]` AUM-D2: Document in `docs/admin-how-to-guide.md` (ties into GAP-G1): managing admins, roles, suspension, password resets.
+- `[x]` AUM-D2: Document in `docs/admin-how-to-guide.md` (ties into GAP-G1): managing admins, roles, suspension, password resets.
 - `[x]` AUM-D3: Deploy backend (Cloud Run) + push (Vercel); update handoff.md.
