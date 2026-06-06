@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { getRuntimeOptionSet, getRuntimeText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson } from "../config-platform/runtime-config.js";
+import { getRuntimeOptionSet, getRuntimeText, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson } from "../config-platform/runtime-config.js";
+import { BOT_PROMPT_DEFAULTS, BOT_PROMPT_CONFIG_PREFIX } from "./bot-prompts.js";
 import { prisma } from "../admin/prisma.js";
 import type { WhatsAppListSpec } from "./sender.js";
 import { sendWhatsAppMessage } from "./sender.js";
@@ -337,81 +338,12 @@ function getPrompt(
   lang: "en" | "pcm" | "ig",
   fallback: string
 ): string {
-  const prompts: Record<string, Record<"en" | "pcm" | "ig", string>> = {
-    "modules_menu_header": {
-      en: "Choose a Module to begin:\n",
-      pcm: "Make you choose one Module to start:\n",
-      ig: "Họrọ modul ka ịmalite:\n"
-    },
-    "modules_menu_footer": {
-      en: "",
-      pcm: "",
-      ig: ""
-    },
-    "invalid_module": {
-      en: "Invalid module selection. Please choose a Module to begin:\n",
-      pcm: "Select correct module. Make you choose one Module to start:\n",
-      ig: "Nhọrọ modul adịghị mma. Họrọ modul ka ịmalite:\n"
-    },
-    "quiz_instruction": {
-      en: "\n-------------------------\nReply QUIZ to start the lesson quiz, or MENU to return.",
-      pcm: "\n-------------------------\nReply QUIZ to start lesson quiz, or MENU to go back.",
-      ig: "\n-------------------------\nReply QUIZ ka ịmalite ule, ma ọ bụ MENU ka ịlaghachi."
-    },
-    "quiz_time_header": {
-      en: "📚 Quiz Time! Question:\n",
-      pcm: "📚 Time for small quiz! Question:\n",
-      ig: "📚 Oge Ule! Ajụjụ:\n"
-    },
-    "quiz_answer_prompt": {
-      en: "\n\nSelect your answer below or reply MENU to return.",
-      pcm: "\n\nSelect your answer below or reply MENU to go back.",
-      ig: "\n\nHọrọ azịza gị n'okpuru ma ọ bụ pịnye MENU ka ịlaghachi."
-    },
-    "correct_next": {
-      en: "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.",
-      pcm: "🎉 You correct! Better job. You don finish dis lesson.\n\nReply NEXT to go to another lesson or MENU to go back.",
-      ig: "🎉 I ziri ezi! Ọrụ dị mma. Imechara nkuzi a.\n\nReply NEXT ka ịga n'ihu na nkuzi na-abịa ma ọ bụ MENU ka ịlaghachi."
-    },
-    "correct_module_complete": {
-      en: "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nReply MENU to choose another module.",
-      pcm: "🎉 You correct! Better job.\n\nCongratulations! You don complete all lessons for dis module.\n\nReply MENU to select another module.",
-      ig: "🎉 I ziri ezi! Ọrụ dị mma.\n\nEkele! Imechara nkuzi niile dị na modul a.\n\nReply MENU ka ịhọrọ modul ọzọ."
-    },
-    "incorrect_retry": {
-      en: "❌ That is incorrect. Let's try again!\n\n",
-      pcm: "❌ That one no correct. Make we try again!\n\n",
-      ig: "❌ Nke ahụ adịghị mma. Ka anyị nwaa ọzọ!\n\n"
-    },
-    "bot_did_not_understand": {
-      en: "I did not understand that.\nReply QUIZ to start this lesson's quiz, NEXT to progress, or MENU to return.",
-      pcm: "I no understand wetin you write.\nReply QUIZ to start dis lesson quiz, NEXT to continue, or MENU to go back.",
-      ig: "Aghọtaghị m nke ahụ.\nReply QUIZ ka ịmalite ule, NEXT ka ịga n'ihu, ma ọ bụ MENU ka ịlaghachi."
-    },
-    "state_prompt": {
-      en: "Which state are you in?",
-      pcm: "Which state you dey?",
-      ig: "Kedu steeti ị nọ?"
-    },
-    "state_button": {
-      en: "Choose state",
-      pcm: "Choose state",
-      ig: "Họrọ steeti"
-    },
-    "state_other_label": {
-      en: "Others",
-      pcm: "Others",
-      ig: "Ndị ọzọ"
-    },
-    "custom_state_prompt": {
-      en: "Please type the name of your state.",
-      pcm: "Abeg type the name of your state.",
-      ig: "Biko dee aha steeti gị."
-    }
-  };
-
-  const selected = prompts[key]?.[lang];
-  return selected ?? fallback;
+  // Admin-editable: published copy in the config "content" namespace under
+  // `bot.prompt.<key>` overrides the in-code default; the default is the safe
+  // fallback when nothing is published, so the flow never breaks.
+  const fallbackLocalized = BOT_PROMPT_DEFAULTS[key] ?? { en: fallback };
+  const resolved = getRuntimeLocalizedText(`${BOT_PROMPT_CONFIG_PREFIX}${key}`, fallbackLocalized);
+  return resolved[lang] ?? resolved.en ?? fallback;
 }
 
 function transition(
