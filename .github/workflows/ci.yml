@@ -30,3 +30,50 @@ jobs:
 
       - name: Format check
         run: npm run format:check
+
+      - name: Dashboard build
+        run: npm run build -w @shetrades/dashboard
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shetrades_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/shetrades_test
+      ADMIN_CONFIG_JWT_SECRET: ci-test-secret
+      ADMIN_REPORTS_API_TOKEN: ci-test-reports-token
+      NODE_ENV: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema=backend/prisma/schema.prisma
+
+      - name: Set up test database schema
+        run: npm run db:setup:test -w @shetrades/backend
+
+      # Tests run serially (--test-concurrency=1) so files don't race on the
+      # shared Postgres (several suites reset/clear tables between cases).
+      - name: Run backend tests
+        run: npm run test:ci -w @shetrades/backend

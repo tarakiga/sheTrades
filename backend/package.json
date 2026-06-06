@@ -9,6 +9,8 @@
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test src/**/*.test.ts",
+    "test:ci": "tsx --test --test-concurrency=1 \"src/**/*.test.ts\"",
+    "db:setup:test": "tsx src/scripts/setup-test-db.ts",
     "smoke:staging": "tsx src/smoke/staging-smoke.ts",
     "smoke:payouts": "tsx src/smoke/payouts-smoke.ts",
     "validate:reliability": "tsx src/validation/reliability-check.ts",
