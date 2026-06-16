@@ -384,3 +384,12 @@ Follow-up (optional): the tour step copy is currently in-code; it could be made 
   - Step 1 (centered): card `left` computes **720px** = viewport centre (was 372px). `cardCenterX === viewportCenterX`.
   - Step 3 (`.wizard-progress`): spotlight `696,217 713×96` exactly wraps target `704,225 697×80` (+8px pad), within viewport, aligned; card within viewport; **0 horizontal overflow**. Screenshot confirms clean spotlight + card.
   - Step 4 (`.wizard-panel`, tall 530px): spotlight bounded within viewport, card auto-placed above it, 0 horizontal overflow.
+
+### 2026-06-16: Content table capped at 20 — load all documents (fix, deployed)
+
+- **Symptom:** /content "Review Content" table never showed more than 20 items; All/Draft/Live/Trash count chips + "Total Items" stuck at 20 regardless of how much content was added.
+- **Root cause:** `ConfigAdminManager` loaded content via `GET /api/config/admin/:namespace/documents` with **no `pageSize`** (`ConfigAdminManager.tsx:938`). Backend list contract defaults `pageSize` to 20 (max 100) (`config-platform/contracts.ts:230`). Table rows + all counts are derived client-side from the loaded array (`filterCounts`, `ConfigAdminManager.tsx:697`), so it hard-capped at 20. The adjacent options fetch correctly passed `?pageSize=100`, which masked the bug.
+- **Proof:** public bundle `/api/config/public/content` reports **148** published docs in the content namespace (20 `content.*`, 27 `bot.*`, 101 `admin.*` UI-copy) — table was showing 20 of 148.
+- **Fix (commit fe2c76c, dashboard):** added `fetchAllDocuments(listPath)` that pages through the list endpoint at pageSize=100 until it has the reported `total` (50-page / 5,000-doc safety backstop); used for both the content and options document loads. Extended `ListResponse` type with `total/page/pageSize`. Counts + rows now reflect the full library. Build passes.
+- **Verification:** confirmed 148-doc total via public API + build green. Could NOT do logged-in UI check (Playwright session cleared by the earlier backend restart; no admin creds in-session) — user to confirm the All count now shows ~148 after re-login.
+- **Follow-ups (optional, not done):** (1) the content namespace mixes lessons (20) + bot prompts (27) + admin UI copy (101); if the content table should exclude `admin.*` copy, scope the admin content list by type/keyPrefix. (2) If the library grows to thousands, replace client-side load-all with a true server-side paginated table.
