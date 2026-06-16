@@ -50,6 +50,9 @@ type DocumentRow = {
 
 type ListResponse = {
   items: Array<DocumentRow>;
+  total?: number;
+  page?: number;
+  pageSize?: number;
 };
 
 type HistoryResponse = {
@@ -836,6 +839,33 @@ export function ConfigAdminManager({
     return body;
   }
 
+  // Load every document for a list endpoint by paging through results. The admin
+  // list API defaults pageSize to 20 and caps it at 100, so a single call would
+  // silently truncate larger libraries (the content table counts and rows are
+  // derived entirely from what's loaded). Page until we've pulled the reported
+  // total, with a hard safety backstop.
+  async function fetchAllDocuments(listPath: string, accessToken = token): Promise<Array<DocumentRow>> {
+    const PAGE_SIZE = 100;
+    const MAX_PAGES = 50; // safety backstop: up to 5,000 documents
+    const all: Array<DocumentRow> = [];
+    let page = 1;
+    let total = Number.POSITIVE_INFINITY;
+    while (all.length < total && page <= MAX_PAGES) {
+      const separator = listPath.includes("?") ? "&" : "?";
+      const response = (await request(
+        `${listPath}${separator}page=${page}&pageSize=${PAGE_SIZE}`,
+        undefined,
+        accessToken
+      )) as ListResponse;
+      const items = response.items ?? [];
+      all.push(...items);
+      total = typeof response.total === "number" ? response.total : all.length;
+      if (items.length < PAGE_SIZE) break; // reached the last page
+      page += 1;
+    }
+    return all;
+  }
+
   function getCategoryDocumentTitle() {
     if (namespace === "content") {
       return t("configAdmin.categories.contentTitle", "Content Categories");
@@ -934,12 +964,11 @@ export function ConfigAdminManager({
         accessToken
       )) as SessionResponse;
       setRole(session.actor?.role ?? "unknown");
-      const [list, optionList] = (await Promise.all([
-        request(`/api/config/admin/${namespace}/documents`, undefined, accessToken),
-        request("/api/config/admin/options/documents?pageSize=100", undefined, accessToken)
-      ])) as [ListResponse, ListResponse];
-      const nextDocs = list.items ?? [];
-      let nextOptionDocs = optionList.items ?? [];
+      const [nextDocs, initialOptionDocs] = await Promise.all([
+        fetchAllDocuments(`/api/config/admin/${namespace}/documents`, accessToken),
+        fetchAllDocuments("/api/config/admin/options/documents", accessToken)
+      ]);
+      let nextOptionDocs = initialOptionDocs;
 
       if (
         session.actor?.role === "admin" &&
@@ -948,12 +977,10 @@ export function ConfigAdminManager({
       ) {
         hasAttemptedCategorySeedRef.current = true;
         await ensureCategorySeeds(accessToken);
-        const refreshedOptionList = (await request(
-          "/api/config/admin/options/documents?pageSize=100",
-          undefined,
+        nextOptionDocs = await fetchAllDocuments(
+          "/api/config/admin/options/documents",
           accessToken
-        )) as ListResponse;
-        nextOptionDocs = refreshedOptionList.items ?? [];
+        );
       }
 
       setOptionDocs(nextOptionDocs);
