@@ -1,0 +1,254 @@
+﻿Module No,Lesson No,Lesson Title,Category,Item,Length,Limit,Suggested Length,Reduce By (chars)
+1,1,My Phone for More Than Calls and WhatsApp Gist,body,English lesson message (book-emoji + title + body + quiz prompt),1033,1024,1000,33
+1,1,My Phone for More Than Calls and WhatsApp Gist,quiz,"Q1 option 2: ""I tried but got stuck""",21,20,20,1
+1,1,My Phone for More Than Calls and WhatsApp Gist,quiz,"Q2 option 2: ""Shared her product, price and number""",36,20,20,16
+1,1,My Phone for More Than Calls and WhatsApp Gist,quiz,"Q3 option 1: ""Charging your battery""",21,20,20,1
+1,1,My Phone for More Than Calls and WhatsApp Gist,quiz,"Q3 option 2: ""Raising ringtone volume""",23,20,20,3
+1,1,My Phone for More Than Calls and WhatsApp Gist,quiz,"Q3 option 3: ""Sending product photos""",22,20,20,2
+1,2,"My Phone Got Missing, What Now?",body,English lesson message (book-emoji + title + body + quiz prompt),1156,1024,1000,156
+1,2,"My Phone Got Missing, What Now?",quiz,"Q1 option 2: ""I tried but need help""",21,20,20,1
+1,2,"My Phone Got Missing, What Now?",quiz,"Q2 option 3: ""Her contacts were deleted""",25,20,20,5
+1,2,"My Phone Got Missing, What Now?",quiz,"Q3 option 1: ""Wait and hope it returns""",24,20,20,4
+1,2,"My Phone Got Missing, What Now?",quiz,"Q3 option 2: ""Block your SIM quickly""",22,20,20,2
+1,3,Hacked WhatsApp Accounts? How to Stop Them,body,English lesson message (book-emoji + title + body + quiz prompt),1131,1024,1000,131
+1,3,Hacked WhatsApp Accounts? How to Stop Them,quiz,"Q1 option 2: ""I tried but need help""",21,20,20,1
+1,3,Hacked WhatsApp Accounts? How to Stop Them,quiz,"Q2 option 2: ""Send the code quickly""",21,20,20,1
+1,3,Hacked WhatsApp Accounts? How to Stop Them,quiz,"Q2 option 3: ""Ask a friend to help send it""",28,20,20,8
+1,3,Hacked WhatsApp Accounts? How to Stop Them,quiz,"Q3 option 3: ""The person who called""",21,20,20,1
+1,4,Send Me Your OTP: The Call That Collects People's Money,body,English lesson message (book-emoji + title + body + quiz prompt),1241,1024,1000,241
+1,4,Send Me Your OTP: The Call That Collects People's Money,quiz,"Q2 option 1: ""Your account is in danger""",25,20,20,5
+1,4,Send Me Your OTP: The Call That Collects People's Money,quiz,"Q2 option 2: ""Your bank needs the code""",24,20,20,4
+1,4,Send Me Your OTP: The Call That Collects People's Money,quiz,"Q2 option 3: ""It is most likely a scam""",24,20,20,4
+1,4,Send Me Your OTP: The Call That Collects People's Money,quiz,"Q3 option 2: ""Send it and stay safe""",21,20,20,1
+1,4,Send Me Your OTP: The Call That Collects People's Money,quiz,"Q3 option 3: ""Ask your neighbour first""",24,20,20,4
+1,5,Check That Link Before You Click,body,English lesson message (book-emoji + title + body + quiz prompt),1209,1024,1000,209
+1,5,Check That Link Before You Click,quiz,"Q2 option 1: ""Forward it to friends""",21,20,20,1
+1,5,Check That Link Before You Click,quiz,"Q2 option 2: ""Click quickly to get it""",23,20,20,3
+1,5,Check That Link Before You Click,quiz,"Q2 option 3: ""Stop and check carefully""",24,20,20,4
+1,5,Check That Link Before You Click,quiz,"Q3 option 1: ""Check carefully first""",21,20,20,1
+1,5,Check That Link Before You Click,quiz,"Q3 option 2: ""Click and see what opens""",24,20,20,4
+1,6,Fake Alert Problem in the Market,body,English lesson message (book-emoji + title + body + quiz prompt),1189,1024,1000,189
+1,6,Fake Alert Problem in the Market,quiz,"Q1 option 2: ""I need help opening it""",22,20,20,2
+1,6,Fake Alert Problem in the Market,quiz,"Q2 option 1: ""Check your account first""",24,20,20,4
+1,6,Fake Alert Problem in the Market,quiz,"Q2 option 3: ""Give the goods to be kind""",25,20,20,5
+1,6,Fake Alert Problem in the Market,quiz,"Q3 option 2: ""Trust what they show you""",24,20,20,4
+1,6,Fake Alert Problem in the Market,quiz,"Q3 option 3: ""Confirm payment yourself""",24,20,20,4
+1,7,Your Privacy Matters More Than You Think,body,English lesson message (book-emoji + title + body + quiz prompt),1142,1024,1000,142
+1,7,Your Privacy Matters More Than You Think,quiz,"Q1 option 2: ""I looked but did not change""",27,20,20,7
+1,7,Your Privacy Matters More Than You Think,quiz,"Q2 option 1: ""Deleting her WhatsApp""",21,20,20,1
+1,7,Your Privacy Matters More Than You Think,quiz,"Q2 option 2: ""Updating her privacy settings""",29,20,20,9
+1,7,Your Privacy Matters More Than You Think,quiz,"Q2 option 3: ""Changing her phone number""",25,20,20,5
+1,7,Your Privacy Matters More Than You Think,quiz,"Q3 option 1: ""Control who sees your info""",26,20,20,6
+1,7,Your Privacy Matters More Than You Think,quiz,"Q3 option 2: ""Increase your data speed""",24,20,20,4
+1,8,WhatsApp Eats All My MB,body,English lesson message (book-emoji + title + body + quiz prompt),1092,1024,1000,92
+1,8,WhatsApp Eats All My MB,quiz,"Q1 option 2: ""I need help finding it""",22,20,20,2
+1,8,WhatsApp Eats All My MB,quiz,"Q2 option 2: ""Turn off auto-download""",22,20,20,2
+1,8,WhatsApp Eats All My MB,quiz,"Q2 option 3: ""Buy more data every day""",23,20,20,3
+1,8,WhatsApp Eats All My MB,quiz,"Q3 option 3: ""Turn off auto-downloading""",25,20,20,5
+1,9,Using Voice Notes for Your Business,body,English lesson message (book-emoji + title + body + quiz prompt),1238,1024,1000,238
+1,9,Using Voice Notes for Your Business,quiz,"Q1 option 2: ""I recorded but did not send""",27,20,20,7
+1,9,Using Voice Notes for Your Business,quiz,"Q2 option 1: ""Voice notes feel warm and clear""",31,20,20,11
+1,9,Using Voice Notes for Your Business,quiz,"Q2 option 2: ""Customers prefer long messages""",30,20,20,10
+1,9,Using Voice Notes for Your Business,quiz,"Q2 option 3: ""She used perfect English""",24,20,20,4
+1,9,Using Voice Notes for Your Business,quiz,"Q3 option 1: ""Send it without checking""",24,20,20,4
+1,9,Using Voice Notes for Your Business,quiz,"Q3 option 3: ""Record in a noisy place""",23,20,20,3
+2,2,The Right Photo to Get the Right Customer ,quiz,"Q3 option 2: ""To adjust phone volume""",22,20,20,2
+2,3,Available Is Not Enough - Captions That Sell,quiz,"Q1 option 2: ""I feel shy to show it""",21,20,20,1
+2,3,Available Is Not Enough - Captions That Sell,quiz,"Q3 option 2: ""It lowers product cost""",22,20,20,2
+2,4,Turning My Product Photo Into a Simple Flyer ,quiz,"Q1 option 2: ""I got stuck downloading""",23,20,20,3
+2,4,Turning My Product Photo Into a Simple Flyer ,quiz,"Q3 option 1: ""It saves battery life""",21,20,20,1
+2,4,Turning My Product Photo Into a Simple Flyer ,quiz,"Q3 option 2: ""It makes reading easy""",21,20,20,1
+2,5,Social Media Promotional Posting,quiz,"Q1 option 2: ""No, but I will search""",21,20,20,1
+2,6,My WhatsApp Business Shop,quiz,"Q1 option 2: ""I need help migrating""",21,20,20,1
+2,7,Replying My Customers Well,quiz,"Q2 option 1: ""It consumes more data""",21,20,20,1
+2,8,Sending One Message to Many Customers - No Groups!,quiz,"Q1 option 2: ""I need help making it""",21,20,20,1
+2,9,"Happy Customers, More Customers!",quiz,"Q2 option 2: ""Block private details""",21,20,20,1
+2,10,Posting Regularly Without Stress,quiz,"Q2 option 1: ""It deducts bank funds""",21,20,20,1
+2,10,Posting Regularly Without Stress,quiz,"Q3 option 1: ""Pacing a 3-day routine""",22,20,20,2
+2,10,Posting Regularly Without Stress,quiz,"Q3 option 2: ""Deleting business apps""",22,20,20,2
+3,1,Did I Really Make Profit Today?,body,English lesson message (book-emoji + title + body + quiz prompt),1118,1024,1000,118
+3,1,Did I Really Make Profit Today?,quiz,"Q1 option 2: ""I tried but got stuck""",21,20,20,1
+3,1,Did I Really Make Profit Today?,quiz,"Q3 option 1: ""Once a month when you remember""",30,20,20,10
+3,1,Did I Really Make Profit Today?,quiz,"Q3 option 2: ""At the end of each business day""",31,20,20,11
+3,1,Did I Really Make Profit Today?,quiz,"Q3 option 3: ""Only when something goes wrong""",30,20,20,10
+3,2,House Money or Shop Money?,body,English lesson message (book-emoji + title + body + quiz prompt),1198,1024,1000,198
+3,2,House Money or Shop Money?,quiz,"Q2 option 1: ""Her business will look busier""",29,20,20,9
+3,2,House Money or Shop Money?,quiz,"Q2 option 2: ""She will not know if her business is profitable""",47,20,20,27
+3,2,House Money or Shop Money?,quiz,"Q2 option 3: ""Her customers will trust her more""",33,20,20,13
+3,2,House Money or Shop Money?,quiz,"Q3 option 1: ""Spending all profit on yourself""",31,20,20,11
+3,2,House Money or Shop Money?,quiz,"Q3 option 2: ""Taking a fixed amount regularly instead of dipping in randomly""",62,20,20,42
+3,2,House Money or Shop Money?,quiz,"Q3 option 3: ""Borrowing from family to run the business""",41,20,20,21
+3,3,Small Daily Expenses Eating Your Profit,body,English lesson message (book-emoji + title + body + quiz prompt),1243,1024,1000,243
+3,3,Small Daily Expenses Eating Your Profit,quiz,"Q1 option 1: ""Yes, I wrote them all down""",26,20,20,6
+3,3,Small Daily Expenses Eating Your Profit,quiz,"Q1 option 2: ""I tracked some but missed a few""",31,20,20,11
+3,3,Small Daily Expenses Eating Your Profit,quiz,"Q2 option 3: ""It does not matter because the amounts are small""",48,20,20,28
+3,3,Small Daily Expenses Eating Your Profit,quiz,"Q3 option 1: ""At the end of the month""",23,20,20,3
+3,3,Small Daily Expenses Eating Your Profit,quiz,"Q3 option 2: ""The moment you spend it""",23,20,20,3
+3,3,Small Daily Expenses Eating Your Profit,quiz,"Q3 option 3: ""Only when the amount is above NGN 500""",37,20,20,17
+3,4,I Have Sent the Money — Confirm It!,body,English lesson message (book-emoji + title + body + quiz prompt),1117,1024,1000,117
+3,4,I Have Sent the Money — Confirm It!,quiz,"Q1 option 1: ""Yes, I know how to check it""",27,20,20,7
+3,4,I Have Sent the Money — Confirm It!,quiz,"Q1 option 2: ""I need help finding it""",22,20,20,2
+3,4,I Have Sent the Money — Confirm It!,quiz,"Q2 option 1: ""Trust the screenshot and release the goods""",42,20,20,22
+3,4,I Have Sent the Money — Confirm It!,quiz,"Q2 option 2: ""Check her own bank account before releasing anything""",52,20,20,32
+3,4,I Have Sent the Money — Confirm It!,quiz,"Q2 option 3: ""Ask a neighbour to decide""",25,20,20,5
+3,4,I Have Sent the Money — Confirm It!,quiz,"Q3 option 1: ""The screenshot they show you""",28,20,20,8
+3,4,I Have Sent the Money — Confirm It!,quiz,"Q3 option 2: ""Their word that they have paid""",30,20,20,10
+3,4,I Have Sent the Money — Confirm It!,quiz,"Q3 option 3: ""Checking your own bank account or USSD code""",43,20,20,23
+3,5,Working Safely With POS Agents,body,English lesson message (book-emoji + title + body + quiz prompt),1351,1024,1000,351
+3,5,Working Safely With POS Agents,quiz,"Q1 option 1: ""Yes, I confirmed it myself""",26,20,20,6
+3,5,Working Safely With POS Agents,quiz,"Q1 option 2: ""I need help knowing how to check""",32,20,20,12
+3,5,Working Safely With POS Agents,quiz,"Q2 option 1: ""Try the transaction again to be safe""",36,20,20,16
+3,5,Working Safely With POS Agents,quiz,"Q2 option 2: ""Refuse to pay again and request a reversal""",42,20,20,22
+3,5,Working Safely With POS Agents,quiz,"Q2 option 3: ""Leave and hope it sorts itself out""",34,20,20,14
+3,5,Working Safely With POS Agents,quiz,"Q3 option 1: ""Thank the agent and leave quickly""",33,20,20,13
+3,5,Working Safely With POS Agents,quiz,"Q3 option 2: ""Confirm the transaction on your own banking app or USSD code""",60,20,20,40
+3,5,Working Safely With POS Agents,quiz,"Q3 option 3: ""Ask the agent if everything went through""",40,20,20,20
+3,6,Saving Money Small Small — Digitally,body,English lesson message (book-emoji + title + body + quiz prompt),1246,1024,1000,246
+3,6,Saving Money Small Small — Digitally,quiz,"Q1 option 1: ""Yes, I made my first deposit""",28,20,20,8
+3,6,Saving Money Small Small — Digitally,quiz,"Q1 option 2: ""I found the app but did not deposit yet""",39,20,20,19
+3,6,Saving Money Small Small — Digitally,quiz,"Q2 option 1: ""Hide the cash in a different place""",34,20,20,14
+3,6,Saving Money Small Small — Digitally,quiz,"Q2 option 2: ""Move her savings to a digital platform""",38,20,20,18
+3,6,Saving Money Small Small — Digitally,quiz,"Q2 option 3: ""Stop saving and spend freely""",28,20,20,8
+3,6,Saving Money Small Small — Digitally,quiz,"Q3 option 1: ""Saving a large amount once a month""",34,20,20,14
+3,6,Saving Money Small Small — Digitally,quiz,"Q3 option 2: ""Saving whatever is left at the end of the day""",45,20,20,25
+3,6,Saving Money Small Small — Digitally,quiz,"Q3 option 3: ""Saving a small fixed amount every day consistently""",50,20,20,30
+3,7,Is My Pricing Making Me Profit? Or Loss?,body,English lesson message (book-emoji + title + body + quiz prompt),1247,1024,1000,247
+3,7,Is My Pricing Making Me Profit? Or Loss?,quiz,"Q1 option 2: ""I tried but need help with the formula""",38,20,20,18
+3,7,Is My Pricing Making Me Profit? Or Loss?,quiz,"Q3 option 1: ""The same as what others around you charge""",41,20,20,21
+3,7,Is My Pricing Making Me Profit? Or Loss?,quiz,"Q3 option 2: ""Higher than your total cost including all expenses""",50,20,20,30
+3,7,Is My Pricing Making Me Profit? Or Loss?,quiz,"Q3 option 3: ""As low as possible to attract more customers""",44,20,20,24
+3,8,Creating a WhatsApp Catalogue or Product List,body,English lesson message (book-emoji + title + body + quiz prompt),1310,1024,1000,310
+3,8,Creating a WhatsApp Catalogue or Product List,quiz,"Q1 option 1: ""Yes, my catalogue is ready""",26,20,20,6
+3,8,Creating a WhatsApp Catalogue or Product List,quiz,"Q1 option 2: ""I started but need help""",23,20,20,3
+3,8,Creating a WhatsApp Catalogue or Product List,quiz,"Q2 option 1: ""Type out all her products and prices one by one""",47,20,20,27
+3,8,Creating a WhatsApp Catalogue or Product List,quiz,"Q2 option 2: ""Send her WhatsApp Catalogue link so the customer can browse everything""",70,20,20,50
+3,8,Creating a WhatsApp Catalogue or Product List,quiz,"Q2 option 3: ""Ask the customer to visit her stall""",35,20,20,15
+3,8,Creating a WhatsApp Catalogue or Product List,quiz,"Q3 option 2: ""A clear photo, product name, correct price, and short description""",65,20,20,45
+3,8,Creating a WhatsApp Catalogue or Product List,quiz,"Q3 option 3: ""A long story about how the product was made""",43,20,20,23
+3,9,What My Records Say After One Week,body,English lesson message (book-emoji + title + body + quiz prompt),1400,1024,1000,400
+3,9,What My Records Say After One Week,quiz,"Q1 option 1: ""Yes, I know my weekly profit""",28,20,20,8
+3,9,What My Records Say After One Week,quiz,"Q1 option 2: ""I looked but did not calculate""",30,20,20,10
+3,9,What My Records Say After One Week,quiz,"Q3 option 1: ""Ignore it and hope next week is better""",38,20,20,18
+3,9,What My Records Say After One Week,quiz,"Q3 option 2: ""Use it to find ways to reduce transport costs next week""",55,20,20,35
+3,9,What My Records Say After One Week,quiz,"Q3 option 3: ""Stop recording expenses""",23,20,20,3
+4,1,My Phone Belongs to Me,body,English lesson message (book-emoji + title + body + quiz prompt),1049,1024,1000,49
+4,1,My Phone Belongs to Me,quiz,"Q1 option 2: ""I tried but need help finding the setting""",41,20,20,21
+4,1,My Phone Belongs to Me,quiz,"Q2 option 1: ""Her right to free speech""",24,20,20,4
+4,1,My Phone Belongs to Me,quiz,"Q2 option 2: ""Her right to digital independence and privacy""",45,20,20,25
+4,1,My Phone Belongs to Me,quiz,"Q2 option 3: ""Her right to education""",22,20,20,2
+4,1,My Phone Belongs to Me,quiz,"Q3 option 1: ""True, nobody should ever touch your phone""",41,20,20,21
+4,1,My Phone Belongs to Me,quiz,"Q3 option 2: ""it is about choosing who has access, not locking everyone out""",61,20,20,41
+4,1,My Phone Belongs to Me,quiz,"Q3 option 3: ""True, sharing your phone is always dangerous""",44,20,20,24
+4,2,What Online Harassment Actually Looks Like,quiz,"Q1 option 1: ""A friendly customer trying to connect""",37,20,20,17
+4,2,What Online Harassment Actually Looks Like,quiz,"Q1 option 2: ""Online harassment, excessive and unwanted contact""",49,20,20,29
+4,2,What Online Harassment Actually Looks Like,quiz,"Q1 option 3: ""Normal business communication""",29,20,20,9
+4,2,What Online Harassment Actually Looks Like,quiz,"Q2 option 1: ""A customer showing appreciation for your products""",49,20,20,29
+4,2,What Online Harassment Actually Looks Like,quiz,"Q2 option 2: ""Online harassment, specifically unwanted sexual advances""",56,20,20,36
+4,2,What Online Harassment Actually Looks Like,quiz,"Q2 option 3: ""A normal way for customers to communicate""",41,20,20,21
+4,2,What Online Harassment Actually Looks Like,quiz,"Q3 option 1: ""Delete it immediately so you don't have to see it""",49,20,20,29
+4,2,What Online Harassment Actually Looks Like,quiz,"Q3 option 2: ""Reply and tell them to stop""",27,20,20,7
+4,2,What Online Harassment Actually Looks Like,quiz,"Q3 option 3: ""Stay calm, do not delete it yet, and do not apologize""",53,20,20,33
+4,3,"Fake Love, Fake Accounts, and People Pretending to Be Someone Else",body,English lesson message (book-emoji + title + body + quiz prompt),1045,1024,1000,45
+4,3,"Fake Love, Fake Accounts, and People Pretending to Be Someone Else",quiz,"Q1 option 1: ""Send the money because they seem to be in trouble""",49,20,20,29
+4,3,"Fake Love, Fake Accounts, and People Pretending to Be Someone Else",quiz,"Q1 option 2: ""Recognize this as a major red flag, block them, and report the account""",70,20,20,50
+4,3,"Fake Love, Fake Accounts, and People Pretending to Be Someone Else",quiz,"Q1 option 3: ""Ask for more details about their emergency before deciding""",58,20,20,38
+4,3,"Fake Love, Fake Accounts, and People Pretending to Be Someone Else",quiz,"Q2 option 1: ""The person is very attractive""",29,20,20,9
+4,3,"Fake Love, Fake Accounts, and People Pretending to Be Someone Else",quiz,"Q2 option 2: ""The profile has very few friends and quickly asks for bank details""",66,20,20,46
+4,3,"Fake Love, Fake Accounts, and People Pretending to Be Someone Else",quiz,"Q2 option 3: ""The person wants to partner in business""",39,20,20,19
+4,3,"Fake Love, Fake Accounts, and People Pretending to Be Someone Else",quiz,"Q3 option 1: ""Trust them if they sound friendly and educated""",46,20,20,26
+4,3,"Fake Love, Fake Accounts, and People Pretending to Be Someone Else",quiz,"Q3 option 2: ""Send a small amount of money first to test them""",47,20,20,27
+4,3,"Fake Love, Fake Accounts, and People Pretending to Be Someone Else",quiz,"Q3 option 3: ""Ask for a video call or do a reverse image search of their profile photo""",72,20,20,52
+4,4,Things Never to Be Shared Online,body,English lesson message (book-emoji + title + body + quiz prompt),1067,1024,1000,67
+4,4,Things Never to Be Shared Online,quiz,"Q1 option 1: ""A photo of her new product with the price""",41,20,20,21
+4,4,Things Never to Be Shared Online,quiz,"Q1 option 2: ""A photo of her bank statement showing the large amount""",54,20,20,34
+4,4,Things Never to Be Shared Online,quiz,"Q1 option 3: ""A general message saying ""Big sales today! Thank you, customers!""""",65,20,20,45
+4,4,Things Never to Be Shared Online,quiz,"Q2 option 1: ""Your full home address""",22,20,20,2
+4,4,Things Never to Be Shared Online,quiz,"Q2 option 2: ""A photo of your new product with its price and your business WhatsApp number""",76,20,20,56
+4,4,Things Never to Be Shared Online,quiz,"Q2 option 3: ""Your exact real-time location while away from your shop""",55,20,20,35
+4,4,Things Never to Be Shared Online,quiz,"Q3 option 1: ""Leave it, it is their post and not your business""",48,20,20,28
+4,4,Things Never to Be Shared Online,quiz,"Q3 option 2: ""Ask them to remove the tag or take down the photo""",49,20,20,29
+4,4,Things Never to Be Shared Online,quiz,"Q3 option 3: ""Share it yourself since they already posted it""",46,20,20,26
+4,5,"Blocking, Reporting, and Protecting Your Peace",body,English lesson message (book-emoji + title + body + quiz prompt),1044,1024,1000,44
+4,5,"Blocking, Reporting, and Protecting Your Peace",quiz,"Q1 option 1: ""Yes, I reviewed and updated them""",32,20,20,12
+4,5,"Blocking, Reporting, and Protecting Your Peace",quiz,"Q1 option 2: ""I looked but did not change anything""",36,20,20,16
+4,5,"Blocking, Reporting, and Protecting Your Peace",quiz,"Q2 option 1: ""Reply and tell the person to stop""",33,20,20,13
+4,5,"Blocking, Reporting, and Protecting Your Peace",quiz,"Q2 option 2: ""Block the unknown number on WhatsApp""",36,20,20,16
+4,5,"Blocking, Reporting, and Protecting Your Peace",quiz,"Q2 option 3: ""Change her phone number""",23,20,20,3
+4,5,"Blocking, Reporting, and Protecting Your Peace",quiz,"Q3 option 1: ""Reporting sends them a warning message""",38,20,20,18
+4,5,"Blocking, Reporting, and Protecting Your Peace",quiz,"Q3 option 2: ""Reporting helps the platform act and protects other women from the same person""",78,20,20,58
+4,5,"Blocking, Reporting, and Protecting Your Peace",quiz,"Q3 option 3: ""Reporting automatically deletes their account""",45,20,20,25
+4,6,Nigerian Law and Online Harassment,body,English lesson message (book-emoji + title + body + quiz prompt),1133,1024,1000,133
+4,6,Nigerian Law and Online Harassment,quiz,"Q1 option 1: ""Reply to them one last time""",27,20,20,7
+4,6,Nigerian Law and Online Harassment,quiz,"Q1 option 2: ""Take dated screenshots of the messages as evidence""",50,20,20,30
+4,6,Nigerian Law and Online Harassment,quiz,"Q1 option 3: ""Delete the messages so you do not have to see them""",50,20,20,30
+4,6,Nigerian Law and Online Harassment,quiz,"Q3 option 1: ""Delete the messages so she does not have to see them again""",58,20,20,38
+4,6,Nigerian Law and Online Harassment,quiz,"Q3 option 2: ""Take dated screenshots, block and report on the platform, and consider reporting to the police given the severity""",113,20,20,93
+4,6,Nigerian Law and Online Harassment,quiz,"Q3 option 3: ""Ignore it completely since it is just online""",44,20,20,24
+4,7,When WhatsApp Feels Too Heavy,body,English lesson message (book-emoji + title + body + quiz prompt),1087,1024,1000,87
+4,7,When WhatsApp Feels Too Heavy,quiz,"Q1 option 2: ""I did not know this feature existed""",35,20,20,15
+4,7,When WhatsApp Feels Too Heavy,quiz,"Q2 option 1: ""Digital stress or screen fatigue""",32,20,20,12
+4,7,When WhatsApp Feels Too Heavy,quiz,"Q3 option 1: ""Keep all notifications on so you never miss anything""",52,20,20,32
+4,7,When WhatsApp Feels Too Heavy,quiz,"Q3 option 2: ""Set specific phone work hours and turn off non-essential notifications outside those hours""",90,20,20,70
+4,7,When WhatsApp Feels Too Heavy,quiz,"Q3 option 3: ""Respond to every customer message immediately, even at midnight""",63,20,20,43
+4,8,Becoming a Safe Woman for Other Women,body,English lesson message (book-emoji + title + body + quiz prompt),1111,1024,1000,111
+4,8,Becoming a Safe Woman for Other Women,quiz,"Q1 option 1: ""Start a public argument with the stranger in the comments""",57,20,20,37
+4,8,Becoming a Safe Woman for Other Women,quiz,"Q1 option 2: ""Send Joy a private message to offer support and report the insulting comments to Facebook""",89,20,20,69
+4,8,Becoming a Safe Woman for Other Women,quiz,"Q1 option 3: ""Share the stranger's profile with others to gang up on them""",59,20,20,39
+4,8,Becoming a Safe Woman for Other Women,quiz,"Q2 option 1: ""Because it is not your business""",31,20,20,11
+4,8,Becoming a Safe Woman for Other Women,quiz,"Q2 option 2: ""Because engaging them can escalate the situation and draw negative attention to you too""",87,20,20,67
+4,8,Becoming a Safe Woman for Other Women,quiz,"Q2 option 3: ""Because the platform will handle it automatically""",49,20,20,29
+4,8,Becoming a Safe Woman for Other Women,quiz,"Q3 option 1: ""Allow members to say anything,  freedom of expression matters""",61,20,20,41
+4,8,Becoming a Safe Woman for Other Women,quiz,"Q3 option 2: ""Set clear anti-harassment rules and actively moderate to enforce them""",69,20,20,49
+4,8,Becoming a Safe Woman for Other Women,quiz,"Q3 option 3: ""Only admit women you know personally""",36,20,20,16
+5,1,Finding Useful Business Information Online,quiz,"Q1 option 2: ""I tried but I'm not sure I used the right words""",47,20,20,27
+5,1,Finding Useful Business Information Online,quiz,"Q2 option 1: ""A WhatsApp message forwarded by a friend""",40,20,20,20
+5,1,Finding Useful Business Information Online,quiz,"Q2 option 2: ""The official website of a government agency like SMEDAN""",55,20,20,35
+5,1,Finding Useful Business Information Online,quiz,"Q2 option 3: ""A blog post with no named author or date""",40,20,20,20
+5,1,Finding Useful Business Information Online,quiz,"Q3 option 1: ""Act on it immediately since it sounds helpful""",45,20,20,25
+5,1,Finding Useful Business Information Online,quiz,"Q3 option 2: ""Pause and check it against two or three other reputable sources first""",69,20,20,49
+5,1,Finding Useful Business Information Online,quiz,"Q3 option 3: ""Forward it to friends so they know too""",38,20,20,18
+5,2,"Government Has Started Sharing Money, Is It True?",quiz,"Q1 option 2: ""I don't have a message to test right now""",40,20,20,20
+5,2,"Government Has Started Sharing Money, Is It True?",quiz,"Q2 option 1: ""It is a genuine opportunity, pay quickly before slots run out""",61,20,20,41
+5,2,"Government Has Started Sharing Money, Is It True?",quiz,"Q2 option 2: ""It is a scam, legitimate grants never ask for upfront payment""",61,20,20,41
+5,2,"Government Has Started Sharing Money, Is It True?",quiz,"Q2 option 3: ""You should forward it to friends so they can also benefit""",57,20,20,37
+5,2,"Government Has Started Sharing Money, Is It True?",quiz,"Q3 option 1: ""A formal application process with clear eligibility criteria""",60,20,20,40
+5,2,"Government Has Started Sharing Money, Is It True?",quiz,"Q3 option 2: """"Forward this to everyone"" pressure and urgent deadlines""",56,20,20,36
+5,2,"Government Has Started Sharing Money, Is It True?",quiz,"Q3 option 3: ""A named contact person and proper office address""",48,20,20,28
+5,3,"Before You Forward That Message, Check Again",quiz,"Q1 option 2: ""I didn't have a suspicious message to check""",43,20,20,23
+5,3,"Before You Forward That Message, Check Again",quiz,"Q2 option 1: ""Forward it immediately to protect your family and friends""",57,20,20,37
+5,3,"Before You Forward That Message, Check Again",quiz,"Q2 option 2: ""Search the claim on Google and check official health sources first""",66,20,20,46
+5,3,"Before You Forward That Message, Check Again",quiz,"Q2 option 3: ""Try the mixture first to see if it works""",40,20,20,20
+5,3,"Before You Forward That Message, Check Again",quiz,"Q3 option 1: ""Because it is usually written by professional journalists""",57,20,20,37
+5,3,"Before You Forward That Message, Check Again",quiz,"Q3 option 2: ""Because it triggers strong emotion and looks official""",53,20,20,33
+5,3,"Before You Forward That Message, Check Again",quiz,"Q3 option 3: ""Because government agencies share it""",36,20,20,16
+5,4,Using Your Phone to Document a Problem in Your Market,quiz,"Q1 option 2: ""I tried but I'm not confident yet""",33,20,20,13
+5,4,Using Your Phone to Document a Problem in Your Market,quiz,"Q2 option 1: ""One quick, blurry close-up of just the hole""",43,20,20,23
+5,4,Using Your Phone to Document a Problem in Your Market,quiz,"Q2 option 2: ""Clear photos from different angles showing the pothole, its size, and nearby landmarks""",86,20,20,66
+5,4,Using Your Phone to Document a Problem in Your Market,quiz,"Q2 option 3: ""A photo with no date or location information""",44,20,20,24
+5,4,Using Your Phone to Document a Problem in Your Market,quiz,"Q3 option 1: ""Delete it immediately to free up phone space""",44,20,20,24
+5,4,Using Your Phone to Document a Problem in Your Market,quiz,"Q3 option 2: ""Keep it saved safely until the problem is fully resolved""",56,20,20,36
+5,4,Using Your Phone to Document a Problem in Your Market,quiz,"Q3 option 3: ""Send it to everyone in your contacts""",36,20,20,16
+5,5,How and to Whom To Report Community Problems?,body,English lesson message (book-emoji + title + body + quiz prompt),1044,1024,1000,44
+5,5,How and to Whom To Report Community Problems?,quiz,"Q1 option 1: ""Yes, I identified one""",21,20,20,1
+5,5,How and to Whom To Report Community Problems?,quiz,"Q1 option 2: ""I'm still not sure who to contact""",33,20,20,13
+5,5,How and to Whom To Report Community Problems?,quiz,"Q2 option 1: ""The State Governor directly""",27,20,20,7
+5,5,How and to Whom To Report Community Problems?,quiz,"Q2 option 2: ""Your market leaders or the LGA Department of Environment""",56,20,20,36
+5,5,How and to Whom To Report Community Problems?,quiz,"Q2 option 3: ""A national television station""",29,20,20,9
+5,5,How and to Whom To Report Community Problems?,quiz,"Q3 option 1: ""Give up since nothing happened""",30,20,20,10
+5,5,How and to Whom To Report Community Problems?,quiz,"Q3 option 2: ""Send a polite follow-up, and escalate to a higher authority if needed""",69,20,20,49
+5,5,How and to Whom To Report Community Problems?,quiz,"Q3 option 3: ""Wait indefinitely for a reply""",29,20,20,9
+5,6,Finding the Right Women and Business Groups,body,English lesson message (book-emoji + title + body + quiz prompt),1048,1024,1000,48
+5,6,Finding the Right Women and Business Groups,quiz,"Q1 option 2: ""I searched but haven't decided yet""",34,20,20,14
+5,6,Finding the Right Women and Business Groups,quiz,"Q2 option 1: ""It has clear rules, an active admin, and focuses on genuine business support""",76,20,20,56
+5,6,Finding the Right Women and Business Groups,quiz,"Q2 option 2: ""It allows members to post anything without moderation""",53,20,20,33
+5,6,Finding the Right Women and Business Groups,quiz,"Q2 option 3: ""It frequently shares exciting investment opportunities""",54,20,20,34
+5,6,Finding the Right Women and Business Groups,quiz,"Q3 option 1: ""Click any group link sent to you, even from unknown numbers""",59,20,20,39
+5,6,Finding the Right Women and Business Groups,quiz,"Q3 option 2: ""Only join through a link shared by someone you know and trust""",61,20,20,41
+5,6,Finding the Right Women and Business Groups,quiz,"Q3 option 3: ""Join as many groups as possible to increase your chances""",56,20,20,36
+5,7,My Voice Matters,quiz,"Q1 option 2: ""I started but didn't finish""",27,20,20,7
+5,7,My Voice Matters,quiz,"Q2 option 1: ""Posting angry complaints on your personal WhatsApp status""",57,20,20,37
+5,7,My Voice Matters,quiz,"Q2 option 2: ""A polite but firm message to the electricity company's official page, with dates and impact included""",100,20,20,80
+5,7,My Voice Matters,quiz,"Q2 option 3: ""Waiting for other traders to complain first""",43,20,20,23
+5,7,My Voice Matters,quiz,"Q3 option 1: ""Because your daily experience as a trader is itself valid evidence""",66,20,20,46
+5,7,My Voice Matters,quiz,"Q3 option 2: ""Because only officials' opinions count""",38,20,20,18
+5,7,My Voice Matters,quiz,"Q3 option 3: ""Because speaking up guarantees an immediate result""",50,20,20,30
