@@ -165,12 +165,19 @@ export function LoginPageClient() {
           </Button>
         }
         footer={
-          <p className="auth-shell__footnote">
-            {t(
-              "auth.login.footer",
-              "Use only the admin account assigned to your role. Authenticated sessions redirect directly into your protected workspace."
-            )}
-          </p>
+          <>
+            <p className="auth-shell__footnote">
+              {t(
+                "auth.login.footer",
+                "Use only the admin account assigned to your role. Authenticated sessions redirect directly into your protected workspace."
+              )}
+            </p>
+            <p className="auth-shell__footnote">
+              <a className="auth-shell__footlink" href="/privacy">
+                {t("auth.login.privacyLink", "Privacy Policy")}
+              </a>
+            </p>
+          </>
         }
       >
         <LoginFormCard
