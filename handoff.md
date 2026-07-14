@@ -407,3 +407,9 @@ Follow-up (optional): the tour step copy is currently in-code; it could be made 
 - Applied via minted admin JWT (`ADMIN_CONFIG_JWT_SECRET`) → PUT draft → publish, per module (scripts in scratchpad module2-5.py + apply_m1). quiz / pcm / ig / audioUrls preserved untouched.
 - **Final audit:** 43/43 lessons — 0 over 1024, 0 missing paragraph breaks, 0 missing quiz, largest message 975/1024. All versioned/rollback-able.
 - Still English-only: pcm/ig remain the "Welcome content" placeholder (translation is the next content gap).
+
+### 2026-07-13: Module menu → list + seedable menu prompts (staging rev 00075-8kc)
+
+- **Module menu is now a WhatsApp interactive list** (both the start-learning entry and the invalid-selection fallback), replacing reply buttons — all 5 modules are now tappable (buttons cap at 3). Rows: title "N. Module N", full topic in the description (no truncation); tap or number-reply both work. New `buildModuleListReply` helper in handler.ts.
+- **New menu prompts registered + published:** `lesson_menu_header`, `lesson_menu_footer`, `lesson_menu_button`, `module_menu_button` added to BOT_PROMPT_DEFAULTS/TITLES (en/pcm/ig) and published as `bot.prompt.*` (type ui_copy) — now editable in the admin copy editor. (commits 923bb4c, + row polish)
+- Verified via sandbox: module list shows 5 clean rows; tapping "Module 4" → lesson_menu.
