@@ -400,3 +400,10 @@ Follow-up (optional): the tour step copy is currently in-code; it could be made 
 - **Ordering fix:** `getRuntimeLessons()` returns docs in DB-update order, so lessons showed jumbled (Lesson 2 = m1_l9) and the linear next-lesson flow followed edit order. Now each module's lessons are sorted by the `_l{N}_` number in the key. (commit ad3a75d)
 - **Verified** via sandbox conversation: module 1 → ordered list (Lesson 1..9 = m1_l1..m1_l9) → pick lesson N → lesson delivered into quiz flow.
 - **Content reformat (Version B) in progress, separate track:** m1_l1 reformatted + published (paragraphs + numbered steps, 904/1024); remaining 42 lessons pending. Apply mechanism: mint admin JWT from `ADMIN_CONFIG_JWT_SECRET` (cloudrun-staging-env.yaml) → PUT `/api/config/admin/content/documents/{key}/draft` → POST `/publish` (versioned/rollback-able). English only; pcm/ig still "Welcome content" placeholders.
+
+### 2026-07-13: Version B content reformat — ALL 43 lessons complete (staging)
+
+- Reformatted every English lesson body to "Version B": paragraph breaks (blank lines), numbered steps / bullet lists for procedures, selective `&` and `NGN`→`₦` compression, light copyedits (typos), meaning preserved. Fixed the "wall of text" clumping (0/43 previously had paragraph breaks).
+- Applied via minted admin JWT (`ADMIN_CONFIG_JWT_SECRET`) → PUT draft → publish, per module (scripts in scratchpad module2-5.py + apply_m1). quiz / pcm / ig / audioUrls preserved untouched.
+- **Final audit:** 43/43 lessons — 0 over 1024, 0 missing paragraph breaks, 0 missing quiz, largest message 975/1024. All versioned/rollback-able.
+- Still English-only: pcm/ig remain the "Welcome content" placeholder (translation is the next content gap).
