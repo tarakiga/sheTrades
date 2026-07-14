@@ -5,7 +5,7 @@ import { prisma } from "../admin/prisma.js";
 import type { WhatsAppListSpec } from "./sender.js";
 import { sendWhatsAppMessage } from "./sender.js";
 
-export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu";
+export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu";
 
 type AnalyticsEvent =
   | { type: "quiz_answered"; lessonKey: string; correct: boolean }
@@ -205,6 +205,40 @@ function buildStateListReply(lang: "en" | "pcm" | "ig", rows: StateRow[]) {
     list: {
       button: getPrompt("state_button", lang, "Choose state"),
       sections: [{ title: "States", rows: rows.map((r) => ({ id: r.id, title: r.title })) }]
+    }
+  };
+}
+
+function buildLessonListReply(
+  moduleName: string,
+  moduleLessons: RuntimeLesson[],
+  completed: string[],
+  lang: "en" | "pcm" | "ig"
+): { reply: string; list: WhatsAppListSpec } {
+  const shortModule = moduleName.split(":")[0] || moduleName;
+  const header = getPrompt("lesson_menu_header", lang, "Choose a lesson to begin (✅ = done):");
+  let reply = `📚 ${shortModule}\n${header}\n`;
+  moduleLessons.forEach((l, i) => {
+    const mark = completed.includes(l.key) ? "✅" : "▶️";
+    const title = l.title.length > 45 ? `${l.title.slice(0, 44)}…` : l.title;
+    reply += `${i + 1}. ${mark} ${title}\n`;
+  });
+  reply += getPrompt("lesson_menu_footer", lang, "\nReply with a number, or tap “Choose lesson”. MENU to go back.");
+  return {
+    reply,
+    list: {
+      button: getPrompt("lesson_menu_button", lang, "Choose lesson"),
+      sections: [
+        {
+          title: shortModule.slice(0, 24),
+          // WhatsApp lists allow at most 10 rows; typers can still use the numbered body list.
+          rows: moduleLessons.slice(0, 10).map((l, i) => ({
+            id: l.key,
+            title: `${completed.includes(l.key) ? "✅" : "▶️"} Lesson ${i + 1}`,
+            description: l.title.slice(0, 72)
+          }))
+        }
+      ]
     }
   };
 }
@@ -570,6 +604,43 @@ function transition(
     };
   }
 
+  if (session.state === "lesson_menu") {
+    const moduleLessons = session.selectedModuleId
+      ? modulesMap.get(session.selectedModuleId) || []
+      : [];
+
+    if (moduleLessons.length === 0) {
+      session.state = "module_menu";
+      session.selectedModuleId = null;
+      session.lastUpdatedAt = nowIso();
+      return {
+        state: session.state,
+        reply: "That module has no lessons yet. Reply MENU to return.",
+        buttons: ["MENU"]
+      };
+    }
+
+    // Resolve the chosen lesson from a tapped row ("▶️ Lesson N") or a typed number.
+    const lessonMatch = normalized.match(/lesson\s*(\d+)/) || normalized.match(/^(\d+)$/);
+    const lessonIdx = lessonMatch ? parseInt(lessonMatch[1]!, 10) : NaN;
+    if (!isNaN(lessonIdx) && lessonIdx >= 1 && lessonIdx <= moduleLessons.length) {
+      const chosen = moduleLessons[lessonIdx - 1]!;
+      session.currentLessonKey = chosen.key;
+      session.state = "module_menu";
+      session.awaitingQuizAnswer = false;
+      session.currentQuizIndex = 0;
+      session.lastUpdatedAt = nowIso();
+      const lessonText = chosen.languages[lang] || chosen.languages.en || "";
+      const reply = `📖 ${chosen.title}\n\n${lessonText}${getPrompt("quiz_instruction", lang, "\n\nReply QUIZ to start the lesson quiz, or MENU to return.")}`;
+      return { state: session.state, reply, buttons: ["QUIZ", "MENU"] };
+    }
+
+    // Anything else → (re)show the lesson list for this module.
+    const completed = session.completedLessons || [];
+    const menu = buildLessonListReply(session.selectedModuleId || "", moduleLessons, completed, lang);
+    return { state: session.state, reply: menu.reply, list: menu.list };
+  }
+
   if (session.state === "module_menu") {
     // Case A: User has not selected a specific module yet (at the module list prompt)
     if (!session.selectedModuleId) {
@@ -588,21 +659,16 @@ function transition(
           };
         }
 
-        // Start at first incomplete lesson, or first lesson if all completed
-        const completed = session.completedLessons || [];
-        const firstIncomplete = (moduleLessons.find(l => !completed.includes(l.key)) || moduleLessons[0])!;
-        session.currentLessonKey = firstIncomplete.key;
+        // Show the lesson menu so the learner can pick any lesson in the module
+        // (rather than jumping straight into their next unfinished lesson).
+        session.state = "lesson_menu";
+        session.currentLessonKey = null;
         session.awaitingQuizAnswer = false;
         session.currentQuizIndex = 0;
 
-        const lessonText = firstIncomplete.languages[lang] || firstIncomplete.languages.en || "";
-        const reply = `📖 ${firstIncomplete.title}\n\n${lessonText}${getPrompt("quiz_instruction", lang, "\n\nReply QUIZ to start the lesson quiz, or MENU to return.")}`;
-
-        return {
-          state: session.state,
-          reply,
-          buttons: ["QUIZ", "MENU"]
-        };
+        const completed = session.completedLessons || [];
+        const lessonMenu = buildLessonListReply(chosenModule, moduleLessons, completed, lang);
+        return { state: session.state, reply: lessonMenu.reply, list: lessonMenu.list };
       }
 
       let reply = getPrompt("invalid_module", lang, "Invalid module selection. Please choose a Module to begin:");
