@@ -11,10 +11,15 @@ export type OutboundReply = {
   list?: WhatsAppListSpec;
 };
 
-const BUTTON_TITLE_MAX = 20;
-const ROW_TITLE_MAX = 24;
+// WhatsApp truncates interactive reply-button titles to 20 chars and list-row
+// titles to 24 chars (UTF-16 code units). Exported so the inbound handler can
+// mirror the exact same clipping when matching a tapped reply back to an option
+// (a tapped option longer than the limit comes back truncated). Single source
+// of truth — do not redefine these numbers elsewhere.
+export const BUTTON_TITLE_MAX = 20;
+export const ROW_TITLE_MAX = 24;
 
-function clip(value: string, max: number): string {
+export function clip(value: string, max: number): string {
   return value.length > max ? value.slice(0, max) : value;
 }
 

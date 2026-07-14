@@ -3,7 +3,7 @@ import { getRuntimeOptionSet, getRuntimeText, getRuntimeLocalizedText, getRuntim
 import { BOT_PROMPT_DEFAULTS, BOT_PROMPT_CONFIG_PREFIX } from "./bot-prompts.js";
 import { prisma } from "../admin/prisma.js";
 import type { WhatsAppListSpec } from "./sender.js";
-import { sendWhatsAppMessage } from "./sender.js";
+import { sendWhatsAppMessage, BUTTON_TITLE_MAX, clip } from "./sender.js";
 
 export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu";
 
@@ -411,6 +411,40 @@ function getPrompt(
   return resolved[lang] ?? resolved.en ?? fallback;
 }
 
+/**
+ * Decide whether a learner's quiz reply is correct.
+ *
+ * Accepts either a numeric answer ("1"/"2"/"3", optionally prefixed like "1."
+ * or "1)") or the option's text. Crucially it is tolerant of the truncation
+ * WhatsApp applies to interactive reply-button titles (BUTTON_TITLE_MAX in
+ * sender.ts): a tapped option longer than the limit is echoed back CLIPPED, so
+ * each option is compared in both its full and clipped form. Without this,
+ * correct answers whose option text exceeds the limit (e.g. M1 L7 Q3 "Set who
+ * sees your info", 22 chars) are scored WRONG on real WhatsApp even though they
+ * pass in the dashboard sandbox, which echoes the full untruncated title.
+ *
+ * Pure and exported so the matching rules can be unit-tested without the DB.
+ */
+export function isQuizReplyCorrect(rawInput: string, options: string[], answerIndex: number): boolean {
+  const normalized = rawInput.trim().toLowerCase();
+  // Strip a leading "N. " or "N) " prefix so button clicks like "1. Apple"
+  // still match against the option text or the option number.
+  const strippedInput = normalized.replace(/^\d+\s*[.)]\s*/, "").trim();
+  const leadingNumberMatch = normalized.match(/^(\d+)\s*[.)]/);
+  const inputAsNumber = leadingNumberMatch ? leadingNumberMatch[1] : normalized;
+
+  const matchesOption = (opt: string): boolean => {
+    const o = opt.trim().toLowerCase();
+    const clipped = clip(o, BUTTON_TITLE_MAX);
+    return normalized === o || strippedInput === o || normalized === clipped || strippedInput === clipped;
+  };
+  const selectedIndex = options.findIndex(matchesOption);
+
+  const isCorrectNumber = inputAsNumber === String(answerIndex + 1);
+  const isCorrectText = selectedIndex >= 0 && selectedIndex === answerIndex;
+  return isCorrectNumber || isCorrectText;
+}
+
 function transition(
   session: UserSession,
   text: string
@@ -741,18 +775,7 @@ function transition(
       const quizItem = activeLesson.quiz[qIndex]; // Fetch active quiz item
       if (quizItem) {
         const correctIndex = quizItem.answerIndex;
-        const correctOptionText = quizItem.options[correctIndex]?.trim().toLowerCase() || "";
-
-        // Strip a leading "N. " or "N) " prefix so button clicks like
-        // "1. Apple" still match against the option text or option number.
-        const strippedInput = normalized.replace(/^\d+\s*[.)]\s*/, "").trim();
-        const leadingNumberMatch = normalized.match(/^(\d+)\s*[.)]/);
-        const inputAsNumber = leadingNumberMatch ? leadingNumberMatch[1] : normalized;
-
-        const isCorrectNumber = inputAsNumber === String(correctIndex + 1);
-        const isCorrectText =
-          normalized === correctOptionText || strippedInput === correctOptionText;
-        const isCorrect = isCorrectNumber || isCorrectText;
+        const isCorrect = isQuizReplyCorrect(safeText, quizItem.options, correctIndex);
 
         // Record every submitted answer so the admin Pass Rate / Quiz Pass
         // analytics reflect real bot interactions. quiz_attempts is keyed
