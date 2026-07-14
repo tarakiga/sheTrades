@@ -265,8 +265,8 @@ function buildModuleListReply(
           title: "Modules",
           rows: moduleNames.slice(0, 10).map((m, i) => ({
             id: `module-${i + 1}`,
-            title: `${i + 1}. ${topicOf(m)}`.slice(0, 24),
-            description: shortOf(m).slice(0, 72)
+            title: `${i + 1}. ${shortOf(m)}`.slice(0, 24),
+            description: topicOf(m).slice(0, 72)
           }))
         }
       ]
