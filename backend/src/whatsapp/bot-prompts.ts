@@ -84,6 +84,26 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     en: "Please type the name of your state.",
     pcm: "Abeg type the name of your state.",
     ig: "Biko dee aha steeti gị."
+  },
+  lesson_menu_header: {
+    en: "Choose a lesson to begin (✅ = done):",
+    pcm: "Choose lesson wey you wan start (✅ = done):",
+    ig: "Họrọ nkuzi ka ịmalite (✅ = emechara):"
+  },
+  lesson_menu_footer: {
+    en: "\nReply with a number, or tap “Choose lesson”. MENU to go back.",
+    pcm: "\nReply with number, or tap “Choose lesson”. MENU to go back.",
+    ig: "\nZaghachi na nọmba, ma ọ bụ pịa “Họrọ nkuzi”. MENU ka ịlaghachi."
+  },
+  lesson_menu_button: {
+    en: "Choose lesson",
+    pcm: "Choose lesson",
+    ig: "Họrọ nkuzi"
+  },
+  module_menu_button: {
+    en: "Choose module",
+    pcm: "Choose module",
+    ig: "Họrọ modul"
   }
 };
 
@@ -102,5 +122,9 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   state_prompt: "Bot · State prompt",
   state_button: "Bot · State picker button",
   state_other_label: "Bot · State 'Others' label",
-  custom_state_prompt: "Bot · Custom state prompt"
+  custom_state_prompt: "Bot · Custom state prompt",
+  lesson_menu_header: "Bot · Lesson menu header",
+  lesson_menu_footer: "Bot · Lesson menu footer",
+  lesson_menu_button: "Bot · Lesson menu button",
+  module_menu_button: "Bot · Module menu button"
 };

@@ -243,6 +243,37 @@ function buildLessonListReply(
   };
 }
 
+function buildModuleListReply(
+  moduleNames: string[],
+  lang: "en" | "pcm" | "ig",
+  headerKey: string,
+  headerFallback: string
+): { reply: string; list: WhatsAppListSpec } {
+  const topicOf = (m: string) => (m.includes(":") ? m.split(":").slice(1).join(":").trim() : m);
+  const shortOf = (m: string) => m.split(":")[0] || m;
+  let reply = getPrompt(headerKey, lang, headerFallback);
+  if (!reply.endsWith("\n")) reply += "\n";
+  moduleNames.forEach((m, i) => {
+    reply += `${i + 1}. ${topicOf(m)}\n`;
+  });
+  return {
+    reply,
+    list: {
+      button: getPrompt("module_menu_button", lang, "Choose module"),
+      sections: [
+        {
+          title: "Modules",
+          rows: moduleNames.slice(0, 10).map((m, i) => ({
+            id: `module-${i + 1}`,
+            title: `${i + 1}. ${topicOf(m)}`.slice(0, 24),
+            description: shortOf(m).slice(0, 72)
+          }))
+        }
+      ]
+    }
+  };
+}
+
 function mainMenuText(name: string): string {
   let text = getRuntimeText("bot.main_menu", `Hello {name}! Main Menu:`);
   return text.replace("{name}", name);
@@ -555,13 +586,13 @@ function transition(
         };
       }
 
-      let reply = getPrompt("modules_menu_header", lang, "Choose a Module to begin:");
-
-      return {
-        state: session.state,
-        reply,
-        buttons: [...moduleNames.map((mName, idx) => `${idx + 1}. ${mName.split(":")[0] || mName}`), "MENU"]
-      };
+      const moduleMenu = buildModuleListReply(
+        moduleNames,
+        lang,
+        "modules_menu_header",
+        "Choose a Module to begin:"
+      );
+      return { state: session.state, reply: moduleMenu.reply, list: moduleMenu.list };
     }
 
     // Option 2: My Progress summary
@@ -678,13 +709,13 @@ function transition(
         return { state: session.state, reply: lessonMenu.reply, list: lessonMenu.list };
       }
 
-      let reply = getPrompt("invalid_module", lang, "Invalid module selection. Please choose a Module to begin:");
-
-      return {
-        state: session.state,
-        reply,
-        buttons: [...moduleNames.map((mName, idx) => `${idx + 1}. ${mName.split(":")[0] || mName}`), "MENU"]
-      };
+      const moduleMenuInvalid = buildModuleListReply(
+        moduleNames,
+        lang,
+        "invalid_module",
+        "Invalid module selection. Please choose a Module to begin:"
+      );
+      return { state: session.state, reply: moduleMenuInvalid.reply, list: moduleMenuInvalid.list };
     }
 
     // Case B: User has an active selected module
