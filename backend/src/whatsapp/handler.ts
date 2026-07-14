@@ -529,6 +529,13 @@ function transition(
     }
     modulesMap.get(mName)!.push(lesson);
   }
+  // Order lessons within each module by their lesson number (…_l{N}_…) so the
+  // menu numbering and the linear "next lesson" progression are stable and
+  // match the curriculum order regardless of when each was last edited.
+  const lessonNumber = (key: string) => parseInt((key.match(/_l(\d+)/) || [])[1] || "0", 10);
+  for (const arr of modulesMap.values()) {
+    arr.sort((a, b) => lessonNumber(a.key) - lessonNumber(b.key));
+  }
   const moduleNames = Array.from(modulesMap.keys()).sort();
 
   if (session.state === "main_menu") {
