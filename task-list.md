@@ -2,6 +2,22 @@
 
 This checklist tracks the design and implementation of the premium step-wizard editor form inside the Admin settings panel to completely replace raw JSON configurations for non-technical admins.
 
+## Task 071 — Language-aware schema + WhatsApp constraint counters (2026-07-14)
+
+Prereq for translating lessons to Pidgin/Igbo. Two deliverables:
+
+- [x] **Schema language-awareness** — make lesson `title` and `quiz` (question + options) per-language (`LocalizedValue = string | {en,pcm?,ig?}`), backward compatible with legacy string values.
+  - [x] Backend: `LocalizedValue` type + `pickLocalized()` resolver in runtime-config.ts
+  - [x] Backend: `getRuntimeLessons()` preserves localized title/quiz (no more `String()` flattening)
+  - [x] Backend: handler.ts resolves title/question/options by active language everywhere
+  - [x] Frontend drawer: per-language title + per-language quiz question/options (parse+serialize both shapes)
+- [x] **Constraint counters** — live green/yellow/red character meters that account for bot-added chars.
+  - [x] Shared SoT: `backend/src/whatsapp/constraints.ts` (limits) + `dashboard/lib/whatsapp-constraints.ts` (limits + compose helpers)
+  - [x] Reusable `ConstraintMeter` component (tokens: success/warning/danger) + preview story
+  - [x] Wire into drawer: title (72), body (1024 composed), quiz question (1024 composed), quiz options (20 each), per active language tab
+  - [x] Verify visually in browser + screenshot (all states render; backend typecheck+14 tests green; dashboard typecheck green; net −1 lint)
+  - Follow-ups (not blocking): drive the authenticated drawer end-to-end (needs admin login); optional tighten of server-side lesson Zod validation (lessons currently persist via the `z.record` catch-all, unchanged by this task).
+
 ## Core Refactoring Checklist
 
 - [x] Define dynamic style classes at the end of `globals.css`

@@ -1,8 +1,45 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Badge, Button, Input, SideDrawer, Textarea, RichTextEditor } from "../ui";
+import { Badge, Button, ConstraintMeter, Input, SideDrawer, Textarea, RichTextEditor } from "../ui";
 import { ContentFormWalkthrough } from "../content/ContentFormWalkthrough";
+import {
+  WHATSAPP_LIMITS,
+  waLen,
+  composeLessonBody,
+  composeQuizQuestion,
+  type WhatsAppLang
+} from "../../lib/whatsapp-constraints";
+
+/**
+ * Per-language editing buffer for a learner-facing string (title / quiz
+ * question / quiz option). Backward compatible with legacy bare strings: a
+ * plain string is read as English, and we only serialize the object form once a
+ * Pidgin/Igbo variant exists (English-only stays a bare string, like `languages`).
+ */
+type LangObj = { en: string; pcm: string; ig: string };
+type LocalizedValue = string | { en: string; pcm?: string; ig?: string };
+
+const emptyLangObj = (): LangObj => ({ en: "", pcm: "", ig: "" });
+
+const fromLocalized = (value: LocalizedValue | undefined | null): LangObj => {
+  if (value == null) return emptyLangObj();
+  if (typeof value === "string") return { en: value, pcm: "", ig: "" };
+  return { en: value.en || "", pcm: value.pcm || "", ig: value.ig || "" };
+};
+
+const toLocalized = (obj: LangObj): LocalizedValue => {
+  const hasTranslation = obj.pcm.trim().length > 0 || obj.ig.trim().length > 0;
+  if (!hasTranslation) return obj.en;
+  return {
+    en: obj.en,
+    ...(obj.pcm.trim() ? { pcm: obj.pcm } : {}),
+    ...(obj.ig.trim() ? { ig: obj.ig } : {})
+  };
+};
+
+/** Resolve a LangObj for a language with English fallback (mirrors backend pickLocalized). */
+const pickLang = (obj: LangObj, lang: WhatsAppLang): string => obj[lang] || obj.en || "";
 
 type WorkflowFeedback = {
   tone: "info" | "success" | "warning" | "danger";
@@ -92,8 +129,9 @@ export function ConfigEditorDrawer({
   const [showAudioAccordion, setShowAudioAccordion] = useState(false);
   const [simulatorSelectedAnswer, setSimulatorSelectedAnswer] = useState<Record<number, number>>({});
 
-  // Curriculum states
-  const [lessonTitle, setLessonTitle] = useState("");
+  // Curriculum states. `titleI18n` and each quiz question/option are now
+  // language-aware (LangObj); the WhatsApp answer index stays shared.
+  const [titleI18n, setTitleI18n] = useState<LangObj>(emptyLangObj());
   const [lessonModule, setLessonModule] = useState("");
   const [customModuleNumber, setCustomModuleNumber] = useState("");
   const [customModuleTitle, setCustomModuleTitle] = useState("");
@@ -101,7 +139,7 @@ export function ConfigEditorDrawer({
   const [languages, setLanguages] = useState({ en: "", pcm: "", ig: "" });
   const [audioUrls, setAudioUrls] = useState({ en: "", pcm: "", ig: "" });
   const [quiz, setQuiz] = useState<
-    Array<{ question: string; options: string[]; answerIndex: number }>
+    Array<{ question: LangObj; options: LangObj[]; answerIndex: number }>
   >([]);
 
   // Generic translation state
@@ -208,7 +246,7 @@ export function ConfigEditorDrawer({
     setLocalSerialized(value);
 
     if (detectedIsLesson) {
-      setLessonTitle(parsed?.title || "");
+      setTitleI18n(fromLocalized(parsed?.title));
       setLessonModule(parsed?.module || "");
       setShowCustomModuleInput(false);
       setCustomModuleNumber("");
@@ -226,9 +264,12 @@ export function ConfigEditorDrawer({
       setQuiz(
         Array.isArray(parsed?.quiz)
           ? parsed.quiz.map((q: any) => ({
-              question: q.question || "",
-              options: Array.isArray(q.options) ? [...q.options] : ["", ""],
-              answerIndex: typeof q.answerIndex === "number" ? q.answerIndex : 0
+              question: fromLocalized(q?.question),
+              options:
+                Array.isArray(q?.options) && q.options.length > 0
+                  ? q.options.map(fromLocalized)
+                  : [emptyLangObj(), emptyLangObj()],
+              answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0
             }))
           : []
       );
@@ -278,7 +319,7 @@ export function ConfigEditorDrawer({
       let str = "";
       if (isLesson) {
         const payload = {
-          title: lessonTitle,
+          title: toLocalized(titleI18n),
           module: lessonModule,
           languages: {
             en: languages.en,
@@ -291,8 +332,10 @@ export function ConfigEditorDrawer({
             ...(audioUrls.ig ? { ig: audioUrls.ig } : {})
           },
           quiz: quiz.map((q) => ({
-            question: q.question,
-            options: q.options.filter((o) => o.trim().length > 0),
+            question: toLocalized(q.question),
+            // Keep options whose English (base) text is non-empty; carry each
+            // option's translations with it.
+            options: q.options.filter((o) => o.en.trim().length > 0).map(toLocalized),
             answerIndex: q.answerIndex
           }))
         };
@@ -317,7 +360,7 @@ export function ConfigEditorDrawer({
   }, [
     open,
     isLesson,
-    lessonTitle,
+    titleI18n,
     lessonModule,
     languages,
     audioUrls,
@@ -350,7 +393,7 @@ export function ConfigEditorDrawer({
         const next = { ...prev, [lang]: updatedValue };
         syncPayload(
           isLesson,
-          lessonTitle,
+          titleI18n,
           lessonModule,
           next,
           audioUrls,
@@ -365,7 +408,7 @@ export function ConfigEditorDrawer({
         const next = { ...prev, [lang]: updatedValue };
         syncPayload(
           isLesson,
-          lessonTitle,
+          titleI18n,
           lessonModule,
           languages,
           audioUrls,
@@ -383,57 +426,44 @@ export function ConfigEditorDrawer({
     }, 50);
   };
 
-  // Quiz Builder utilities
+  // Quiz Builder utilities (state changes flow back to the payload via the
+  // serialize effect, so these no longer call the no-op syncPayload).
   const handleAddQuestion = () => {
-    const next = [...quiz, { question: "", options: ["", "", ""], answerIndex: 0 }];
+    const next = [
+      ...quiz,
+      { question: emptyLangObj(), options: [emptyLangObj(), emptyLangObj(), emptyLangObj()], answerIndex: 0 }
+    ];
     setQuiz(next);
     setExpandedQuizIndex(next.length - 1);
-    syncPayload(
-      isLesson,
-      lessonTitle,
-      lessonModule,
-      languages,
-      audioUrls,
-      next,
-      translationCopy,
-      extraPayloadFields
-    );
   };
 
   const handleRemoveQuestion = (index: number) => {
     const next = quiz.filter((_, i) => i !== index);
     setQuiz(next);
     setExpandedQuizIndex(next.length > 0 ? 0 : null);
-    syncPayload(
-      isLesson,
-      lessonTitle,
-      lessonModule,
-      languages,
-      audioUrls,
-      next,
-      translationCopy,
-      extraPayloadFields
+  };
+
+  // Set the active-language text of a question.
+  const setQuizQuestionText = (index: number, lang: WhatsAppLang, val: string) => {
+    setQuiz((prev) =>
+      prev.map((q, i) => (i === index ? { ...q, question: { ...q.question, [lang]: val } } : q))
     );
   };
 
-  const handleQuestionChange = (index: number, field: string, val: any) => {
-    const next = quiz.map((q, i) => {
-      if (i === index) {
-        return { ...q, [field]: val };
-      }
-      return q;
-    });
-    setQuiz(next);
-    syncPayload(
-      isLesson,
-      lessonTitle,
-      lessonModule,
-      languages,
-      audioUrls,
-      next,
-      translationCopy,
-      extraPayloadFields
+  // Set the active-language text of a single option.
+  const setQuizOptionText = (index: number, optIdx: number, lang: WhatsAppLang, val: string) => {
+    setQuiz((prev) =>
+      prev.map((q, i) =>
+        i === index
+          ? { ...q, options: q.options.map((o, oi) => (oi === optIdx ? { ...o, [lang]: val } : o)) }
+          : q
+      )
     );
+  };
+
+  // Mark the correct answer (shared across languages — position is stable).
+  const setQuizAnswerIndex = (index: number, optIdx: number) => {
+    setQuiz((prev) => prev.map((q, i) => (i === index ? { ...q, answerIndex: optIdx } : q)));
   };
 
   // Helper to format text with WhatsApp markdown style
@@ -476,7 +506,7 @@ export function ConfigEditorDrawer({
             !keyValue.includes("..")
           : true;
       if (isLesson) {
-        return isKeyValid && lessonTitle.trim().length > 0 && lessonModule.trim().length > 0;
+        return isKeyValid && titleI18n.en.trim().length > 0 && lessonModule.trim().length > 0;
       } else {
         return isKeyValid;
       }
@@ -492,8 +522,8 @@ export function ConfigEditorDrawer({
       if (isLesson) {
         return quiz.every(
           (q) =>
-            q.question.trim().length > 0 &&
-            q.options.filter((o) => o.trim().length > 0).length >= 2
+            q.question.en.trim().length > 0 &&
+            q.options.filter((o) => o.en.trim().length > 0).length >= 2
         );
       }
       return true;
@@ -512,7 +542,7 @@ export function ConfigEditorDrawer({
 
     if (isLesson) {
       return (
-        lessonTitle.trim().length > 0 &&
+        titleI18n.en.trim().length > 0 &&
         lessonModule.trim().length > 0 &&
         languages.en.trim().length > 0
       );
@@ -533,7 +563,7 @@ export function ConfigEditorDrawer({
 
     if (isLesson) {
       if (!lessonModule.trim()) return "Please select or add a module on Step 1.";
-      if (!lessonTitle.trim()) return "Please enter a lesson title on Step 1.";
+      if (!titleI18n.en.trim()) return "Please enter a lesson title on Step 1.";
       if (!languages.en.trim()) return "Please fill in the English lesson body on Step 2.";
     } else {
       if (!translationCopy.en.trim()) return "Please fill in the English text copy on Step 2.";
@@ -714,7 +744,7 @@ export function ConfigEditorDrawer({
                                   setLessonModule(e.target.value);
                                   syncPayload(
                                     isLesson,
-                                    lessonTitle,
+                                    titleI18n,
                                     e.target.value,
                                     languages,
                                     audioUrls,
@@ -753,7 +783,7 @@ export function ConfigEditorDrawer({
                                   setCustomModuleNumber(newNumber);
                                   const combined = newNumber || customModuleTitle ? `Module ${newNumber}: ${customModuleTitle}` : "";
                                   setLessonModule(combined);
-                                  syncPayload(isLesson, lessonTitle, combined, languages, audioUrls, quiz, translationCopy, extraPayloadFields);
+                                  syncPayload(isLesson, titleI18n, combined, languages, audioUrls, quiz, translationCopy, extraPayloadFields);
                                 }}
                               />
                             </div>
@@ -774,7 +804,7 @@ export function ConfigEditorDrawer({
                                   setCustomModuleTitle(newTitle);
                                   const combined = customModuleNumber || newTitle ? `Module ${customModuleNumber}: ${newTitle}` : "";
                                   setLessonModule(combined);
-                                  syncPayload(isLesson, lessonTitle, combined, languages, audioUrls, quiz, translationCopy, extraPayloadFields);
+                                  syncPayload(isLesson, titleI18n, combined, languages, audioUrls, quiz, translationCopy, extraPayloadFields);
                                 }}
                               />
                             </div>
@@ -796,8 +826,8 @@ export function ConfigEditorDrawer({
 
                       <Input
                         id="lesson-title"
-                        label="Lesson Title"
-                        value={lessonTitle}
+                        label="Lesson Title (English)"
+                        value={titleI18n.en}
                         placeholder="e.g., Pricing Basics"
                         autoComplete="off"
                         data-lpignore="true"
@@ -806,19 +836,16 @@ export function ConfigEditorDrawer({
                         data-bitwarden-no-filtering="true"
                         data-keepassignore="true"
                         onChange={(e) => {
-                          setLessonTitle(e.target.value);
+                          setTitleI18n((prev) => ({ ...prev, en: e.target.value }));
                           if (onTitleChange) onTitleChange(e.target.value);
-                          syncPayload(
-                            isLesson,
-                            e.target.value,
-                            lessonModule,
-                            languages,
-                            audioUrls,
-                            quiz,
-                            translationCopy,
-                            extraPayloadFields
-                          );
                         }}
+                      />
+                      <ConstraintMeter
+                        label="Title length"
+                        used={waLen(titleI18n.en)}
+                        limit={WHATSAPP_LIMITS.listRowDescription}
+                        overflow="truncate"
+                        hint="Shown in the lesson menu; also counts toward the 1024-char lesson message."
                       />
 
                       {/* Expandable Accordion for Voiceover Audios */}
@@ -843,7 +870,7 @@ export function ConfigEditorDrawer({
                                 setAudioUrls(next);
                                 syncPayload(
                                   isLesson,
-                                  lessonTitle,
+                                  titleI18n,
                                   lessonModule,
                                   languages,
                                   next,
@@ -863,7 +890,7 @@ export function ConfigEditorDrawer({
                                 setAudioUrls(next);
                                 syncPayload(
                                   isLesson,
-                                  lessonTitle,
+                                  titleI18n,
                                   lessonModule,
                                   languages,
                                   next,
@@ -883,7 +910,7 @@ export function ConfigEditorDrawer({
                                 setAudioUrls(next);
                                 syncPayload(
                                   isLesson,
-                                  lessonTitle,
+                                  titleI18n,
                                   lessonModule,
                                   languages,
                                   next,
@@ -936,6 +963,35 @@ export function ConfigEditorDrawer({
                         </button>
                       </div>
 
+                      {/* Per-language lesson title — the English tab mirrors the
+                          Step 1 title (same state); Pidgin/Igbo hold translations. */}
+                      <div style={{ marginBottom: "var(--space-3)" }}>
+                        <Input
+                          id={`title-lang-${activeTabLanguage}`}
+                          label={`Lesson Title (${
+                            activeTabLanguage === "en" ? "English" : activeTabLanguage === "pcm" ? "Pidgin" : "Igbo"
+                          })`}
+                          value={titleI18n[activeTabLanguage]}
+                          placeholder={
+                            activeTabLanguage === "en" ? "e.g., Pricing Basics" : "Translate the lesson title…"
+                          }
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-1p-ignore="true"
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setTitleI18n((prev) => ({ ...prev, [activeTabLanguage]: v }));
+                            if (activeTabLanguage === "en" && onTitleChange) onTitleChange(v);
+                          }}
+                        />
+                        <ConstraintMeter
+                          label="Title length"
+                          used={waLen(titleI18n[activeTabLanguage])}
+                          limit={WHATSAPP_LIMITS.listRowDescription}
+                          overflow="truncate"
+                        />
+                      </div>
+
                       <div className="emoji-textarea-wrapper">
                         {activeTabLanguage === "en" && (
                           <RichTextEditor
@@ -948,7 +1004,7 @@ export function ConfigEditorDrawer({
                               setLanguages(next);
                               syncPayload(
                                 isLesson,
-                                lessonTitle,
+                                titleI18n,
                                 lessonModule,
                                 next,
                                 audioUrls,
@@ -970,7 +1026,7 @@ export function ConfigEditorDrawer({
                               setLanguages(next);
                               syncPayload(
                                 isLesson,
-                                lessonTitle,
+                                titleI18n,
                                 lessonModule,
                                 next,
                                 audioUrls,
@@ -992,7 +1048,7 @@ export function ConfigEditorDrawer({
                               setLanguages(next);
                               syncPayload(
                                 isLesson,
-                                lessonTitle,
+                                titleI18n,
                                 lessonModule,
                                 next,
                                 audioUrls,
@@ -1004,6 +1060,25 @@ export function ConfigEditorDrawer({
                           />
                         )}
                       </div>
+
+                      {/* Composed body meter — the WHOLE delivered lesson message
+                          (📖 prefix + title + body + quiz instruction) vs 1024. */}
+                      {(() => {
+                        const composed = composeLessonBody(
+                          titleI18n[activeTabLanguage],
+                          languages[activeTabLanguage],
+                          activeTabLanguage
+                        );
+                        return (
+                          <ConstraintMeter
+                            label="Full lesson message"
+                            used={composed.total}
+                            limit={composed.limit}
+                            systemChars={composed.systemChars}
+                            overflow="reject"
+                          />
+                        );
+                      })()}
 
 
                       {/* WhatsApp Formatting Guide */}
@@ -1064,6 +1139,31 @@ export function ConfigEditorDrawer({
                         <strong>⚠️ WhatsApp Limitations:</strong> You can provide a maximum of <strong>3 options</strong> per question. Each option text must be <strong>20 characters or less</strong>.
                       </div>
 
+                      {/* Language tab — the quiz is translated per language; the
+                          correct-answer position is shared across all languages. */}
+                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-4)" }}>
+                        <button
+                          type="button"
+                          className={`wizard-mode-toggle__btn ${activeTabLanguage === "en" ? "wizard-mode-toggle__btn--active" : ""}`}
+                          onClick={() => setActiveTabLanguage("en")}
+                        >
+                          🇬🇧 English
+                        </button>
+                        <button
+                          type="button"
+                          className={`wizard-mode-toggle__btn ${activeTabLanguage === "pcm" ? "wizard-mode-toggle__btn--active" : ""}`}
+                          onClick={() => setActiveTabLanguage("pcm")}
+                        >
+                          🇳🇬 Pidgin
+                        </button>
+                        <button
+                          type="button"
+                          className={`wizard-mode-toggle__btn ${activeTabLanguage === "ig" ? "wizard-mode-toggle__btn--active" : ""}`}
+                          onClick={() => setActiveTabLanguage("ig")}
+                        >
+                          🇳🇬 Igbo
+                        </button>
+                      </div>
 
                       {quiz.length === 0 ? (
                         <div
@@ -1106,11 +1206,11 @@ export function ConfigEditorDrawer({
                                   }}
                                 >
                                   <span className="quiz-question-card__title">
-                                    {qIdx + 1}. {qItem.question || "New Empty Question"}
+                                    {qIdx + 1}. {pickLang(qItem.question, activeTabLanguage) || "New Empty Question"}
                                   </span>
                                   <div className="quiz-question-card__actions">
                                     <Badge variant={isExpanded ? "info" : "neutral"}>
-                                      {qItem.options.filter((o) => o.trim()).length} options
+                                      {qItem.options.filter((o) => o.en.trim()).length} options
                                     </Badge>
                                     <Button
                                       variant="ghost"
@@ -1130,13 +1230,31 @@ export function ConfigEditorDrawer({
                                   <div className="quiz-question-card__body">
                                     <Input
                                       id={`q-text-${qIdx}`}
-                                      label="Question Text"
-                                      value={qItem.question}
+                                      label={`Question Text (${
+                                        activeTabLanguage === "en" ? "English" : activeTabLanguage === "pcm" ? "Pidgin" : "Igbo"
+                                      })`}
+                                      value={qItem.question[activeTabLanguage]}
                                       placeholder="e.g. What is the key to bookkeeping?"
                                       onChange={(e) =>
-                                        handleQuestionChange(qIdx, "question", e.target.value)
+                                        setQuizQuestionText(qIdx, activeTabLanguage, e.target.value)
                                       }
                                     />
+                                    {(() => {
+                                      const composed = composeQuizQuestion(
+                                        qItem.question[activeTabLanguage],
+                                        qItem.options.map((o) => o[activeTabLanguage]),
+                                        activeTabLanguage
+                                      );
+                                      return (
+                                        <ConstraintMeter
+                                          label="Full quiz message"
+                                          used={composed.total}
+                                          limit={composed.limit}
+                                          systemChars={composed.systemChars}
+                                          overflow="reject"
+                                        />
+                                      );
+                                    })()}
 
                                     {/* Option rows with correct indicators */}
                                     <div style={{ display: "grid", gap: "var(--space-3)" }}>
@@ -1156,9 +1274,7 @@ export function ConfigEditorDrawer({
                                                 ? "quiz-correct-indicator--active"
                                                 : ""
                                             }`}
-                                            onClick={() =>
-                                              handleQuestionChange(qIdx, "answerIndex", optIdx)
-                                            }
+                                            onClick={() => setQuizAnswerIndex(qIdx, optIdx)}
                                             title="Mark as correct answer"
                                           >
                                             ✓
@@ -1166,15 +1282,17 @@ export function ConfigEditorDrawer({
                                           <div style={{ flex: 1 }}>
                                             <Input
                                               id={`opt-${qIdx}-${optIdx}`}
-                                              label={`Choice ${optIdx + 1}`}
-                                              value={opt}
+                                              label={`Choice ${optIdx + 1}${qItem.answerIndex === optIdx ? " · correct" : ""}`}
+                                              value={opt[activeTabLanguage]}
                                               placeholder={`e.g. Choice value ${optIdx + 1}`}
-                                              onChange={(e) => {
-                                                const nextOpts = qItem.options.map((o, oI) =>
-                                                  oI === optIdx ? e.target.value : o
-                                                );
-                                                handleQuestionChange(qIdx, "options", nextOpts);
-                                              }}
+                                              onChange={(e) =>
+                                                setQuizOptionText(qIdx, optIdx, activeTabLanguage, e.target.value)
+                                              }
+                                            />
+                                            <ConstraintMeter
+                                              used={waLen(opt[activeTabLanguage])}
+                                              limit={WHATSAPP_LIMITS.buttonTitle}
+                                              overflow="truncate"
                                             />
                                           </div>
                                         </div>
@@ -1248,11 +1366,11 @@ export function ConfigEditorDrawer({
                             <span className="phone-mock__date-badge">Today</span>
 
                             {/* Lesson text bubble */}
-                            {(lessonTitle || languages[previewLanguage]) && (
+                            {(pickLang(titleI18n, previewLanguage) || languages[previewLanguage]) && (
                               <div className="whatsapp-bubble">
                                 <strong>📚 {lessonModule || "Module 1"}</strong>
                                 <br />
-                                <u>{lessonTitle || "Lesson Title"}</u>
+                                <u>{pickLang(titleI18n, previewLanguage) || "Lesson Title"}</u>
                                 <br />
                                 <br />
                                 <span
@@ -1305,15 +1423,17 @@ export function ConfigEditorDrawer({
                                   <div className="whatsapp-bubble" style={{ alignSelf: "flex-start" }}>
                                     <strong>❓ Quiz Challenge ({qIndex + 1}/{quiz.length})</strong>
                                     <br />
-                                    {q.question}
+                                    {pickLang(q.question, previewLanguage)}
                                     <span className="whatsapp-bubble__meta">18:16</span>
                                   </div>
 
-                                  {/* Quick Reply interactive template buttons container */}
+                                  {/* Quick Reply interactive template buttons container.
+                                      Keep the original option index so the correct-answer
+                                      highlight stays aligned with answerIndex. */}
                                   <div className="whatsapp-bubble__buttons" style={{ maxWidth: "90%" }}>
-                                    {q.options
-                                      .filter((o) => o.trim())
-                                      .map((opt, optIndex) => (
+                                    {q.options.map((o, optIndex) => {
+                                      if (!o.en.trim()) return null;
+                                      return (
                                         <button
                                           key={optIndex}
                                           type="button"
@@ -1331,9 +1451,10 @@ export function ConfigEditorDrawer({
                                             }));
                                           }}
                                         >
-                                          {opt}
+                                          {pickLang(o, previewLanguage)}
                                         </button>
-                                      ))}
+                                      );
+                                    })}
                                   </div>
 
                                   {/* Simulator replies based on action */}
@@ -1348,7 +1469,7 @@ export function ConfigEditorDrawer({
                                           borderTopRightRadius: "0"
                                         }}
                                       >
-                                        {q.options[selectedOpt]}
+                                        {pickLang(q.options[selectedOpt]!, previewLanguage)}
                                         <span className="whatsapp-bubble__meta">18:16 ✓✓</span>
                                       </div>
 
@@ -1374,7 +1495,7 @@ export function ConfigEditorDrawer({
 
                           <div className="phone-mock__input-area">
                             <div className="phone-mock__input-box">
-                              Message {lessonTitle ? `"${lessonTitle}"` : ""}...
+                              Message {titleI18n.en ? `"${titleI18n.en}"` : ""}...
                             </div>
                           </div>
                         </div>
@@ -1484,7 +1605,7 @@ export function ConfigEditorDrawer({
                               setTranslationCopy(next);
                               syncPayload(
                                 isLesson,
-                                lessonTitle,
+                                titleI18n,
                                 lessonModule,
                                 languages,
                                 audioUrls,
@@ -1506,7 +1627,7 @@ export function ConfigEditorDrawer({
                               setTranslationCopy(next);
                               syncPayload(
                                 isLesson,
-                                lessonTitle,
+                                titleI18n,
                                 lessonModule,
                                 languages,
                                 audioUrls,
@@ -1528,7 +1649,7 @@ export function ConfigEditorDrawer({
                               setTranslationCopy(next);
                               syncPayload(
                                 isLesson,
-                                lessonTitle,
+                                titleI18n,
                                 lessonModule,
                                 languages,
                                 audioUrls,

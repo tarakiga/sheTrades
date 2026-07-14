@@ -18,6 +18,8 @@ export { Card } from "./Card";
 export type { CardProps } from "./Card";
 export { ConfirmationModal } from "./ConfirmationModal";
 export type { ConfirmationModalProps } from "./ConfirmationModal";
+export { ConstraintMeter } from "./ConstraintMeter";
+export type { ConstraintMeterProps, ConstraintMeterState } from "./ConstraintMeter";
 export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 export { FilterChipGroup } from "./FilterChipGroup";

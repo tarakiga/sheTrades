@@ -193,9 +193,39 @@ export function setRuntimeIntegrationConfigForTests(key: string, value: unknown)
   }
 }
 
+/**
+ * A learner-facing string that may be language-aware. A bare string is legacy
+ * content (treated as English); the object form carries per-language variants.
+ * Backward compatible: all 43 pre-existing lessons store bare strings and keep
+ * working unchanged.
+ */
+export type LocalizedValue = string | { en: string; pcm?: string; ig?: string };
+
+/** Resolve a LocalizedValue for a language, falling back to English then "". */
+export function pickLocalized(value: LocalizedValue | undefined | null, lang: string): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  const variant = (value as Record<string, string>)[lang];
+  return variant || value.en || "";
+}
+
+/** Normalize raw config JSON into a LocalizedValue, preserving legacy strings. */
+function normalizeLocalized(raw: any): LocalizedValue {
+  if (raw == null) return "";
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object") {
+    return {
+      en: String(raw.en ?? ""),
+      ...(raw.pcm ? { pcm: String(raw.pcm) } : {}),
+      ...(raw.ig ? { ig: String(raw.ig) } : {})
+    };
+  }
+  return String(raw);
+}
+
 export type RuntimeLesson = {
   key: string;
-  title: string;
+  title: LocalizedValue;
   module: string;
   languages: {
     en: string;
@@ -204,8 +234,8 @@ export type RuntimeLesson = {
   };
   audioUrls: Record<string, string>;
   quiz: Array<{
-    question: string;
-    options: string[];
+    question: LocalizedValue;
+    options: LocalizedValue[];
     answerIndex: number;
   }>;
 };
@@ -219,7 +249,7 @@ export function getRuntimeLessons(): RuntimeLesson[] {
       const payload = doc.data || {};
       return {
         key: doc.key,
-        title: String(payload.title || ""),
+        title: normalizeLocalized(payload.title),
         module: String(payload.module || ""),
         languages: {
           en: String(payload.languages?.en || ""),
@@ -229,8 +259,8 @@ export function getRuntimeLessons(): RuntimeLesson[] {
         audioUrls: (payload.audioUrls && typeof payload.audioUrls === "object" ? payload.audioUrls : {}) as Record<string, string>,
         quiz: (Array.isArray(payload.quiz)
           ? payload.quiz.map((q: any) => ({
-              question: String(q?.question || ""),
-              options: Array.isArray(q?.options) ? q.options.map(String) : [],
+              question: normalizeLocalized(q?.question),
+              options: Array.isArray(q?.options) ? q.options.map(normalizeLocalized) : [],
               answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0
             }))
           : [])

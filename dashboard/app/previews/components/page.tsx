@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   ConfigDocumentCard,
+  ConstraintMeter,
   EmptyState,
   Input,
   LoadingState,
@@ -148,6 +149,27 @@ export default async function ComponentsPreviewPage() {
             <Badge variant="success">{t("preview.badges.active", "Active")}</Badge>
             <Badge variant="warning">{t("preview.badges.pending", "Pending")}</Badge>
             <Badge variant="danger">{t("preview.badges.failed", "Failed")}</Badge>
+          </div>
+        </Card>
+
+        <Card
+          title={t("preview.constraintMeter.title", "Constraint Meter")}
+          description={t(
+            "preview.constraintMeter.description",
+            "Live WhatsApp character-budget feedback: green = standard, yellow = breathing room, red = over. Counts bot-added chars via systemChars."
+          )}
+        >
+          <div style={{ display: "grid", gap: "var(--space-4)", maxWidth: "420px" }}>
+            <ConstraintMeter label="Standard (green)" used={9} limit={20} overflow="truncate" />
+            <ConstraintMeter label="Breathing room (yellow)" used={18} limit={20} overflow="truncate" />
+            <ConstraintMeter label="Over limit (red)" used={24} limit={20} overflow="truncate" />
+            <ConstraintMeter
+              label="With bot overhead"
+              used={946}
+              limit={1024}
+              systemChars={120}
+              overflow="reject"
+            />
           </div>
         </Card>
 

@@ -1,4 +1,5 @@
 import { getRuntimeWhatsAppConfig } from "../config-platform/runtime-config.js";
+import { WHATSAPP_LIMITS } from "./constraints.js";
 
 export type WhatsAppListSpec = {
   button: string;
@@ -11,13 +12,12 @@ export type OutboundReply = {
   list?: WhatsAppListSpec;
 };
 
-// WhatsApp truncates interactive reply-button titles to 20 chars and list-row
-// titles to 24 chars (UTF-16 code units). Exported so the inbound handler can
-// mirror the exact same clipping when matching a tapped reply back to an option
-// (a tapped option longer than the limit comes back truncated). Single source
-// of truth — do not redefine these numbers elsewhere.
-export const BUTTON_TITLE_MAX = 20;
-export const ROW_TITLE_MAX = 24;
+// Re-exported from constraints.ts (the single source of truth) so existing
+// importers keep working. The inbound handler mirrors this clipping when
+// matching a tapped reply back to an option (a tapped option longer than the
+// limit comes back truncated).
+export const BUTTON_TITLE_MAX = WHATSAPP_LIMITS.buttonTitle;
+export const ROW_TITLE_MAX = WHATSAPP_LIMITS.listRowTitle;
 
 export function clip(value: string, max: number): string {
   return value.length > max ? value.slice(0, max) : value;

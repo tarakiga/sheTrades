@@ -7337,3 +7337,73 @@ button.needs-attention-panel__item:focus {
 .auth-shell__footlink:hover {
   text-decoration: underline;
 }
+
+/* ── Constraint Meter — live WhatsApp character-budget feedback ──────────
+   green (ok) = standard · yellow (warn) = breathing-room band · red (over).
+   Colors are the semantic design tokens so the signal stays consistent. */
+.constraint-meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+}
+.constraint-meter__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.constraint-meter__label {
+  color: var(--color-neutral-500);
+  font-weight: 500;
+}
+.constraint-meter__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-neutral-700);
+  white-space: nowrap;
+}
+.constraint-meter__count-sep,
+.constraint-meter__count-unit {
+  color: var(--color-neutral-500);
+  font-weight: 400;
+}
+.constraint-meter__track {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-100);
+  overflow: hidden;
+}
+.constraint-meter__fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 140ms ease, background-color 140ms ease;
+}
+.constraint-meter__foot {
+  min-height: 14px;
+  color: var(--color-neutral-500);
+  line-height: var(--line-height-tight);
+}
+.constraint-meter__msg--over {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.constraint-meter--ok .constraint-meter__fill {
+  background: var(--color-success);
+}
+.constraint-meter--ok .constraint-meter__count {
+  color: var(--color-success-700);
+}
+.constraint-meter--warn .constraint-meter__fill {
+  background: var(--color-warning);
+}
+.constraint-meter--warn .constraint-meter__count {
+  color: var(--color-warning-700);
+}
+.constraint-meter--over .constraint-meter__fill {
+  background: var(--color-danger);
+}
+.constraint-meter--over .constraint-meter__count {
+  color: var(--color-danger-700);
+}

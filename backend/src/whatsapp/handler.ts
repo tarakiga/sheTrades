@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getRuntimeOptionSet, getRuntimeText, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson } from "../config-platform/runtime-config.js";
+import { getRuntimeOptionSet, getRuntimeText, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson, pickLocalized } from "../config-platform/runtime-config.js";
 import { BOT_PROMPT_DEFAULTS, BOT_PROMPT_CONFIG_PREFIX } from "./bot-prompts.js";
 import { prisma } from "../admin/prisma.js";
 import type { WhatsAppListSpec } from "./sender.js";
@@ -220,7 +220,8 @@ function buildLessonListReply(
   let reply = `📚 ${shortModule}\n${header}\n`;
   moduleLessons.forEach((l, i) => {
     const mark = completed.includes(l.key) ? "✅" : "▶️";
-    const title = l.title.length > 45 ? `${l.title.slice(0, 44)}…` : l.title;
+    const localizedTitle = pickLocalized(l.title, lang);
+    const title = localizedTitle.length > 45 ? `${localizedTitle.slice(0, 44)}…` : localizedTitle;
     reply += `${i + 1}. ${mark} ${title}\n`;
   });
   reply += getPrompt("lesson_menu_footer", lang, "\nReply with a number, or tap “Choose lesson”. MENU to go back.");
@@ -235,7 +236,7 @@ function buildLessonListReply(
           rows: moduleLessons.slice(0, 10).map((l, i) => ({
             id: l.key,
             title: `${completed.includes(l.key) ? "✅" : "▶️"} Lesson ${i + 1}`,
-            description: l.title.slice(0, 72)
+            description: pickLocalized(l.title, lang).slice(0, 72)
           }))
         }
       ]
@@ -703,7 +704,7 @@ function transition(
       session.currentQuizIndex = 0;
       session.lastUpdatedAt = nowIso();
       const lessonText = chosen.languages[lang] || chosen.languages.en || "";
-      const reply = `📖 ${chosen.title}\n\n${lessonText}${getPrompt("quiz_instruction", lang, "\n\nReply QUIZ to start the lesson quiz, or MENU to return.")}`;
+      const reply = `📖 ${pickLocalized(chosen.title, lang)}\n\n${lessonText}${getPrompt("quiz_instruction", lang, "\n\nReply QUIZ to start the lesson quiz, or MENU to return.")}`;
       return { state: session.state, reply, buttons: ["QUIZ", "MENU"] };
     }
 
@@ -775,7 +776,8 @@ function transition(
       const quizItem = activeLesson.quiz[qIndex]; // Fetch active quiz item
       if (quizItem) {
         const correctIndex = quizItem.answerIndex;
-        const isCorrect = isQuizReplyCorrect(safeText, quizItem.options, correctIndex);
+        const options = quizItem.options.map((o) => pickLocalized(o, lang));
+        const isCorrect = isQuizReplyCorrect(safeText, options, correctIndex);
 
         // Record every submitted answer so the admin Pass Rate / Quiz Pass
         // analytics reflect real bot interactions. quiz_attempts is keyed
@@ -809,8 +811,9 @@ function transition(
                 buttons: ["MENU"]
               };
             }
-            let nextReply = `🎉 Correct!\n\n📚 Next Question:\n${nextQuizItem.question}\n`;
-            nextQuizItem.options.forEach((opt, idx) => {
+            const nextOptions = nextQuizItem.options.map((o) => pickLocalized(o, lang));
+            let nextReply = `🎉 Correct!\n\n📚 Next Question:\n${pickLocalized(nextQuizItem.question, lang)}\n`;
+            nextOptions.forEach((opt, idx) => {
               nextReply += `${idx + 1}. ${opt}\n`;
             });
             nextReply += getPrompt("quiz_answer_prompt", lang, "Reply with your answer (1, 2, or 3) or MENU to return.");
@@ -819,7 +822,7 @@ function transition(
               state: session.state,
               reply: nextReply,
               buttons: [
-                ...nextQuizItem.options,
+                ...nextOptions,
                 "MENU"
               ]
             };
@@ -860,7 +863,7 @@ function transition(
               const remainingLessons = moduleLessons.slice(currentIdx + 1);
               let remainingText = "\n\nRemaining lessons in this module:\n";
               remainingLessons.forEach((l) => {
-                remainingText += `- ${l.title}\n`;
+                remainingText += `- ${pickLocalized(l.title, lang)}\n`;
               });
               
               const replyBase = getPrompt("correct_next", lang, "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.");
@@ -909,11 +912,11 @@ function transition(
             }
           }
         } else {
-          // Incorrect answer retry
+          // Incorrect answer retry (reuse `options` resolved above for this lang)
           let reply = getPrompt("incorrect_retry", lang, "❌ That is incorrect. Let's try again!\n\n");
           reply += getPrompt("quiz_time_header", lang, "📚 Quiz Time! Question:\n");
-          reply += `${quizItem.question}\n`;
-          quizItem.options.forEach((opt, idx) => {
+          reply += `${pickLocalized(quizItem.question, lang)}\n`;
+          options.forEach((opt, idx) => {
             reply += `${idx + 1}. ${opt}\n`;
           });
           reply += getPrompt("quiz_answer_prompt", lang, "\nReply with your answer (1, 2, or 3) or MENU to return.");
@@ -922,7 +925,7 @@ function transition(
             state: session.state,
             reply,
             buttons: [
-              ...quizItem.options,
+              ...options,
               "MENU"
             ]
           };
@@ -946,9 +949,10 @@ function transition(
       session.awaitingQuizAnswer = true;
       session.lastUpdatedAt = nowIso();
 
+      const options = quizItem.options.map((o) => pickLocalized(o, lang));
       let reply = getPrompt("quiz_time_header", lang, "📚 Quiz Time! Question:\n");
-      reply += `${quizItem.question}\n`;
-      quizItem.options.forEach((opt, idx) => {
+      reply += `${pickLocalized(quizItem.question, lang)}\n`;
+      options.forEach((opt, idx) => {
         reply += `${idx + 1}. ${opt}\n`;
       });
       reply += getPrompt("quiz_answer_prompt", lang, "\nReply with your answer (1, 2, or 3) or MENU to return.");
@@ -957,7 +961,7 @@ function transition(
         state: session.state,
         reply,
         buttons: [
-          ...quizItem.options,
+          ...options,
           "MENU"
         ]
       };
@@ -965,7 +969,7 @@ function transition(
 
     if (["next", "continue"].includes(normalized) && !session.awaitingQuizAnswer) {
       const lessonText = activeLesson.languages[lang] || activeLesson.languages.en || "";
-      const reply = `📖 ${activeLesson.title}\n\n${lessonText}${getPrompt("quiz_instruction", lang, "\n\nReply QUIZ to start the lesson quiz, or MENU to return.")}`;
+      const reply = `📖 ${pickLocalized(activeLesson.title, lang)}\n\n${lessonText}${getPrompt("quiz_instruction", lang, "\n\nReply QUIZ to start the lesson quiz, or MENU to return.")}`;
       session.lastUpdatedAt = nowIso();
       return {
         state: session.state,
