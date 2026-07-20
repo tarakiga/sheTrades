@@ -86,9 +86,9 @@ Plan: `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
 - `[x]` GAP-A3 (HIGH): Add `requireRoles(["editor","admin"])` to adminRouter mutations (flag / retry / mark-issued / manual). Currently any valid JWT (incl. viewer) can mutate. `admin.ts:25`
 - `[x]` GAP-A4 (HIGH): Fix audit-log actor — read `req.authUser` not `(req as any).adminUser` (actorId always null today); add `updatedAt`/version to log lines. `admin.ts:267,305,346`
 - `[x]` GAP-A5 (HIGH): Replace real secrets in `.env.example` with placeholders (live JWT secret + `ADMIN_AUTH_BOOTSTRAP_PASSWORD`); rotate the staging bootstrap password.
-- `[ ]` GAP-A6 (MED): Gate or remove legacy in-memory routers mounted at `/api`: `content.ts` (lesson CRUD/publish), `learning.ts` (GET /users/:phone, POST /progress), `rewards.ts`.
-- `[ ]` GAP-A7 (MED): `reliability-check.ts:57` re-introduces the hardcoded `local-dev-reports-token` — use env only.
-- `[ ]` GAP-A8 (MED): Enforce inbound Meta webhook signature (`X-Hub-Signature-256` + appSecret).
+- `[x]` GAP-A6 (MED): Gate or remove legacy in-memory routers mounted at `/api`: `content.ts` (lesson CRUD/publish), `learning.ts` (GET /users/:phone, POST /progress), `rewards.ts`.
+- `[x]` GAP-A7 (MED): `reliability-check.ts:57` re-introduces the hardcoded `local-dev-reports-token` — use env only.
+- `[x]` GAP-A8 (MED): Enforce inbound Meta webhook signature (`X-Hub-Signature-256` + appSecret).
 
 ### B. "No hardcoded values" mandate (CLAUDE.md)
 - `[x]` GAP-B1 (HIGH): Move all bot conversation copy + menu/language button labels to config (`getPrompt()` table + hardcoded arrays in `handler.ts:~335-637`) via `getRuntimeText()`/`getRuntimeOptionSet()` + seeds.
@@ -97,13 +97,13 @@ Plan: `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
 - `[x]` GAP-B4 (MED): Hardcoded thresholds → env/config: worker batch/retry/delay; legacy engine pass-%/lessons-per-module/reward amount.
 
 ### C. Bot conversation-flow correctness
-- `[ ]` GAP-C1 (HIGH): Fix stuck state when `awaitingQuizAnswer` but quiz item is undefined (reset + re-prompt). `handler.ts:703`
-- `[ ]` GAP-C2 (HIGH): Mark message processed only AFTER `saveSession` succeeds (avoid dropping Meta retries on DB failure). `handler.ts:~1067`
-- `[ ]` GAP-C3 (MED): DB/Redis-backed `processedMessageIds` (cross-replica + bounded).
-- `[ ]` GAP-C4 (MED): Module selection name-matching (not numeric-only); resolve `list_reply` by `id` not `title`.
-- `[ ]` GAP-C5 (MED): Localize invalid-state re-prompt + progress summary; drop `lessons.length || 6` magic total.
-- `[ ]` GAP-C6 (MED): Report exports query real data (not `buildMockRows`). `reports/export-service.ts`
-- `[ ]` GAP-C7 (LOW): Emit `lesson_viewed` analytics event; paginate module buttons when >3 (sender truncation).
+- `[x]` GAP-C1 (HIGH): Fix stuck state when `awaitingQuizAnswer` but quiz item is undefined (reset + re-prompt). `handler.ts:703`
+- `[x]` GAP-C2 (HIGH): Mark message processed only AFTER `saveSession` succeeds (avoid dropping Meta retries on DB failure). `handler.ts:~1067`
+- `[x]` GAP-C3 (MED): DB/Redis-backed `processedMessageIds` (cross-replica + bounded).
+- `[x]` GAP-C4 (MED): Module selection name-matching (not numeric-only); resolve `list_reply` by `id` not `title`.
+- `[x]` GAP-C5 (MED): Localize invalid-state re-prompt + progress summary; drop `lessons.length || 6` magic total.
+- `[x]` GAP-C6 (MED): Report exports query real data (not `buildMockRows`). `reports/export-service.ts`
+- `[x]` GAP-C7 (LOW): Emit `lesson_viewed` analytics event; paginate module buttons when >3 (sender truncation).
 
 ### D. Resilience / scaling / validation
 - `[ ]` GAP-D1 (MED): Persist in-memory singletons (admin sessions, translation requests, export jobs) to Postgres. (Admin sessions covered by the Admin-Users module below.)

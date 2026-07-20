@@ -434,3 +434,20 @@ Two deliverables so the content team can translate lessons to Pidgin/Igbo with l
   - New reusable component `dashboard/components/ui/ConstraintMeter.tsx` (exported + preview story on `/previews/components`). **Verified in browser:** all four states render correctly (9/20 green, 18/20 yellow, 24/20 red "cut off", 946/1024 yellow "+120 auto-added by the bot"); no console errors. Dashboard typecheck clean; lint net −1 (no new issues; pre-existing dead code in the drawer untouched).
   - Files: `backend/src/whatsapp/constraints.ts` (new), `backend/src/config-platform/runtime-config.ts`, `backend/src/whatsapp/handler.ts`, `backend/src/whatsapp/sender.ts`, `dashboard/lib/whatsapp-constraints.ts` (new), `dashboard/components/ui/ConstraintMeter.tsx` (new), `dashboard/components/ui/index.ts`, `dashboard/components/config/ConfigEditorDrawer.tsx`, `dashboard/app/globals.css`, `dashboard/app/previews/components/page.tsx`.
   - Not covered: driving the authenticated drawer end-to-end (needs admin login); tightening server-side lesson Zod validation (lessons still persist via the `z.record` catch-all as before).
+
+### 2026-07-21: Backlog gap remediation — C1–C7 + A6–A8 (deployed rev 00078-tg8)
+
+Fixed and deployed all 10 open backlog gaps from `remaining-gaps.md`/`task-list.md`.
+
+- **C1 (HIGH)** `handler.ts` — `awaitingQuizAnswer` with a missing quiz item now resets the flags and re-prompts (new `quiz_unavailable` prompt) instead of trapping the learner.
+- **C2 (HIGH)** `handler.ts` — inbound message is claimed, then the session is saved; the claim is only kept on success and RELEASED on failure so Meta's retry reprocesses (no more lost progress on a DB blip).
+- **C3 (MED)** `handler.ts` + `admin/prisma.ts` — dedup moved to a Postgres `processed_webhook_messages` table (cross-replica, opportunistically pruned to 2 days); in-memory Set kept only as a bounded fail-open fallback. **Verified live:** same message id → first `processed`, second `duplicate`.
+- **C4 (MED)** `handler.ts` — `list_reply` now resolves by canonical `id` first; module selection accepts `module-N` / number / name fragment; lesson selection accepts the lesson key; `resolveState` matches id case-insensitively (fixes non-ASCII Igbo "Others"). **Verified live:** row id `module-1` → lesson_menu.
+- **C5 (MED)** `handler.ts` — dropped `lessons.length || 6` magic (divide-by-zero guarded); invalid-state re-prompt localized via new `state_invalid` prompt.
+- **C6 (MED)** `reports/export-service.ts` — exports query the real DB (reward/userProgress); default render mode is now `real`, `mock` is opt-in; resilient to a missing DB (header-only, keeps tests green).
+- **C7 (LOW)** `handler.ts` — emits a `lesson_viewed` structured analytics event on lesson open; `quizAnswerButtons()` stops silently dropping the MENU button from 3-option quizzes.
+- **A6 (MED)** `routes/{content,learning,rewards}.ts` — legacy in-memory routers gated with `authenticateJwt` (+ roles on mutations), applied PER-ROUTE (router-level `use` on the broad `/api` mount would have rejected unrelated `/api/*` routes). New content.test auth-gate regression.
+- **A7 (MED)** `validation/reliability-check.ts` — removed the hardcoded `local-dev-reports-token`; reports probe runs only when the secret is set; dropped the now-gated content-lessons probe.
+- **A8 (MED)** `routes/webhook.ts` + `app.ts` — verify Meta's `X-Hub-Signature-256` HMAC over the raw body; sandbox exempt; fail-open with a warning until `appSecret` is configured (so current staging keeps working), enforced once set.
+
+Verification: backend typecheck clean; 57 non-DB tests green (reports/content/whatsapp/config); live regression of the full M1 L7 flow still PASS; C3 + C4 verified live. Commit `aa54393`, deployed `shetrades-backend-staging-00078-tg8`.
