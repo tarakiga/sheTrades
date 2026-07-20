@@ -106,3 +106,31 @@ model Reward {
   @@unique([userId, module])
   @@map("rewards")
 }
+
+/// GAP-D1: translation requests were held in an in-memory Map, so every
+/// request was lost whenever the Cloud Run instance scaled to zero (and never
+/// shared across replicas). Persisted here so the /content translation queue
+/// survives restarts.
+model TranslationRequest {
+  id                   String    @id @default(uuid())
+  contentDocumentId    String
+  contentKey           String
+  contentTitle         String
+  sourceLanguage       String
+  method               String
+  targetLanguage       String
+  priority             String
+  note                 String    @default("")
+  status               String
+  integrationState     String?
+  integrationJobId     String?
+  completionNote       String?
+  completedAt          DateTime?
+  completedBy          String?
+  reviewDraftVersionId String?
+  requestedBy          String
+  requestedAt          DateTime  @default(now())
+
+  @@index([requestedAt])
+  @@map("translation_requests")
+}

@@ -63,6 +63,36 @@ export async function ensurePrismaTables() {
       `CREATE TABLE IF NOT EXISTS processed_webhook_messages (message_id TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now());`
     );
 
+    // translation_requests — GAP-D1: the /content translation queue used to
+    // live in an in-memory Map, so requests vanished whenever Cloud Run scaled
+    // to zero. Keep in sync with the TranslationRequest model in schema.prisma.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS translation_requests (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["contentDocumentId", "TEXT"],
+      ["contentKey", "TEXT"],
+      ["contentTitle", "TEXT"],
+      ["sourceLanguage", "TEXT"],
+      ["method", "TEXT"],
+      ["targetLanguage", "TEXT"],
+      ["priority", "TEXT"],
+      ["note", "TEXT NOT NULL DEFAULT ''"],
+      ["status", "TEXT"],
+      ["integrationState", "TEXT"],
+      ["integrationJobId", "TEXT"],
+      ["completionNote", "TEXT"],
+      ["completedAt", "TIMESTAMP(3)"],
+      ["completedBy", "TEXT"],
+      ["reviewDraftVersionId", "TEXT"],
+      ["requestedBy", "TEXT"],
+      ["requestedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE translation_requests ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+
     // users
     await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);

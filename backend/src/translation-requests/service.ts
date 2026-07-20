@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { prisma } from "../admin/prisma.js";
 import type {
   CompleteTranslationRequestInput,
   CreateTranslationRequestInput,
@@ -18,56 +18,112 @@ type RequestContent = {
   sourceLanguage: string;
 };
 
-function nowIso() {
-  return new Date().toISOString();
+/** Row shape as stored by Prisma (dates as Date, optionals as null). */
+type TranslationRequestRow = {
+  id: string;
+  contentDocumentId: string;
+  contentKey: string;
+  contentTitle: string;
+  sourceLanguage: string;
+  method: string;
+  targetLanguage: string;
+  priority: string;
+  note: string;
+  status: string;
+  integrationState: string | null;
+  integrationJobId: string | null;
+  completionNote: string | null;
+  completedAt: Date | null;
+  completedBy: string | null;
+  reviewDraftVersionId: string | null;
+  requestedBy: string;
+  requestedAt: Date;
+};
+
+/**
+ * Map a DB row back to the API record contract. Nullable columns become
+ * `undefined` (omitted) so the response matches translationRequestRecordSchema,
+ * which uses `.optional()` rather than nullable.
+ */
+function toRecord(row: TranslationRequestRow): TranslationRequestRecord {
+  return {
+    id: row.id,
+    contentDocumentId: row.contentDocumentId,
+    contentKey: row.contentKey,
+    contentTitle: row.contentTitle,
+    sourceLanguage: row.sourceLanguage,
+    method: row.method as TranslationRequestRecord["method"],
+    targetLanguage: row.targetLanguage,
+    priority: row.priority,
+    note: row.note ?? "",
+    status: row.status as TranslationRequestRecord["status"],
+    ...(row.integrationState
+      ? { integrationState: row.integrationState as TranslationIntegrationState }
+      : {}),
+    ...(row.integrationJobId ? { integrationJobId: row.integrationJobId } : {}),
+    ...(row.completionNote !== null ? { completionNote: row.completionNote } : {}),
+    ...(row.completedAt ? { completedAt: row.completedAt.toISOString() } : {}),
+    ...(row.completedBy ? { completedBy: row.completedBy } : {}),
+    ...(row.reviewDraftVersionId ? { reviewDraftVersionId: row.reviewDraftVersionId } : {}),
+    requestedBy: row.requestedBy,
+    requestedAt: row.requestedAt.toISOString()
+  };
 }
 
+/**
+ * GAP-D1: translation requests are persisted in Postgres. They previously lived
+ * in an in-memory Map, so the whole /content translation queue was wiped every
+ * time the Cloud Run instance scaled to zero, and two replicas never saw the
+ * same queue.
+ */
 export class TranslationRequestService {
-  private readonly requests = new Map<string, TranslationRequestRecord>();
-
-  listRequests() {
-    return Array.from(this.requests.values()).sort((left, right) =>
-      right.requestedAt.localeCompare(left.requestedAt)
-    );
+  async listRequests(): Promise<TranslationRequestRecord[]> {
+    const rows = await prisma.translationRequest.findMany({
+      orderBy: { requestedAt: "desc" }
+    });
+    return rows.map((row) => toRecord(row as TranslationRequestRow));
   }
 
-  createRequest(actor: RequestActor, input: CreateTranslationRequestInput, content: RequestContent) {
+  async createRequest(
+    actor: RequestActor,
+    input: CreateTranslationRequestInput,
+    content: RequestContent
+  ): Promise<TranslationRequestRecord> {
     const integrationState: TranslationIntegrationState | undefined =
       input.method === "integration_job" ? "queued" : undefined;
-    const record: TranslationRequestRecord = {
-      id: randomUUID(),
-      contentDocumentId: content.documentId,
-      contentKey: content.key,
-      contentTitle: content.title,
-      sourceLanguage: content.sourceLanguage,
-      method: input.method,
-      targetLanguage: input.targetLanguage,
-      priority: input.priority,
-      note: input.note ?? "",
-      status: input.method === "integration_job" ? "queued_for_integration" : "pending",
-      ...(integrationState ? { integrationState } : {}),
-      requestedBy: actor.id,
-      requestedAt: nowIso()
-    };
 
-    this.requests.set(record.id, record);
-    return record;
+    const row = await prisma.translationRequest.create({
+      data: {
+        contentDocumentId: content.documentId,
+        contentKey: content.key,
+        contentTitle: content.title,
+        sourceLanguage: content.sourceLanguage,
+        method: input.method,
+        targetLanguage: input.targetLanguage,
+        priority: input.priority,
+        note: input.note ?? "",
+        status: input.method === "integration_job" ? "queued_for_integration" : "pending",
+        ...(integrationState ? { integrationState } : {}),
+        requestedBy: actor.id
+      }
+    });
+    return toRecord(row as TranslationRequestRow);
   }
 
-  getRequestOrThrow(requestId: string) {
-    const record = this.requests.get(requestId);
-    if (!record) {
+  async getRequestOrThrow(requestId: string): Promise<TranslationRequestRecord> {
+    const row = await prisma.translationRequest.findUnique({ where: { id: requestId } });
+    if (!row) {
       throw new Error("Translation request could not be found.");
     }
-    return record;
+    return toRecord(row as TranslationRequestRow);
   }
 
-  completeRequest(
+  async completeRequest(
     actor: RequestActor,
     requestId: string,
     input: CompleteTranslationRequestInput & { reviewDraftVersionId: string }
-  ) {
-    const existing = this.getRequestOrThrow(requestId);
+  ): Promise<TranslationRequestRecord> {
+    const existing = await this.getRequestOrThrow(requestId);
     if (existing.status === "ready_for_review") {
       throw new Error("This translation request is already ready for review.");
     }
@@ -78,22 +134,22 @@ export class TranslationRequestService {
       throw new Error("A failed integration request cannot be completed.");
     }
 
-    const completed: TranslationRequestRecord = {
-      ...existing,
-      status: "ready_for_review",
-      completionNote: input.completionNote ?? "",
-      completedAt: nowIso(),
-      completedBy: actor.id,
-      reviewDraftVersionId: input.reviewDraftVersionId,
-      ...(existing.method === "integration_job" ? { integrationState: "completed" as const } : {})
-    };
-
-    this.requests.set(requestId, completed);
-    return completed;
+    const row = await prisma.translationRequest.update({
+      where: { id: requestId },
+      data: {
+        status: "ready_for_review",
+        completionNote: input.completionNote ?? "",
+        completedAt: new Date(),
+        completedBy: actor.id,
+        reviewDraftVersionId: input.reviewDraftVersionId,
+        ...(existing.method === "integration_job" ? { integrationState: "completed" } : {})
+      }
+    });
+    return toRecord(row as TranslationRequestRow);
   }
 
-  resetForTests() {
-    this.requests.clear();
+  async resetForTests() {
+    await prisma.translationRequest.deleteMany({});
   }
 }
 

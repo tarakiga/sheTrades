@@ -219,7 +219,7 @@ translationRequestsRouter.get(
 
       res.status(200).json({
         actorRole: req.auth?.role ?? "viewer",
-        requests: translationRequestService.listRequests(),
+        requests: await translationRequestService.listRequests(),
         contentItems: contentRows
           .filter((item) => item.document.isActive)
           .map((item) => ({
@@ -278,7 +278,7 @@ translationRequestsRouter.post(
         return;
       }
 
-      const created = translationRequestService.createRequest(actorFromRequest(req), input, {
+      const created = await translationRequestService.createRequest(actorFromRequest(req), input, {
         documentId: contentRow.document.id,
         key: contentRow.document.key,
         title: contentRow.document.title,
@@ -309,7 +309,7 @@ translationRequestsRouter.post(
     try {
       const requestId = getRequiredParam(req, "requestId");
       const input = completeTranslationRequestSchema.parse(req.body);
-      const requestRecord = translationRequestService.getRequestOrThrow(requestId);
+      const requestRecord = await translationRequestService.getRequestOrThrow(requestId);
       const contentRow = (await configService
         .listDocuments({
           namespace: "content",
@@ -348,7 +348,7 @@ translationRequestsRouter.post(
         payload: nextPayload,
         changeSummary: `Added ${requestRecord.targetLanguage} translation from the translation queue`
       });
-      const completed = translationRequestService.completeRequest(actorFromRequest(req), requestId, {
+      const completed = await translationRequestService.completeRequest(actorFromRequest(req), requestId, {
         ...input,
         reviewDraftVersionId: draftUpdate.draft.id
       });

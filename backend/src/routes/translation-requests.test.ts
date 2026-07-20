@@ -10,6 +10,14 @@ const app = createApp();
 const configService = getConfigPlatformService();
 const translationRequestService = getTranslationRequestService();
 
+// GAP-D1: translation requests are now persisted in Postgres (they used to sit
+// in an in-memory Map and were lost whenever Cloud Run scaled to zero), so
+// these are integration tests. Skip cleanly when no database is configured
+// rather than failing with a connection error.
+const skipWithoutDb = process.env.POSTGRES_URL
+  ? false
+  : "requires POSTGRES_URL (translation requests are DB-backed)";
+
 async function withEnv(
   env: Record<string, string | undefined>,
   fn: () => Promise<void> | void
@@ -146,10 +154,10 @@ async function seedTranslationConfig() {
 
 test(
   "translation request bootstrap returns managed content items and option sets",
-  { concurrency: false },
+  { skip: skipWithoutDb, concurrency: false },
   async () => {
     configService.resetForTests();
-    translationRequestService.resetForTests();
+    await translationRequestService.resetForTests();
 
     const { lessonContentDocumentId } = await seedTranslationConfig();
 
@@ -194,10 +202,10 @@ test(
 
 test(
   "translation request create route rejects viewer role and invalid option values",
-  { concurrency: false },
+  { skip: skipWithoutDb, concurrency: false },
   async () => {
     configService.resetForTests();
-    translationRequestService.resetForTests();
+    await translationRequestService.resetForTests();
 
     const { lessonContentDocumentId } = await seedTranslationConfig();
 
@@ -233,10 +241,10 @@ test(
 
 test(
   "translation request create route queues integration jobs with method-aware status",
-  { concurrency: false },
+  { skip: skipWithoutDb, concurrency: false },
   async () => {
     configService.resetForTests();
-    translationRequestService.resetForTests();
+    await translationRequestService.resetForTests();
 
     const { lessonContentDocumentId } = await seedTranslationConfig();
 
@@ -263,10 +271,10 @@ test(
 
 test(
   "translation completion writes lesson translations into a review draft and updates queue status",
-  { concurrency: false },
+  { skip: skipWithoutDb, concurrency: false },
   async () => {
     configService.resetForTests();
-    translationRequestService.resetForTests();
+    await translationRequestService.resetForTests();
 
     const { lessonContentDocumentId } = await seedTranslationConfig();
 
@@ -304,10 +312,10 @@ test(
 
 test(
   "translation completion writes ui copy translations into the draft payload root",
-  { concurrency: false },
+  { skip: skipWithoutDb, concurrency: false },
   async () => {
     configService.resetForTests();
-    translationRequestService.resetForTests();
+    await translationRequestService.resetForTests();
 
     const { uiCopyContentDocumentId } = await seedTranslationConfig();
 
