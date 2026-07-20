@@ -64,6 +64,15 @@ export default function AdminDashboardOverviewPage() {
           setAnalyticsResult(analytics);
         }
       })
+      // GAP-H1: Promise.all rejects wholesale if any one call throws, which
+      // would leave every tile blank with no explanation. Surface the failure.
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        const message = `Unable to load dashboard data: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`;
+        setUsersResult({ data: { users: [] }, meta: { source: "fallback", message } });
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -410,6 +419,7 @@ export default function AdminDashboardOverviewPage() {
           >
             <div className="preview-card-content">
               <Tabs
+                label="Dashboard insight views"
                 activeId="funnel"
                 items={[
                   {

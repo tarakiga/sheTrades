@@ -640,12 +640,13 @@ export function ConfigEditorDrawer({
 
         {/* 1. Mode Selector Toggle */}
         {namespace === "content" ? (
-          <div className="wizard-mode-toggle">
+          <div className="wizard-mode-toggle" role="group" aria-label="Editor mode">
             <button
               type="button"
               className={`wizard-mode-toggle__btn ${
                 editorModeState === "wizard" ? "wizard-mode-toggle__btn--active" : ""
               }`}
+              aria-pressed={editorModeState === "wizard"}
               onClick={() => setEditorModeState("wizard")}
             >
               🪄 Visual Wizard
@@ -655,6 +656,7 @@ export function ConfigEditorDrawer({
               className={`wizard-mode-toggle__btn ${
                 editorModeState === "json" ? "wizard-mode-toggle__btn--active" : ""
               }`}
+              aria-pressed={editorModeState === "json"}
               onClick={() => setEditorModeState("json")}
             >
               💻 Raw JSON Editor
@@ -933,12 +935,13 @@ export function ConfigEditorDrawer({
                     <div className="wizard-panel__section">
                       <h4 className="wizard-panel__section-title">🌐 Localized Lesson Texts</h4>
 
-                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-3)" }}>
+                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-3)" }} role="group" aria-label="Lesson content language">
                         <button
                           type="button"
                           className={`wizard-mode-toggle__btn ${
                             activeTabLanguage === "en" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={activeTabLanguage === "en"}
                           onClick={() => setActiveTabLanguage("en")}
                         >
                           🇬🇧 English
@@ -948,6 +951,7 @@ export function ConfigEditorDrawer({
                           className={`wizard-mode-toggle__btn ${
                             activeTabLanguage === "pcm" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={activeTabLanguage === "pcm"}
                           onClick={() => setActiveTabLanguage("pcm")}
                         >
                           🇳🇬 Pidgin
@@ -957,6 +961,7 @@ export function ConfigEditorDrawer({
                           className={`wizard-mode-toggle__btn ${
                             activeTabLanguage === "ig" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={activeTabLanguage === "ig"}
                           onClick={() => setActiveTabLanguage("ig")}
                         >
                           🇳🇬 Igbo
@@ -1141,10 +1146,11 @@ export function ConfigEditorDrawer({
 
                       {/* Language tab — the quiz is translated per language; the
                           correct-answer position is shared across all languages. */}
-                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-4)" }}>
+                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-4)" }} role="group" aria-label="Quiz language">
                         <button
                           type="button"
                           className={`wizard-mode-toggle__btn ${activeTabLanguage === "en" ? "wizard-mode-toggle__btn--active" : ""}`}
+                          aria-pressed={activeTabLanguage === "en"}
                           onClick={() => setActiveTabLanguage("en")}
                         >
                           🇬🇧 English
@@ -1152,6 +1158,7 @@ export function ConfigEditorDrawer({
                         <button
                           type="button"
                           className={`wizard-mode-toggle__btn ${activeTabLanguage === "pcm" ? "wizard-mode-toggle__btn--active" : ""}`}
+                          aria-pressed={activeTabLanguage === "pcm"}
                           onClick={() => setActiveTabLanguage("pcm")}
                         >
                           🇳🇬 Pidgin
@@ -1159,6 +1166,7 @@ export function ConfigEditorDrawer({
                         <button
                           type="button"
                           className={`wizard-mode-toggle__btn ${activeTabLanguage === "ig" ? "wizard-mode-toggle__btn--active" : ""}`}
+                          aria-pressed={activeTabLanguage === "ig"}
                           onClick={() => setActiveTabLanguage("ig")}
                         >
                           🇳🇬 Igbo
@@ -1319,12 +1327,13 @@ export function ConfigEditorDrawer({
                       </h4>
 
                       {/* Language Selection Tab inside simulator */}
-                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-4)" }}>
+                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-4)" }} role="group" aria-label="Preview language">
                         <button
                           type="button"
                           className={`wizard-mode-toggle__btn ${
                             previewLanguage === "en" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={previewLanguage === "en"}
                           onClick={() => setPreviewLanguage("en")}
                         >
                           🇬🇧 Preview English
@@ -1334,6 +1343,7 @@ export function ConfigEditorDrawer({
                           className={`wizard-mode-toggle__btn ${
                             previewLanguage === "pcm" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={previewLanguage === "pcm"}
                           onClick={() => setPreviewLanguage("pcm")}
                         >
                           🇳🇬 Preview Pidgin
@@ -1343,6 +1353,7 @@ export function ConfigEditorDrawer({
                           className={`wizard-mode-toggle__btn ${
                             previewLanguage === "ig" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={previewLanguage === "ig"}
                           onClick={() => setPreviewLanguage("ig")}
                         >
                           🇳🇬 Preview Igbo
@@ -1563,12 +1574,13 @@ export function ConfigEditorDrawer({
                     <div className="wizard-panel__section">
                       <h4 className="wizard-panel__section-title">🌐 Translation Copies</h4>
 
-                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-3)" }}>
+                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-3)" }} role="group" aria-label="Translation copy language">
                         <button
                           type="button"
                           className={`wizard-mode-toggle__btn ${
                             activeTabLanguage === "en" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={activeTabLanguage === "en"}
                           onClick={() => setActiveTabLanguage("en")}
                         >
                           🇬🇧 English
@@ -1578,6 +1590,7 @@ export function ConfigEditorDrawer({
                           className={`wizard-mode-toggle__btn ${
                             activeTabLanguage === "pcm" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={activeTabLanguage === "pcm"}
                           onClick={() => setActiveTabLanguage("pcm")}
                         >
                           🇳🇬 Pidgin
@@ -1587,6 +1600,7 @@ export function ConfigEditorDrawer({
                           className={`wizard-mode-toggle__btn ${
                             activeTabLanguage === "ig" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={activeTabLanguage === "ig"}
                           onClick={() => setActiveTabLanguage("ig")}
                         >
                           🇳🇬 Igbo
@@ -1695,12 +1709,13 @@ export function ConfigEditorDrawer({
                       </h4>
 
                       {/* Language Selection Tab inside simulator */}
-                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-4)" }}>
+                      <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-4)" }} role="group" aria-label="Preview language">
                         <button
                           type="button"
                           className={`wizard-mode-toggle__btn ${
                             previewLanguage === "en" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={previewLanguage === "en"}
                           onClick={() => setPreviewLanguage("en")}
                         >
                           🇬🇧 Preview English
@@ -1710,6 +1725,7 @@ export function ConfigEditorDrawer({
                           className={`wizard-mode-toggle__btn ${
                             previewLanguage === "pcm" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={previewLanguage === "pcm"}
                           onClick={() => setPreviewLanguage("pcm")}
                         >
                           🇳🇬 Preview Pidgin
@@ -1719,6 +1735,7 @@ export function ConfigEditorDrawer({
                           className={`wizard-mode-toggle__btn ${
                             previewLanguage === "ig" ? "wizard-mode-toggle__btn--active" : ""
                           }`}
+                          aria-pressed={previewLanguage === "ig"}
                           onClick={() => setPreviewLanguage("ig")}
                         >
                           🇳🇬 Preview Igbo

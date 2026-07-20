@@ -42,6 +42,20 @@ export default function AnalyticsPage() {
       .then((r) => {
         if (!cancelled) setResult(r);
       })
+      // GAP-H1: surface an explicit error instead of silently rendering the
+      // zeroed fallback (and raising an unhandled rejection).
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setResult({
+          data: FALLBACK_DATA,
+          meta: {
+            source: "fallback",
+            message: `Unable to load analytics: ${
+              error instanceof Error ? error.message : "unknown error"
+            }`
+          }
+        });
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -125,6 +139,7 @@ export default function AnalyticsPage() {
                 description="Learner progression through onboarding and modules."
               >
                 <Tabs
+                  label="Analytics funnel views"
                   activeId="overall"
                   items={[
                     {

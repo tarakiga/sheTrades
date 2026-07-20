@@ -2,6 +2,7 @@ import {
   AnalyticsRewardsReportsWorkspacePreview
 } from "./AnalyticsRewardsReportsWorkspacePreview";
 import {
+  AdminWorkspaceMetricStrip,
   Badge,
   Button,
   Card,
@@ -27,7 +28,9 @@ import { OverviewUsersWorkspacePreview } from "./OverviewUsersWorkspacePreview";
 import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
 import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
+import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
 import { PreviewSelectTabsDemo } from "./PreviewSelectTabsDemo";
+import { AdminRouteLoading } from "../../../components/layout/AdminRouteLoading";
 import { RewardsWorkspacePreview } from "./RewardsWorkspacePreview";
 import { TranslationRequestWorkflowPreview } from "./TranslationRequestWorkflowPreview";
 import { UsersWorkspacePreview } from "./UsersWorkspacePreview";
@@ -171,6 +174,69 @@ export default async function ComponentsPreviewPage() {
               overflow="reject"
             />
           </div>
+        </Card>
+
+        <Card
+          title={t("preview.metricStrip.title", "Admin Workspace Metric Strip")}
+          description={t(
+            "preview.metricStrip.description",
+            "The KPI row used at the top of every admin workspace. Takes a required ariaLabel so screen readers can name the group."
+          )}
+        >
+          <AdminWorkspaceMetricStrip
+            ariaLabel={t("preview.metricStrip.aria", "Example workspace metrics")}
+            metrics={[
+              {
+                label: "Registration Rate",
+                value: "72%",
+                trend: "Top-of-funnel learner conversion",
+                status: <Badge variant="success">Coverage</Badge>
+              },
+              {
+                label: "Module Completion",
+                value: "34%",
+                trend: "Progression through active modules",
+                status: <Badge variant="warning">Progression</Badge>
+              },
+              {
+                label: "Quiz Pass Rate",
+                value: "68%",
+                trend: "Assessment signal across learners",
+                status: <Badge variant="info">Assessment</Badge>
+              }
+            ]}
+          />
+        </Card>
+
+        <Card
+          title={t("preview.editors.title", "Rich Text Editor + Textarea")}
+          description={t(
+            "preview.editors.description",
+            "Controlled text inputs used by the content wizard. RichTextEditor writes WhatsApp markdown (*bold*, _italics_); Textarea covers raw payloads and notes, with hint and error states."
+          )}
+        >
+          <PreviewEditorsDemo />
+        </Card>
+
+        <Card
+          title={t("preview.routeLoading.title", "Admin Route Loading")}
+          description={t(
+            "preview.routeLoading.description",
+            "The shared skeleton rendered by every admin route's loading.tsx while its data resolves. All copy is config-driven with safe fallbacks."
+          )}
+        >
+          <AdminRouteLoading
+            headerTitleKey="preview.routeLoading.headerTitle"
+            headerTitleFallback="Learners"
+            headerDescriptionKey="preview.routeLoading.headerDescription"
+            headerDescriptionFallback="Review learner progress and follow-up status."
+            cardTitleKey="preview.routeLoading.cardTitle"
+            cardTitleFallback="Learner Directory"
+            cardDescriptionKey="preview.routeLoading.cardDescription"
+            cardDescriptionFallback="Fetching the latest learner records."
+            loadingLabelKey="preview.routeLoading.loadingLabel"
+            loadingLabelFallback="Loading learners..."
+          />
         </Card>
 
         <Card

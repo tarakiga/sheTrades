@@ -154,6 +154,7 @@ export default function ReportsPage() {
             description="Configured export presets by stakeholder profile."
           >
             <Tabs
+              label="Report types"
               activeId={presets[0]?.id ?? "donor"}
               items={presets.map((preset) => ({
                 id: preset.id,

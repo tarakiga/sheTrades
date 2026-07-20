@@ -12,9 +12,15 @@ export type TabItem = {
 export type TabsProps = {
   items: Array<TabItem>;
   activeId: string;
+  /**
+   * Accessible name for the tab list, e.g. "Analytics views" or "Report types".
+   * GAP-H3: a screen reader announcing a generic "Tabs" on every tablist gives
+   * the user no way to tell one group from another — pass what these tabs are.
+   */
+  label?: string;
 };
 
-export function Tabs({ items, activeId }: TabsProps) {
+export function Tabs({ items, activeId, label }: TabsProps) {
   const [selectedId, setSelectedId] = useState(activeId);
   const instanceId = useId();
   const activeItem = items.find((item) => item.id === selectedId) ?? items[0];
@@ -23,7 +29,12 @@ export function Tabs({ items, activeId }: TabsProps) {
 
   return (
     <section className="ui-tabs">
-      <div className="ui-tabs__list" role="tablist" aria-label="Tabs" suppressHydrationWarning>
+      <div
+        className="ui-tabs__list"
+        role="tablist"
+        aria-label={label ?? "Content sections"}
+        suppressHydrationWarning
+      >
         {items.map((item) => (
           <button
             key={item.id}

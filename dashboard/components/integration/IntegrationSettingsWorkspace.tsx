@@ -886,6 +886,7 @@ export function IntegrationSettingsWorkspace({ copy }: IntegrationSettingsWorksp
 
       <div className="integration-tabs-shell">
         <Tabs
+          label="Integration providers"
           activeId="whatsapp"
           items={[
             {

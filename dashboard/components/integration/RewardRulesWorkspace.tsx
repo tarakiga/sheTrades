@@ -460,8 +460,13 @@ export function RewardRulesWorkspace() {
 
                 <div className="integration-workspace__toggle-field">
                   <span className="integration-workspace__toggle-label">Rule Enabled</span>
+                  {/* GAP-H3: this button is a toggle, so expose its on/off state
+                      to assistive tech — the visible label alone doesn't tell a
+                      screen reader that it is a pressed/unpressed control. */}
                   <Button
                     variant={form.enabled ? "primary" : "secondary"}
+                    aria-pressed={form.enabled}
+                    aria-label={`Rule enabled: ${form.enabled ? "on" : "off"}`}
                     onClick={() => setForm({ ...form, enabled: !form.enabled })}
                   >
                     {form.enabled ? "Enabled" : "Disabled"}

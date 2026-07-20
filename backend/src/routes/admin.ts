@@ -27,20 +27,38 @@ export const adminRouter = Router();
 // JWT to every /api/admin/* call (see dashboard/lib/admin/api.ts authHeaders).
 adminRouter.use(authenticateJwt);
 
+/**
+ * GAP-D2: validate + coerce the reward list filters before they reach SQL.
+ * Previously `from`/`to` went through `new Date(...)` (an unparseable value
+ * became `Invalid Date`), `limit` through `Number(...)` (garbage became `NaN`
+ * → `LIMIT NaN`), and `q`/`cursor` had no length cap.
+ *
+ * Each field carries its own `.catch(undefined)` so a single malformed filter
+ * is simply dropped rather than discarding every other (valid) filter.
+ */
+export const rewardsFilterQuerySchema = z.object({
+  status: z.enum(["Issued", "Pending", "Failed"]).optional().catch(undefined),
+  from: z.coerce.date().optional().catch(undefined),
+  to: z.coerce.date().optional().catch(undefined),
+  q: z.string().trim().min(1).max(200).optional().catch(undefined),
+  cursor: z.string().trim().min(1).max(200).optional().catch(undefined),
+  limit: z.coerce.number().int().min(1).max(100).optional().catch(undefined)
+});
+
 function buildRewardsFilters(req: Request, limitOverride?: number): RewardsDataFilters {
+  const query = rewardsFilterQuerySchema.parse(req.query ?? {});
   const filters: RewardsDataFilters = {};
-  const statusParam = req.query.status;
-  if (statusParam === "Issued" || statusParam === "Pending" || statusParam === "Failed") {
-    filters.status = statusParam;
-  }
-  if (req.query.from) filters.from = new Date(String(req.query.from));
-  if (req.query.to) filters.to = new Date(String(req.query.to));
-  if (req.query.q) filters.q = String(req.query.q);
-  if (req.query.cursor) filters.cursor = String(req.query.cursor);
+
+  if (query.status) filters.status = query.status;
+  if (query.from) filters.from = query.from;
+  if (query.to) filters.to = query.to;
+  if (query.q) filters.q = query.q;
+  if (query.cursor) filters.cursor = query.cursor;
+
   if (limitOverride !== undefined) {
     filters.limit = limitOverride;
-  } else if (req.query.limit) {
-    filters.limit = Number(req.query.limit);
+  } else if (query.limit !== undefined) {
+    filters.limit = query.limit;
   }
   return filters;
 }
