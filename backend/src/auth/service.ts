@@ -203,15 +203,16 @@ function toManagedUser(record: AdminUserRecord): AdminManagedUser {
 }
 
 /**
- * Admin accounts are persisted in Postgres (admin_accounts) so they survive
- * Cloud Run restarts and are consistent across instances. Sessions remain an
- * in-memory map for now (a session minted on one instance is not yet shared
- * with another — tracked as GAP-D1); because every authenticated request
- * re-loads the account from the DB and checks status, suspending an admin
- * takes effect immediately regardless.
+ * Admin accounts (admin_accounts) AND sessions (admin_sessions) are both
+ * persisted in Postgres, so they survive Cloud Run restarts and are consistent
+ * across instances — a session minted on one instance is valid on any other
+ * (GAP-D1; sessions used to live in an in-memory Map, which silently logged
+ * admins out whenever the service scaled to zero). Every authenticated request
+ * also re-loads the account and checks status, so suspending an admin takes
+ * effect immediately.
  */
 export class AdminAuthService {
-  private readonly sessionsById = new Map<string, AdminSession>();
+  // GAP-D1: sessions now live in Postgres (admin_sessions), not in memory.
   private bootstrapAttempted = false;
 
   private async ensureBootstrapped() {
@@ -257,15 +258,14 @@ export class AdminAuthService {
     return prisma.adminAccount.count({ where: { role: "admin", status: "active" } });
   }
 
-  private revokeSessionsForUser(userId: string) {
-    for (const session of this.sessionsById.values()) {
-      if (session.adminUserId === userId && !session.revokedAt) {
-        this.sessionsById.set(session.id, { ...session, revokedAt: nowIso() });
-      }
-    }
+  private async revokeSessionsForUser(userId: string) {
+    await prisma.adminSession.updateMany({
+      where: { adminUserId: userId, revokedAt: null },
+      data: { revokedAt: new Date() }
+    });
   }
 
-  private createSessionForUser(user: AdminUserRecord) {
+  private async createSessionForUser(user: AdminUserRecord) {
     const issuedAt = Math.floor(Date.now() / 1000);
     const expiresAtSeconds = issuedAt + getSessionTtlSeconds();
     const sessionId = randomUUID();
@@ -293,7 +293,19 @@ export class AdminAuthService {
       createdAt: nowIso()
     });
 
-    this.sessionsById.set(session.id, session);
+    // GAP-D1: persist so the session survives a restart and is valid on any
+    // replica, not just the instance that minted it.
+    await prisma.adminSession.create({
+      data: {
+        id: session.id,
+        adminUserId: session.adminUserId,
+        tokenId: session.tokenId,
+        expiresAt: new Date(session.expiresAt),
+        revokedAt: null,
+        lastSeenAt: null,
+        createdAt: new Date(session.createdAt)
+      }
+    });
     return { token, session };
   }
 
@@ -321,7 +333,7 @@ export class AdminAuthService {
       updatedAt: loginAt.toISOString()
     };
 
-    const { token, session } = this.createSessionForUser(nextUser);
+    const { token, session } = await this.createSessionForUser(nextUser);
     return {
       token,
       expiresAt: session.expiresAt,
@@ -335,27 +347,34 @@ export class AdminAuthService {
       return null;
     }
 
-    const session = this.sessionsById.get(claims.sid);
-    if (!session) {
+    const row = await prisma.adminSession.findUnique({ where: { id: claims.sid } });
+    if (!row) {
       throw new Error("Session could not be found.");
     }
-    if (session.revokedAt) {
+    if (row.revokedAt) {
       throw new Error("Session has been revoked.");
     }
-    if (new Date(session.expiresAt).getTime() <= Date.now()) {
+    if (row.expiresAt.getTime() <= Date.now()) {
       throw new Error("Session is expired.");
     }
 
-    const user = await this.getRecordByIdOrThrow(session.adminUserId);
+    const user = await this.getRecordByIdOrThrow(row.adminUserId);
     if (user.status !== "active") {
       throw new Error("This admin account is disabled.");
     }
 
-    const updatedSession: AdminSession = {
-      ...session,
-      lastSeenAt: nowIso()
-    };
-    this.sessionsById.set(updatedSession.id, updatedSession);
+    const lastSeenAt = new Date();
+    await prisma.adminSession.update({ where: { id: row.id }, data: { lastSeenAt } });
+
+    const updatedSession: AdminSession = adminSessionSchema.parse({
+      id: row.id,
+      adminUserId: row.adminUserId,
+      tokenId: row.tokenId,
+      expiresAt: row.expiresAt.toISOString(),
+      revokedAt: null,
+      lastSeenAt: lastSeenAt.toISOString(),
+      createdAt: row.createdAt.toISOString()
+    });
 
     return {
       user: toSafeUser(user),
@@ -364,13 +383,13 @@ export class AdminAuthService {
   }
 
   async logout(sessionId: string) {
-    const session = this.sessionsById.get(sessionId);
-    if (!session) {
+    const row = await prisma.adminSession.findUnique({ where: { id: sessionId } });
+    if (!row) {
       throw new Error("Session could not be found.");
     }
-    this.sessionsById.set(session.id, {
-      ...session,
-      revokedAt: nowIso()
+    await prisma.adminSession.update({
+      where: { id: sessionId },
+      data: { revokedAt: new Date() }
     });
   }
 
@@ -469,7 +488,7 @@ export class AdminAuthService {
     }
     const row = await prisma.adminAccount.update({ where: { id: targetId }, data: { status } });
     if (status === "disabled") {
-      this.revokeSessionsForUser(targetId);
+      await this.revokeSessionsForUser(targetId);
     }
     return toManagedUser(accountRowToRecord(row as AdminAccountRow));
   }
@@ -499,11 +518,11 @@ export class AdminAuthService {
       }
     }
     await prisma.adminAccount.delete({ where: { id: targetId } });
-    this.revokeSessionsForUser(targetId);
+    await this.revokeSessionsForUser(targetId);
   }
 
   async resetForTests() {
-    this.sessionsById.clear();
+    await prisma.adminSession.deleteMany({});
     this.bootstrapAttempted = false;
     try {
       await prisma.adminAccount.deleteMany({});

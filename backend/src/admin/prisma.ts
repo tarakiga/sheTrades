@@ -63,6 +63,25 @@ export async function ensurePrismaTables() {
       `CREATE TABLE IF NOT EXISTS processed_webhook_messages (message_id TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now());`
     );
 
+    // admin_sessions — GAP-D1: admin sessions used to live in an in-memory Map,
+    // so they were invalid across replicas and lost on every scale-to-zero
+    // (silently logging admins out). Keep in sync with schema.prisma.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS admin_sessions (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["adminUserId", "TEXT"],
+      ["tokenId", "TEXT"],
+      ["expiresAt", "TIMESTAMP(3)"],
+      ["revokedAt", "TIMESTAMP(3)"],
+      ["lastSeenAt", "TIMESTAMP(3)"],
+      ["createdAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE admin_sessions ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+
     // translation_requests — GAP-D1: the /content translation queue used to
     // live in an in-memory Map, so requests vanished whenever Cloud Run scaled
     // to zero. Keep in sync with the TranslationRequest model in schema.prisma.

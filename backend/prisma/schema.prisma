@@ -134,3 +134,19 @@ model TranslationRequest {
   @@index([requestedAt])
   @@map("translation_requests")
 }
+
+/// GAP-D1: admin sessions were held in an in-memory Map, so a session minted on
+/// one Cloud Run instance was invalid on another and every session was dropped
+/// when the service scaled to zero — logging admins out unpredictably.
+model AdminSession {
+  id          String    @id @default(uuid())
+  adminUserId String
+  tokenId     String
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  lastSeenAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([adminUserId])
+  @@map("admin_sessions")
+}
