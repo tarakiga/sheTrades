@@ -2,16 +2,22 @@ import { Router } from "express";
 import { applyProgressUpdate, getUserLearningState } from "../learning/engine.js";
 import { hasIssuedRewardForModule, issueReward } from "../rewards/service.js";
 import { getRuntimeNumericPolicy } from "../config-platform/runtime-config.js";
+import { authenticateJwt } from "../auth/jwt-rbac.js";
 
 export const learningRouter = Router();
 
-learningRouter.get("/users/:phone", (req, res) => {
-  const phone = req.params.phone;
+// GAP-A6: this legacy in-memory router exposed learner PII (GET /users/:phone)
+// and accepted unauthenticated progress writes. Gate each route with
+// `authenticateJwt`. Auth is per-route, not router.use — this router is mounted
+// at the broad "/api" path, so a router-level guard would reject unrelated
+// /api/* requests before they fall through to their own router.
+learningRouter.get("/users/:phone", authenticateJwt, (req, res) => {
+  const phone = String(req.params.phone);
   const state = getUserLearningState(phone);
   res.status(200).json(state);
 });
 
-learningRouter.post("/progress", async (req, res, next) => {
+learningRouter.post("/progress", authenticateJwt, async (req, res, next) => {
   try {
     const result = applyProgressUpdate(req.body);
     const event = req.body as { phone?: string; event?: { moduleId?: number } };

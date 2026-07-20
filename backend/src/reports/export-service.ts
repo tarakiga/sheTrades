@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { withRetry } from "../lib/retry.js";
 import { logger } from "../lib/logging.js";
+import { prisma } from "../admin/prisma.js";
 
 type ReportType = "donor_summary" | "module_completion_detail" | "rewards_issuance_log";
 type ExportFormat = "csv" | "pdf";
@@ -61,7 +62,9 @@ function nowIso() {
 }
 
 function renderMode() {
-  return process.env.REPORT_EXPORT_RENDER_MODE ?? "mock";
+  // GAP-C6: default to real DB-backed exports. "mock" is opt-in (used by unit
+  // tests); "always_fail"/"flaky_once" simulate renderer failures.
+  return process.env.REPORT_EXPORT_RENDER_MODE ?? "real";
 }
 
 function retryPolicy() {
@@ -92,6 +95,76 @@ function buildMockRows(reportType: ReportType) {
     ["2026-05-05T09:10:00Z", "+234800000001", "Module 1", "200", "Airtime API", "Issued"],
     ["2026-05-05T09:22:00Z", "+234800000003", "Module 2", "200", "Manual", "Pending"]
   ];
+}
+
+/**
+ * GAP-C6: build export rows from the real database (reward / userProgress /
+ * quizAttempt) instead of hardcoded mock data. Each query is wrapped so that a
+ * missing/unavailable DB yields a header-only export rather than a hard failure
+ * (keeps the pipeline — and its unit tests — working without a live Postgres).
+ */
+async function buildReportRows(reportType: ReportType): Promise<string[][]> {
+  try {
+    if (reportType === "rewards_issuance_log") {
+      const rewards = await prisma.reward.findMany({ orderBy: { createdAt: "desc" }, take: 5000 });
+      return rewards.map((r) => [
+        (r.issuedAt ?? r.createdAt).toISOString(),
+        r.learnerPhone || "",
+        r.module,
+        String(r.amount),
+        r.channel,
+        r.status
+      ]);
+    }
+
+    if (reportType === "module_completion_detail") {
+      const progress = await prisma.userProgress.findMany();
+      const byModule = new Map<string, { enrolled: number; completed: number; pctSum: number }>();
+      for (const p of progress) {
+        const agg = byModule.get(p.module) ?? { enrolled: 0, completed: 0, pctSum: 0 };
+        agg.enrolled += 1;
+        agg.pctSum += p.completionPercentage;
+        if (p.completionPercentage >= 100) agg.completed += 1;
+        byModule.set(p.module, agg);
+      }
+      return Array.from(byModule.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([module, agg]) => [
+          module,
+          String(agg.enrolled),
+          String(agg.completed),
+          agg.enrolled > 0 ? `${Math.round((agg.completed / agg.enrolled) * 100)}%` : "0%",
+          agg.enrolled > 0 ? `${Math.round(agg.pctSum / agg.enrolled)}%` : "0%"
+        ]);
+    }
+
+    // donor_summary — no donor entity exists, so summarise real disbursements
+    // from the rewards ledger by month (period, recipients, total NGN issued).
+    const rewards = await prisma.reward.findMany();
+    const byPeriod = new Map<string, { recipients: Set<string>; issued: number; total: number }>();
+    for (const r of rewards) {
+      const period = (r.issuedAt ?? r.createdAt).toISOString().slice(0, 7);
+      const agg = byPeriod.get(period) ?? { recipients: new Set<string>(), issued: 0, total: 0 };
+      agg.recipients.add(r.userId);
+      if (r.status === "Issued") {
+        agg.issued += 1;
+        agg.total += r.amount;
+      }
+      byPeriod.set(period, agg);
+    }
+    return Array.from(byPeriod.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([period, agg]) => [
+        period,
+        String(agg.recipients.size),
+        String(agg.issued),
+        String(agg.recipients.size),
+        String(Math.round(agg.total))
+      ]);
+  } catch (error) {
+    logger.error("reports.export.query_failed", error, { reportType });
+    return [];
+  }
 }
 
 function toCsv(columns: string[], rows: string[][]) {
@@ -127,7 +200,10 @@ async function renderExportContent(
   }
 
   const registry = reportSchemaRegistry[request.reportType];
-  const rows = buildMockRows(request.reportType);
+  const rows =
+    renderMode() === "mock"
+      ? buildMockRows(request.reportType)
+      : await buildReportRows(request.reportType);
   const extension = request.format;
   const fileName = `${request.reportType}-${new Date().toISOString().slice(0, 10)}.${extension}`;
   const content =

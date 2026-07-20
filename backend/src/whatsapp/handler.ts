@@ -4,6 +4,16 @@ import { BOT_PROMPT_DEFAULTS, BOT_PROMPT_CONFIG_PREFIX } from "./bot-prompts.js"
 import { prisma } from "../admin/prisma.js";
 import type { WhatsAppListSpec } from "./sender.js";
 import { sendWhatsAppMessage, BUTTON_TITLE_MAX, clip } from "./sender.js";
+import { WHATSAPP_LIMITS } from "./constraints.js";
+
+/**
+ * Quiz answer buttons plus a MENU escape — but only append MENU when it fits
+ * within WhatsApp's 3-button cap (GAP-C7). Appending unconditionally silently
+ * dropped MENU whenever a question already had 3 options.
+ */
+function quizAnswerButtons(options: string[]): string[] {
+  return options.length < WHATSAPP_LIMITS.maxButtons ? [...options, "MENU"] : options;
+}
 
 export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu";
 
@@ -15,7 +25,10 @@ type AnalyticsEvent =
       module: string;
       completionPercentage: number;
     }
-  | { type: "module_completed"; module: string };
+  | { type: "module_completed"; module: string }
+  // GAP-C7: emitted when a lesson is opened, so drop-off before the quiz is
+  // visible in analytics (previously invisible).
+  | { type: "lesson_viewed"; lessonKey: string; module: string };
 
 type UserSession = {
   phone: string;
@@ -111,7 +124,53 @@ const webhookPayloadSchema = z.object({
     .optional()
 });
 
+// Last-resort, same-replica dedup used ONLY when the Postgres dedup store is
+// unreachable (GAP-C3 primary path is the DB table below). Bounded so it can
+// never grow without limit.
 const processedMessageIds = new Set<string>();
+const PROCESSED_IDS_FALLBACK_CAP = 10000;
+
+/**
+ * Atomically claim an inbound message id so the same Meta delivery is processed
+ * once across all Cloud Run replicas (GAP-C3). Returns true if this call won the
+ * claim (proceed), false if it was already claimed (duplicate). Falls OPEN to a
+ * bounded in-memory set if the DB is unreachable — at-least-once beats dropping
+ * a learner's message.
+ */
+async function claimInboundMessage(messageId: string): Promise<boolean> {
+  try {
+    const inserted = await prisma.$executeRawUnsafe(
+      `INSERT INTO processed_webhook_messages (message_id) VALUES ($1) ON CONFLICT (message_id) DO NOTHING`,
+      messageId
+    );
+    // Opportunistic bounded cleanup: ~1% of claims prune rows older than 2 days.
+    if (Math.random() < 0.01) {
+      await prisma
+        .$executeRawUnsafe(
+          `DELETE FROM processed_webhook_messages WHERE created_at < now() - interval '2 days'`
+        )
+        .catch(() => {});
+    }
+    return inserted === 1;
+  } catch {
+    if (processedMessageIds.has(messageId)) return false;
+    if (processedMessageIds.size >= PROCESSED_IDS_FALLBACK_CAP) processedMessageIds.clear();
+    processedMessageIds.add(messageId);
+    return true;
+  }
+}
+
+/**
+ * Release a previously claimed message id so Meta's retry can reprocess it
+ * (GAP-C2). Called only when processing failed AFTER the claim but BEFORE the
+ * session was durably saved.
+ */
+async function releaseInboundMessage(messageId: string): Promise<void> {
+  await prisma
+    .$executeRawUnsafe(`DELETE FROM processed_webhook_messages WHERE message_id = $1`, messageId)
+    .catch(() => {});
+  processedMessageIds.delete(messageId);
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -192,7 +251,11 @@ function resolveState(input: string, rows: StateRow[]): StateRow | null {
   if (Number.isInteger(asNum) && asNum >= 1 && asNum <= rows.length) {
     return rows[asNum - 1] ?? null;
   }
-  return rows.find((r) => r.id === norm || r.title.trim().toLowerCase() === norm) ?? null;
+  // Match the canonical id (case-insensitive) or the display title. Id match
+  // supports GAP-C4's id-first list replies regardless of slug casing.
+  return (
+    rows.find((r) => r.id.toLowerCase() === norm || r.title.trim().toLowerCase() === norm) ?? null
+  );
 }
 
 function buildStateListReply(lang: "en" | "pcm" | "ig", rows: StateRow[]) {
@@ -292,7 +355,11 @@ function extractInboundMessage(payload: unknown): InboundMessage | null {
     if (message.interactive.type === "button_reply") {
       bodyText = message.interactive.button_reply?.title || message.interactive.button_reply?.id || "";
     } else if (message.interactive.type === "list_reply") {
-      bodyText = message.interactive.list_reply?.title || message.interactive.list_reply?.id || "";
+      // GAP-C4: prefer the row's canonical id over its display title. The id is
+      // ASCII and stable (e.g. "module-3", a lesson key, a state slug), so a
+      // tapped row resolves reliably even when the title is non-ASCII (e.g. the
+      // Igbo "Others" label) or was truncated on the way to the device.
+      bodyText = message.interactive.list_reply?.id || message.interactive.list_reply?.title || "";
     }
   } else {
     bodyText = message.text?.body || "";
@@ -525,7 +592,11 @@ function transition(
       const list = buildStateListReply(lang, rows);
       return {
         state: "awaiting_state",
-        reply: "Please choose your state from the list.\n" + list.reply,
+        // GAP-C5: localize the invalid-state re-prompt via editable config.
+        reply:
+          getPrompt("state_invalid", lang, "Please choose your state from the list.") +
+          "\n" +
+          list.reply,
         list: list.list
       };
     }
@@ -632,9 +703,11 @@ function transition(
 
     // Option 2: My Progress summary
     if (["2", "progress", "my progress", "2. my progress"].includes(normalized)) {
-      const totalCount = lessons.length || 6;
+      // GAP-C5: use the real total lesson count (no `|| 6` magic) and guard
+      // against divide-by-zero when no lessons are published.
+      const totalCount = lessons.length;
       const completedCount = session.completedLessons.length;
-      const percentage = Math.round((completedCount / totalCount) * 100);
+      const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
       const summaryText = lang === "pcm"
         ? `${session.name ?? "Learner"}, your current completion is ${percentage}%. You don finish ${completedCount} out of ${totalCount} lessons. Reply 1 to start learning or MENU to return.`
@@ -693,9 +766,17 @@ function transition(
       };
     }
 
-    // Resolve the chosen lesson from a tapped row ("▶️ Lesson N") or a typed number.
-    const lessonMatch = normalized.match(/lesson\s*(\d+)/) || normalized.match(/^(\d+)$/);
-    const lessonIdx = lessonMatch ? parseInt(lessonMatch[1]!, 10) : NaN;
+    // Resolve the chosen lesson. GAP-C4: a tapped row now arrives as its
+    // canonical id (the lesson key); typed input arrives as "lesson N" / a
+    // bare number.
+    const byKey = moduleLessons.findIndex((l) => l.key.toLowerCase() === normalized);
+    let lessonIdx: number;
+    if (byKey >= 0) {
+      lessonIdx = byKey + 1;
+    } else {
+      const lessonMatch = normalized.match(/lesson\s*(\d+)/) || normalized.match(/^(\d+)$/);
+      lessonIdx = lessonMatch ? parseInt(lessonMatch[1]!, 10) : NaN;
+    }
     if (!isNaN(lessonIdx) && lessonIdx >= 1 && lessonIdx <= moduleLessons.length) {
       const chosen = moduleLessons[lessonIdx - 1]!;
       session.currentLessonKey = chosen.key;
@@ -705,6 +786,11 @@ function transition(
       session.lastUpdatedAt = nowIso();
       const lessonText = chosen.languages[lang] || chosen.languages.en || "";
       const reply = `📖 ${pickLocalized(chosen.title, lang)}\n\n${lessonText}${getPrompt("quiz_instruction", lang, "\n\nReply QUIZ to start the lesson quiz, or MENU to return.")}`;
+      session._events!.push({
+        type: "lesson_viewed",
+        lessonKey: chosen.key,
+        module: session.selectedModuleId ?? String(chosen.module ?? "")
+      });
       return { state: session.state, reply, buttons: ["QUIZ", "MENU"] };
     }
 
@@ -717,7 +803,19 @@ function transition(
   if (session.state === "module_menu") {
     // Case A: User has not selected a specific module yet (at the module list prompt)
     if (!session.selectedModuleId) {
-      const num = parseInt(normalized, 10);
+      // GAP-C4: resolve the module from a tapped row id ("module-N"), a typed or
+      // prefixed number ("2" / "2. Money…"), or a name fragment — not numeric-only.
+      let num = NaN;
+      const moduleIdMatch = normalized.match(/^module-(\d+)$/);
+      const moduleNumMatch = normalized.match(/^(\d+)\b/);
+      if (moduleIdMatch) {
+        num = parseInt(moduleIdMatch[1]!, 10);
+      } else if (moduleNumMatch) {
+        num = parseInt(moduleNumMatch[1]!, 10);
+      } else if (normalized.length >= 3) {
+        const byName = moduleNames.findIndex((m) => m.toLowerCase().includes(normalized));
+        if (byName >= 0) num = byName + 1;
+      }
       if (!isNaN(num) && num >= 1 && num <= moduleNames.length) {
         const chosenModule = moduleNames[num - 1]!;
         session.selectedModuleId = chosenModule;
@@ -821,10 +919,7 @@ function transition(
             return {
               state: session.state,
               reply: nextReply,
-              buttons: [
-                ...nextOptions,
-                "MENU"
-              ]
+              buttons: quizAnswerButtons(nextOptions)
             };
           } else {
             // Success on entire quiz! Add to completed lessons
@@ -924,12 +1019,26 @@ function transition(
           return {
             state: session.state,
             reply,
-            buttons: [
-              ...options,
-              "MENU"
-            ]
+            buttons: quizAnswerButtons(options)
           };
         }
+      } else {
+        // GAP-C1: awaitingQuizAnswer is true but the quiz item at this index is
+        // missing (empty quiz or a corrupted index). Without this the learner is
+        // trapped — every reply falls through to "did not understand" until they
+        // happen to type MENU. Reset the quiz flags and give a clear way out.
+        session.awaitingQuizAnswer = false;
+        session.currentQuizIndex = 0;
+        session.lastUpdatedAt = nowIso();
+        return {
+          state: session.state,
+          reply: getPrompt(
+            "quiz_unavailable",
+            lang,
+            "This lesson's quiz isn't available right now. Reply NEXT to continue or MENU to return."
+          ),
+          buttons: ["NEXT", "MENU"]
+        };
       }
     }
 
@@ -960,10 +1069,7 @@ function transition(
       return {
         state: session.state,
         reply,
-        buttons: [
-          ...options,
-          "MENU"
-        ]
+        buttons: quizAnswerButtons(options)
       };
     }
 
@@ -971,6 +1077,11 @@ function transition(
       const lessonText = activeLesson.languages[lang] || activeLesson.languages.en || "";
       const reply = `📖 ${pickLocalized(activeLesson.title, lang)}\n\n${lessonText}${getPrompt("quiz_instruction", lang, "\n\nReply QUIZ to start the lesson quiz, or MENU to return.")}`;
       session.lastUpdatedAt = nowIso();
+      session._events!.push({
+        type: "lesson_viewed",
+        lessonKey: activeLesson.key,
+        module: session.selectedModuleId ?? String(activeLesson.module ?? "")
+      });
       return {
         state: session.state,
         reply,
@@ -1006,7 +1117,20 @@ async function recordAnalytics(session: UserSession): Promise<void> {
   }
   for (const event of events) {
     try {
-      if (event.type === "quiz_answered") {
+      if (event.type === "lesson_viewed") {
+        // GAP-C7: structured analytics line for lesson opens (drop-off before
+        // the quiz). Picked up by a Cloud Logging log-based metric; no schema
+        // change required.
+        console.log(
+          JSON.stringify({
+            event: "analytics.lesson_viewed",
+            userId: session.userId,
+            lessonKey: event.lessonKey,
+            module: event.module,
+            at: nowIso()
+          })
+        );
+      } else if (event.type === "quiz_answered") {
         await prisma.quizAttempt.upsert({
           where: {
             userId_lessonKey: {
@@ -1118,7 +1242,13 @@ export async function handleWhatsAppWebhook(
   }
 
   const existingSession = await getOrCreateSession(inbound.from);
-  if (processedMessageIds.has(inbound.id)) {
+
+  // GAP-C3: claim the message in Postgres so duplicate Meta deliveries dedup
+  // across replicas. GAP-C2: if anything below throws before the session is
+  // saved, we RELEASE the claim so Meta's retry reprocesses instead of being
+  // dropped as a duplicate and silently losing the learner's progress.
+  const claimed = await claimInboundMessage(inbound.id);
+  if (!claimed) {
     return {
       status: "duplicate",
       phone: inbound.from,
@@ -1127,9 +1257,17 @@ export async function handleWhatsAppWebhook(
     };
   }
 
-  processedMessageIds.add(inbound.id);
-  const result = transition(existingSession, inbound.text);
-  await saveSession(inbound.from, existingSession);
+  let result: ReturnType<typeof transition>;
+  try {
+    result = transition(existingSession, inbound.text);
+    await saveSession(inbound.from, existingSession);
+  } catch (error) {
+    await releaseInboundMessage(inbound.id);
+    throw error;
+  }
+
+  // Session is durably saved past this point — analytics/delivery failures must
+  // not release the claim (that would re-run the transition and double-advance).
   await recordAnalytics(existingSession);
 
   if (opts.deliver) {
@@ -1154,6 +1292,9 @@ export async function handleWhatsAppWebhook(
 export async function resetWhatsAppState() {
   await prisma.userSession.deleteMany({});
   processedMessageIds.clear();
+  await prisma
+    .$executeRawUnsafe(`DELETE FROM processed_webhook_messages`)
+    .catch(() => {});
 }
 
 export async function getWhatsAppSession(phone: string) {

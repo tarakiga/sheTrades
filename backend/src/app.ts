@@ -59,7 +59,16 @@ export function createApp() {
     next();
   });
 
-  app.use(express.json());
+  // Capture the raw request bytes so the WhatsApp webhook can verify Meta's
+  // X-Hub-Signature-256 HMAC (GAP-A8) — the parsed JSON can't be re-serialized
+  // byte-for-byte.
+  app.use(
+    express.json({
+      verify: (req, _res, buf) => {
+        (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+      }
+    })
+  );
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok", service: "shetrades-backend" });

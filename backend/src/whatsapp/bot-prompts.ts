@@ -85,6 +85,16 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     pcm: "Abeg type the name of your state.",
     ig: "Biko dee aha steeti gị."
   },
+  state_invalid: {
+    en: "Please choose your state from the list.",
+    pcm: "Abeg choose your state from the list.",
+    ig: "Biko họrọ steeti gị na ndepụta."
+  },
+  quiz_unavailable: {
+    en: "This lesson's quiz isn't available right now. Reply NEXT to continue or MENU to return.",
+    pcm: "Dis lesson quiz no dey available now. Reply NEXT to continue or MENU to go back.",
+    ig: "Ule nkuzi a adịghị ugbu a. Zaghachi NEXT ka ịga n'ihu ma ọ bụ MENU ka ịlaghachi."
+  },
   lesson_menu_header: {
     en: "Choose a lesson to begin (✅ = done):",
     pcm: "Choose lesson wey you wan start (✅ = done):",
@@ -123,6 +133,8 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   state_button: "Bot · State picker button",
   state_other_label: "Bot · State 'Others' label",
   custom_state_prompt: "Bot · Custom state prompt",
+  state_invalid: "Bot · Invalid state selection",
+  quiz_unavailable: "Bot · Quiz unavailable (empty/corrupt)",
   lesson_menu_header: "Bot · Lesson menu header",
   lesson_menu_footer: "Bot · Lesson menu footer",
   lesson_menu_button: "Bot · Lesson menu button",

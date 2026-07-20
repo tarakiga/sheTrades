@@ -56,6 +56,13 @@ export async function ensurePrismaTables() {
       `);
     }
 
+    // processed_webhook_messages — cross-replica, bounded inbound-webhook dedup
+    // (GAP-C3). A claimed row gates duplicate Meta deliveries; rows are pruned
+    // opportunistically by age so the table never grows unbounded.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS processed_webhook_messages (message_id TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now());`
+    );
+
     // users
     await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);

@@ -52,10 +52,9 @@ async function withEnv(
 
 async function runLatencyProfile(): Promise<CheckResult> {
   const app = createApp();
-  const adminHeaders = {
-    "x-admin-role": "admin",
-    "x-admin-token": process.env.ADMIN_REPORTS_API_TOKEN ?? "local-dev-reports-token"
-  };
+  // GAP-A7: never fall back to a hardcoded reports token. Probe the reports
+  // surface only when a real secret is configured.
+  const reportsToken = process.env.ADMIN_REPORTS_API_TOKEN;
 
   const endpoints: EndpointSample[] = [
     {
@@ -73,24 +72,24 @@ async function runLatencyProfile(): Promise<CheckResult> {
         await request(app).get("/api/admin/users").expect(200);
         return performance.now() - start;
       }
-    },
-    {
-      name: "GET /api/content/lessons",
-      run: async () => {
-        const start = performance.now();
-        await request(app).get("/api/content/lessons").expect(200);
-        return performance.now() - start;
-      }
-    },
-    {
+    }
+    // GAP-A6: GET /api/content/lessons is now auth-gated and is no longer a
+    // valid unauthenticated latency probe, so it has been removed.
+  ];
+
+  if (reportsToken) {
+    endpoints.push({
       name: "GET /api/reports/schemas",
       run: async () => {
         const start = performance.now();
-        await request(app).get("/api/reports/schemas").set(adminHeaders).expect(200);
+        await request(app)
+          .get("/api/reports/schemas")
+          .set({ "x-admin-role": "admin", "x-admin-token": reportsToken })
+          .expect(200);
         return performance.now() - start;
       }
-    }
-  ];
+    });
+  }
 
   const summaries: string[] = [];
   for (const endpoint of endpoints) {
