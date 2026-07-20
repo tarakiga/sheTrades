@@ -451,3 +451,23 @@ Fixed and deployed all 10 open backlog gaps from `remaining-gaps.md`/`task-list.
 - **A8 (MED)** `routes/webhook.ts` + `app.ts` — verify Meta's `X-Hub-Signature-256` HMAC over the raw body; sandbox exempt; fail-open with a warning until `appSecret` is configured (so current staging keeps working), enforced once set.
 
 Verification: backend typecheck clean; 57 non-DB tests green (reports/content/whatsapp/config); live regression of the full M1 L7 flow still PASS; C3 + C4 verified live. Commit `aa54393`, deployed `shetrades-backend-staging-00078-tg8`.
+
+### 2026-07-21: Backlog gaps D/E/F/H — 8 of 10 closed (deployed rev 00079-zk5)
+
+Continued from the C/A batch. Closed **D1, D2, E1, E2, F3, H1, H3, H4**.
+
+- **D1 (MED)** — the two in-memory singletons that actually lost data are now in Postgres:
+  - **Admin sessions** (`admin_sessions`): sessions lived in a Map, so a session minted on one Cloud Run instance was invalid on another and *all* sessions were dropped on scale-to-zero (~15 min idle) — admins were being logged out mid-task. Now persisted; logout/revocation/expiry honoured across replicas.
+  - **Translation requests** (`translation_requests`): the whole `/content` translation queue was wiped on every scale-to-zero. Persisted now — important because the Pidgin/Igbo work is about to put real requests in it. Service is async + DB-backed; route tests became integration tests that skip cleanly without `POSTGRES_URL`.
+  - *Deliberately not done:* export jobs (regenerable artifacts, low severity) and the config-platform cache (a cache by design).
+- **D2 (MED)** — admin reward filters validated/coerced with Zod: `from`/`to` no longer reach SQL as `Invalid Date`, `limit` no longer as `NaN` (clamped 1–100), `q`/`cursor` capped at 200 chars. Per-field `.catch(undefined)` so one bad filter doesn't discard the rest. +6 unit tests.
+- **E1 (MED)** — frontend config contracts are Zod schemas mirroring the backend, types derived from them. Responses validated instead of cast; bad envelope → safe empty defaults, individual malformed docs dropped rather than losing the bundle. `zod` declared as a dashboard dep (previously relied on hoisting).
+- **E2 (MED)** — replaced blanket `cache:"no-store"` with short tagged revalidation (`config`, `config:<namespace>`), so the backend's ETag/Cache-Control is honoured and a publish can bust it via `revalidateTag`.
+- **F3 (MED)** — `POSTGRES_URL` added to `.env.example` (a fresh checkout couldn't boot), plus `WHATSAPP_APP_SECRET` and reward defaults.
+- **H1 (MED)** — `.catch` handlers on the users/analytics/dashboard loads so a rejected fetch surfaces a message instead of an unexplained empty page + unhandled rejection.
+- **H3 (MED)** — a11y: `Tabs` takes a descriptive `label` (4 call sites) instead of a generic "Tabs"; reward-rule toggle exposes `aria-pressed`; 17 wizard toggle buttons expose `aria-pressed` with their 6 groups labelled `role="group"`. (Icon buttons already route through `IconActionButton`, which sets `aria-label` — that bullet was stale.)
+- **H4 (LOW)** — preview entries added for `AdminWorkspaceMetricStrip`, `RichTextEditor`, `Textarea` (hint + error states) and `AdminRouteLoading`; verified rendering on `/previews/components`.
+
+**Still open:** **F2** (adopt Prisma migrations) and **H2** (tokenize remaining inline styles/hex). F2 should be its own planned change — it means baselining the live schema and running migrations in the deploy pipeline; done hastily on a DB holding real learner data it risks a broken deploy.
+
+Verification: both packages typecheck clean; 52 pass / 5 skipped. Post-deploy on rev 00079-zk5: `/ready` 200 (DB reachable), login returns a clean 401 (auth+DB path healthy), no table-bootstrap errors in logs, full M1 L7 bot e2e still PASS. **Please do one real admin login to confirm the session-create path** — I deliberately did not use your credentials.

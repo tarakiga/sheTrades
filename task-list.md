@@ -106,26 +106,26 @@ Plan: `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
 - `[x]` GAP-C7 (LOW): Emit `lesson_viewed` analytics event; paginate module buttons when >3 (sender truncation).
 
 ### D. Resilience / scaling / validation
-- `[ ]` GAP-D1 (MED): Persist in-memory singletons (admin sessions, translation requests, export jobs) to Postgres. (Admin sessions covered by the Admin-Users module below.)
-- `[ ]` GAP-D2 (MED): Validate admin reward filters (from/to/limit/q/cursor) with Zod coercion + caps. `admin.ts:33-40`
+- `[x]` GAP-D1 (MED): Persist in-memory singletons to Postgres — admin sessions + translation requests DONE (admin_sessions / translation_requests tables). Export jobs remain in-memory (regenerable artifacts, low severity); config-platform cache is a cache by design.
+- `[x]` GAP-D2 (MED): Validate admin reward filters (from/to/limit/q/cursor) with Zod coercion + caps. `admin.ts:33-40`
 
 ### E. Config API contract & caching (mandate)
-- `[ ]` GAP-E1 (MED): Frontend config contracts → Zod, validated on the client. `dashboard/lib/config/contracts.ts`
-- `[ ]` GAP-E2 (MED): Replace blanket `cache:"no-store"` with ETag/version-tag revalidation (SWR/React Query or `next.revalidate`). `dashboard/lib/config/api.ts:7`
+- `[x]` GAP-E1 (MED): Frontend config contracts → Zod, validated on the client. `dashboard/lib/config/contracts.ts`
+- `[x]` GAP-E2 (MED): Replace blanket `cache:"no-store"` with ETag/version-tag revalidation (SWR/React Query or `next.revalidate`). `dashboard/lib/config/api.ts:7`
 
 ### F. CI / tests / migrations
 - `[x]` GAP-F1 (HIGH): Run the test suite in CI (`npm run test -w @shetrades/backend`, with a Postgres service) + `next build` for the dashboard. `.github/workflows/ci.yml`
 - `[ ]` GAP-F2 (MED): Adopt Prisma migrations (replace hand-coded `ensurePrismaTables`).
-- `[ ]` GAP-F3 (MED): Add `POSTGRES_URL` to `.env.example`.
+- `[x]` GAP-F3 (MED): Add `POSTGRES_URL` to `.env.example`.
 
 ### G. Required documentation deliverable
 - `[x]` GAP-G1 (HIGH): Write `docs/admin-how-to-guide.md` — add/edit/publish content, manage permissions, rollbacks, caching troubleshooting.
 
 ### H. UI quality / a11y / design tokens
-- `[ ]` GAP-H1 (MED): Page data loads catch fetch errors → error state (no infinite spinner). users/reports/analytics pages.
+- `[x]` GAP-H1 (MED): Page data loads catch fetch errors → error state (no infinite spinner). users/reports/analytics pages.
 - `[ ]` GAP-H2 (MED): Tokenize raw inline styles/hex in ConfigAdminManager, ConfigEditorDrawer, GuidedInternalNameBuilder, RichTextEditor.
-- `[ ]` GAP-H3 (MED): a11y — Tabs descriptive labels, toggle `aria-pressed`, language-toggle tab roles, icon-button `aria-label`.
-- `[ ]` GAP-H4 (LOW): Add preview entries for AdminWorkspaceMetricStrip, RichTextEditor, Textarea, AdminRouteLoading.
+- `[x]` GAP-H3 (MED): a11y — Tabs descriptive labels, toggle `aria-pressed`, language-toggle tab roles, icon-button `aria-label`.
+- `[x]` GAP-H4 (LOW): Add preview entries for AdminWorkspaceMetricStrip, RichTextEditor, Textarea, AdminRouteLoading.
 
 ---
 
