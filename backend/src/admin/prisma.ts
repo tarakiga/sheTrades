@@ -112,6 +112,34 @@ export async function ensurePrismaTables() {
       );
     }
 
+    // translation_drafts — machine-translated strings awaiting human review.
+    // One row per (content document, target language). Never written to live
+    // content directly; promotion copies approved strings into the content
+    // document's draft. Keep in sync with the TranslationDraft model.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS translation_drafts (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["contentDocumentId", "TEXT"],
+      ["contentKey", "TEXT"],
+      ["targetLanguage", "TEXT"],
+      ["payload", "JSONB NOT NULL DEFAULT '{}'::jsonb"],
+      ["runSummary", "JSONB"],
+      ["status", "TEXT NOT NULL DEFAULT 'machine_draft'"],
+      ["assignee", "TEXT"],
+      ["sourceHash", "TEXT NOT NULL DEFAULT ''"],
+      ["createdAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"],
+      ["updatedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"],
+      ["promotedAt", "TIMESTAMP(3)"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE translation_drafts ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS translation_drafts_doc_lang_key ON translation_drafts ("contentDocumentId", "targetLanguage");`
+    );
+
     // users
     await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);

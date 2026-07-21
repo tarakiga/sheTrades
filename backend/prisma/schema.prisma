@@ -139,6 +139,30 @@ model TranslationRequest {
   @@map("translation_requests")
 }
 
+model TranslationDraft {
+  id                String   @id @default(uuid())
+  contentDocumentId String
+  contentKey        String
+  targetLanguage    String   // "pcm" | "ig"
+  // Translated strings, shape: { title?, body?, quiz: [{ question?, options: (string|null)[] }] }
+  // A null option means that option failed translation and must stay English.
+  payload           Json
+  // Per-string machine outcome summary for the reviewer, e.g. counts of
+  // translated / failed / over-budget. Recomputed on each run.
+  runSummary        Json?
+  status            String   @default("machine_draft") // machine_draft | in_review | approved | promoted
+  assignee          String?
+  // Hash of the English source strings at translation time. If the live English
+  // no longer hashes to this, the draft is stale.
+  sourceHash        String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  promotedAt        DateTime?
+
+  @@unique([contentDocumentId, targetLanguage])
+  @@map("translation_drafts")
+}
+
 /// GAP-D1: admin sessions were held in an in-memory Map, so a session minted on
 /// one Cloud Run instance was invalid on another and every session was dropped
 /// when the service scaled to zero — logging admins out unpredictably.
