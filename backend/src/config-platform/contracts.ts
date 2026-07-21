@@ -66,11 +66,18 @@ export const lessonContentPayloadSchema = z.object({
     .default({})
 });
 
-/** A learner-facing string: legacy bare string, or per-language object. */
+/**
+ * A learner-facing string: legacy bare string, or per-language object.
+ *
+ * `en` is optional because `normalizeLocalized` already coerces a missing one
+ * to "". The governing rule for everything below is that this schema must
+ * never reject a payload the bot already renders — publish validation exists
+ * to stop learner-trapping data, not to enforce content completeness.
+ */
 const localizedValueSchema = z.union([
   z.string(),
   z.looseObject({
-    en: z.string(),
+    en: z.string().optional(),
     pcm: z.string().optional(),
     ig: z.string().optional()
   })
@@ -86,30 +93,20 @@ const localizedValueSchema = z.union([
  * negative index is worse still — it collides with the resolver's -1 "no match"
  * sentinel. Both are caught here, at publish, where a human can fix them.
  */
-export const lessonQuizItemSchema = z
-  .looseObject({
-    question: localizedValueSchema,
-    options: z.array(localizedValueSchema),
-    answerIndex: z.number().int().min(0),
-    kind: z.enum(["scored", "reflection"]).optional(),
-    helpOptionIndex: z.number().int().min(0).optional()
-  })
-  .superRefine((value, ctx) => {
-    if (value.answerIndex >= value.options.length) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["answerIndex"],
-        message: `answerIndex ${value.answerIndex} does not reference an option — this question has ${value.options.length}.`
-      });
-    }
-    if (value.helpOptionIndex !== undefined && value.helpOptionIndex >= value.options.length) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["helpOptionIndex"],
-        message: `helpOptionIndex ${value.helpOptionIndex} does not reference an option — this question has ${value.options.length}.`
-      });
-    }
-  });
+export const lessonQuizItemSchema = z.looseObject({
+  question: localizedValueSchema.nullish(),
+  options: z.array(localizedValueSchema).nullish(),
+  // `unknown`, not `number`: a non-numeric answerIndex is coerced to 0 at read
+  // time, which is wrong but not learner-TRAPPING. Rejecting it would lock an
+  // editor out of any stored lesson that already has one — they could not even
+  // save the fix. The read-time warning surfaces it instead. The refinement
+  // below only inspects values that are actually numbers.
+  answerIndex: z.unknown().optional(),
+  // Not an enum: an unrecognised kind is normalised to "scored" at read time,
+  // so rejecting a future kind here would block content the bot handles fine.
+  kind: z.string().nullish(),
+  helpOptionIndex: z.unknown().optional()
+});
 
 /**
  * Document-level schema for `lesson_content`, applied on the publish path.
@@ -119,19 +116,51 @@ export const lessonQuizItemSchema = z
  * schema happens not to know about. It exists to enforce ONE thing: that quiz
  * indices reference real options.
  */
-export const lessonDocumentPayloadSchema = z.looseObject({
-  title: localizedValueSchema.optional(),
-  module: z.string().optional(),
-  languages: z
-    .looseObject({
-      en: z.string(),
-      pcm: z.string().optional(),
-      ig: z.string().optional()
-    })
-    .optional(),
-  audioUrls: z.record(z.string(), z.string()).optional(),
-  quiz: z.array(lessonQuizItemSchema).optional()
-});
+export const lessonDocumentPayloadSchema = z
+  .looseObject({
+    title: localizedValueSchema.nullish(),
+    module: z.string().nullish(),
+    languages: z
+      .looseObject({
+        en: z.string().optional(),
+        pcm: z.string().optional(),
+        ig: z.string().optional()
+      })
+      .nullish(),
+    // Values are `unknown`, not `string`: the runtime passes audioUrls through
+    // untouched, so tightening it here would reject content the bot tolerates.
+    audioUrls: z.record(z.string(), z.unknown()).nullish(),
+    quiz: z.array(lessonQuizItemSchema).nullish()
+  })
+  // Refined at the document level rather than per item so the message can name
+  // WHICH question is wrong — the admin error path forwards `issue.message`
+  // and drops `issue.path`, so an unqualified message is unactionable on a
+  // lesson with several questions.
+  .superRefine((value, ctx) => {
+    const quiz = Array.isArray(value.quiz) ? value.quiz : [];
+    quiz.forEach((item, index) => {
+      const options = Array.isArray(item?.options) ? item.options : [];
+      // A question with no options yet is half-authored, not a learner trap:
+      // the admin drawer seeds new questions with three EMPTY options and the
+      // serializer filters empties out, so `options: []` is what "Add question
+      // → Save" legitimately produces. There is nothing to render and nothing
+      // to mis-score, so leave it alone.
+      if (options.length === 0) return;
+
+      const flag = (field: "answerIndex" | "helpOptionIndex", raw: unknown) => {
+        if (typeof raw !== "number") return;
+        if (Number.isInteger(raw) && raw >= 0 && raw < options.length) return;
+        ctx.addIssue({
+          code: "custom",
+          path: ["quiz", index, field],
+          message: `Question ${index + 1}: ${field} ${raw} does not reference an option — this question has ${options.length}.`
+        });
+      };
+
+      flag("answerIndex", item?.answerIndex);
+      flag("helpOptionIndex", item?.helpOptionIndex);
+    });
+  });
 export type LessonDocumentPayload = z.infer<typeof lessonDocumentPayloadSchema>;
 
 export const whatsappIntegrationPayloadSchema = z.object({

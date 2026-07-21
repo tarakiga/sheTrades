@@ -261,6 +261,18 @@ export type RuntimeLesson = {
  * "scored", which is exactly today's behaviour. Nothing changes for the 43
  * live lessons until a human marks a question as reflective in the admin UI.
  */
+/**
+ * Signatures of quiz items already warned about, so a single bad stored row
+ * logs once per process instead of once per inbound message. Exported only so
+ * tests can reset it; nothing else should touch it.
+ */
+const warnedQuizItems = new Set<string>();
+
+/** @internal test seam — clears the warn-once dedupe. */
+export function resetQuizWarningsForTests(): void {
+  warnedQuizItems.clear();
+}
+
 export function normalizeQuizItem(raw: any): RuntimeQuizItem {
   const kind: QuizItemKind = raw?.kind === "reflection" ? "reflection" : "scored";
   const options = Array.isArray(raw?.options) ? raw.options.map(normalizeLocalized) : [];
@@ -283,19 +295,32 @@ export function normalizeQuizItem(raw: any): RuntimeQuizItem {
   // limit — so surface it rather than letting learners silently get stuck.
   // Deliberately NOT clamped: picking a "correct" answer on the learner's
   // behalf would invent an assessment result nobody authored.
-  if (
-    kind === "scored" &&
-    options.length > 0 &&
-    (!Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex >= options.length)
-  ) {
-    console.warn(
-      JSON.stringify({
-        event: "config.lesson.answer_index_out_of_range",
-        answerIndex,
-        optionCount: options.length,
-        question: pickLocalized(normalizeLocalized(raw?.question), "en").slice(0, 80)
-      })
-    );
+  if (kind === "scored") {
+    const rawAnswer = raw?.answerIndex;
+    const unanswerable =
+      options.length === 0 ||
+      typeof rawAnswer !== "number" ||
+      !Number.isInteger(rawAnswer) ||
+      rawAnswer < 0 ||
+      rawAnswer >= options.length;
+    if (unanswerable) {
+      const label = pickLocalized(normalizeLocalized(raw?.question), "en").slice(0, 80);
+      // Deduped: getRuntimeLessons() re-normalises the whole bundle on every
+      // inbound WhatsApp message, so an unguarded warn would log once per
+      // message forever for a single bad row.
+      const signature = `${label}|${String(rawAnswer)}|${options.length}`;
+      if (!warnedQuizItems.has(signature)) {
+        warnedQuizItems.add(signature);
+        console.warn(
+          JSON.stringify({
+            event: "config.lesson.answer_index_unusable",
+            answerIndex: rawAnswer,
+            optionCount: options.length,
+            question: label
+          })
+        );
+      }
+    }
   }
 
   return {
