@@ -127,6 +127,56 @@ Plan: `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
 - `[x]` GAP-H3 (MED): a11y — Tabs descriptive labels, toggle `aria-pressed`, language-toggle tab roles, icon-button `aria-label`.
 - `[x]` GAP-H4 (LOW): Add preview entries for AdminWorkspaceMetricStrip, RichTextEditor, Textarea, AdminRouteLoading.
 
+### UX Review Round 3 (7 July 2026) — verified against code 2026-07-21
+
+Every substantive finding reproduced in code. Flow 7's observation text is stale Round 2
+copy (it describes the duplicate `1. Module 1` label that Flow 4 confirms fixed) — ask the
+reviewer to correct it before the report circulates.
+
+- `[x]` **R3-F10 (HIGH): My Progress reported a hardcoded 0% + "Module 1".** Root cause was
+  the published `bot.progress.summary` config value, not the handler — the template baked
+  the percentage in as a literal and omitted `{percentage}`, so the substitution was a
+  no-op for every learner, permanently. Fixed in the seed + regression test (`e8be7fd`).
+  **Still needs the live config republished — see handoff.md.**
+- `[ ]` **R3-F10b (MED): progress percentage is scoped to all 43 lessons, not the active
+  module.** A learner who finishes a full lesson sees "1 out of 43 — 2%". Accurate but
+  demoralising. Product call: per-module percentage, or per-module + overall.
+- `[ ]` **R3-F2 (MED): `Selected Language` shows EN before the learner taps one.** Not a
+  panel bug — the panel renders `n/a` correctly. "Reset Session State" deletes the session
+  row but not the user row, and `handler.ts:394/415` rehydrate `language` from the user
+  record. Fix: clear the stored language on reset, or skip rehydration during onboarding.
+- `[ ]` **R3-F6 (MED): quiz options rendered twice** — numbered list in the message body
+  (`handler.ts:915`) *and* as buttons (`handler.ts:922`). Drop the in-text list when
+  buttons are present; keep it for non-button/feature-phone delivery.
+- `[ ]` **R3-F5 (MED): lessons arrive as one dense bubble.** Worse than the report states —
+  **27 of 43 lessons exceed WhatsApp's hard 1024-char interactive-body limit** (max 1392,
+  per `docs/lesson_body_audit.csv`). This is an API constraint breach, not just pacing.
+  Blocks translation: fix the English to fit before paying anyone to translate it.
+- `[ ]` **R3-F5/6/9 (MED): Dialogue State stuck at `module_menu` during lessons/quizzes.**
+  `ConversationState` (`handler.ts:18`) has 7 values, none for lesson or quiz activity.
+  The data already exists on the session (`awaitingQuizAnswer`, `currentQuizIndex`) — this
+  is a diagnostics-panel display fix, not a state-machine rewrite.
+- `[ ]` **R3-F8 (LOW): incorrect-answer retry repeats the question verbatim**
+  (`handler.ts:1011-1022` rebuilds identical text, options and buttons). Vary the copy and
+  add a hint on the second attempt.
+- `[ ]` **R3-misc (LOW): `bot.module.started` is orphaned config** — seeded, hardcodes
+  "Module 1", read by no code. Either wire it up or remove it so editors aren't editing a
+  string that does nothing.
+
+### DEFERRED — circle back after translations (paused 2026-07-21)
+
+Both are intentionally parked, not forgotten. Neither blocks the Pidgin/Igbo work.
+
+- `[ ]` **GAP-F2 (MED) — Adopt Prisma migrations.** Needs its own planned change, not a drive-by:
+  baseline the live schema (`migrate diff` → initial migration), `migrate resolve --applied` against
+  staging + prod, add a migration step to the deploy pipeline, THEN delete `ensurePrismaTables()`.
+  **Risk:** the DB holds real learner progress; a botched cutover means a failed deploy or data loss.
+  Do it with a fresh backup and a quiet window. Until then `ensurePrismaTables()` is idempotent and safe.
+- `[ ]` **GAP-H2 (MED) — Tokenize raw inline styles/hex.** Mechanical but a large diff across
+  `ConfigAdminManager`, `ConfigEditorDrawer`, `GuidedInternalNameBuilder`, `RichTextEditor`.
+  **Risk:** a mistranslated hex→token silently changes the UI, so it needs visual verification against
+  `/previews/components` after. Best done in one focused pass, not interleaved with feature work.
+
 ---
 
 ## Admin User Management Module (NEW) — "Admins" tab on `/settings` after Rewards
