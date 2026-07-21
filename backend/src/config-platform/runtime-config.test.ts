@@ -11,6 +11,11 @@ test("a legacy quiz item with no kind defaults to scored", () => {
   assert.equal(item.kind, "scored");
   assert.equal(item.helpOptionIndex, undefined);
   assert.equal(item.answerIndex, 0);
+  // The backward-compatibility guarantee is about the WHOLE item, not just the
+  // new fields. Without these two assertions a broken options/question mapping
+  // would pass every test in this file.
+  assert.deepEqual(item.options, ["4", "5", "6"]);
+  assert.equal(item.question, "What is 2+2?");
 });
 
 test("an explicit reflection item keeps its kind and help index", () => {
