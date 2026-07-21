@@ -975,9 +975,9 @@
     "key": "bot.progress.summary",
     "title": "Chatbot - User Progress Summary",
     "content": {
-      "en": "{name}, your current completion is 0%. Reply 1 to start Module 1.",
-      "pcm": "{name}, your current completion is 0%. Reply 1 to start Module 1.",
-      "ig": "{name}, your current completion is 0%. Reply 1 to start Module 1."
+      "en": "{name}, your current completion is {percentage}%. You have completed {completedCount} out of {totalCount} lessons. Reply 1 to start learning or MENU to return.",
+      "pcm": "{name}, your current completion is {percentage}%. You don finish {completedCount} out of {totalCount} lessons. Reply 1 to start learning or MENU to return.",
+      "ig": "{name}, ngụkọta nkuzi gị mechara bụ {percentage}%. I mechara {completedCount} n'ime nkuzi {totalCount}. Reply 1 ka ịmalite ma ọ bụ MENU ka ịlaghachi."
     }
   },
   {
