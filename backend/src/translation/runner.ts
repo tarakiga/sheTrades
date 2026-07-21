@@ -1,5 +1,9 @@
 import { getConfigPlatformService } from "../config-platform/service.js";
-import type { TranslationIntegrationPayload, TranslationLanguage } from "./providers/contracts.js";
+import type {
+  TranslationIntegrationPayload,
+  TranslationLanguage,
+  TranslationProvider
+} from "./providers/contracts.js";
 import { adapterForLanguage } from "./providers/index.js";
 import { assembleDraftPayload, extractUnits, hashSource } from "./extract.js";
 import { getDraft, upsertMachineDraft } from "./draft-store.js";
@@ -40,6 +44,15 @@ export type LoadedLesson = { id: string; key: string; payload: any };
 export type RunDependencies = {
   /** Injectable so orchestration is testable without the config service. */
   loadLessons?: (documentIds: string[] | "all") => Promise<LoadedLesson[]>;
+  /** Injectable so tests can fake draft state without a DB. */
+  getDraftFn?: typeof getDraft;
+  /** Injectable so tests can observe/short-circuit writes without a DB. */
+  upsertFn?: typeof upsertMachineDraft;
+  /**
+   * Override the adapter so tests don't hit the network. Defaults to
+   * adapterForLanguage(config, language).
+   */
+  adapterOverride?: TranslationProvider;
 };
 
 export type RunReport = {
@@ -76,14 +89,16 @@ async function defaultLoadLessons(documentIds: string[] | "all"): Promise<Loaded
  */
 export async function runTranslation(input: RunInput, deps: RunDependencies = {}): Promise<RunReport> {
   const load = deps.loadLessons ?? defaultLoadLessons;
+  const getDraftFn = deps.getDraftFn ?? getDraft;
+  const upsertFn = deps.upsertFn ?? upsertMachineDraft;
   const lessons = await load(input.documentIds);
-  const adapter = adapterForLanguage(input.config, input.language);
+  const adapter = deps.adapterOverride ?? adapterForLanguage(input.config, input.language);
 
   // Which lessons still NEED work: no draft, or a stale/failed machine_draft.
   const needy: LoadedLesson[] = [];
   const skipped: Array<{ id: string; reason: string }> = [];
   for (const lesson of lessons) {
-    const draft = await getDraft(lesson.id, input.language);
+    const draft = await getDraftFn(lesson.id, input.language);
     const currentHash = hashSource(lesson.payload);
     if (draft) {
       if (draft.status !== "machine_draft") {
@@ -117,7 +132,7 @@ export async function runTranslation(input: RunInput, deps: RunDependencies = {}
     const draftPayload = assembleDraftPayload(lesson.payload, outcomes);
     const failed = outcomes.filter((o) => o.status === "failed").length;
     const overBudget = outcomes.filter((o) => o.status === "translated" && o.overBudget).length;
-    const res = await upsertMachineDraft({
+    const res = await upsertFn({
       contentDocumentId: lesson.id,
       contentKey: lesson.key,
       targetLanguage: input.language,
