@@ -29,6 +29,7 @@ import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
 import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
+import { QuizBuilderPreview } from "./QuizBuilderPreview";
 import { PreviewSelectTabsDemo } from "./PreviewSelectTabsDemo";
 import { AdminRouteLoading } from "../../../components/layout/AdminRouteLoading";
 import { RewardsWorkspacePreview } from "./RewardsWorkspacePreview";
@@ -216,6 +217,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <PreviewEditorsDemo />
+        </Card>
+
+        <Card
+          title={t("preview.quizBuilder.title", "Lesson Quiz Builder")}
+          description={t(
+            "preview.quizBuilder.description",
+            "Step 3 of the content wizard. The fixture holds both question types: a knowledge question with a correct answer, and a check-in where every answer is accepted and one option is marked as a help request (which flags the learner for follow-up)."
+          )}
+        >
+          <QuizBuilderPreview />
         </Card>
 
         <Card
