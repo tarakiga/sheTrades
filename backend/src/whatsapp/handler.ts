@@ -28,7 +28,11 @@ type AnalyticsEvent =
   | { type: "module_completed"; module: string }
   // GAP-C7: emitted when a lesson is opened, so drop-off before the quiz is
   // visible in analytics (previously invisible).
-  | { type: "lesson_viewed"; lessonKey: string; module: string };
+  | { type: "lesson_viewed"; lessonKey: string; module: string }
+  // A learner explicitly asked for help on a reflection question. This is the
+  // highest-value signal the bot produces — previously it was scored as a
+  // wrong answer and discarded.
+  | { type: "help_requested"; lessonKey: string; module: string; questionIndex: number };
 
 type UserSession = {
   phone: string;
@@ -593,6 +597,146 @@ export function isQuizReplyCorrect(rawInput: string, options: string[], answerIn
   return selected >= 0 && selected === answerIndex;
 }
 
+/**
+ * Advance past an accepted answer: next question, next lesson, or module
+ * complete. Shared by the scored-correct path and the reflection path so the
+ * two can never drift — a reflection answer must produce the same completion,
+ * reward and analytics side effects as a correct scored answer.
+ *
+ * `prefix` is prepended to whatever reply is produced (used for the help
+ * acknowledgement).
+ */
+function advanceAfterAcceptedAnswer(
+  session: UserSession,
+  activeLesson: RuntimeLesson,
+  moduleLessons: RuntimeLesson[],
+  moduleNames: string[],
+  modulesMap: Map<string, RuntimeLesson[]>,
+  qIndex: number,
+  lang: "en" | "pcm" | "ig",
+  prefix = ""
+): { state: ConversationState; reply: string; buttons?: string[]; list?: WhatsAppListSpec } {
+  // Success on this question
+  const isLastQuestion = qIndex >= activeLesson.quiz.length - 1;
+
+  if (!isLastQuestion) {
+    // Move to next question immediately
+    session.currentQuizIndex = qIndex + 1;
+    session.lastUpdatedAt = nowIso();
+
+    const nextQuizItem = activeLesson.quiz[qIndex + 1];
+    if (!nextQuizItem) {
+      // Defensive: should be unreachable because isLastQuestion guards
+      // qIndex < quiz.length - 1, but noUncheckedIndexedAccess can't narrow
+      // numeric comparisons. Fall back gracefully rather than emit a
+      // half-formed reply.
+      session.awaitingQuizAnswer = false;
+      session.currentQuizIndex = 0;
+      return {
+        state: session.state,
+        reply: prefix + "Quiz state issue. Reply MENU to return.",
+        buttons: ["MENU"]
+      };
+    }
+    const nextOptions = nextQuizItem.options.map((o) => pickLocalized(o, lang));
+    let nextReply = `🎉 Correct!\n\n📚 Next Question:\n${pickLocalized(nextQuizItem.question, lang)}\n`;
+    nextOptions.forEach((opt, idx) => {
+      nextReply += `${idx + 1}. ${opt}\n`;
+    });
+    nextReply += getPrompt("quiz_answer_prompt", lang, "Reply with your answer (1, 2, or 3) or MENU to return.");
+
+    return {
+      state: session.state,
+      reply: prefix + nextReply,
+      buttons: quizAnswerButtons(nextOptions)
+    };
+  } else {
+    // Success on entire quiz! Add to completed lessons
+    if (!session.completedLessons!.includes(activeLesson.key)) {
+      session.completedLessons!.push(activeLesson.key);
+    }
+    session.awaitingQuizAnswer = false;
+    session.currentQuizIndex = 0;
+    session.lastUpdatedAt = nowIso();
+
+    // Record lesson completion so the admin Module Completion %
+    // reflects real bot interactions. Compute the module's overall
+    // completion percentage here where moduleLessons is in scope.
+    const completedInModule = moduleLessons.filter((l) =>
+      session.completedLessons!.includes(l.key)
+    ).length;
+    const completionPercentage =
+      moduleLessons.length > 0
+        ? Math.round((completedInModule / moduleLessons.length) * 100)
+        : 0;
+    session._events!.push({
+      type: "lesson_completed",
+      lessonKey: activeLesson.key,
+      module: session.selectedModuleId ?? activeLesson.module ?? "Unknown",
+      completionPercentage
+    });
+
+    // Find next lesson inside this module
+    const currentIdx = moduleLessons.findIndex(l => l.key === activeLesson.key);
+    const nextLesson = moduleLessons[currentIdx + 1];
+
+    if (nextLesson) {
+      session.currentLessonKey = nextLesson.key;
+
+      // Build list of remaining lessons
+      const remainingLessons = moduleLessons.slice(currentIdx + 1);
+      let remainingText = "\n\nRemaining lessons in this module:\n";
+      remainingLessons.forEach((l) => {
+        remainingText += `- ${pickLocalized(l.title, lang)}\n`;
+      });
+
+      const replyBase = getPrompt("correct_next", lang, "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.");
+
+      return {
+        state: session.state,
+        reply: prefix + replyBase + remainingText,
+        buttons: ["NEXT", "MENU"]
+      };
+    } else {
+      // Completed entire module — capture the name before mutating
+      // session state, then emit the analytics event so a reward
+      // record can be inserted by recordAnalytics() after the user
+      // turn is persisted.
+      const completedModuleName =
+        session.selectedModuleId ?? activeLesson.module ?? "Unknown";
+      session._events!.push({
+        type: "module_completed",
+        module: completedModuleName
+      });
+
+      session.currentLessonKey = null;
+      session.selectedModuleId = null;
+
+      // Find other incomplete modules
+      const incompleteModules = moduleNames.filter(m => {
+        const lessons = modulesMap.get(m) || [];
+        return !lessons.every(l => session.completedLessons!.includes(l.key));
+      });
+
+      let incompleteText = "";
+      if (incompleteModules.length > 0) {
+        incompleteText = "\n\nOther incomplete modules:\n";
+        incompleteModules.forEach(m => {
+          incompleteText += `- ${m}\n`;
+        });
+      }
+
+      const replyBase = getPrompt("correct_module_complete", lang, "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nReply MENU to choose another module.");
+
+      return {
+        state: session.state,
+        reply: prefix + replyBase + incompleteText,
+        buttons: ["MENU"]
+      };
+    }
+  }
+}
+
 function transition(
   session: UserSession,
   text: string
@@ -953,6 +1097,52 @@ function transition(
       const qIndex = session.currentQuizIndex || 0;
       const quizItem = activeLesson.quiz[qIndex]; // Fetch active quiz item
       if (quizItem) {
+        // Reflection questions have no right answer — they ask what the learner
+        // DID, not what they know. Scoring them traps anyone who honestly
+        // answers "Not yet" and pressures them into a false "Yes" to progress,
+        // which is also the only path to a reward payout.
+        if (quizItem.kind === "reflection") {
+          const reflectionOptions = quizItem.options.map((o) => pickLocalized(o, lang));
+          const selectedIndex = resolveQuizOptionIndex(safeText, reflectionOptions);
+
+          if (selectedIndex < 0) {
+            // Unrecognised free text: re-ask without any "incorrect" framing.
+            return {
+              state: session.state,
+              reply:
+                getPrompt("quiz_time_header", lang, "📚 Quiz Time! Question:\n") +
+                `${pickLocalized(quizItem.question, lang)}\n` +
+                reflectionOptions.map((opt, idx) => `${idx + 1}. ${opt}\n`).join("") +
+                getPrompt("quiz_answer_prompt", lang, "\nReply with your answer (1, 2, or 3) or MENU to return."),
+              buttons: quizAnswerButtons(reflectionOptions)
+            };
+          }
+
+          const askedForHelp =
+            quizItem.helpOptionIndex !== undefined && selectedIndex === quizItem.helpOptionIndex;
+
+          if (askedForHelp) {
+            session._events!.push({
+              type: "help_requested",
+              lessonKey: activeLesson.key,
+              module: session.selectedModuleId ?? activeLesson.module ?? "Unknown",
+              questionIndex: qIndex
+            });
+          }
+
+          const ackPrefix = askedForHelp
+            ? getPrompt(
+                "quiz_help_ack",
+                lang,
+                "No problem — thank you for telling us. We have noted that you need help with this one, and the team will follow up.\n\n"
+              )
+            : "";
+
+          return advanceAfterAcceptedAnswer(
+            session, activeLesson, moduleLessons, moduleNames, modulesMap, qIndex, lang, ackPrefix
+          );
+        }
+
         const correctIndex = quizItem.answerIndex;
         const options = quizItem.options.map((o) => pickLocalized(o, lang));
         const isCorrect = isQuizReplyCorrect(safeText, options, correctIndex);
@@ -967,125 +1157,9 @@ function transition(
         });
 
         if (isCorrect) {
-          // Success on this question
-          const isLastQuestion = qIndex >= activeLesson.quiz.length - 1;
-
-          if (!isLastQuestion) {
-            // Move to next question immediately
-            session.currentQuizIndex = qIndex + 1;
-            session.lastUpdatedAt = nowIso();
-
-            const nextQuizItem = activeLesson.quiz[qIndex + 1];
-            if (!nextQuizItem) {
-              // Defensive: should be unreachable because isLastQuestion guards
-              // qIndex < quiz.length - 1, but noUncheckedIndexedAccess can't narrow
-              // numeric comparisons. Fall back gracefully rather than emit a
-              // half-formed reply.
-              session.awaitingQuizAnswer = false;
-              session.currentQuizIndex = 0;
-              return {
-                state: session.state,
-                reply: "Quiz state issue. Reply MENU to return.",
-                buttons: ["MENU"]
-              };
-            }
-            const nextOptions = nextQuizItem.options.map((o) => pickLocalized(o, lang));
-            let nextReply = `🎉 Correct!\n\n📚 Next Question:\n${pickLocalized(nextQuizItem.question, lang)}\n`;
-            nextOptions.forEach((opt, idx) => {
-              nextReply += `${idx + 1}. ${opt}\n`;
-            });
-            nextReply += getPrompt("quiz_answer_prompt", lang, "Reply with your answer (1, 2, or 3) or MENU to return.");
-
-            return {
-              state: session.state,
-              reply: nextReply,
-              buttons: quizAnswerButtons(nextOptions)
-            };
-          } else {
-            // Success on entire quiz! Add to completed lessons
-            if (!session.completedLessons.includes(activeLesson.key)) {
-              session.completedLessons.push(activeLesson.key);
-            }
-            session.awaitingQuizAnswer = false;
-            session.currentQuizIndex = 0;
-            session.lastUpdatedAt = nowIso();
-
-            // Record lesson completion so the admin Module Completion %
-            // reflects real bot interactions. Compute the module's overall
-            // completion percentage here where moduleLessons is in scope.
-            const completedInModule = moduleLessons.filter((l) =>
-              session.completedLessons!.includes(l.key)
-            ).length;
-            const completionPercentage =
-              moduleLessons.length > 0
-                ? Math.round((completedInModule / moduleLessons.length) * 100)
-                : 0;
-            session._events!.push({
-              type: "lesson_completed",
-              lessonKey: activeLesson.key,
-              module: session.selectedModuleId ?? activeLesson.module ?? "Unknown",
-              completionPercentage
-            });
-
-            // Find next lesson inside this module
-            const currentIdx = moduleLessons.findIndex(l => l.key === activeLesson.key);
-            const nextLesson = moduleLessons[currentIdx + 1];
-
-            if (nextLesson) {
-              session.currentLessonKey = nextLesson.key;
-              
-              // Build list of remaining lessons
-              const remainingLessons = moduleLessons.slice(currentIdx + 1);
-              let remainingText = "\n\nRemaining lessons in this module:\n";
-              remainingLessons.forEach((l) => {
-                remainingText += `- ${pickLocalized(l.title, lang)}\n`;
-              });
-              
-              const replyBase = getPrompt("correct_next", lang, "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.");
-              
-              return {
-                state: session.state,
-                reply: replyBase + remainingText,
-                buttons: ["NEXT", "MENU"]
-              };
-            } else {
-              // Completed entire module — capture the name before mutating
-              // session state, then emit the analytics event so a reward
-              // record can be inserted by recordAnalytics() after the user
-              // turn is persisted.
-              const completedModuleName =
-                session.selectedModuleId ?? activeLesson.module ?? "Unknown";
-              session._events!.push({
-                type: "module_completed",
-                module: completedModuleName
-              });
-
-              session.currentLessonKey = null;
-              session.selectedModuleId = null;
-
-              // Find other incomplete modules
-              const incompleteModules = moduleNames.filter(m => {
-                const lessons = modulesMap.get(m) || [];
-                return !lessons.every(l => session.completedLessons!.includes(l.key));
-              });
-
-              let incompleteText = "";
-              if (incompleteModules.length > 0) {
-                incompleteText = "\n\nOther incomplete modules:\n";
-                incompleteModules.forEach(m => {
-                  incompleteText += `- ${m}\n`;
-                });
-              }
-
-              const replyBase = getPrompt("correct_module_complete", lang, "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nReply MENU to choose another module.");
-
-              return {
-                state: session.state,
-                reply: replyBase + incompleteText,
-                buttons: ["MENU"]
-              };
-            }
-          }
+          return advanceAfterAcceptedAnswer(
+            session, activeLesson, moduleLessons, moduleNames, modulesMap, qIndex, lang
+          );
         } else {
           // Incorrect answer retry (reuse `options` resolved above for this lang)
           let reply = getPrompt("incorrect_retry", lang, "❌ That is incorrect. Let's try again!\n\n");
