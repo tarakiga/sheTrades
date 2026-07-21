@@ -4,6 +4,7 @@ import type {
   WhatsAppIntegrationPayload
 } from "../config-platform/contracts.js";
 import type { TestIntegrationResult } from "./contracts.js";
+import { diagnoseSmtpFailure } from "./smtp-diagnosis.js";
 
 type WhatsAppDependencies = {
   fetchImpl?: typeof fetch;
@@ -126,11 +127,15 @@ export async function testNotificationConnection(
       testedAt: nowIso()
     };
   } catch (error) {
+    // Raw transport errors ("535 5.7.8 Error: authentication failed:") are
+    // accurate but unactionable — an admin cannot tell which of five settings
+    // to change. Translate to a diagnosis, keeping the server's own words.
+    const diagnosis = diagnoseSmtpFailure(error);
     return {
       provider: "smtp",
       status: "failed",
-      summary: "SMTP connection failed.",
-      details: error instanceof Error ? error.message : String(error),
+      summary: diagnosis.summary,
+      details: `${diagnosis.guidance}\n\nServer response: ${diagnosis.details}`,
       testedAt: nowIso()
     };
   }
