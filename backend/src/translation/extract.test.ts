@@ -75,3 +75,41 @@ test("extract then assemble round-trips option COUNT exactly", () => {
   const units = extractUnits(LESSON, "ig").filter((u) => u.id.startsWith("q0.opt"));
   assert.equal(units.length, LESSON.quiz[0]!.options.length);
 });
+
+test("a multi-question lesson reassembles each question independently", () => {
+  const lesson = {
+    title: "T",
+    languages: { en: "Body" },
+    quiz: [
+      { question: "Q0?", options: ["A", "B", "C"], answerIndex: 0 },
+      { question: "Q1?", options: ["D", "E"], answerIndex: 1 }
+    ]
+  };
+  // Deliberately shuffled, with q1.opt0 failed.
+  const outcomes = [
+    { id: "q1.opt1", status: "translated", text: "E-ig", overBudget: false },
+    { id: "q0.opt2", status: "translated", text: "C-ig", overBudget: false },
+    { id: "q1.opt0", status: "failed", reason: "boom", retryable: true },
+    { id: "q0.opt0", status: "translated", text: "A-ig", overBudget: false },
+    { id: "q0.opt1", status: "translated", text: "B-ig", overBudget: false },
+    { id: "q1.question", status: "translated", text: "Q1-ig", overBudget: false },
+    { id: "q0.question", status: "translated", text: "Q0-ig", overBudget: false }
+  ] as const;
+  const draft = assembleDraftPayload(lesson, [...outcomes]);
+  assert.deepEqual(draft.quiz[0]?.options, ["A-ig", "B-ig", "C-ig"]);
+  assert.deepEqual(draft.quiz[1]?.options, [null, "E-ig"]);
+  assert.equal(draft.quiz[0]?.question, "Q0-ig");
+  assert.equal(draft.quiz[1]?.question, "Q1-ig");
+});
+
+test("an empty-string option still emits a unit so positions never shift", () => {
+  const lesson = {
+    title: "T",
+    languages: { en: "Body" },
+    quiz: [{ question: "Q?", options: ["A", "", "C"], answerIndex: 0 }]
+  };
+  const optionUnits = extractUnits(lesson, "ig").filter((u) => u.id.startsWith("q0.opt"));
+  // Three units for three options — the empty one is NOT skipped.
+  assert.deepEqual(optionUnits.map((u) => u.id), ["q0.opt0", "q0.opt1", "q0.opt2"]);
+  assert.equal(optionUnits.length, 3);
+});
