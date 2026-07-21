@@ -41,6 +41,29 @@ integrationsAdminRouter.post("/whatsapp/test", async (req, res, next) => {
 integrationsAdminRouter.post("/notification/test", async (req, res, next) => {
   try {
     const body = testNotificationConnectionRequestSchema.parse(req.body);
+
+    // Diagnostic: a repeated 535 against a server verified to be correct and
+    // reachable means the credentials arriving here are not what the operator
+    // believes they typed. Log the SHAPE of the config so that can be checked
+    // without anyone pasting a password into a chat or a ticket.
+    // Values are never logged — only lengths and simple predicates.
+    console.log(
+      JSON.stringify({
+        event: "integrations.notification_test.shape",
+        host: body.config.host,
+        port: body.config.port,
+        secure: body.config.secure,
+        usernameLooksLikeEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.config.username),
+        usernameLength: body.config.username.length,
+        usernameDomain: body.config.username.split("@")[1] ?? "(none)",
+        passwordLength: body.config.password.length,
+        passwordHasLeadingOrTrailingSpace:
+          body.config.password !== body.config.password.trim(),
+        passwordHasNonAscii: /[^\x20-\x7E]/.test(body.config.password),
+        fromEmail: body.config.fromEmail
+      })
+    );
+
     const result = await testNotificationConnection(body.config);
     res.status(200).json({
       message:
