@@ -60,6 +60,11 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     pcm: "❌ That one no correct. Make we try again!\n\n",
     ig: "❌ Nke ahụ adịghị mma. Ka anyị nwaa ọzọ!\n\n"
   },
+  quiz_help_ack: {
+    en: "No problem — thank you for telling us. We have noted that you need help with this one, and the team will follow up.\n\n",
+    pcm: "No wahala — thank you for telling us. We don note say you need help for this one, and the team go follow up.\n\n",
+    ig: "Nsogbu adịghị — daalụ maka ịgwa anyị. Anyị edeela na ị chọrọ enyemaka na nke a, ndị otu ga-akpọtụrụ gị.\n\n"
+  },
   bot_did_not_understand: {
     en: "I did not understand that.\nReply QUIZ to start this lesson's quiz, NEXT to progress, or MENU to return.",
     pcm: "I no understand wetin you write.\nReply QUIZ to start dis lesson quiz, NEXT to continue, or MENU to go back.",
@@ -124,6 +129,7 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   invalid_module: "Bot · Invalid module selection",
   quiz_instruction: "Bot · Quiz instruction",
   quiz_time_header: "Bot · Quiz time header",
+  quiz_help_ack: "Bot · Help request acknowledgement",
   quiz_answer_prompt: "Bot · Quiz answer prompt",
   correct_next: "Bot · Correct answer (next lesson)",
   correct_module_complete: "Bot · Correct answer (module complete)",

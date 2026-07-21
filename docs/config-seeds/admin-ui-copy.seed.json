@@ -981,6 +981,15 @@
     }
   },
   {
+    "key": "bot.prompt.quiz_help_ack",
+    "title": "Chatbot - Help Request Acknowledgement",
+    "content": {
+      "en": "No problem — thank you for telling us. We have noted that you need help with this one, and the team will follow up.",
+      "pcm": "No wahala — thank you for telling us. We don note say you need help for this one, and the team go follow up.",
+      "ig": "Nsogbu adịghị — daalụ maka ịgwa anyị. Anyị edeela na ị chọrọ enyemaka na nke a, ndị otu ga-akpọtụrụ gị."
+    }
+  },
+  {
     "key": "bot.awaiting_language.prompt_short",
     "title": "Chatbot - Change Language Option Prompt",
     "content": {
