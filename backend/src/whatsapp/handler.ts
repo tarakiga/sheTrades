@@ -659,10 +659,15 @@ export function resolveReflectionAnswer(
  */
 export function composeHelpRequestNote(
   existingNote: string | null | undefined,
-  event: { lessonKey: string; module: string; questionIndex: number },
+  event: { lessonKey: string; lessonTitle?: string; module: string; questionIndex: number },
   stamp: string
 ): string {
-  const note = `[${stamp}] Asked for help: ${event.lessonKey} (${event.module}, Q${event.questionIndex + 1})`;
+  // Prefer the lesson TITLE over the key. This note renders verbatim in the
+  // admin /users drawer and the Overview panel, so "content.lesson.m2_l6_m"
+  // leaks an internal identifier into a surface non-technical operators read.
+  // The key stays as the fallback for events recorded before lessonTitle existed.
+  const lessonLabel = event.lessonTitle?.trim() || event.lessonKey;
+  const note = `[${stamp}] Asked for help: ${lessonLabel} (${event.module}, Q${event.questionIndex + 1})`;
   return existingNote ? `${existingNote}\n${note}` : note;
 }
 

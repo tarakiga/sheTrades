@@ -18,7 +18,7 @@ export function HelpRequestsPanelPreview() {
             name: "Jonas Emelda",
             language: "pcm",
             location: "Anambra",
-            latestNote: "[2026-07-21] Asked for help: m2_l6_m (Module 2, Q1)",
+            latestNote: "[2026-07-21] Asked for help: My WhatsApp Business Shop (Module 2: Digital Marketing, Q1)",
             flaggedAt: new Date(Date.now() - 12 * 60 * 1000).toISOString()
           },
           {
@@ -26,7 +26,7 @@ export function HelpRequestsPanelPreview() {
             name: null,
             language: "ig",
             location: "Delta",
-            latestNote: "[2026-07-21] Asked for help: m3_l7_i (Module 3, Q1)",
+            latestNote: "[2026-07-21] Asked for help: Is My Pricing Making Me Profit? Or Loss? (Module 3: Financial Tools and E-commerce, Q1)",
             flaggedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
           },
           {

@@ -1082,10 +1082,23 @@ body {
   gap: var(--space-4);
 }
 
+/*
+ * The tab strip is driven by data (one tab per state), so its width is not
+ * knowable at design time — on the Overview funnel card it ran past the card
+ * edge and the trailing states were unreachable. Scroll the strip rather than
+ * let it overflow, and stop individual tabs collapsing to one word per line.
+ */
 .ui-tabs__list {
   border-bottom: 1px solid var(--color-neutral-100);
   display: flex;
   gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.ui-tabs__tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .ui-tabs__tab {
@@ -1531,10 +1544,19 @@ body {
   gap: var(--space-2);
 }
 
+/*
+ * `overflow: hidden` here used to CLIP any table wider than its card instead of
+ * letting it scroll — it overrode `.ui-table-wrap`'s `overflow-x: auto` purely
+ * by being later in the cascade. Combined with `.ui-table { min-width: 640px }`
+ * and a 3-up card grid, roughly 250px of every dashboard table was amputated:
+ * the Requested column vanished entirely and Context was cut mid-word.
+ * `auto` still clips the rounded corners, but scrolls rather than truncates.
+ */
 .admin-review-table-wrap {
   border: 1px solid rgba(15, 23, 42, 0.06);
   border-radius: calc(var(--radius-xl) - 4px);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .admin-review-table {
@@ -1557,6 +1579,46 @@ body {
 
 .admin-review-table tbody tr:hover {
   background: rgba(51, 78, 88, 0.03);
+}
+
+/*
+ * Compact tables are dashboard SUMMARY panels sitting in a 3-up grid, not full
+ * data grids. The base `.ui-table` min-width of 640px is meant for a
+ * full-width directory; inside a ~385px card it guarantees overflow. Scrolling
+ * three panels sideways is not a premium reading experience, so these fit their
+ * container and truncate individual cells instead.
+ */
+.admin-review-table--compact {
+  min-width: 0;
+  table-layout: fixed;
+  width: 100%;
+}
+
+/*
+ * Long single-line values (module names, note lines) get an ellipsis rather
+ * than wrapping into a one-word-per-line column. `title` is set on these cells
+ * in the components so the full value is still reachable on hover.
+ */
+.admin-review-table--compact td,
+.admin-review-table--compact th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The identity cell stacks a name over meta, so it must be allowed to wrap. */
+.admin-review-table--compact td .users-directory__identity,
+.admin-review-table--compact td .admin-review-identity {
+  overflow: hidden;
+  white-space: normal;
+}
+
+.admin-review-table--compact .users-directory__name,
+.admin-review-table--compact .users-directory__meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-review-table--compact th,

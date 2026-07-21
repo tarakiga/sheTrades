@@ -367,17 +367,35 @@ export default function AdminDashboardOverviewPage() {
               <Table
                 wrapperClassName="admin-review-table-wrap admin-review-table-wrap--compact"
                 tableClassName="admin-review-table admin-review-table--compact"
+                // Two columns, not four. This card is ~385px wide in the 3-up
+                // grid; four columns left ~90px each, which truncated module
+                // names past the point of meaning. Module and status are
+                // stacked as secondary meta under the value they qualify.
                 columns={[
-                  { key: "learner", header: "Learner" },
-                  { key: "module", header: "Module" },
-                  { key: "amount", header: "Amount" },
                   {
-                    key: "status",
-                    header: "Status",
-                    render: (value) => (
-                      <Badge variant={value === "Issued" ? "success" : "warning"}>
-                        {String(value)}
-                      </Badge>
+                    key: "learner",
+                    header: "Learner",
+                    render: (value, row) => (
+                      <div className="users-directory__identity">
+                        <span className="users-directory__name" title={String(value)}>
+                          {String(value)}
+                        </span>
+                        <span className="users-directory__meta" title={String(row.module)}>
+                          {String(row.module)}
+                        </span>
+                      </div>
+                    )
+                  },
+                  {
+                    key: "amount",
+                    header: "Amount",
+                    render: (value, row) => (
+                      <div className="users-directory__identity">
+                        <span className="users-directory__name">{String(value)}</span>
+                        <Badge variant={row.status === "Issued" ? "success" : "warning"}>
+                          {String(row.status)}
+                        </Badge>
+                      </div>
                     )
                   }
                 ]}
@@ -404,17 +422,31 @@ export default function AdminDashboardOverviewPage() {
               <Table
                 wrapperClassName="admin-review-table-wrap admin-review-table-wrap--compact"
                 tableClassName="admin-review-table admin-review-table--compact"
+                // Same reasoning as Recent Reward Activity: two columns with
+                // stacked meta rather than four columns of ~90px.
                 columns={[
-                  { key: "learner", header: "Learner" },
-                  { key: "location", header: "Location" },
-                  { key: "completion", header: "Completion" },
                   {
-                    key: "risk",
-                    header: "Risk Level",
-                    render: (value) => (
-                      <Badge variant={value === "High" ? "danger" : "warning"}>
-                        {String(value)}
-                      </Badge>
+                    key: "learner",
+                    header: "Learner",
+                    render: (value, row) => (
+                      <div className="users-directory__identity">
+                        <span className="users-directory__name" title={String(value)}>
+                          {String(value)}
+                        </span>
+                        <span className="users-directory__meta">{String(row.location)}</span>
+                      </div>
+                    )
+                  },
+                  {
+                    key: "completion",
+                    header: "Completion",
+                    render: (value, row) => (
+                      <div className="users-directory__identity">
+                        <span className="users-directory__name">{String(value)}</span>
+                        <Badge variant={row.risk === "High" ? "danger" : "warning"}>
+                          {String(row.risk)}
+                        </Badge>
+                      </div>
                     )
                   }
                 ]}
