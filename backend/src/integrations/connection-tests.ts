@@ -5,6 +5,7 @@ import type {
 } from "../config-platform/contracts.js";
 import type { TestIntegrationResult } from "./contracts.js";
 import { diagnoseSmtpFailure } from "./smtp-diagnosis.js";
+import { buildSmtpTransportOptions } from "./smtp-transport.js";
 
 type WhatsAppDependencies = {
   fetchImpl?: typeof fetch;
@@ -106,16 +107,9 @@ export async function testNotificationConnection(
   const createTransport = dependencies.createTransport ?? nodemailer.createTransport;
 
   try {
-    const transporter = createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: {
-        user: config.username,
-        pass: config.password
-      },
-      connectionTimeout: 5000
-    });
+    // Shared with the real mailer, so a passing test proves the exact transport
+    // that production mail will use — not a lookalike.
+    const transporter = createTransport(buildSmtpTransportOptions(config, 5000));
 
     await transporter.verify();
 

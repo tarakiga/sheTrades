@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import type { NotificationIntegrationPayload } from "../config-platform/contracts.js";
 import { getRuntimeNotificationConfig, getRuntimeText } from "../config-platform/runtime-config.js";
+import { buildSmtpTransportOptions } from "../integrations/smtp-transport.js";
 
 /**
  * Emails the support team when a learner asks for help from inside a lesson.
@@ -108,13 +109,9 @@ export async function sendHelpRequestEmail(
   const createTransport = dependencies.createTransport ?? nodemailer.createTransport;
 
   try {
-    const transporter = createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: { user: config.username, pass: config.password },
-      connectionTimeout: 5000
-    });
+    // Same options object the Test Connection panel uses, so "the test passed"
+    // and "mail actually sends" cannot diverge.
+    const transporter = createTransport(buildSmtpTransportOptions(config, 5000));
 
     const info = await transporter.sendMail({
       from: `"${config.fromName}" <${config.fromEmail}>`,
