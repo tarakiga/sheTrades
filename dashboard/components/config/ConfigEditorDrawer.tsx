@@ -139,7 +139,16 @@ export function ConfigEditorDrawer({
   const [languages, setLanguages] = useState({ en: "", pcm: "", ig: "" });
   const [audioUrls, setAudioUrls] = useState({ en: "", pcm: "", ig: "" });
   const [quiz, setQuiz] = useState<
-    Array<{ question: LangObj; options: LangObj[]; answerIndex: number }>
+    Array<{
+      question: LangObj;
+      options: LangObj[];
+      answerIndex: number;
+      // "scored" = a knowledge check with one right answer. "reflection" = a
+      // check-in that accepts every answer and always advances; an optional
+      // help option flags the learner for follow-up.
+      kind: "scored" | "reflection";
+      helpOptionIndex: number | null;
+    }>
   >([]);
 
   // Generic translation state
@@ -269,7 +278,11 @@ export function ConfigEditorDrawer({
                 Array.isArray(q?.options) && q.options.length > 0
                   ? q.options.map(fromLocalized)
                   : [emptyLangObj(), emptyLangObj()],
-              answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0
+              answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0,
+              // Absent `kind` in stored JSON means "scored" (backend contract).
+              kind: q?.kind === "reflection" ? "reflection" : "scored",
+              helpOptionIndex:
+                typeof q?.helpOptionIndex === "number" ? q.helpOptionIndex : null
             }))
           : []
       );
@@ -336,7 +349,15 @@ export function ConfigEditorDrawer({
             // Keep options whose English (base) text is non-empty; carry each
             // option's translations with it.
             options: q.options.filter((o) => o.en.trim().length > 0).map(toLocalized),
-            answerIndex: q.answerIndex
+            answerIndex: q.answerIndex,
+            // Only emit the reflection keys when they mean something, so a
+            // scored question serializes byte-identically to before this
+            // feature existed — opening a lesson must not create a spurious
+            // version-history diff.
+            ...(q.kind === "reflection" ? { kind: "reflection" } : {}),
+            ...(q.kind === "reflection" && q.helpOptionIndex !== null
+              ? { helpOptionIndex: q.helpOptionIndex }
+              : {})
           }))
         };
         str = JSON.stringify(payload, null, 2);
@@ -431,7 +452,13 @@ export function ConfigEditorDrawer({
   const handleAddQuestion = () => {
     const next = [
       ...quiz,
-      { question: emptyLangObj(), options: [emptyLangObj(), emptyLangObj(), emptyLangObj()], answerIndex: 0 }
+      {
+        question: emptyLangObj(),
+        options: [emptyLangObj(), emptyLangObj(), emptyLangObj()],
+        answerIndex: 0,
+        kind: "scored" as const,
+        helpOptionIndex: null
+      }
     ];
     setQuiz(next);
     setExpandedQuizIndex(next.length - 1);
@@ -464,6 +491,29 @@ export function ConfigEditorDrawer({
   // Mark the correct answer (shared across languages — position is stable).
   const setQuizAnswerIndex = (index: number, optIdx: number) => {
     setQuiz((prev) => prev.map((q, i) => (i === index ? { ...q, answerIndex: optIdx } : q)));
+  };
+
+  // Switch a question between a scored knowledge check and a reflection
+  // check-in. Going back to "scored" clears the help option, which is
+  // meaningless there and must not leak into the serialized payload.
+  const setQuizKind = (index: number, kind: "scored" | "reflection") => {
+    setQuiz((prev) =>
+      prev.map((q, i) =>
+        i === index
+          ? { ...q, kind, helpOptionIndex: kind === "scored" ? null : q.helpOptionIndex }
+          : q
+      )
+    );
+  };
+
+  // Toggle which option means "I need help" on a reflection question.
+  // Clicking the already-selected option clears it (help is optional).
+  const setQuizHelpOptionIndex = (index: number, optIdx: number) => {
+    setQuiz((prev) =>
+      prev.map((q, i) =>
+        i === index ? { ...q, helpOptionIndex: q.helpOptionIndex === optIdx ? null : optIdx } : q
+      )
+    );
   };
 
   // Helper to format text with WhatsApp markdown style
@@ -1264,45 +1314,149 @@ export function ConfigEditorDrawer({
                                       );
                                     })()}
 
-                                    {/* Option rows with correct indicators */}
+                                    {/* Question type: a scored knowledge check vs a
+                                        reflection check-in that accepts any answer. */}
+                                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
+                                      <label
+                                        className="ui-input__label"
+                                        style={{ fontSize: "var(--font-size-xs)" }}
+                                      >
+                                        Question Type
+                                      </label>
+                                      <div
+                                        role="group"
+                                        aria-label="Question type"
+                                        style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}
+                                      >
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant={qItem.kind === "scored" ? "primary" : "secondary"}
+                                          aria-pressed={qItem.kind === "scored"}
+                                          onClick={() => setQuizKind(qIdx, "scored")}
+                                        >
+                                          ✅ Knowledge question
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant={qItem.kind === "reflection" ? "primary" : "secondary"}
+                                          aria-pressed={qItem.kind === "reflection"}
+                                          onClick={() => setQuizKind(qIdx, "reflection")}
+                                        >
+                                          💬 Check-in (no right answer)
+                                        </Button>
+                                      </div>
+                                      <p
+                                        style={{
+                                          margin: 0,
+                                          padding: "var(--space-3)",
+                                          background: "var(--color-neutral-50)",
+                                          border: "1px solid var(--color-neutral-200)",
+                                          borderRadius: "var(--radius-md)",
+                                          fontSize: "var(--font-size-xs)",
+                                          color: "var(--color-neutral-700)",
+                                          lineHeight: 1.5
+                                        }}
+                                      >
+                                        {qItem.kind === "reflection" ? (
+                                          <>
+                                            <strong>Check-in:</strong> every answer is accepted and the
+                                            learner always moves on — nothing is ever marked wrong. Use this
+                                            for “did you do it?” questions. Optionally mark one option as a{" "}
+                                            <strong>help request</strong> so anyone choosing it is flagged
+                                            for follow-up.
+                                          </>
+                                        ) : (
+                                          <>
+                                            <strong>Knowledge question:</strong> the learner must pick the
+                                            one correct answer to continue. Any other answer is marked wrong
+                                            and they are asked to try again.
+                                          </>
+                                        )}
+                                      </p>
+                                    </div>
+
+                                    {/* Option rows. Scored questions get the correct-answer
+                                        picker; reflection questions get the help picker
+                                        instead (there is no correct answer to mark). */}
                                     <div style={{ display: "grid", gap: "var(--space-3)" }}>
                                       <label
                                         className="ui-input__label"
                                         style={{ fontSize: "var(--font-size-xs)" }}
                                       >
-                                        Multiple Choice Choices & Correct Answer Selection
+                                        {qItem.kind === "reflection"
+                                          ? "Answer Choices & Help Request Option"
+                                          : "Multiple Choice Choices & Correct Answer Selection"}
                                       </label>
                                       {qItem.options.map((opt, optIdx) => (
-                                        <div key={optIdx} className="quiz-option-row">
-                                          {/* Checkbox badge helper */}
-                                          <button
-                                            type="button"
-                                            className={`quiz-correct-indicator ${
-                                              qItem.answerIndex === optIdx
-                                                ? "quiz-correct-indicator--active"
-                                                : ""
-                                            }`}
-                                            onClick={() => setQuizAnswerIndex(qIdx, optIdx)}
-                                            title="Mark as correct answer"
-                                          >
-                                            ✓
-                                          </button>
-                                          <div style={{ flex: 1 }}>
-                                            <Input
-                                              id={`opt-${qIdx}-${optIdx}`}
-                                              label={`Choice ${optIdx + 1}${qItem.answerIndex === optIdx ? " · correct" : ""}`}
-                                              value={opt[activeTabLanguage]}
-                                              placeholder={`e.g. Choice value ${optIdx + 1}`}
-                                              onChange={(e) =>
-                                                setQuizOptionText(qIdx, optIdx, activeTabLanguage, e.target.value)
-                                              }
-                                            />
-                                            <ConstraintMeter
-                                              used={waLen(opt[activeTabLanguage])}
-                                              limit={WHATSAPP_LIMITS.buttonTitle}
-                                              overflow="truncate"
-                                            />
+                                        <div
+                                          key={optIdx}
+                                          style={{ display: "grid", gap: "var(--space-2)" }}
+                                        >
+                                          <div className="quiz-option-row">
+                                            {/* Correct-answer marker — scored questions only. */}
+                                            {qItem.kind === "scored" && (
+                                              <button
+                                                type="button"
+                                                className={`quiz-correct-indicator ${
+                                                  qItem.answerIndex === optIdx
+                                                    ? "quiz-correct-indicator--active"
+                                                    : ""
+                                                }`}
+                                                aria-pressed={qItem.answerIndex === optIdx}
+                                                aria-label={`Mark choice ${optIdx + 1} as the correct answer`}
+                                                onClick={() => setQuizAnswerIndex(qIdx, optIdx)}
+                                                title="Mark as correct answer"
+                                              >
+                                                ✓
+                                              </button>
+                                            )}
+                                            <div style={{ flex: 1 }}>
+                                              <Input
+                                                id={`opt-${qIdx}-${optIdx}`}
+                                                label={`Choice ${optIdx + 1}${
+                                                  qItem.kind === "scored" && qItem.answerIndex === optIdx
+                                                    ? " · correct"
+                                                    : ""
+                                                }${
+                                                  qItem.kind === "reflection" &&
+                                                  qItem.helpOptionIndex === optIdx
+                                                    ? " · help request"
+                                                    : ""
+                                                }`}
+                                                value={opt[activeTabLanguage]}
+                                                placeholder={`e.g. Choice value ${optIdx + 1}`}
+                                                onChange={(e) =>
+                                                  setQuizOptionText(qIdx, optIdx, activeTabLanguage, e.target.value)
+                                                }
+                                              />
+                                              <ConstraintMeter
+                                                used={waLen(opt[activeTabLanguage])}
+                                                limit={WHATSAPP_LIMITS.buttonTitle}
+                                                overflow="truncate"
+                                              />
+                                            </div>
                                           </div>
+                                          {/* Help-request marker — reflection questions only.
+                                              Sits on its own line so it never competes with the
+                                              option input for width on narrow viewports. */}
+                                          {qItem.kind === "reflection" && (
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant={
+                                                qItem.helpOptionIndex === optIdx ? "primary" : "secondary"
+                                              }
+                                              aria-pressed={qItem.helpOptionIndex === optIdx}
+                                              onClick={() => setQuizHelpOptionIndex(qIdx, optIdx)}
+                                              style={{ justifySelf: "start" }}
+                                            >
+                                              {qItem.helpOptionIndex === optIdx
+                                                ? "Help request ✓"
+                                                : "Mark as help request"}
+                                            </Button>
+                                          )}
                                         </div>
                                       ))}
                                     </div>
@@ -1405,12 +1559,20 @@ export function ConfigEditorDrawer({
 
                             {/* Quiz Questions bubbles */}
                             {quiz.map((q, qIndex) => {
-                              // Only show this question if previous questions were answered correctly
+                              // Only show this question once the previous one has been
+                              // cleared. A scored question needs the correct answer; a
+                              // reflection check-in advances on ANY answer.
+                              const prev = quiz[qIndex - 1];
+                              const prevAnswer = simulatorSelectedAnswer[qIndex - 1];
                               const previousCorrect =
-                                qIndex === 0 || simulatorSelectedAnswer[qIndex - 1] === quiz[qIndex - 1]?.answerIndex;
-                              
+                                qIndex === 0 ||
+                                (prev?.kind === "reflection"
+                                  ? typeof prevAnswer === "number"
+                                  : prevAnswer === prev?.answerIndex);
+
                               if (!previousCorrect) return null;
 
+                              const isReflection = q.kind === "reflection";
                               const selectedOpt = simulatorSelectedAnswer[qIndex];
                               const hasSelected = typeof selectedOpt === "number";
 
@@ -1450,7 +1612,7 @@ export function ConfigEditorDrawer({
                                           type="button"
                                           className={`whatsapp-bubble__btn ${
                                             hasSelected && selectedOpt === optIndex
-                                              ? selectedOpt === q.answerIndex
+                                              ? isReflection || selectedOpt === q.answerIndex
                                                 ? "whatsapp-bubble__btn--correct"
                                                 : "whatsapp-bubble__btn--incorrect"
                                               : ""
@@ -1485,7 +1647,23 @@ export function ConfigEditorDrawer({
                                       </div>
 
                                       <div className="whatsapp-bubble" style={{ alignSelf: "flex-start" }}>
-                                        {selectedOpt === q.answerIndex ? (
+                                        {isReflection ? (
+                                          <span>
+                                            {selectedOpt === q.helpOptionIndex ? (
+                                              <>
+                                                🤝 <b>Thanks for telling us.</b> Someone will reach out to
+                                                help you.{" "}
+                                              </>
+                                            ) : (
+                                              <>
+                                                ✅ <b>Thanks for sharing.</b>{" "}
+                                              </>
+                                            )}
+                                            {qIndex < quiz.length - 1
+                                              ? "Reply NEXT to go to the next question."
+                                              : "You have completed this lesson."}
+                                          </span>
+                                        ) : selectedOpt === q.answerIndex ? (
                                           <span>
                                             🎉 <b>Correct!</b>{" "}
                                             {qIndex < quiz.length - 1 ? "Reply NEXT to go to the next question." : "Excellent job. You have completed this lesson."}
