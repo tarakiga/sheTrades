@@ -171,6 +171,37 @@ reviewer to correct it before the report circulates.
   reports skipped rather than failed, and CI (which has Postgres) keeps real coverage.
   Confirm the guard hypothesis before applying it: do not mask a genuine delivery break.
 
+## Reflection questions & help signals (2026-07-21) — DONE
+
+Plan: `docs/superpowers/plans/2026-07-21-reflection-questions.md`. Branch `fix/reflection-questions`.
+
+Tester report: Module 2 Lesson 6 marked "I need help migrating" as ❌ and looped the same
+question. Investigation found it larger — **"Not yet" was also marked wrong**, there is no
+retry limit, and since module completion drives a real airtime payout the bot was
+effectively paying learners to misreport, corrupting the completion figures reported to funders.
+
+- `[x]` Extract clip-tolerant `resolveQuizOptionIndex`; `isQuizReplyCorrect` delegates.
+  Review caught that the `-1` "no match" sentinel collided with `answerIndex === -1`, making
+  every unrecognised reply score CORRECT — restored the `>= 0` guard. Also fixed an inherited
+  bug where an exact full-text match lost to an earlier option's 20-char clipped prefix.
+- `[x]` `kind: "scored" | "reflection"` + `helpOptionIndex` on the quiz item. Absent `kind`
+  normalises to `"scored"`, verified byte-identical against the old mapper over 11 legacy shapes.
+- `[x]` `quiz_help_ack` / `reflection_next` / `reflection_module_complete` copy in en/pcm/ig.
+- `[x]` Handler branches on kind. Reflection answers always advance; the advance path is
+  extracted and shared with the scored path (verified 119 lines byte-identical) so the two
+  cannot drift. `quiz_answered` correctly suppressed for reflection questions.
+- `[x]` Review caught that the shared helper still said "🎉 Correct!" to someone answering
+  "Not yet" — fixed with caller-chosen copy rather than a second code path.
+- `[x]` `help_requested` raises the existing `flaggedForFollowUp`/`followUpNote` on User
+  (previously unwired to the bot); notes append so repeat requests are retained.
+- `[x]` Admin quiz builder: question-type toggle + help-option picker; scored questions
+  serialize byte-identically so no version-history noise. WhatsApp simulator in the drawer
+  also corrected — it was hardcoded to scored semantics and contradicted the feature.
+- `[x]` Preview entry for the quiz builder (it rendered nowhere in `/previews/components`).
+- `[ ]` **Content backfill outstanding** — `docs/reflection-question-candidates.md` lists 11
+  candidate questions for a human verdict. Nothing changes until an editor marks a question
+  in the admin UI; every question is treated as scored by default, so leaving it undone is safe.
+
 ### DEFERRED — circle back after translations (paused 2026-07-21)
 
 Both are intentionally parked, not forgotten. Neither blocks the Pidgin/Igbo work.

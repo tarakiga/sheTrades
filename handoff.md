@@ -471,3 +471,76 @@ Continued from the C/A batch. Closed **D1, D2, E1, E2, F3, H1, H3, H4**.
 **Still open:** **F2** (adopt Prisma migrations) and **H2** (tokenize remaining inline styles/hex). F2 should be its own planned change — it means baselining the live schema and running migrations in the deploy pipeline; done hastily on a DB holding real learner data it risks a broken deploy.
 
 Verification: both packages typecheck clean; 52 pass / 5 skipped. Post-deploy on rev 00079-zk5: `/ready` 200 (DB reachable), login returns a clean 401 (auth+DB path healthy), no table-bootstrap errors in logs, full M1 L7 bot e2e still PASS. **Please do one real admin login to confirm the session-create path** — I deliberately did not use your credentials.
+
+---
+
+## 2026-07-21 — Reflection questions & help signals (branch `fix/reflection-questions`)
+
+Plan: `docs/superpowers/plans/2026-07-21-reflection-questions.md`. Executed subagent-driven,
+two-stage review (spec then quality) per task.
+
+**The bug.** A tester reported Module 2 Lesson 6 marking "I need help migrating" as ❌ and
+re-showing the same question. Verifying it found the problem was larger than reported:
+
+- **"Not yet" was also scored wrong** — the more common honest answer, and the one the
+  tester missed.
+- No retry limit exists, so the only exits were MENU (abandons the lesson) or claiming "Yes".
+- Module completion drives `prisma.reward.upsert` → real airtime. **The only path to a reward
+  ran through a false claim**, corrupting the completion data reported to funders.
+- At least 11 lessons share the shape. The six lessons in `lessons.seed.json` are all genuine
+  knowledge questions — the check-in style was authored later, through the admin UI, into a
+  schema that only understands right and wrong.
+
+**The fix.** A `kind: "scored" | "reflection"` discriminator on the quiz item. Absent `kind`
+normalises to `"scored"`, so all live lessons keep today's behaviour until a human marks a
+question. Reflection answers always advance; the designated help option additionally emits
+`help_requested`, which raises the existing `flaggedForFollowUp`/`followUpNote` columns on
+`User` — they already rendered in `/users` but had never been wired to the bot.
+
+**Rejected alternative** (recorded so it is not revisited): the tester suggested re-sending the
+lesson body on "I need help". That leaves "Not yet" broken, requires string-matching option text
+that varies per lesson and disappears entirely once translated to Pidgin/Igbo, compounds the
+over-1024-char body problem, and reintroduces a loop. There is also no lesson re-read command
+in the bot, so it would need building regardless.
+
+**What review caught that implementation missed** — worth noting, both were silent-wrong-answer
+bugs that passed every test:
+1. The extracted resolver returns `-1` for "no match"; the delegate compared `=== answerIndex`
+   with no guard, so `answerIndex === -1` (reachable — the config-platform publish path does no
+   validation) made **every unrecognised reply score correct**, writing `correct: true` into Pass
+   Rate analytics. Guard restored.
+2. The shared advance helper still said **"🎉 Correct!" to someone answering "Not yet"** — the
+   data was fixed but the message still affirmed. Fixed with caller-chosen copy, keeping one
+   shared code path so scored and reflection cannot drift.
+
+Also fixed in passing: an inherited defect where an exact full-text match lost to an earlier
+option's 20-char clipped prefix (a misroute once branch logic keys on the resolved index), and
+a duplicate-seeder mistake of mine — I had `bot.prompt.*` entries added to
+`admin-ui-copy.seed.json` when `seed-bot-prompts.ts` already publishes those same document keys,
+which would have made the live value depend on which seeder ran last.
+
+**Verification:** backend 52/52 and dashboard typecheck clean. The `advanceAfterAcceptedAnswer`
+extraction was verified 119 lines byte-identical to the code it replaced; scored-question
+serialization in the drawer verified byte-identical over 11 legacy shapes plus the 6 seeded
+lessons. Admin controls verified in the browser via DOM/ARIA assertions on the new
+`/previews/components` entry — **screenshots time out in this environment, so no one has
+visually eyeballed the rendered result. Worth a human glance.**
+
+**Outstanding:**
+- **Content backfill** — `docs/reflection-question-candidates.md` lists 11 candidates for a
+  human verdict. Nothing changes until an editor marks a question and publishes; scored is the
+  default, so leaving it undone is safe.
+- **`answerIndex` is unvalidated at the config boundary** — `config-platform/service.ts:84`
+  returns the lesson payload unvalidated and `runtime-config.ts` coerces non-numbers to 0 with
+  no bounds check. The zod guard with `.min(0)` lives in `content/service.ts`, a different write
+  path. Now fails closed rather than open, so it is no longer urgent, but it should be closed.
+- The help acknowledgement thanks the learner twice ("thank you for telling us" then "Thanks for
+  sharing"). Both strings are admin-editable without a deploy — worth a copy pass before launch.
+
+**Incident:** a review subagent ran `git worktree remove --force` across a junctioned
+`node_modules` and emptied the repo's `node_modules` plus working-tree files under `backend/`,
+`dashboard/`, `shared/`. It restored them (`git restore`, `npm ci`, `prisma generate`) and
+disclosed it; I re-verified HEAD, untracked files, both typechecks and the full suite before
+continuing. One casualty: a local modification to `dashboard/next-env.d.ts` was reverted to the
+committed version (auto-generated, regenerates on build). Later agents were instructed not to
+create worktrees.
