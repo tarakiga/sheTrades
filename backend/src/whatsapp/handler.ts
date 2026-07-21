@@ -492,6 +492,15 @@ function getPrompt(
  * identified on real WhatsApp even though they resolve fine in the dashboard
  * sandbox, which echoes the full untruncated title.
  *
+ * An unambiguous exact (full-text) match always wins over a clipped-form
+ * match, even one on an earlier option: e.g. options ["Save money every day
+ * for rent", "Save money every day", "Not sure"], input "Save money every
+ * day" is a full match for index 1 but ALSO a clipped-prefix match for index
+ * 0 ("Save money every day for rent".slice(0, 20) === "Save money every day"
+ * plus one more char that trim/clip still collapses) — the full match must
+ * win, because it is unambiguous and the clipped one is a coincidence.
+ * Clipped comparison is only consulted once nothing matches in full.
+ *
  * A leading numeric reply ("2", "2.", "2)") is resolved by position first —
  * it always wins even if it happens to also collide with option text.
  *
@@ -499,6 +508,8 @@ function getPrompt(
  */
 export function resolveQuizOptionIndex(rawInput: string, options: string[]): number {
   const normalized = rawInput.trim().toLowerCase();
+  if (!normalized) return -1;
+
   // Strip a leading "N. " or "N) " prefix so button clicks like "1. Apple"
   // still match against the option text or the option number.
   const strippedInput = normalized.replace(/^\d+\s*[.)]\s*/, "").trim();
@@ -512,13 +523,46 @@ export function resolveQuizOptionIndex(rawInput: string, options: string[]): num
     }
   }
 
-  const matchesOption = (opt: string): boolean => {
-    const o = opt.trim().toLowerCase();
-    const clipped = clip(o, BUTTON_TITLE_MAX);
-    return normalized === o || strippedInput === o || normalized === clipped || strippedInput === clipped;
-  };
+  const norm = (o: string) => o.trim().toLowerCase();
 
-  return options.findIndex(matchesOption);
+  // An unambiguous exact match always wins before we ever consider clipped
+  // forms — see doc comment above for why this ordering matters.
+  const exact = options.findIndex((o) => normalized === norm(o) || strippedInput === norm(o));
+  if (exact >= 0) return exact;
+
+  // Fall back to clipped comparison only when nothing matched in full. A
+  // tapped option longer than BUTTON_TITLE_MAX is echoed truncated, so the
+  // clipped form is all we have — but it can prefix-collide with a shorter
+  // sibling option, so an unambiguous full match must always take precedence.
+  const clippedMatch = options.findIndex((o) => {
+    const clipped = clip(norm(o), BUTTON_TITLE_MAX);
+    return normalized === clipped || strippedInput === clipped;
+  });
+
+  // Two options whose clipped forms collide with each other are genuinely
+  // unresolvable from a clipped title alone; findIndex silently picks the
+  // first. That's a content-authoring bug (options too similar in their
+  // first BUTTON_TITLE_MAX chars) which is currently invisible in
+  // production, so surface it rather than let it hide — especially now
+  // that options are localized (pickLocalized) and the English-only length
+  // audit in docs/content-quiz-option-length-fixes.csv doesn't cover pcm/ig.
+  const matchedOption = clippedMatch >= 0 ? options[clippedMatch] : undefined;
+  if (clippedMatch >= 0 && matchedOption !== undefined) {
+    const matchedClipped = clip(norm(matchedOption), BUTTON_TITLE_MAX);
+    const collidingIndex = options.findIndex(
+      (o, i) => i > clippedMatch && clip(norm(o), BUTTON_TITLE_MAX) === matchedClipped
+    );
+    if (collidingIndex >= 0) {
+      console.warn(JSON.stringify({
+        event: "whatsapp.quiz.option_clip_collision",
+        matchedIndex: clippedMatch,
+        collidingIndex,
+        clippedForm: matchedClipped
+      }));
+    }
+  }
+
+  return clippedMatch;
 }
 
 /**
@@ -532,6 +576,15 @@ export function resolveQuizOptionIndex(rawInput: string, options: string[]): num
  * The `selected >= 0` guard matters: resolveQuizOptionIndex returns -1 for an
  * unmatched reply, and a malformed answerIndex of -1 (e.g. bad config data)
  * must never equal that sentinel and score every unmatched reply "correct".
+ *
+ * Note on dropped leniency: the pre-extraction version OR'd a numeric match
+ * and a text match, so e.g. "1. Not yet" (where "Not yet" is really option
+ * index 2) used to score correct for EITHER answerIndex 0 or 2. This version
+ * resolves to a single index and the numeric form wins outright when
+ * present, so it now only scores correct for index 0. That's intentional,
+ * not a regression to fix later — sender.ts numbers reply buttons strictly
+ * by position, so position is the authoritative signal and text is only a
+ * fallback for freeform typed replies.
  *
  * Pure and exported so the matching rules can be unit-tested without the DB.
  */

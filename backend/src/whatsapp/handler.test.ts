@@ -83,7 +83,7 @@ test("resolveQuizOptionIndex returns -1 for unmatched free text", () => {
   assert.equal(resolveQuizOptionIndex("what does this mean", M2_L6_Q1), -1);
 });
 
-test("isQuizReplyCorrect still passes after the resolver extraction", () => {
+test("isQuizReplyCorrect scores the answer-key option correct and others incorrect", () => {
   assert.equal(isQuizReplyCorrect("Yes, system is set", M2_L6_Q1, 0), true);
   assert.equal(isQuizReplyCorrect("Not yet", M2_L6_Q1, 0), false);
 });
@@ -91,4 +91,22 @@ test("isQuizReplyCorrect still passes after the resolver extraction", () => {
 test("a malformed answerIndex of -1 does not score unmatched replies correct", () => {
   assert.equal(isQuizReplyCorrect("what?", M2_L6_Q1, -1), false);
   assert.equal(isQuizReplyCorrect("", M2_L6_Q1, -1), false);
+});
+
+test("an exact full-text match wins over an earlier option's clipped-prefix collision", () => {
+  // "Save money every day for rent".slice(0, 20) === "Save money every day"
+  // (once trimmed/lowercased), which coincidentally equals the FULL text of
+  // options[1]. The unambiguous exact match on index 1 must win over the
+  // ambiguous clipped-prefix match on index 0.
+  const opts = ["Save money every day for rent", "Save money every day", "Not sure"];
+  assert.equal(resolveQuizOptionIndex("Save money every day", opts), 1);
+});
+
+test("an out-of-range numeric reply resolves to no option", () => {
+  assert.equal(resolveQuizOptionIndex("9", M2_L6_Q1), -1);
+  assert.equal(resolveQuizOptionIndex("0", M2_L6_Q1), -1);
+});
+
+test("whitespace-only input resolves to no option", () => {
+  assert.equal(resolveQuizOptionIndex("   ", ["", "B"]), -1);
 });
