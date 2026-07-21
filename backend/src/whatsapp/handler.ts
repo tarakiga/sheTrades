@@ -529,10 +529,15 @@ export function resolveQuizOptionIndex(rawInput: string, options: string[]): num
  * the answer key. See resolveQuizOptionIndex's doc comment for the WhatsApp
  * button-title truncation tolerance this preserves.
  *
+ * The `selected >= 0` guard matters: resolveQuizOptionIndex returns -1 for an
+ * unmatched reply, and a malformed answerIndex of -1 (e.g. bad config data)
+ * must never equal that sentinel and score every unmatched reply "correct".
+ *
  * Pure and exported so the matching rules can be unit-tested without the DB.
  */
 export function isQuizReplyCorrect(rawInput: string, options: string[], answerIndex: number): boolean {
-  return resolveQuizOptionIndex(rawInput, options) === answerIndex;
+  const selected = resolveQuizOptionIndex(rawInput, options);
+  return selected >= 0 && selected === answerIndex;
 }
 
 function transition(

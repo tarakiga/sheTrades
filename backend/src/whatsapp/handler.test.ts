@@ -87,3 +87,8 @@ test("isQuizReplyCorrect still passes after the resolver extraction", () => {
   assert.equal(isQuizReplyCorrect("Yes, system is set", M2_L6_Q1, 0), true);
   assert.equal(isQuizReplyCorrect("Not yet", M2_L6_Q1, 0), false);
 });
+
+test("a malformed answerIndex of -1 does not score unmatched replies correct", () => {
+  assert.equal(isQuizReplyCorrect("what?", M2_L6_Q1, -1), false);
+  assert.equal(isQuizReplyCorrect("", M2_L6_Q1, -1), false);
+});
