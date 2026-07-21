@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isQuizReplyCorrect, resolveQuizOptionIndex, resolveReflectionAnswer } from "./handler.js";
+import { composeHelpRequestNote, isQuizReplyCorrect, resolveQuizOptionIndex, resolveReflectionAnswer } from "./handler.js";
 
 // Real quiz whose CORRECT answer (index 0) is 22 chars — longer than the
 // 20-char WhatsApp reply-button title limit. On real WhatsApp the tapped
@@ -189,4 +189,46 @@ test("reflection never returns an 'incorrect' outcome for any recognised option"
     const outcome = resolveReflectionAnswer(String(idx + 1), M2_L6_Q1, 1);
     assert.equal(outcome.action, "advance");
   });
+});
+
+// composeHelpRequestNote() backs the "help_requested" branch of
+// recordAnalytics(): it decides what gets written to User.followUpNote. The
+// DB read/write around it can't be unit-tested without Postgres, but the
+// append-vs-overwrite decision is pure and is the part most worth pinning.
+const HELP_EVENT = { lessonKey: "m2-l6", module: "Money Management", questionIndex: 1 };
+
+test("help note: no existing note produces a single dated line", () => {
+  assert.equal(
+    composeHelpRequestNote(undefined, HELP_EVENT, "2026-07-21"),
+    "[2026-07-21] Asked for help: m2-l6 (Money Management, Q2)"
+  );
+});
+
+test("help note: null existing note (Prisma's shape for an empty column) is treated like none", () => {
+  assert.equal(
+    composeHelpRequestNote(null, HELP_EVENT, "2026-07-21"),
+    "[2026-07-21] Asked for help: m2-l6 (Money Management, Q2)"
+  );
+});
+
+test("help note: an existing note is appended to, never overwritten", () => {
+  const existing = "[2026-07-01] Asked for help: m1-l3 (Digital Skills, Q1)";
+  assert.equal(
+    composeHelpRequestNote(existing, HELP_EVENT, "2026-07-21"),
+    "[2026-07-01] Asked for help: m1-l3 (Digital Skills, Q1)\n" +
+      "[2026-07-21] Asked for help: m2-l6 (Money Management, Q2)"
+  );
+});
+
+test("help note: repeated requests across lessons all survive, oldest first", () => {
+  let note: string | undefined;
+  note = composeHelpRequestNote(note, { lessonKey: "m1-l3", module: "Digital Skills", questionIndex: 0 }, "2026-07-01");
+  note = composeHelpRequestNote(note, { lessonKey: "m2-l6", module: "Money Management", questionIndex: 1 }, "2026-07-10");
+  note = composeHelpRequestNote(note, { lessonKey: "m3-l2", module: "Legal Rights", questionIndex: 2 }, "2026-07-21");
+  assert.equal(
+    note,
+    "[2026-07-01] Asked for help: m1-l3 (Digital Skills, Q1)\n" +
+      "[2026-07-10] Asked for help: m2-l6 (Money Management, Q2)\n" +
+      "[2026-07-21] Asked for help: m3-l2 (Legal Rights, Q3)"
+  );
 });

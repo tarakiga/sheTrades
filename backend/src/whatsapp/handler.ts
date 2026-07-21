@@ -633,6 +633,25 @@ export function resolveReflectionAnswer(
 }
 
 /**
+ * Build the merged `followUpNote` value for a help_requested event, appending
+ * to any existing note rather than overwriting it — a learner may ask for
+ * help on several lessons, and an operator reading /users needs the history.
+ *
+ * Pure and exported so the append-vs-overwrite behaviour can be unit-tested
+ * without a database; recordAnalytics() itself requires one (the read/update
+ * of the User row), so this is the only part of that logic that can be
+ * isolated.
+ */
+export function composeHelpRequestNote(
+  existingNote: string | null | undefined,
+  event: { lessonKey: string; module: string; questionIndex: number },
+  stamp: string
+): string {
+  const note = `[${stamp}] Asked for help: ${event.lessonKey} (${event.module}, Q${event.questionIndex + 1})`;
+  return existingNote ? `${existingNote}\n${note}` : note;
+}
+
+/**
  * Which copy set `advanceAfterAcceptedAnswer` uses for its success messages.
  *
  * The advance LOGIC is shared between the scored and reflection paths so the
@@ -1466,6 +1485,30 @@ async function recordAnalytics(session: UserSession): Promise<void> {
             learnerPhone: session.phone
           }
         });
+      } else if (event.type === "help_requested") {
+        // Raise the existing follow-up flag so the request lands in the
+        // /users worklist instead of vanishing. Append rather than overwrite:
+        // a learner may ask for help on several lessons.
+        const stamp = new Date().toISOString().slice(0, 10);
+        const existing = await prisma.user.findUnique({
+          where: { id: session.userId },
+          select: { followUpNote: true }
+        });
+        const merged = composeHelpRequestNote(existing?.followUpNote, event, stamp);
+        await prisma.user.update({
+          where: { id: session.userId },
+          data: { flaggedForFollowUp: true, followUpNote: merged }
+        });
+        console.log(
+          JSON.stringify({
+            event: "analytics.help_requested",
+            userId: session.userId,
+            lessonKey: event.lessonKey,
+            module: event.module,
+            questionIndex: event.questionIndex,
+            at: nowIso()
+          })
+        );
       }
     } catch (error) {
       console.warn(
