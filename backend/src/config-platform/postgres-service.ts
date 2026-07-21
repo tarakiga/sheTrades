@@ -19,7 +19,12 @@ import type {
   ConfigVersion,
   PublicConfigNamespace
 } from "./contracts.js";
-import { integrationConfigPayloadSchema, legalBlockPayloadSchema, optionSetPayloadSchema } from "./contracts.js";
+import {
+  integrationConfigPayloadSchema,
+  legalBlockPayloadSchema,
+  lessonDocumentPayloadSchema,
+  optionSetPayloadSchema
+} from "./contracts.js";
 
 // ---------------------------------------------------------------------------
 // Pool singleton
@@ -125,6 +130,11 @@ function validatePayloadForType(type: ConfigDocumentType, payload: ConfigPayload
       return legalBlockPayloadSchema.parse(payload);
     case "integration_config":
       return integrationConfigPayloadSchema.parse(payload);
+    case "lesson_content":
+      // This is the LIVE path (service.ts is the in-memory variant). Previously
+      // lesson_content fell through to `default` unvalidated, so a malformed
+      // answerIndex reached the bot and silently mis-scored learners.
+      return lessonDocumentPayloadSchema.parse(payload);
     default:
       return payload;
   }

@@ -47,6 +47,13 @@ export const optionSetPayloadSchema = z.object({
   items: z.array(optionItemSchema).min(1)
 });
 
+// NOTE: this schema describes a `{title, body, audioUrls}` shape that real
+// lesson documents do NOT use — they are `{title, module, languages, audioUrls,
+// quiz}` (see getRuntimeLessons and seed-lessons.ts). It is kept only as a
+// member of configPayloadSchema below, where real lessons fall through to the
+// z.record catch-all as they always have. Do not wire it into
+// validatePayloadForDocumentType: it would reject every live lesson.
+// The document-level schema is lessonDocumentPayloadSchema, further down.
 export const lessonContentPayloadSchema = z.object({
   title: z.string().min(1),
   body: languageContentSchema,
@@ -58,6 +65,74 @@ export const lessonContentPayloadSchema = z.object({
     })
     .default({})
 });
+
+/** A learner-facing string: legacy bare string, or per-language object. */
+const localizedValueSchema = z.union([
+  z.string(),
+  z.looseObject({
+    en: z.string(),
+    pcm: z.string().optional(),
+    ig: z.string().optional()
+  })
+]);
+
+/**
+ * One quiz question as stored in a published lesson document.
+ *
+ * Deliberately permissive about everything except the index bounds. The bounds
+ * are the invariant the bot cannot defend itself against: an `answerIndex` that
+ * does not reference a real option means no reply can ever match it, and since
+ * the retry loop has no limit the learner is trapped until they give up. A
+ * negative index is worse still — it collides with the resolver's -1 "no match"
+ * sentinel. Both are caught here, at publish, where a human can fix them.
+ */
+export const lessonQuizItemSchema = z
+  .looseObject({
+    question: localizedValueSchema,
+    options: z.array(localizedValueSchema),
+    answerIndex: z.number().int().min(0),
+    kind: z.enum(["scored", "reflection"]).optional(),
+    helpOptionIndex: z.number().int().min(0).optional()
+  })
+  .superRefine((value, ctx) => {
+    if (value.answerIndex >= value.options.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["answerIndex"],
+        message: `answerIndex ${value.answerIndex} does not reference an option — this question has ${value.options.length}.`
+      });
+    }
+    if (value.helpOptionIndex !== undefined && value.helpOptionIndex >= value.options.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["helpOptionIndex"],
+        message: `helpOptionIndex ${value.helpOptionIndex} does not reference an option — this question has ${value.options.length}.`
+      });
+    }
+  });
+
+/**
+ * Document-level schema for `lesson_content`, applied on the publish path.
+ *
+ * Everything is optional and unknown keys pass through, because 43 lessons are
+ * already live and this must not block the content team over a field this
+ * schema happens not to know about. It exists to enforce ONE thing: that quiz
+ * indices reference real options.
+ */
+export const lessonDocumentPayloadSchema = z.looseObject({
+  title: localizedValueSchema.optional(),
+  module: z.string().optional(),
+  languages: z
+    .looseObject({
+      en: z.string(),
+      pcm: z.string().optional(),
+      ig: z.string().optional()
+    })
+    .optional(),
+  audioUrls: z.record(z.string(), z.string()).optional(),
+  quiz: z.array(lessonQuizItemSchema).optional()
+});
+export type LessonDocumentPayload = z.infer<typeof lessonDocumentPayloadSchema>;
 
 export const whatsappIntegrationPayloadSchema = z.object({
   title: z.string().min(1),

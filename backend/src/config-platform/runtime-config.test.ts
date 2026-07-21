@@ -61,3 +61,37 @@ test("helpOptionIndex is ignored on a scored item", () => {
   assert.equal(item.kind, "scored");
   assert.equal(item.helpOptionIndex, undefined);
 });
+
+test("an out-of-range answerIndex on stored content is warned about, not clamped", () => {
+  // Content published before the publish-path validation existed is still in
+  // the database. Such a question is unanswerable and the retry loop has no
+  // limit, so it must be visible in logs. It is NOT clamped — inventing a
+  // correct answer would fabricate an assessment result nobody authored.
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (msg: unknown) => { warnings.push(String(msg)); };
+  try {
+    const item = normalizeQuizItem({
+      question: "What is 2+2?",
+      options: ["4", "5", "6"],
+      answerIndex: 7
+    });
+    assert.equal(item.answerIndex, 7, "value must be preserved, not clamped");
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0] ?? "", /answer_index_out_of_range/);
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test("a valid answerIndex produces no warning", () => {
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (msg: unknown) => { warnings.push(String(msg)); };
+  try {
+    normalizeQuizItem({ question: "q", options: ["a", "b"], answerIndex: 1 });
+    assert.equal(warnings.length, 0);
+  } finally {
+    console.warn = originalWarn;
+  }
+});

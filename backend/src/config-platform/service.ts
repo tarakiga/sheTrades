@@ -13,6 +13,7 @@ import {
   type PublicConfigNamespace,
   integrationConfigPayloadSchema,
   legalBlockPayloadSchema,
+  lessonDocumentPayloadSchema,
   optionSetPayloadSchema
 } from "./contracts.js";
 type Actor = {
@@ -82,7 +83,10 @@ function isPayloadPublishable(payload: ConfigPayload) {
 function validatePayloadForDocumentType(type: ConfigDocumentType, payload: ConfigPayload) {
   switch (type) {
     case "lesson_content":
-      return payload;
+      // Enforces only that quiz indices reference real options. Everything else
+      // passes through — 43 lessons are live and this must not block publishing
+      // over a field the schema does not know about.
+      return lessonDocumentPayloadSchema.parse(payload);
     case "option_set":
       return optionSetPayloadSchema.parse(payload);
     case "legal_block":

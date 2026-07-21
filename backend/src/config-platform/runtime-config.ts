@@ -275,10 +275,33 @@ export function normalizeQuizItem(raw: any): RuntimeQuizItem {
       ? rawHelp
       : undefined;
 
+  const answerIndex = typeof raw?.answerIndex === "number" ? raw.answerIndex : 0;
+
+  // The publish path now rejects an out-of-range answerIndex, but content
+  // published BEFORE that validation existed is still in the database. Such a
+  // question is unanswerable — no reply can match it, and the retry loop has no
+  // limit — so surface it rather than letting learners silently get stuck.
+  // Deliberately NOT clamped: picking a "correct" answer on the learner's
+  // behalf would invent an assessment result nobody authored.
+  if (
+    kind === "scored" &&
+    options.length > 0 &&
+    (!Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex >= options.length)
+  ) {
+    console.warn(
+      JSON.stringify({
+        event: "config.lesson.answer_index_out_of_range",
+        answerIndex,
+        optionCount: options.length,
+        question: pickLocalized(normalizeLocalized(raw?.question), "en").slice(0, 80)
+      })
+    );
+  }
+
   return {
     question: normalizeLocalized(raw?.question),
     options,
-    answerIndex: typeof raw?.answerIndex === "number" ? raw.answerIndex : 0,
+    answerIndex,
     kind,
     ...(helpOptionIndex !== undefined ? { helpOptionIndex } : {})
   };
