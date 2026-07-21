@@ -223,6 +223,24 @@ function normalizeLocalized(raw: any): LocalizedValue {
   return String(raw);
 }
 
+export type QuizItemKind = "scored" | "reflection";
+
+export type RuntimeQuizItem = {
+  question: LocalizedValue;
+  options: LocalizedValue[];
+  answerIndex: number;
+  /**
+   * "scored"     — a knowledge question with a right answer (default).
+   * "reflection" — a check-in about what the learner DID. No right answer;
+   *                every option is accepted. Marking "Not yet" wrong traps
+   *                honest learners and pressures them into false claims,
+   *                which corrupts completion data and reward payouts.
+   */
+  kind: QuizItemKind;
+  /** Index of the "I need help" option, when kind === "reflection". */
+  helpOptionIndex?: number;
+};
+
 export type RuntimeLesson = {
   key: string;
   title: LocalizedValue;
@@ -233,12 +251,38 @@ export type RuntimeLesson = {
     ig?: string;
   };
   audioUrls: Record<string, string>;
-  quiz: Array<{
-    question: LocalizedValue;
-    options: LocalizedValue[];
-    answerIndex: number;
-  }>;
+  quiz: RuntimeQuizItem[];
 };
+
+/**
+ * Normalise one raw quiz item from published config JSON.
+ *
+ * Backward compatible by construction: a legacy item with no `kind` becomes
+ * "scored", which is exactly today's behaviour. Nothing changes for the 43
+ * live lessons until a human marks a question as reflective in the admin UI.
+ */
+export function normalizeQuizItem(raw: any): RuntimeQuizItem {
+  const kind: QuizItemKind = raw?.kind === "reflection" ? "reflection" : "scored";
+  const options = Array.isArray(raw?.options) ? raw.options.map(normalizeLocalized) : [];
+
+  const rawHelp = raw?.helpOptionIndex;
+  const helpOptionIndex =
+    kind === "reflection" &&
+    typeof rawHelp === "number" &&
+    Number.isInteger(rawHelp) &&
+    rawHelp >= 0 &&
+    rawHelp < options.length
+      ? rawHelp
+      : undefined;
+
+  return {
+    question: normalizeLocalized(raw?.question),
+    options,
+    answerIndex: typeof raw?.answerIndex === "number" ? raw.answerIndex : 0,
+    kind,
+    ...(helpOptionIndex !== undefined ? { helpOptionIndex } : {})
+  };
+}
 
 export function getRuntimeLessons(): RuntimeLesson[] {
   const bundle = cachedPublicConfigs.get("content");
@@ -257,13 +301,7 @@ export function getRuntimeLessons(): RuntimeLesson[] {
           ...(payload.languages?.ig ? { ig: String(payload.languages.ig) } : {})
         },
         audioUrls: (payload.audioUrls && typeof payload.audioUrls === "object" ? payload.audioUrls : {}) as Record<string, string>,
-        quiz: (Array.isArray(payload.quiz)
-          ? payload.quiz.map((q: any) => ({
-              question: normalizeLocalized(q?.question),
-              options: Array.isArray(q?.options) ? q.options.map(normalizeLocalized) : [],
-              answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0
-            }))
-          : [])
+        quiz: (Array.isArray(payload.quiz) ? payload.quiz.map(normalizeQuizItem) : [])
       } satisfies RuntimeLesson;
     });
 }
