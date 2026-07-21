@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { payoutsIntegrationPayloadSchema } from "../payouts/providers/contracts.js";
+import { translationIntegrationPayloadSchema } from "../translation/providers/contracts.js";
 
 export const configNamespaceSchema = z.enum(["content", "options", "legal", "integration"]);
 export type ConfigNamespace = z.infer<typeof configNamespaceSchema>;
@@ -228,11 +229,20 @@ export const rewardRulesPayloadSchema = z.object({
 });
 export type RewardRulesPayload = z.infer<typeof rewardRulesPayloadSchema>;
 
+// A discriminated `kind` keeps this distinct from the SMTP/whatsapp payloads,
+// which are matched by their `provider` literal, and from the reward-rules
+// payload, which uses kind: "reward_rules".
+export const translationConfigPayloadSchema = translationIntegrationPayloadSchema.extend({
+  kind: z.literal("translation")
+});
+export type TranslationConfigPayload = z.infer<typeof translationConfigPayloadSchema>;
+
 export const integrationConfigPayloadSchema = z.union([
   whatsappIntegrationPayloadSchema,
   notificationIntegrationPayloadSchema,
   payoutsIntegrationPayloadSchema,
-  rewardRulesPayloadSchema
+  rewardRulesPayloadSchema,
+  translationConfigPayloadSchema
 ]);
 export type IntegrationConfigPayload = z.infer<typeof integrationConfigPayloadSchema>;
 

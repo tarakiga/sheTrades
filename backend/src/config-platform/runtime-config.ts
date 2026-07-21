@@ -5,6 +5,7 @@ import type {
   RewardRulesPayload
 } from "./contracts.js";
 import type { PayoutsIntegrationPayload } from "../payouts/providers/contracts.js";
+import type { TranslationIntegrationPayload } from "../translation/providers/contracts.js";
 
 type LocalizedText = {
   en: string;
@@ -182,6 +183,12 @@ export function getRuntimePayoutsConfig() {
 
 export function getRuntimeRewardRules() {
   return getRuntimeIntegrationConfig<RewardRulesPayload>("reward.rules.primary");
+}
+
+export function getRuntimeTranslationConfig() {
+  return getRuntimeIntegrationConfig<TranslationIntegrationPayload & { kind: "translation" }>(
+    "integration.translation.primary"
+  );
 }
 
 /** Test-only: inject an integration config without exercising the publish path. */
