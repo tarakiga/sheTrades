@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildHelpRequestEmail,
+  resolveHelpRequestRecipient,
   sendHelpRequestEmail,
   type HelpRequestContext
 } from "./help-request-email.js";
@@ -105,4 +106,38 @@ test("a successful send addresses the configured recipient and real content", as
   assert.match(String(sent.from), /SheTrades/);
   assert.match(String(sent.subject), /Jonas Emelda/);
   assert.match(String(sent.text), /\+2348012345678/);
+});
+
+test("the integration setting wins over the built-in default", () => {
+  assert.equal(
+    resolveHelpRequestRecipient({ helpRequestRecipient: "ops@example.com" } as never),
+    "ops@example.com"
+  );
+});
+
+test("an unset integration field falls back rather than sending nowhere", () => {
+  // A blank field must not mean "drop the request" — it means "use the default".
+  assert.equal(
+    resolveHelpRequestRecipient({ helpRequestRecipient: "" } as never),
+    "help@shetrades.digital"
+  );
+  assert.equal(resolveHelpRequestRecipient(null), "help@shetrades.digital");
+  assert.equal(resolveHelpRequestRecipient(), "help@shetrades.digital");
+});
+
+test("the configured recipient is actually the address mail is sent to", () => {
+  const captured: Array<Record<string, unknown>> = [];
+  return sendHelpRequestEmail(CONTEXT, {
+    loadConfig: () =>
+      ({
+        enabled: true, host: "h", port: 465, secure: true, username: "u", password: "p",
+        fromName: "SheTrades", fromEmail: "bot@x.com", helpRequestRecipient: "team@example.com"
+      }) as never,
+    createTransport: (() => ({
+      sendMail: async (m: Record<string, unknown>) => { captured.push(m); return { messageId: "1" }; }
+    })) as never
+  }).then((result) => {
+    assert.equal(result.status, "sent");
+    assert.equal(captured[0]?.to, "team@example.com");
+  });
 });

@@ -190,6 +190,15 @@ export const notificationIntegrationPayloadSchema = z.object({
   fromName: z.string().trim().min(1),
   fromEmail: z.string().trim().email(),
   replyToEmail: z.union([z.string().trim().email(), z.literal("")]).optional().default(""),
+  /**
+   * Where learner help requests are emailed. Lives with the SMTP settings
+   * because that is where an admin looks for "who receives our mail", and
+   * optional so existing published documents keep validating unchanged.
+   */
+  helpRequestRecipient: z
+    .union([z.string().trim().email(), z.literal("")])
+    .optional()
+    .default(""),
   notes: z.string().max(1000).optional().default("")
 });
 export type NotificationIntegrationPayload = z.infer<typeof notificationIntegrationPayloadSchema>;

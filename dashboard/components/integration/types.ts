@@ -66,6 +66,8 @@ export type NotificationIntegrationForm = {
   fromName: string;
   fromEmail: string;
   replyToEmail: string;
+  /** Where learner help requests are emailed. */
+  helpRequestRecipient: string;
   notes: string;
 };
 
@@ -100,6 +102,7 @@ export function createEmptyNotificationForm(): NotificationIntegrationForm {
     fromName: "SheTrades",
     fromEmail: "",
     replyToEmail: "",
+    helpRequestRecipient: "",
     notes: ""
   };
 }

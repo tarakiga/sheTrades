@@ -283,6 +283,14 @@ export function IntegrationConfigDrawer({
                 hint="Optional. Leave blank if replies should use the sender address."
                 {...withError(errors.replyToEmail)}
               />
+              <Input
+                id="notification-help-request-recipient"
+                label="Help Request Recipient"
+                value={value.helpRequestRecipient}
+                onChange={(event) => onChange("helpRequestRecipient", event.target.value)}
+                hint="Where learner help requests are emailed. Leave blank to use the built-in default."
+                {...withError(errors.helpRequestRecipient)}
+              />
             </>
           )}
         </div>

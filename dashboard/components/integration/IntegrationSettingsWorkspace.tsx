@@ -246,6 +246,8 @@ function detailToForm(
     fromName: typeof source.fromName === "string" ? source.fromName : "SheTrades",
     fromEmail: typeof source.fromEmail === "string" ? source.fromEmail : "",
     replyToEmail: typeof source.replyToEmail === "string" ? source.replyToEmail : "",
+    helpRequestRecipient:
+      typeof source.helpRequestRecipient === "string" ? source.helpRequestRecipient : "",
     notes: typeof source.notes === "string" ? source.notes : ""
   };
 }
@@ -301,6 +303,12 @@ function validateForm(form: IntegrationFormState) {
   ) {
     errors.replyToEmail = "Use a valid reply-to email address.";
   }
+  if (
+    form.helpRequestRecipient.trim().length > 0 &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.helpRequestRecipient.trim())
+  ) {
+    errors.helpRequestRecipient = "Use a valid email address for help requests.";
+  }
   return errors;
 }
 
@@ -330,6 +338,7 @@ function serializeForm(form: IntegrationFormState) {
     fromName: form.fromName.trim(),
     fromEmail: form.fromEmail.trim(),
     replyToEmail: form.replyToEmail.trim(),
+    helpRequestRecipient: form.helpRequestRecipient.trim(),
     notes: form.notes.trim()
   };
 }

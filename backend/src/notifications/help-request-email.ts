@@ -41,11 +41,22 @@ type Dependencies = {
  * than baked into code: config first, then env, then a safe default so the
  * feature still works on a fresh deploy with nothing configured.
  */
-export function resolveHelpRequestRecipient(): string {
+export function resolveHelpRequestRecipient(
+  config?: Pick<NotificationIntegrationPayload, "helpRequestRecipient"> | null
+): string {
+  // The notification integration settings are checked first: that is the field
+  // an admin can actually see and edit, so it must win over the other sources.
+  const fromIntegration = (config?.helpRequestRecipient ?? "").trim();
+  if (fromIntegration) return fromIntegration;
+
   const configured = getRuntimeText("notifications.help_request.recipient", "").trim();
   if (configured) return configured;
+
   const fromEnv = (process.env.HELP_REQUEST_NOTIFY_EMAIL ?? "").trim();
   if (fromEnv) return fromEnv;
+
+  // Last resort so a fresh deploy still delivers somewhere rather than silently
+  // dropping the request.
   return "help@shetrades.digital";
 }
 
@@ -104,7 +115,7 @@ export async function sendHelpRequestEmail(
     return { status: "skipped", reason: "SMTP integration is disabled." };
   }
 
-  const recipient = resolveHelpRequestRecipient();
+  const recipient = resolveHelpRequestRecipient(config);
   const { subject, text } = buildHelpRequestEmail(context);
   const createTransport = dependencies.createTransport ?? nodemailer.createTransport;
 

@@ -50,6 +50,7 @@ test("testNotificationConnection returns connected when transport verify succeed
       fromName: "SheTrades",
       fromEmail: "noreply@example.com",
       replyToEmail: "support@example.com",
+    helpRequestRecipient: "",
       notes: ""
     },
     {
