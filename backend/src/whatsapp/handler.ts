@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getRuntimeOptionSet, getRuntimeText, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson, pickLocalized } from "../config-platform/runtime-config.js";
+import { sendHelpRequestEmail } from "../notifications/help-request-email.js";
 import { BOT_PROMPT_DEFAULTS, BOT_PROMPT_CONFIG_PREFIX } from "./bot-prompts.js";
 import { prisma } from "../admin/prisma.js";
 import type { WhatsAppListSpec } from "./sender.js";
@@ -32,7 +33,18 @@ type AnalyticsEvent =
   // A learner explicitly asked for help on a reflection question. This is the
   // highest-value signal the bot produces — previously it was scored as a
   // wrong answer and discarded.
-  | { type: "help_requested"; lessonKey: string; module: string; questionIndex: number };
+  | {
+      type: "help_requested";
+      lessonKey: string;
+      module: string;
+      questionIndex: number;
+      // Carried on the event rather than re-read in recordAnalytics: the
+      // lesson, question and chosen option are all in scope at push time, and
+      // the notification email is useless without them.
+      lessonTitle: string;
+      questionText: string;
+      optionChosen: string;
+    };
 
 type UserSession = {
   phone: string;
@@ -607,7 +619,9 @@ export function isQuizReplyCorrect(rawInput: string, options: string[], answerIn
  */
 export type ReflectionOutcome =
   | { action: "reask" }
-  | { action: "advance"; helpRequested: boolean };
+  // selectedIndex is carried so callers can name the option the learner chose
+  // (the help-request notification quotes it back to the support team).
+  | { action: "advance"; helpRequested: boolean; selectedIndex: number };
 
 /**
  * Decide the outcome of a reflection reply.
@@ -628,7 +642,8 @@ export function resolveReflectionAnswer(
   if (selected < 0) return { action: "reask" };
   return {
     action: "advance",
-    helpRequested: helpOptionIndex !== undefined && selected === helpOptionIndex
+    helpRequested: helpOptionIndex !== undefined && selected === helpOptionIndex,
+    selectedIndex: selected
   };
 }
 
@@ -1241,7 +1256,10 @@ function transition(
               type: "help_requested",
               lessonKey: activeLesson.key,
               module: session.selectedModuleId ?? activeLesson.module ?? "Unknown",
-              questionIndex: qIndex
+              questionIndex: qIndex,
+              lessonTitle: pickLocalized(activeLesson.title, lang) || activeLesson.key,
+              questionText: pickLocalized(quizItem.question, lang),
+              optionChosen: reflectionOptions[outcome.selectedIndex] ?? ""
             });
           }
 
@@ -1495,9 +1513,12 @@ async function recordAnalytics(session: UserSession): Promise<void> {
           select: { followUpNote: true }
         });
         const merged = composeHelpRequestNote(existing?.followUpNote, event, stamp);
+        const requestedAt = new Date();
         await prisma.user.update({
           where: { id: session.userId },
-          data: { flaggedForFollowUp: true, followUpNote: merged }
+          // flaggedAt is separate from updatedAt so the "most recent help
+          // requests" list cannot be reordered by an unrelated write.
+          data: { flaggedForFollowUp: true, followUpNote: merged, flaggedAt: requestedAt }
         });
         console.log(
           JSON.stringify({
@@ -1509,6 +1530,30 @@ async function recordAnalytics(session: UserSession): Promise<void> {
             at: nowIso()
           })
         );
+
+        // Notify the support team. Best effort by design: the learner already
+        // has their reply, the flag is already persisted, and a mail outage
+        // must not fail the webhook or lose the request.
+        const mail = await sendHelpRequestEmail({
+          learnerName: session.name ?? null,
+          phone: session.phone,
+          lessonTitle: event.lessonTitle,
+          moduleName: event.module,
+          questionText: event.questionText,
+          optionChosen: event.optionChosen,
+          language: session.language ?? null,
+          requestedAt: requestedAt.toISOString()
+        });
+        if (mail.status !== "sent") {
+          console.warn(
+            JSON.stringify({
+              event: "notifications.help_request_email",
+              status: mail.status,
+              reason: "reason" in mail ? mail.reason : "",
+              userId: session.userId
+            })
+          );
+        }
       }
     } catch (error) {
       console.warn(

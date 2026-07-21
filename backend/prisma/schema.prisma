@@ -16,6 +16,10 @@ model User {
   status             String         @default("Active")
   flaggedForFollowUp Boolean        @default(false)
   followUpNote       String?
+  /// When the follow-up flag was last raised. Distinct from updatedAt, which
+  /// changes on ANY write and would reorder the "most recent help requests"
+  /// list whenever an unrelated field changed.
+  flaggedAt          DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 

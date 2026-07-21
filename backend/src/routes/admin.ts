@@ -36,6 +36,15 @@ adminRouter.use(authenticateJwt);
  * Each field carries its own `.catch(undefined)` so a single malformed filter
  * is simply dropped rather than discarding every other (valid) filter.
  */
+/**
+ * Query for the Overview "Users requesting help" panel. Coerced and capped for
+ * the same reason as the reward filters: `limit` arrives as a string and an
+ * uncapped value would let a caller pull the whole learner table.
+ */
+export const helpRequestsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).catch(5).default(5)
+});
+
 export const rewardsFilterQuerySchema = z.object({
   status: z.enum(["Issued", "Pending", "Failed"]).optional().catch(undefined),
   from: z.coerce.date().optional().catch(undefined),
@@ -88,6 +97,44 @@ adminRouter.get("/users", async (_req, res, next) => {
   try {
     const payload = await getUsersData();
     res.status(200).json(payload);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/users/help-requests", async (req, res, next) => {
+  // Backs the "Users requesting help" panel on the Overview page. Ordered by
+  // flaggedAt (NOT updatedAt, which any unrelated write would bump) so the
+  // list genuinely shows the most recent requests.
+  try {
+    const parsed = helpRequestsQuerySchema.safeParse(req.query);
+    const limit = parsed.success ? parsed.data.limit : 5;
+    const rows = await prisma.user.findMany({
+      where: { flaggedForFollowUp: true },
+      orderBy: [{ flaggedAt: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
+      take: limit,
+      select: {
+        phone: true,
+        name: true,
+        language: true,
+        location: true,
+        followUpNote: true,
+        flaggedAt: true
+      }
+    });
+    res.status(200).json({
+      requests: rows.map((row) => ({
+        phone: row.phone,
+        name: row.name,
+        language: row.language,
+        location: row.location,
+        // Only the newest note line is useful in a 5-row panel; the drawer
+        // shows the full history.
+        latestNote:
+          (row.followUpNote ?? "").trim().split(/\r?\n/).filter(Boolean).slice(-1)[0] ?? "",
+        flaggedAt: row.flaggedAt ? row.flaggedAt.toISOString() : null
+      }))
+    });
   } catch (error) {
     next(error);
   }

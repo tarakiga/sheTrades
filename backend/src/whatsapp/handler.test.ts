@@ -120,7 +120,8 @@ test("whitespace-only input resolves to no option", () => {
 test("reflection: numeric reply advances and is not a help request", () => {
   assert.deepEqual(resolveReflectionAnswer("1", M2_L6_Q1, 1), {
     action: "advance",
-    helpRequested: false
+    helpRequested: false,
+    selectedIndex: 0
   });
 });
 
@@ -129,18 +130,21 @@ test("reflection: the honest 'Not yet' answer advances instead of failing", () =
   // fix "Not yet" was scored incorrect and re-asked forever.
   assert.deepEqual(resolveReflectionAnswer("3", M2_L6_Q1, 1), {
     action: "advance",
-    helpRequested: false
+    helpRequested: false,
+    selectedIndex: 2
   });
   assert.deepEqual(resolveReflectionAnswer("Not yet", M2_L6_Q1, 1), {
     action: "advance",
-    helpRequested: false
+    helpRequested: false,
+    selectedIndex: 2
   });
 });
 
 test("reflection: help option by full text advances AND flags help", () => {
   assert.deepEqual(resolveReflectionAnswer("I need help migrating", M2_L6_Q1, 1), {
     action: "advance",
-    helpRequested: true
+    helpRequested: true,
+    selectedIndex: 1
   });
 });
 
@@ -151,22 +155,25 @@ test("reflection: help option by CLIPPED button title advances AND flags help", 
   assert.equal("I need help migrating".slice(0, 20), "I need help migratin");
   assert.deepEqual(resolveReflectionAnswer("I need help migratin", M2_L6_Q1, 1), {
     action: "advance",
-    helpRequested: true
+    helpRequested: true,
+    selectedIndex: 1
   });
 });
 
 test("reflection: numeric reply selecting the help option flags help", () => {
   assert.deepEqual(resolveReflectionAnswer("2", M2_L6_Q1, 1), {
     action: "advance",
-    helpRequested: true
+    helpRequested: true,
+    selectedIndex: 1
   });
 });
 
 test("reflection with no helpOptionIndex advances without ever flagging help", () => {
-  for (const reply of ["1", "2", "3", "I need help migrating"]) {
+  for (const [reply, index] of [["1", 0], ["2", 1], ["3", 2], ["I need help migrating", 1]] as const) {
     assert.deepEqual(resolveReflectionAnswer(reply, M2_L6_Q1), {
       action: "advance",
-      helpRequested: false
+      helpRequested: false,
+      selectedIndex: index
     });
   }
 });
