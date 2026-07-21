@@ -163,6 +163,14 @@ reviewer to correct it before the report circulates.
   "Module 1", read by no code. Either wire it up or remove it so editors aren't editing a
   string that does nothing.
 
+- `[ ]` **R3-tests (MED): `webhook.test.ts` has 5 failing tests with no DB guard.** Verified
+  pre-existing (identical 5 pass / 5 fail on `9c2b421`, before the Flow 10 fix). The 5 that
+  pass are the ones that never touch Postgres (challenge verify, 401 auth checks); the 5
+  that fail all POST a real message payload, which the handler cannot process without a DB.
+  Same class as the translation-request tests — needs a `skipWithoutDb` guard so a local run
+  reports skipped rather than failed, and CI (which has Postgres) keeps real coverage.
+  Confirm the guard hypothesis before applying it: do not mask a genuine delivery break.
+
 ### DEFERRED — circle back after translations (paused 2026-07-21)
 
 Both are intentionally parked, not forgotten. Neither blocks the Pidgin/Igbo work.
