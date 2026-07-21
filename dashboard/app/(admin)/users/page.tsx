@@ -66,17 +66,29 @@ export default function UsersPage() {
     };
   }, []);
 
-  const users = result?.data.users ?? [];
+  const allUsers = result?.data.users ?? [];
+  // Follow-up flags are raised automatically when a learner taps the help
+  // option in a lesson check-in. Without a filter the only way to find them is
+  // to scroll the whole directory hunting for badges, which does not scale.
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
+  const flaggedCount = useMemo(
+    () => allUsers.filter((row) => row.flaggedForFollowUp).length,
+    [allUsers]
+  );
+  const users = useMemo(
+    () => (showFlaggedOnly ? allUsers.filter((row) => row.flaggedForFollowUp) : allUsers),
+    [allUsers, showFlaggedOnly]
+  );
   const meta = result?.meta ?? { source: "fallback" as const };
   const dataMessage = result?.meta.message;
 
   const activeCount = useMemo(
-    () => users.filter((row) => row.status === "Active").length,
-    [users]
+    () => allUsers.filter((row) => row.status === "Active").length,
+    [allUsers]
   );
   const atRiskCount = useMemo(
-    () => users.filter((row) => row.status === "At Risk").length,
-    [users]
+    () => allUsers.filter((row) => row.status === "At Risk").length,
+    [allUsers]
   );
   const uniqueLanguages = useMemo(
     () => new Set(users.map((row) => row.language)).size,
@@ -158,6 +170,13 @@ export default function UsersPage() {
               {meta.source === "live" ? "Live Data" : "Fallback Data"}
             </Badge>
             <Button
+              variant={showFlaggedOnly ? "primary" : "secondary"}
+              aria-pressed={showFlaggedOnly}
+              onClick={() => setShowFlaggedOnly((previous) => !previous)}
+            >
+              {showFlaggedOnly ? `Showing flagged (${flaggedCount})` : `Flagged only (${flaggedCount})`}
+            </Button>
+            <Button
               onClick={() => {
                 void downloadAdminCsv(usersExportEndpoint(), `users-${new Date().toISOString().slice(0, 10)}.csv`);
               }}
@@ -209,7 +228,11 @@ export default function UsersPage() {
               wrapperClassName="admin-review-table-wrap"
               tableClassName="admin-review-table admin-review-table--users"
               emptyMessage={
-                loading ? "Loading learner records…" : "No learner records are available yet."
+                loading
+                  ? "Loading learner records…"
+                  : showFlaggedOnly
+                    ? "No learners are currently flagged for follow-up."
+                    : "No learner records are available yet."
               }
               columns={[
                 {

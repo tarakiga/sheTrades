@@ -29,6 +29,7 @@ import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
 import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
+import { HelpRequestsPanelPreview } from "./HelpRequestsPanelPreview";
 import { QuizBuilderPreview } from "./QuizBuilderPreview";
 import { PreviewSelectTabsDemo } from "./PreviewSelectTabsDemo";
 import { AdminRouteLoading } from "../../../components/layout/AdminRouteLoading";
@@ -227,6 +228,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <QuizBuilderPreview />
+        </Card>
+
+        <Card
+          title={t("preview.helpRequests.title", "Users Requesting Help")}
+          description={t(
+            "preview.helpRequests.description",
+            "Overview panel listing learners who tapped the help option during a lesson check-in. Shown with rows, empty, and loading — including a request with no captured name, where the phone number is what makes it actionable."
+          )}
+        >
+          <HelpRequestsPanelPreview />
         </Card>
 
         <Card

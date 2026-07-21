@@ -114,3 +114,21 @@ export type ExportRow = {
 export type ReportsPageData = {
   exports: Array<ExportRow>;
 };
+
+/**
+ * A learner who asked for help from inside a lesson check-in. The flag is
+ * raised automatically by the bot, not by an admin.
+ */
+export type HelpRequestRow = {
+  phone: string;
+  name: string | null;
+  language: string | null;
+  location: string | null;
+  /** Newest note line only; the learner drawer shows the full history. */
+  latestNote: string;
+  flaggedAt: string | null;
+};
+
+export type HelpRequestsData = {
+  requests: HelpRequestRow[];
+};

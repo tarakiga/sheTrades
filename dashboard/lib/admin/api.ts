@@ -2,6 +2,7 @@ import type {
   AnalyticsPageData,
   ApiResult,
   ContentPageData,
+  HelpRequestsData,
   LearnerDetail,
   ReportsPageData,
   RewardsPageData,
@@ -40,6 +41,14 @@ async function fetchWithFallback<T>(endpoint: string, fallbackData: T): Promise<
       meta: { source: "fallback", message: `Using fallback data: ${message}` }
     };
   }
+}
+
+export function getHelpRequests(limit = 5) {
+  const fallback: HelpRequestsData = { requests: [] };
+  return fetchWithFallback<HelpRequestsData>(
+    `/api/admin/users/help-requests?limit=${encodeURIComponent(String(limit))}`,
+    fallback
+  );
 }
 
 export function getUsersPageData() {

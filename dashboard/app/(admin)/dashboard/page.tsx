@@ -14,12 +14,15 @@ import {
 } from "../../../components/ui";
 import {
   getAnalyticsPageData,
+  getHelpRequests,
   getRewardsPageData,
   getUsersPageData
 } from "../../../lib/admin/api";
+import { HelpRequestsPanel } from "../../../components/users/HelpRequestsPanel";
 import type {
   AnalyticsPageData,
   ApiResult,
+  HelpRequestsData,
   RewardsPageData,
   UsersPageData
 } from "../../../lib/admin/contracts";
@@ -51,17 +54,24 @@ export default function AdminDashboardOverviewPage() {
   const [usersResult, setUsersResult] = useState<ApiResult<UsersPageData> | null>(null);
   const [rewardsResult, setRewardsResult] = useState<ApiResult<RewardsPageData> | null>(null);
   const [analyticsResult, setAnalyticsResult] = useState<ApiResult<AnalyticsPageData> | null>(null);
+  const [helpResult, setHelpResult] = useState<ApiResult<HelpRequestsData> | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    Promise.all([getUsersPageData(), getRewardsPageData(), getAnalyticsPageData()])
-      .then(([users, rewards, analytics]) => {
+    Promise.all([
+      getUsersPageData(),
+      getRewardsPageData(),
+      getAnalyticsPageData(),
+      getHelpRequests(5)
+    ])
+      .then(([users, rewards, analytics, help]) => {
         if (!cancelled) {
           setUsersResult(users);
           setRewardsResult(rewards);
           setAnalyticsResult(analytics);
+          setHelpResult(help);
         }
       })
       // GAP-H1: Promise.all rejects wholesale if any one call throws, which
@@ -380,6 +390,11 @@ export default function AdminDashboardOverviewPage() {
               />
             )}
           </Card>
+
+          <HelpRequestsPanel
+            requests={helpResult?.data.requests ?? []}
+            loading={loading}
+          />
 
           <Card
             title="At-Risk Learners"
