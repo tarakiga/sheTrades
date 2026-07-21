@@ -40,9 +40,9 @@ const RULES: Rule[] = [
   {
     // 535/5.7.8 — credentials rejected. Reaching AUTH proves the transport is fine.
     match: /535|5\.7\.8|invalid login|authentication fail|auth.*(failed|denied)|bad credentials/i,
-    summary: "The server rejected the username or password.",
+    summary: "The server rejected the sign-in.",
     guidance:
-      "The connection itself worked — host, port and encryption are correct, or the server would never have reached the login step. Check two things: the username is usually the FULL email address (help@example.com, not help), and the password is the mailbox password set when the email account was created, which is often different from the hosting control-panel password. If the mailbox is only an alias or forwarder it cannot log in at all; it must be a real mailbox."
+      "The connection and encryption worked — the server answered and processed the login attempt. Check three things, in this order. (1) The HOST may be the wrong mail server for this mailbox: a server that does not host the account rejects the login exactly like a bad password. Hosting brands often resell someone else's email, so the SMTP host is frequently NOT your hosting provider's domain — check the settings your email provider gives you, not your web host's. (2) The username is usually the FULL email address (help@example.com, not help). (3) The password is the mailbox password, which is often different from the hosting control-panel password; an alias or forwarder cannot sign in at all, it must be a real mailbox."
   },
   {
     match: /wrong version number|ssl3_get_record|packet length too long|routines:.*ssl/i,

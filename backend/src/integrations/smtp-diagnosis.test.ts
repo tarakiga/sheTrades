@@ -10,18 +10,25 @@ import { diagnoseSmtpFailure } from "./smtp-diagnosis.js";
  * onto the next action to take.
  */
 
-test("535 blames the credentials, not the connection", () => {
+test("535 covers the username and password causes", () => {
   const d = diagnoseSmtpFailure("Invalid login: 535 5.7.8 Error: authentication failed:");
-  assert.match(d.summary, /username or password/i);
-  // Reaching AUTH proves host/port/encryption already worked — saying so stops
-  // an admin rewriting settings that are fine.
+  assert.match(d.summary, /rejected the sign-in/i);
   assert.match(d.guidance, /full email address/i);
   assert.match(d.guidance, /mailbox password/i);
 });
 
-test("535 guidance mentions that the connection itself succeeded", () => {
+test("535 names the WRONG HOST as a cause, not just bad credentials", () => {
+  // Regression guard for real advice that cost a user an evening. The original
+  // wording asserted "host, port and encryption are correct, or the server
+  // would never have reached the login step". That is false: a valid SMTP
+  // server that does not host the mailbox accepts the connection and rejects
+  // AUTH identically to a bad password. It happens constantly, because hosting
+  // brands resell other providers' email (Hostinger fronts Titan), so the SMTP
+  // host is often not the web host's domain at all.
   const d = diagnoseSmtpFailure("535 5.7.8 authentication failed");
-  assert.match(d.guidance, /host, port and encryption/i);
+  assert.match(d.guidance, /host/i);
+  assert.match(d.guidance, /resell/i);
+  assert.doesNotMatch(d.guidance, /host, port and encryption are correct/i);
 });
 
 test("a refused connection points at host, port and firewall", () => {
