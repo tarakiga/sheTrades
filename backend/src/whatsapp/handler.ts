@@ -598,13 +598,99 @@ export function isQuizReplyCorrect(rawInput: string, options: string[], answerIn
 }
 
 /**
+ * What to do with a learner's reply to a reflection question.
+ *
+ * There is deliberately no "incorrect" outcome: a reflection question asks what
+ * the learner DID, so every recognised option is a valid answer. Only an
+ * unrecognised reply re-asks, and even then it must never be treated as a
+ * failed attempt — see the re-ask branch in transition().
+ */
+export type ReflectionOutcome =
+  | { action: "reask" }
+  | { action: "advance"; helpRequested: boolean };
+
+/**
+ * Decide the outcome of a reflection reply.
+ *
+ * Delegates matching to resolveQuizOptionIndex(), so it inherits the numeric,
+ * full-text and clipped-button-title tolerance documented there — the clipped
+ * case matters here specifically because "I need help migrating" (21 chars)
+ * exceeds BUTTON_TITLE_MAX and comes back truncated from real WhatsApp.
+ *
+ * Pure and exported so the decision rules can be unit-tested without the DB.
+ */
+export function resolveReflectionAnswer(
+  rawInput: string,
+  options: string[],
+  helpOptionIndex?: number
+): ReflectionOutcome {
+  const selected = resolveQuizOptionIndex(rawInput, options);
+  if (selected < 0) return { action: "reask" };
+  return {
+    action: "advance",
+    helpRequested: helpOptionIndex !== undefined && selected === helpOptionIndex
+  };
+}
+
+/**
+ * Which copy set `advanceAfterAcceptedAnswer` uses for its success messages.
+ *
+ * The advance LOGIC is shared between the scored and reflection paths so the
+ * two can never drift, but the WORDING must not be: a reflection answer is
+ * accepted, not correct. Telling a learner who answered "Not yet" that they
+ * were "🎉 Correct!" recreates the pressure to misreport that scoring these
+ * questions caused in the first place.
+ *
+ * Every entry is a `getPrompt` key so all of this copy stays admin-editable.
+ */
+type AdvanceCopy = {
+  /** Headline above the next question. */
+  headline: { key: string; fallback: string };
+  /** Whole reply when the lesson is finished and another follows. */
+  nextLesson: { key: string; fallback: string };
+  /** Whole reply when the final lesson of the module is finished. */
+  moduleComplete: { key: string; fallback: string };
+};
+
+/** Copy for a correct scored answer. Preserves the pre-existing wording. */
+const SCORED_ADVANCE_COPY: AdvanceCopy = {
+  headline: { key: "correct_headline", fallback: "🎉 Correct!" },
+  nextLesson: {
+    key: "correct_next",
+    fallback:
+      "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return."
+  },
+  moduleComplete: {
+    key: "correct_module_complete",
+    fallback:
+      "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nReply MENU to choose another module."
+  }
+};
+
+/** Copy for an accepted reflection answer: acknowledges, never affirms. */
+const REFLECTION_ADVANCE_COPY: AdvanceCopy = {
+  headline: { key: "reflection_headline", fallback: "✅ Thanks for sharing." },
+  nextLesson: {
+    key: "reflection_next",
+    fallback:
+      "✅ Thanks for sharing.\n\nYou have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return."
+  },
+  moduleComplete: {
+    key: "reflection_module_complete",
+    fallback:
+      "✅ Thanks for sharing.\n\nYou have completed all lessons in this module.\n\nReply MENU to choose another module."
+  }
+};
+
+/**
  * Advance past an accepted answer: next question, next lesson, or module
  * complete. Shared by the scored-correct path and the reflection path so the
  * two can never drift — a reflection answer must produce the same completion,
  * reward and analytics side effects as a correct scored answer.
  *
  * `prefix` is prepended to whatever reply is produced (used for the help
- * acknowledgement).
+ * acknowledgement). `copy` selects the wording — see AdvanceCopy: the side
+ * effects are shared, the affirmation is not.
  */
 function advanceAfterAcceptedAnswer(
   session: UserSession,
@@ -614,7 +700,8 @@ function advanceAfterAcceptedAnswer(
   modulesMap: Map<string, RuntimeLesson[]>,
   qIndex: number,
   lang: "en" | "pcm" | "ig",
-  prefix = ""
+  prefix = "",
+  copy: AdvanceCopy = SCORED_ADVANCE_COPY
 ): { state: ConversationState; reply: string; buttons?: string[]; list?: WhatsAppListSpec } {
   // Success on this question
   const isLastQuestion = qIndex >= activeLesson.quiz.length - 1;
@@ -639,7 +726,8 @@ function advanceAfterAcceptedAnswer(
       };
     }
     const nextOptions = nextQuizItem.options.map((o) => pickLocalized(o, lang));
-    let nextReply = `🎉 Correct!\n\n📚 Next Question:\n${pickLocalized(nextQuizItem.question, lang)}\n`;
+    const headline = getPrompt(copy.headline.key, lang, copy.headline.fallback);
+    let nextReply = `${headline}\n\n📚 Next Question:\n${pickLocalized(nextQuizItem.question, lang)}\n`;
     nextOptions.forEach((opt, idx) => {
       nextReply += `${idx + 1}. ${opt}\n`;
     });
@@ -690,7 +778,7 @@ function advanceAfterAcceptedAnswer(
         remainingText += `- ${pickLocalized(l.title, lang)}\n`;
       });
 
-      const replyBase = getPrompt("correct_next", lang, "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.");
+      const replyBase = getPrompt(copy.nextLesson.key, lang, copy.nextLesson.fallback);
 
       return {
         state: session.state,
@@ -726,7 +814,7 @@ function advanceAfterAcceptedAnswer(
         });
       }
 
-      const replyBase = getPrompt("correct_module_complete", lang, "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nReply MENU to choose another module.");
+      const replyBase = getPrompt(copy.moduleComplete.key, lang, copy.moduleComplete.fallback);
 
       return {
         state: session.state,
@@ -1103,10 +1191,21 @@ function transition(
         // which is also the only path to a reward payout.
         if (quizItem.kind === "reflection") {
           const reflectionOptions = quizItem.options.map((o) => pickLocalized(o, lang));
-          const selectedIndex = resolveQuizOptionIndex(safeText, reflectionOptions);
+          const outcome = resolveReflectionAnswer(
+            safeText,
+            reflectionOptions,
+            quizItem.helpOptionIndex
+          );
 
-          if (selectedIndex < 0) {
+          if (outcome.action === "reask") {
             // Unrecognised free text: re-ask without any "incorrect" framing.
+            //
+            // DO NOT add a retry counter or attempt limit to this branch. There
+            // is no lesson re-read command in the bot, so any limit has to fall
+            // through to something — and every such "something" reintroduces the
+            // trap this whole change exists to remove. Re-asking indefinitely is
+            // safe precisely because MENU is handled globally above and always
+            // escapes.
             return {
               state: session.state,
               reply:
@@ -1118,10 +1217,7 @@ function transition(
             };
           }
 
-          const askedForHelp =
-            quizItem.helpOptionIndex !== undefined && selectedIndex === quizItem.helpOptionIndex;
-
-          if (askedForHelp) {
+          if (outcome.helpRequested) {
             session._events!.push({
               type: "help_requested",
               lessonKey: activeLesson.key,
@@ -1130,7 +1226,7 @@ function transition(
             });
           }
 
-          const ackPrefix = askedForHelp
+          const ackPrefix = outcome.helpRequested
             ? getPrompt(
                 "quiz_help_ack",
                 lang,
@@ -1139,7 +1235,8 @@ function transition(
             : "";
 
           return advanceAfterAcceptedAnswer(
-            session, activeLesson, moduleLessons, moduleNames, modulesMap, qIndex, lang, ackPrefix
+            session, activeLesson, moduleLessons, moduleNames, modulesMap, qIndex, lang,
+            ackPrefix, REFLECTION_ADVANCE_COPY
           );
         }
 

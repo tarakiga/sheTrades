@@ -990,6 +990,24 @@
     }
   },
   {
+    "key": "bot.prompt.reflection_next",
+    "title": "Chatbot - Reflection Answer (Next Lesson)",
+    "content": {
+      "en": "✅ Thanks for sharing.\n\nYou have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.",
+      "pcm": "✅ Thank you for tell us.\n\nYou don finish dis lesson.\n\nReply NEXT to go to the next lesson or MENU to go back.",
+      "ig": "✅ Daalụ maka ịkọrọ anyị.\n\nImechara nkuzi a.\n\nZaghachi NEXT ka ịga na nkuzi na-esote ma ọ bụ MENU ka ịlaghachi."
+    }
+  },
+  {
+    "key": "bot.prompt.reflection_module_complete",
+    "title": "Chatbot - Reflection Answer (Module Complete)",
+    "content": {
+      "en": "✅ Thanks for sharing.\n\nYou have completed all lessons in this module.\n\nReply MENU to choose another module.",
+      "pcm": "✅ Thank you for tell us.\n\nYou don finish all the lessons for dis module.\n\nReply MENU to select another module.",
+      "ig": "✅ Daalụ maka ịkọrọ anyị.\n\nImechara nkuzi niile dị na modul a.\n\nZaghachi MENU ka ịhọrọ modul ọzọ."
+    }
+  },
+  {
     "key": "bot.awaiting_language.prompt_short",
     "title": "Chatbot - Change Language Option Prompt",
     "content": {

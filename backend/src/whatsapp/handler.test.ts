@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isQuizReplyCorrect, resolveQuizOptionIndex } from "./handler.js";
+import { isQuizReplyCorrect, resolveQuizOptionIndex, resolveReflectionAnswer } from "./handler.js";
 
 // Real quiz whose CORRECT answer (index 0) is 22 chars — longer than the
 // 20-char WhatsApp reply-button title limit. On real WhatsApp the tapped
@@ -109,4 +109,84 @@ test("an out-of-range numeric reply resolves to no option", () => {
 
 test("whitespace-only input resolves to no option", () => {
   assert.equal(resolveQuizOptionIndex("   ", ["", "B"]), -1);
+});
+
+// ---------------------------------------------------------------------------
+// Reflection questions (M2 L6 Q1 is the reported case). These ask what the
+// learner DID, so there is no wrong answer: every recognised option advances.
+// The help option additionally raises a help_requested signal.
+// ---------------------------------------------------------------------------
+
+test("reflection: numeric reply advances and is not a help request", () => {
+  assert.deepEqual(resolveReflectionAnswer("1", M2_L6_Q1, 1), {
+    action: "advance",
+    helpRequested: false
+  });
+});
+
+test("reflection: the honest 'Not yet' answer advances instead of failing", () => {
+  // This is the case the tester missed and the worse of the two: before the
+  // fix "Not yet" was scored incorrect and re-asked forever.
+  assert.deepEqual(resolveReflectionAnswer("3", M2_L6_Q1, 1), {
+    action: "advance",
+    helpRequested: false
+  });
+  assert.deepEqual(resolveReflectionAnswer("Not yet", M2_L6_Q1, 1), {
+    action: "advance",
+    helpRequested: false
+  });
+});
+
+test("reflection: help option by full text advances AND flags help", () => {
+  assert.deepEqual(resolveReflectionAnswer("I need help migrating", M2_L6_Q1, 1), {
+    action: "advance",
+    helpRequested: true
+  });
+});
+
+test("reflection: help option by CLIPPED button title advances AND flags help", () => {
+  // "I need help migrating" is 21 chars, so real WhatsApp echoes it back
+  // clipped to 20. Without clip tolerance the highest-value signal the bot
+  // produces would be silently lost on every real device.
+  assert.equal("I need help migrating".slice(0, 20), "I need help migratin");
+  assert.deepEqual(resolveReflectionAnswer("I need help migratin", M2_L6_Q1, 1), {
+    action: "advance",
+    helpRequested: true
+  });
+});
+
+test("reflection: numeric reply selecting the help option flags help", () => {
+  assert.deepEqual(resolveReflectionAnswer("2", M2_L6_Q1, 1), {
+    action: "advance",
+    helpRequested: true
+  });
+});
+
+test("reflection with no helpOptionIndex advances without ever flagging help", () => {
+  for (const reply of ["1", "2", "3", "I need help migrating"]) {
+    assert.deepEqual(resolveReflectionAnswer(reply, M2_L6_Q1), {
+      action: "advance",
+      helpRequested: false
+    });
+  }
+});
+
+test("reflection: unrecognised free text re-asks rather than failing", () => {
+  assert.deepEqual(resolveReflectionAnswer("maybe next week", M2_L6_Q1, 1), {
+    action: "reask"
+  });
+});
+
+test("reflection: empty and whitespace-only replies re-ask", () => {
+  assert.deepEqual(resolveReflectionAnswer("", M2_L6_Q1, 1), { action: "reask" });
+  assert.deepEqual(resolveReflectionAnswer("   ", M2_L6_Q1, 1), { action: "reask" });
+});
+
+test("reflection never returns an 'incorrect' outcome for any recognised option", () => {
+  // Guards the core property: whatever the learner honestly reports, they
+  // advance. If this ever fails, the trap has been reintroduced.
+  M2_L6_Q1.forEach((_opt, idx) => {
+    const outcome = resolveReflectionAnswer(String(idx + 1), M2_L6_Q1, 1);
+    assert.equal(outcome.action, "advance");
+  });
 });

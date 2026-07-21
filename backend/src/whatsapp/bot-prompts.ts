@@ -45,6 +45,30 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     pcm: "\n\nSelect your answer below or reply MENU to go back.",
     ig: "\n\nHọrọ azịza gị n'okpuru ma ọ bụ pịnye MENU ka ịlaghachi."
   },
+  correct_headline: {
+    en: "🎉 Correct!",
+    pcm: "🎉 You correct!",
+    ig: "🎉 I ziri ezi!"
+  },
+  // Reflection questions ask what a learner DID, not what they know, so the
+  // copy below must acknowledge WITHOUT affirming correctness. Saying
+  // "Correct!" to someone who answered "Not yet" or "I need help" is the same
+  // pressure to misreport that scoring these questions created.
+  reflection_headline: {
+    en: "✅ Thanks for sharing.",
+    pcm: "✅ Thank you for tell us.",
+    ig: "✅ Daalụ maka ịkọrọ anyị."
+  },
+  reflection_next: {
+    en: "✅ Thanks for sharing.\n\nYou have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.",
+    pcm: "✅ Thank you for tell us.\n\nYou don finish dis lesson.\n\nReply NEXT to go to the next lesson or MENU to go back.",
+    ig: "✅ Daalụ maka ịkọrọ anyị.\n\nImechara nkuzi a.\n\nZaghachi NEXT ka ịga na nkuzi na-esote ma ọ bụ MENU ka ịlaghachi."
+  },
+  reflection_module_complete: {
+    en: "✅ Thanks for sharing.\n\nYou have completed all lessons in this module.\n\nReply MENU to choose another module.",
+    pcm: "✅ Thank you for tell us.\n\nYou don finish all the lessons for dis module.\n\nReply MENU to select another module.",
+    ig: "✅ Daalụ maka ịkọrọ anyị.\n\nImechara nkuzi niile dị na modul a.\n\nZaghachi MENU ka ịhọrọ modul ọzọ."
+  },
   correct_next: {
     en: "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.",
     pcm: "🎉 You correct! Better job. You don finish dis lesson.\n\nReply NEXT to go to another lesson or MENU to go back.",
@@ -131,8 +155,12 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   quiz_time_header: "Bot · Quiz time header",
   quiz_help_ack: "Bot · Help request acknowledgement",
   quiz_answer_prompt: "Bot · Quiz answer prompt",
+  correct_headline: "Bot · Correct answer headline",
   correct_next: "Bot · Correct answer (next lesson)",
   correct_module_complete: "Bot · Correct answer (module complete)",
+  reflection_headline: "Bot · Reflection answer headline",
+  reflection_next: "Bot · Reflection answer (next lesson)",
+  reflection_module_complete: "Bot · Reflection answer (module complete)",
   incorrect_retry: "Bot · Incorrect answer (retry)",
   bot_did_not_understand: "Bot · Did not understand",
   state_prompt: "Bot · State prompt",
