@@ -480,37 +480,59 @@ function getPrompt(
 }
 
 /**
- * Decide whether a learner's quiz reply is correct.
+ * Resolve which option a learner's reply refers to, or -1 if none.
  *
  * Accepts either a numeric answer ("1"/"2"/"3", optionally prefixed like "1."
  * or "1)") or the option's text. Crucially it is tolerant of the truncation
  * WhatsApp applies to interactive reply-button titles (BUTTON_TITLE_MAX in
  * sender.ts): a tapped option longer than the limit is echoed back CLIPPED, so
  * each option is compared in both its full and clipped form. Without this,
- * correct answers whose option text exceeds the limit (e.g. M1 L7 Q3 "Set who
- * sees your info", 22 chars) are scored WRONG on real WhatsApp even though they
- * pass in the dashboard sandbox, which echoes the full untruncated title.
+ * options whose text exceeds the limit (e.g. M1 L7 Q3 "Set who sees your
+ * info", 22 chars; M2 L6 Q1 "I need help migrating", 21 chars) can never be
+ * identified on real WhatsApp even though they resolve fine in the dashboard
+ * sandbox, which echoes the full untruncated title.
+ *
+ * A leading numeric reply ("2", "2.", "2)") is resolved by position first —
+ * it always wins even if it happens to also collide with option text.
  *
  * Pure and exported so the matching rules can be unit-tested without the DB.
  */
-export function isQuizReplyCorrect(rawInput: string, options: string[], answerIndex: number): boolean {
+export function resolveQuizOptionIndex(rawInput: string, options: string[]): number {
   const normalized = rawInput.trim().toLowerCase();
   // Strip a leading "N. " or "N) " prefix so button clicks like "1. Apple"
   // still match against the option text or the option number.
   const strippedInput = normalized.replace(/^\d+\s*[.)]\s*/, "").trim();
+
   const leadingNumberMatch = normalized.match(/^(\d+)\s*[.)]/);
-  const inputAsNumber = leadingNumberMatch ? leadingNumberMatch[1] : normalized;
+  const numericCandidate = leadingNumberMatch ? (leadingNumberMatch[1] ?? "") : normalized;
+  if (/^\d+$/.test(numericCandidate)) {
+    const oneBased = Number(numericCandidate);
+    if (oneBased >= 1 && oneBased <= options.length) {
+      return oneBased - 1;
+    }
+  }
 
   const matchesOption = (opt: string): boolean => {
     const o = opt.trim().toLowerCase();
     const clipped = clip(o, BUTTON_TITLE_MAX);
     return normalized === o || strippedInput === o || normalized === clipped || strippedInput === clipped;
   };
-  const selectedIndex = options.findIndex(matchesOption);
 
-  const isCorrectNumber = inputAsNumber === String(answerIndex + 1);
-  const isCorrectText = selectedIndex >= 0 && selectedIndex === answerIndex;
-  return isCorrectNumber || isCorrectText;
+  return options.findIndex(matchesOption);
+}
+
+/**
+ * Decide whether a learner's quiz reply is correct.
+ *
+ * Delegates to resolveQuizOptionIndex() for the actual matching (numeric,
+ * full-text, or clip-tolerant text) and compares the resolved index against
+ * the answer key. See resolveQuizOptionIndex's doc comment for the WhatsApp
+ * button-title truncation tolerance this preserves.
+ *
+ * Pure and exported so the matching rules can be unit-tested without the DB.
+ */
+export function isQuizReplyCorrect(rawInput: string, options: string[], answerIndex: number): boolean {
+  return resolveQuizOptionIndex(rawInput, options) === answerIndex;
 }
 
 function transition(

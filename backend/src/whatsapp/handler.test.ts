@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isQuizReplyCorrect } from "./handler.js";
+import { isQuizReplyCorrect, resolveQuizOptionIndex } from "./handler.js";
 
 // Real quiz whose CORRECT answer (index 0) is 22 chars — longer than the
 // 20-char WhatsApp reply-button title limit. On real WhatsApp the tapped
@@ -52,4 +52,38 @@ test("very long correct answer (47 chars) matches its clipped title", () => {
   ];
   // slice(0, 20) === "Message the electric"
   assert.equal(isQuizReplyCorrect("Message the electric", q, 1), true);
+});
+
+// Real Module 2 Lesson 6 check-in options. Option 1 is 21 chars, so WhatsApp
+// clips its button title to "I need help migratin" — the resolver must still
+// identify it, or the help path silently never fires on real devices.
+const M2_L6_Q1 = ["Yes, system is set", "I need help migrating", "Not yet"];
+
+test("resolveQuizOptionIndex matches a clipped button title", () => {
+  assert.equal(resolveQuizOptionIndex("I need help migratin", M2_L6_Q1), 1);
+});
+
+test("resolveQuizOptionIndex matches full option text", () => {
+  assert.equal(resolveQuizOptionIndex("I need help migrating", M2_L6_Q1), 1);
+});
+
+test("resolveQuizOptionIndex accepts a 1-based numeric reply", () => {
+  assert.equal(resolveQuizOptionIndex("3", M2_L6_Q1), 2);
+});
+
+test("resolveQuizOptionIndex accepts a numbered-prefix reply", () => {
+  assert.equal(resolveQuizOptionIndex("2. I need help migrating", M2_L6_Q1), 1);
+});
+
+test("resolveQuizOptionIndex is case-insensitive", () => {
+  assert.equal(resolveQuizOptionIndex("NOT YET", M2_L6_Q1), 2);
+});
+
+test("resolveQuizOptionIndex returns -1 for unmatched free text", () => {
+  assert.equal(resolveQuizOptionIndex("what does this mean", M2_L6_Q1), -1);
+});
+
+test("isQuizReplyCorrect still passes after the resolver extraction", () => {
+  assert.equal(isQuizReplyCorrect("Yes, system is set", M2_L6_Q1, 0), true);
+  assert.equal(isQuizReplyCorrect("Not yet", M2_L6_Q1, 0), false);
 });
