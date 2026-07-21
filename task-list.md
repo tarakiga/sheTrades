@@ -202,6 +202,25 @@ effectively paying learners to misreport, corrupting the completion figures repo
   candidate questions for a human verdict. Nothing changes until an editor marks a question
   in the admin UI; every question is treated as scored by default, so leaving it undone is safe.
 
+## Lesson payload validation (2026-07-21) — DONE
+
+- `[x]` **Validate quiz indices on the `lesson_content` publish path.** Root cause behind the
+  `-1` sentinel finding: `config-platform/service.ts` returned the payload as-is and
+  `postgres-service.ts` (the live path) fell through to `default`, so lesson content was
+  published entirely unvalidated. The zod guard with `.min(0)` lives in `content/service.ts`,
+  a different write path that config-platform bypasses.
+  Added `lessonDocumentPayloadSchema`, wired into both paths.
+  **Governing rule:** the schema must never reject a payload the bot already renders — it
+  gates `updateDraft`, not just publish, so a false positive blocks an editor from SAVING.
+  Only learner-trapping data is rejected (an index pointing at a nonexistent option, where no
+  reply can match and the retry loop has no limit).
+  `lesson-schema-conformance.test.ts` asserts that subset property over 27 runtime-tolerated
+  shapes; the previous "every seeded lesson validates" test could not have caught the
+  false positives, since all six seeds are shape-identical.
+  Read-time warning added (deduped — `getRuntimeLessons()` re-normalises on every inbound
+  message) so content already in the database that violates the bounds is visible in logs.
+  Deliberately not clamped: picking a correct answer would fabricate an assessment result.
+
 ### DEFERRED — circle back after translations (paused 2026-07-21)
 
 Both are intentionally parked, not forgotten. Neither blocks the Pidgin/Igbo work.
