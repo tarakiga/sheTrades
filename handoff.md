@@ -592,3 +592,30 @@ work (webhook 5/10 etc., unchanged; CI runs with Postgres).
    longer and inherit the overflow; the gauges will show red on content that was already over.
 3. The Anthropic adapter is a documented stub (load the claude-api skill to finish it).
 4. End-to-end run against real content + a real key has NOT been exercised — unit-tested only.
+
+---
+
+## Bugfix: promoted translation not reaching the bot (runtime cache stale)
+
+**Symptom:** Operator promoted the m1_l2 Pidgin translation. It showed correctly in the
+content admin, but the WhatsApp bot still served the old Pidgin placeholder.
+
+**Root cause:** The bot serves lessons from an in-memory cache (`cachedPublicConfigs` in
+`config-platform/runtime-config.ts`), rebuilt only by `refreshRuntimeConfigCache()`. Every
+mutating route in `config-admin.ts` calls it after writing published content; the translation
+**promote** route (`routes/translation.ts`) published into the content document via
+`promoteDraft` but never refreshed the cache. So the DB (and the admin, which reads the DB) had
+the translation, while the running bot process kept the pre-promotion payload until restart.
+
+**Fix (commit 3dced4f):** promote route now calls `refreshRuntimeConfigCache()` after
+`promoteDraft`, mirroring config-admin. Only `promote` touches published content — `/run`, the
+save PUT, and `/approve` only write the `translation_drafts` table, so no refresh needed there.
+Added a DB-gated regression test (`translation.test.ts`) that drives the promote route and
+asserts `getRuntimeLessons()` reflects the promotion with no manual refresh.
+
+**Deployed:** revision shetrades-backend-staging-00090-xng. The fresh process re-inits its cache
+from the DB, so the already-promoted m1_l2 pcm now serves correctly too.
+
+**Known limitation:** the refresh is per-process/per-instance (same as config-admin). If staging
+autoscales beyond one instance, a promote refreshes only the instance that served the request;
+others catch up on next deploy/restart. Acceptable for the pinned single-instance staging.
