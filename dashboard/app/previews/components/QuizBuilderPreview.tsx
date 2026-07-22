@@ -8,15 +8,15 @@ import { ConfigEditorDrawer } from "../../../components/config/ConfigEditorDrawe
  * Preview for the lesson quiz builder inside ConfigEditorDrawer.
  *
  * The drawer only renders its step wizard (and therefore the quiz builder) when
- * the payload looks like lesson content — it keys off `languages` / `quiz` /
+ * the payload looks like lesson content - it keys off `languages` / `quiz` /
  * `module`. The existing GuidedSettingsWorkspacePreview passes a plain
  * `{"en":"..."}` payload, so the quiz builder never appeared anywhere in the
  * preview environment. Per the component-preview rules, it needs its own entry.
  *
  * The fixture deliberately contains BOTH question types so the difference is
  * visible side by side:
- *  - Q1 is a knowledge question — has a correct answer, wrong answers retry.
- *  - Q2 is a check-in — no right answer, every option advances, and option 2 is
+ *  - Q1 is a knowledge question - has a correct answer, wrong answers retry.
+ *  - Q2 is a check-in - no right answer, every option advances, and option 2 is
  *    marked as the help request (which flags the learner for follow-up).
  *
  * Q2 is the real Module 2 Lesson 6 question a tester reported: "I need help

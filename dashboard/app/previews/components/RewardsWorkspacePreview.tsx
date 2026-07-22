@@ -133,7 +133,7 @@ const MOCK_REWARDS: Array<RewardLogRow> = [
     createdAt: new Date(STABLE_NOW.getTime() - 22 * 60 * 1000).toISOString(),
     issuedAt: null,
     providerTxnId: null,
-    failureReason: "INSUFFICIENT_FUNDS — top up Reloadly wallet",
+    failureReason: "INSUFFICIENT_FUNDS - top up Reloadly wallet",
     retryCount: 3,
     noteFromActor: null
   },
@@ -344,12 +344,12 @@ export function RewardsWorkspacePreview() {
           />
           <TotalPaidHeadline
             amount={478500}
-            periodLabel="This week · May 11 — May 18"
+            periodLabel="This week · May 11 - May 18"
             deltaVsPreviousPeriod={12}
           />
           <TotalPaidHeadline
             amount={312000}
-            periodLabel="This week · May 11 — May 18"
+            periodLabel="This week · May 11 - May 18"
             deltaVsPreviousPeriod={-4}
           />
           <TotalPaidHeadline
@@ -373,7 +373,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Rewards Health Hero — populated"
+        title="Rewards Health Hero - populated"
         description="3-column hero when a payouts provider is active."
       >
         <RewardsHealthHero
@@ -382,7 +382,7 @@ export function RewardsWorkspacePreview() {
           pending={4}
           failed={2}
           totalPaidAmount={478500}
-          totalPaidPeriodLabel="This week · May 11 — May 18"
+          totalPaidPeriodLabel="This week · May 11 - May 18"
           deltaVsPreviousPeriod={12}
           attentionItems={populatedAttention}
           lastIssuedAt={RECENT_ISSUANCE}
@@ -390,7 +390,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Rewards Health Hero — empty / all caught up"
+        title="Rewards Health Hero - empty / all caught up"
         description="Hero with no escalations and recent issuance."
       >
         <RewardsHealthHero
@@ -399,7 +399,7 @@ export function RewardsWorkspacePreview() {
           pending={0}
           failed={0}
           totalPaidAmount={940000}
-          totalPaidPeriodLabel="This week · May 11 — May 18"
+          totalPaidPeriodLabel="This week · May 11 - May 18"
           deltaVsPreviousPeriod={null}
           attentionItems={[]}
           lastIssuedAt={RECENT_ISSUANCE}
@@ -407,7 +407,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Rewards Health Hero — provider inactive"
+        title="Rewards Health Hero - provider inactive"
         description="Full-width amber banner replaces the hero when no payouts provider is published."
       >
         <RewardsHealthHero
@@ -416,7 +416,7 @@ export function RewardsWorkspacePreview() {
           pending={42}
           failed={0}
           totalPaidAmount={0}
-          totalPaidPeriodLabel="This week · May 11 — May 18"
+          totalPaidPeriodLabel="This week · May 11 - May 18"
           deltaVsPreviousPeriod={null}
           attentionItems={[]}
         />
@@ -430,21 +430,21 @@ export function RewardsWorkspacePreview() {
           <div>
             <ToolbarVariantDefault />
             <p className="preview-card-content__caption">
-              Default — status: All, range: Last 7 days, no query, idle export
+              Default - status: All, range: Last 7 days, no query, idle export
               button.
             </p>
           </div>
           <div>
             <ToolbarVariantFiltered />
             <p className="preview-card-content__caption">
-              Filtered — status: Failed (danger accent), range: Last 24 hours,
+              Filtered - status: Failed (danger accent), range: Last 24 hours,
               search prefilled with "adaeze".
             </p>
           </div>
           <div>
             <ToolbarVariantExporting />
             <p className="preview-card-content__caption">
-              Exporting — status: Pending (warning accent), range: Last 30 days,
+              Exporting - status: Pending (warning accent), range: Last 30 days,
               export button locked with spinner.
             </p>
           </div>
@@ -452,7 +452,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Rewards Table — loading"
+        title="Rewards Table - loading"
         description="Skeleton rows while the API call resolves."
       >
         <RewardsTable
@@ -465,7 +465,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Rewards Table — empty"
+        title="Rewards Table - empty"
         description="No rewards match the current filters."
       >
         <RewardsTable
@@ -477,7 +477,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Rewards Table — populated"
+        title="Rewards Table - populated"
         description="Row hover/focus reveals status-gated inline actions. Issued rows show Open only; Pending shows Retry · Mark Issued · Open; Failed shows Retry · Open."
       >
         <RewardsTable
@@ -489,11 +489,11 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Reward Detail Drawer — closed"
+        title="Reward Detail Drawer - closed"
         description="When reward is null and open is false, the drawer renders nothing."
       >
         <p className="preview-card-content__caption">
-          (Nothing renders below — closed drawer is a no-op.)
+          (Nothing renders below - closed drawer is a no-op.)
         </p>
         <RewardDetailDrawer
           reward={null}
@@ -506,7 +506,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Reward Detail Drawer — Pending"
+        title="Reward Detail Drawer - Pending"
         description="Right-side drawer with identity card, issuance timeline, action footer. Footer shows Retry now and Mark Issued."
       >
         <div className="preview-drawer-frame">
@@ -522,7 +522,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Reward Detail Drawer — Failed"
+        title="Reward Detail Drawer - Failed"
         description="Failure reason surfaces in the provider details section. Footer shows Retry now only."
       >
         <div className="preview-drawer-frame">
@@ -538,7 +538,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Reward Detail Drawer — Issued"
+        title="Reward Detail Drawer - Issued"
         description="Provider txn id and issued-at timestamp visible. Footer shows Open learner link only."
       >
         <div className="preview-drawer-frame">
@@ -554,7 +554,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Reward Detail Drawer — Mark Issued form"
+        title="Reward Detail Drawer - Mark Issued form"
         description="Inline form mode: note textarea (min 10 chars, required) and optional provider txn id. Click the Mark Issued button in the preview above to see this state live, or this card simulates the form state via auto-click on mount."
       >
         <div className="preview-drawer-frame" ref={markIssuedFrameRef}>
@@ -570,11 +570,11 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Manual Reward Drawer — closed"
+        title="Manual Reward Drawer - closed"
         description="When open is false the drawer renders nothing."
       >
         <p className="preview-card-content__caption">
-          (Nothing renders below — closed drawer is a no-op.)
+          (Nothing renders below - closed drawer is a no-op.)
         </p>
         <ManualRewardDrawer
           open={false}
@@ -587,7 +587,7 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Manual Reward Drawer — empty form"
+        title="Manual Reward Drawer - empty form"
         description="Default state with no fields touched. Amount and channel show their defaults; the learner is unselected."
       >
         <div className="preview-drawer-frame">
@@ -596,14 +596,14 @@ export function RewardsWorkspacePreview() {
       </Card>
 
       <Card
-        title="Manual Reward Drawer — pre-filled valid"
+        title="Manual Reward Drawer - pre-filled valid"
         description="A learner is pre-selected via the autocomplete and the reason note is populated, so the form is ready to submit."
       >
         <ManualRewardPrefilledVariant />
       </Card>
 
       <Card
-        title="Manual Reward Drawer — validation errors"
+        title="Manual Reward Drawer - validation errors"
         description="Submitting the empty form surfaces inline errors next to every required field. The card auto-submits on mount to simulate this state."
       >
         <ManualRewardValidationErrorVariant />

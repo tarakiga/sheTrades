@@ -236,7 +236,7 @@ export default async function ComponentsPreviewPage() {
           title={t("preview.helpRequests.title", "Users Requesting Help")}
           description={t(
             "preview.helpRequests.description",
-            "Overview panel listing learners who tapped the help option during a lesson check-in. Shown with rows, empty, and loading — including a request with no captured name, where the phone number is what makes it actionable."
+            "Overview panel listing learners who tapped the help option during a lesson check-in. Shown with rows, empty, and loading - including a request with no captured name, where the phone number is what makes it actionable."
           )}
         >
           <HelpRequestsPanelPreview />
@@ -396,7 +396,7 @@ export default async function ComponentsPreviewPage() {
         </Card>
 
         <Card
-          title={t("preview.usersWorkspace.title", "Users Workspace — Learner Detail Drawer")}
+          title={t("preview.usersWorkspace.title", "Users Workspace - Learner Detail Drawer")}
           description={t(
             "preview.usersWorkspace.description",
             "Preview the learner detail drawer: identity, follow-up flag, session, progress, quiz attempts, and rewards sections."
@@ -428,7 +428,7 @@ export default async function ComponentsPreviewPage() {
         <Card
           title={t(
             "preview.payoutsIntegration.title",
-            "Payouts Integration — provider + credentials"
+            "Payouts Integration - provider + credentials"
           )}
           description={t(
             "preview.payoutsIntegration.description",
@@ -441,7 +441,7 @@ export default async function ComponentsPreviewPage() {
         <Card
           title={t(
             "preview.translationSettings.title",
-            "Translation Settings — provider config + test connection"
+            "Translation Settings - provider config + test connection"
           )}
           description={t(
             "preview.translationSettings.description",
@@ -454,18 +454,18 @@ export default async function ComponentsPreviewPage() {
         <Card
           title={t(
             "preview.translationReview.title",
-            "Translation Review — run, gauges, approve/promote"
+            "Translation Review - run, gauges, approve/promote"
           )}
           description={t(
             "preview.translationReview.description",
-            "Preview the Translations REVIEW workspace: run panel, draft list with status/flag badges, and the review panel with live WhatsApp character gauges — including a red over-limit title, a red over-limit quiz option, and a failed option needing manual entry."
+            "Preview the Translations REVIEW workspace: run panel, draft list with status/flag badges, and the review panel with live WhatsApp character gauges - including a red over-limit title, a red over-limit quiz option, and a failed option needing manual entry."
           )}
         >
           <TranslationReviewPreview />
         </Card>
 
         <Card
-          title={t("preview.adminTeam.title", "Admin Team — manage admins & roles")}
+          title={t("preview.adminTeam.title", "Admin Team - manage admins & roles")}
           description={t(
             "preview.adminTeam.description",
             "Preview the admin directory: inline role assignment, active/suspended status, and per-row suspend/reactivate with self-action guards."
@@ -475,7 +475,7 @@ export default async function ComponentsPreviewPage() {
         </Card>
 
         <Card
-          title={t("preview.guidedTour.title", "Guided Tour — interactive walkthrough")}
+          title={t("preview.guidedTour.title", "Guided Tour - interactive walkthrough")}
           description={t(
             "preview.guidedTour.description",
             "Spotlight onboarding tour: dimmed backdrop, animated highlight, progress dots, keyboard support, and centered intro/outro steps."

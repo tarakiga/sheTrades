@@ -253,7 +253,7 @@ function LearnerDetailBody(props: LearnerDetailBodyProps): ReactElement {
         <div className="learner-detail-drawer__identity-row">
           <span className="learner-detail-drawer__label">Name</span>
           <span className="learner-detail-drawer__value">
-            {identity.name ?? "—"}
+            {identity.name ?? "-"}
           </span>
         </div>
         <div className="learner-detail-drawer__identity-row">
@@ -263,13 +263,13 @@ function LearnerDetailBody(props: LearnerDetailBodyProps): ReactElement {
         <div className="learner-detail-drawer__identity-row">
           <span className="learner-detail-drawer__label">Location</span>
           <span className="learner-detail-drawer__value">
-            {identity.location ?? "—"}
+            {identity.location ?? "-"}
           </span>
         </div>
         <div className="learner-detail-drawer__identity-row">
           <span className="learner-detail-drawer__label">Language</span>
           <span className="learner-detail-drawer__value">
-            {identity.language ?? "—"}
+            {identity.language ?? "-"}
           </span>
         </div>
         <div className="learner-detail-drawer__identity-row">
@@ -339,7 +339,7 @@ function LearnerDetailBody(props: LearnerDetailBodyProps): ReactElement {
             <div className="learner-detail-drawer__details-row">
               <dt className="learner-detail-drawer__label">State</dt>
               <dd className="learner-detail-drawer__value">
-                {session.state ?? "—"}
+                {session.state ?? "-"}
               </dd>
             </div>
             <div className="learner-detail-drawer__details-row">
@@ -347,7 +347,7 @@ function LearnerDetailBody(props: LearnerDetailBodyProps): ReactElement {
                 Current lesson
               </dt>
               <dd className="learner-detail-drawer__value">
-                {session.currentLessonKey ?? "—"}
+                {session.currentLessonKey ?? "-"}
               </dd>
             </div>
             <div className="learner-detail-drawer__details-row">

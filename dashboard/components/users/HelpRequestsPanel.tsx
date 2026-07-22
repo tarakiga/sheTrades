@@ -4,7 +4,7 @@ import { Card, EmptyState, Table } from "../ui";
 import type { HelpRequestRow } from "../../lib/admin/contracts";
 
 /**
- * "Users requesting help" — learners who tapped the help option during a lesson
+ * "Users requesting help" - learners who tapped the help option during a lesson
  * check-in.
  *
  * Distinct from "At-Risk Learners", which is *inferred* from low completion.
@@ -50,7 +50,7 @@ export function formatRelativeTime(iso: string | null, now: number = Date.now())
  * Notes are written as `[2026-07-21] Asked for help: <lesson> (<module>, Q1)`.
  * The date is already conveyed by the relative timestamp and the "asked for
  * help" prefix is implied by the panel title, so both are noise in a narrow
- * column — only the lesson and module carry information here.
+ * column - only the lesson and module carry information here.
  */
 export function summariseHelpNote(note: string): string {
   const trimmed = (note ?? "").trim();
@@ -62,7 +62,7 @@ export function summariseHelpNote(note: string): string {
 export function HelpRequestsPanel({ requests, loading = false }: HelpRequestsPanelProps) {
   const rows = requests.map((row) => ({
     learner: row.name?.trim() || "(name not captured)",
-    // The phone number is what makes an unnamed request actionable — it is how
+    // The phone number is what makes an unnamed request actionable - it is how
     // the team reaches the learner back on WhatsApp.
     phone: row.phone,
     context: summariseHelpNote(row.latestNote),

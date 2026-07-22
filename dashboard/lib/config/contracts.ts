@@ -15,7 +15,7 @@ export const publicConfigDocumentSchema = z.object({
   namespace: configNamespaceSchema,
   key: z.string().min(1),
   versionTag: z.string().min(1),
-  // Payload shape varies per document type, so accept any object here — the
+  // Payload shape varies per document type, so accept any object here - the
   // consuming component narrows it. The point is that it IS an object.
   data: z.record(z.string(), z.unknown()),
   updatedAt: z.string().min(1)

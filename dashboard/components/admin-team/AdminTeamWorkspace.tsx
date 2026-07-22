@@ -42,12 +42,12 @@ type CreateForm = {
   password: string;
 };
 
-// The three roles map to backend RBAC (requireRoles) — a structural system set,
+// The three roles map to backend RBAC (requireRoles) - a structural system set,
 // not admin-editable runtime content.
 const ROLE_OPTIONS = [
-  { value: "admin", label: "Admin — full access incl. managing admins" },
-  { value: "editor", label: "Editor — manage content & operations" },
-  { value: "viewer", label: "Viewer — read-only" }
+  { value: "admin", label: "Admin - full access incl. managing admins" },
+  { value: "editor", label: "Editor - manage content & operations" },
+  { value: "viewer", label: "Viewer - read-only" }
 ];
 
 const ROLE_LABEL: Record<AdminRole, string> = {
@@ -73,7 +73,7 @@ function decodeJwtSub(token: string): string | null {
 }
 
 function formatTimestamp(value: string | null) {
-  if (!value) return "—";
+  if (!value) return "-";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
@@ -189,7 +189,7 @@ export function AdminTeamWorkspace() {
       });
       setFeedback({
         tone: "success",
-        text: `Admin created. Share the temporary password with ${form.email.trim()} — they can change it after signing in.`
+        text: `Admin created. Share the temporary password with ${form.email.trim()} - they can change it after signing in.`
       });
       setForm(emptyCreateForm());
       setIsCreating(false);
@@ -259,7 +259,7 @@ export function AdminTeamWorkspace() {
       });
       setFeedback({
         tone: "success",
-        text: `Temporary password set for ${resetTarget.fullName}. Share it securely — they can change it after signing in.`
+        text: `Temporary password set for ${resetTarget.fullName}. Share it securely - they can change it after signing in.`
       });
       setResetTarget(null);
       setResetValue("");
@@ -374,7 +374,7 @@ export function AdminTeamWorkspace() {
           <div className="integration-workspace__editor-header">
             <div>
               <h4 className="integration-workspace__editor-title">
-                Reset password — {resetTarget.fullName}
+                Reset password - {resetTarget.fullName}
               </h4>
               <p className="integration-workspace__editor-description">
                 Set a new temporary password and share it securely. {resetTarget.fullName} can

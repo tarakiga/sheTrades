@@ -83,7 +83,7 @@ export function ConstraintMeter({
       <div className="constraint-meter__foot">
         {state === "over" ? (
           <span className="constraint-meter__msg constraint-meter__msg--over">
-            Over limit by {over} {unit} — will be {overflow === "truncate" ? "cut off" : "rejected"}
+            Over limit by {over} {unit} - will be {overflow === "truncate" ? "cut off" : "rejected"}
           </span>
         ) : typeof systemChars === "number" && systemChars > 0 ? (
           <span className="constraint-meter__msg">

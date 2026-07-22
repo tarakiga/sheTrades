@@ -15,7 +15,7 @@ export type TabsProps = {
   /**
    * Accessible name for the tab list, e.g. "Analytics views" or "Report types".
    * GAP-H3: a screen reader announcing a generic "Tabs" on every tablist gives
-   * the user no way to tell one group from another — pass what these tabs are.
+   * the user no way to tell one group from another - pass what these tabs are.
    */
   label?: string;
 };

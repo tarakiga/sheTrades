@@ -2264,7 +2264,7 @@ export function ConfigAdminManager({
         title={t("configAdmin.purgeTrash.title", "Permanently Delete All Trash?")}
         description={t(
           "configAdmin.purgeTrash.description",
-          `You are about to permanently delete all ${trashCount} trashed item(s) in this workspace. This cannot be undone — there is no way to recover them after this action.`
+          `You are about to permanently delete all ${trashCount} trashed item(s) in this workspace. This cannot be undone - there is no way to recover them after this action.`
         )}
         confirmLabel={t("configAdmin.purgeTrash.confirm", "Yes, Delete Forever")}
         cancelLabel={t("configAdmin.purgeTrash.cancel", "Cancel")}

@@ -49,7 +49,7 @@ export function createEmptyTranslationForm(): TranslationFormState {
 // documented stub (see backend/src/translation/providers/llm.ts). Offering it
 // would let an admin pick a dead end whose failure surfaces a developer-facing
 // message. Gemini covers both languages. Re-add these entries once the
-// Anthropic adapter is implemented — the type and backend already allow it.
+// Anthropic adapter is implemented - the type and backend already allow it.
 const PCM_PROVIDER_OPTIONS: Array<{ value: TranslationPidginProviderKey; label: string }> = [
   { value: "gemini", label: "Gemini" }
 ];

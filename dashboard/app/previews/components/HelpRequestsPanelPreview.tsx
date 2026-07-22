@@ -5,7 +5,7 @@ import { HelpRequestsPanel } from "../../../components/users/HelpRequestsPanel";
 /**
  * Preview for the Overview "Users requesting help" panel. The real page is
  * behind admin auth, so this is the only place the panel can be inspected
- * without credentials — and the only place its empty and loading states are
+ * without credentials - and the only place its empty and loading states are
  * reachable at all.
  */
 export function HelpRequestsPanelPreview() {

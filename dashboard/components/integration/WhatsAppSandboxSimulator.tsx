@@ -437,7 +437,7 @@ export function WhatsAppSandboxSimulator() {
                 <tr>
                   <td>State / Location</td>
                   <td>
-                    <span className="state-value-text">{session?.location ?? "—"}</span>
+                    <span className="state-value-text">{session?.location ?? "-"}</span>
                   </td>
                 </tr>
                 {session?.lastUpdatedAt ? (

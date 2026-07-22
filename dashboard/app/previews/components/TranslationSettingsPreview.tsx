@@ -46,7 +46,7 @@ function nextStatus(current: ConnectionStatus): ConnectionStatus {
  * Default harness: Gemini for both languages (the schema default). Includes
  * a local "Test Connection" button that cycles through the same
  * healthy/degraded/failed states the real workspace renders after calling
- * POST /api/integrations/admin/translation/test — this preview has no admin
+ * POST /api/integrations/admin/translation/test - this preview has no admin
  * token, so it simulates the result instead of hitting the live endpoint.
  */
 function DefaultHarness() {
@@ -120,8 +120,8 @@ export function TranslationSettingsPreview() {
   return (
     <div className="preview-card-content">
       <Card
-        title="Default — Gemini for both languages"
-        description="The Pidgin select only ever offers Gemini/Anthropic — Igbo API is never in that list because it cannot produce Pidgin. Test Connection cycles the badge through healthy/degraded/failed."
+        title="Default - Gemini for both languages"
+        description="The Pidgin select only ever offers Gemini/Anthropic - Igbo API is never in that list because it cannot produce Pidgin. Test Connection cycles the badge through healthy/degraded/failed."
       >
         <DefaultHarness />
       </Card>

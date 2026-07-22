@@ -114,7 +114,7 @@ export function GuidedTour({ open, steps, onClose, labels }: GuidedTourProps): R
     const el = step.target ? document.querySelector<HTMLElement>(step.target) : null;
     if (el) {
       const r = el.getBoundingClientRect();
-      // Only scroll (vertically) when the target isn't already in view — and
+      // Only scroll (vertically) when the target isn't already in view - and
       // never scroll horizontally (inline: "nearest"), which would shove a
       // horizontally-overflowing drawer sideways.
       const visibleVertically = r.top >= 64 && r.bottom <= window.innerHeight - 64;

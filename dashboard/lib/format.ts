@@ -12,7 +12,7 @@ export function formatNgn(amount: number): string {
 export function formatRelativeTime(
   date: Date | string | null | undefined
 ): string {
-  if (!date) return "—";
+  if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
   const diffSec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
   if (diffSec < 60) return "just now";

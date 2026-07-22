@@ -55,7 +55,7 @@ export function NeedsAttentionPanel({
 
   if (visibleItems.length === 0) {
     const emptyMessage = lastIssuedAt
-      ? `All caught up — last issuance ${formatRelativeTime(lastIssuedAt)}`
+      ? `All caught up - last issuance ${formatRelativeTime(lastIssuedAt)}`
       : "No issues to report.";
     return (
       <div className="needs-attention-panel">

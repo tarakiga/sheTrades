@@ -28,7 +28,7 @@ const FIXTURE_LESSONS: TranslationLessonRef[] = [
 /**
  * Fixture drafts. lesson-2's Igbo draft deliberately has:
  *  - a title over the 24-char list-row limit (red)
- *  - one quiz option over the 20-char button limit (red) — the core failure
+ *  - one quiz option over the 20-char button limit (red) - the core failure
  *    mode machine translation routinely produces
  *  - one failed option (null) that needs manual entry
  * lesson-1's Pidgin draft is already approved, to exercise the Promote gate.
@@ -59,7 +59,7 @@ function buildFixtureDrafts(): TranslationDraftRow[] {
       status: "in_review",
       assignee: "Chiamaka N.",
       sourceHash: "fixture-hash-2",
-      // The English changed after this was translated — promotion will refuse.
+      // The English changed after this was translated - promotion will refuse.
       stale: true,
       updatedAt: "2026-07-20T09:15:00.000Z",
       promotedAt: null
@@ -114,7 +114,7 @@ function buildFixtureDrafts(): TranslationDraftRow[] {
  * Reuses the real presentational pieces (TranslationRunPanel,
  * TranslationDraftTable, TranslationDraftReviewPanel) exported by
  * TranslationReviewWorkspace.tsx, wired to local state that simulates what
- * the real API calls would do — same pattern as TranslationSettingsPreview's
+ * the real API calls would do - same pattern as TranslationSettingsPreview's
  * DefaultHarness, which simulates POST .../test instead of calling it.
  */
 function TranslationReviewHarness() {
@@ -280,7 +280,7 @@ export function TranslationReviewPreview() {
     <div className="preview-card-content">
       <Card
         title="Translation Review Workspace (fixture data)"
-        description="No network calls — local state simulates run / save / approve / promote. The Igbo draft for the WhatsApp Shop lesson starts selected: its title is over the 24-char list-row limit, one quiz option is over the 20-char button limit, and one option failed translation (shown blank, needing manual entry)."
+        description="No network calls - local state simulates run / save / approve / promote. The Igbo draft for the WhatsApp Shop lesson starts selected: its title is over the 24-char list-row limit, one quiz option is over the 20-char button limit, and one option failed translation (shown blank, needing manual entry)."
       >
         <TranslationReviewHarness />
       </Card>

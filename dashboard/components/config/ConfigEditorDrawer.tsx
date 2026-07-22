@@ -30,7 +30,7 @@ const fromLocalized = (value: LocalizedValue | undefined | null): LangObj => {
 
 /**
  * Shape of a lesson/content JSON payload as parsed from the editor's raw text.
- * Deliberately permissive — the values come from admin-authored JSON — but typed
+ * Deliberately permissive - the values come from admin-authored JSON - but typed
  * enough to drop the `any` the parse routine used to lean on.
  */
 type ParsedQuizItem = {
@@ -365,7 +365,7 @@ export function ConfigEditorDrawer({
             answerIndex: q.answerIndex,
             // Only emit the reflection keys when they mean something, so a
             // scored question serializes byte-identically to before this
-            // feature existed — opening a lesson must not create a spurious
+            // feature existed - opening a lesson must not create a spurious
             // version-history diff.
             ...(q.kind === "reflection" ? { kind: "reflection" } : {}),
             ...(q.kind === "reflection" && q.helpOptionIndex !== null
@@ -446,7 +446,7 @@ export function ConfigEditorDrawer({
     );
   };
 
-  // Mark the correct answer (shared across languages — position is stable).
+  // Mark the correct answer (shared across languages - position is stable).
   const setQuizAnswerIndex = (index: number, optIdx: number) => {
     setQuiz((prev) => prev.map((q, i) => (i === index ? { ...q, answerIndex: optIdx } : q)));
   };
@@ -976,7 +976,7 @@ export function ConfigEditorDrawer({
                         </button>
                       </div>
 
-                      {/* Per-language lesson title — the English tab mirrors the
+                      {/* Per-language lesson title - the English tab mirrors the
                           Step 1 title (same state); Pidgin/Igbo hold translations. */}
                       <div style={{ marginBottom: "var(--space-3)" }}>
                         <Input
@@ -1074,7 +1074,7 @@ export function ConfigEditorDrawer({
                         )}
                       </div>
 
-                      {/* Composed body meter — the WHOLE delivered lesson message
+                      {/* Composed body meter - the WHOLE delivered lesson message
                           (📖 prefix + title + body + quiz instruction) vs 1024. */}
                       {(() => {
                         const composed = composeLessonBody(
@@ -1152,7 +1152,7 @@ export function ConfigEditorDrawer({
                         <strong>⚠️ WhatsApp Limitations:</strong> You can provide a maximum of <strong>3 options</strong> per question. Each option text must be <strong>20 characters or less</strong>.
                       </div>
 
-                      {/* Language tab — the quiz is translated per language; the
+                      {/* Language tab - the quiz is translated per language; the
                           correct-answer position is shared across all languages. */}
                       <div className="wizard-mode-toggle" style={{ marginBottom: "var(--space-4)" }} role="group" aria-label="Quiz language">
                         <button
@@ -1320,7 +1320,7 @@ export function ConfigEditorDrawer({
                                         {qItem.kind === "reflection" ? (
                                           <>
                                             <strong>Check-in:</strong> every answer is accepted and the
-                                            learner always moves on — nothing is ever marked wrong. Use this
+                                            learner always moves on - nothing is ever marked wrong. Use this
                                             for “did you do it?” questions. Optionally mark one option as a{" "}
                                             <strong>help request</strong> so anyone choosing it is flagged
                                             for follow-up.
@@ -1353,7 +1353,7 @@ export function ConfigEditorDrawer({
                                           style={{ display: "grid", gap: "var(--space-2)" }}
                                         >
                                           <div className="quiz-option-row">
-                                            {/* Correct-answer marker — scored questions only. */}
+                                            {/* Correct-answer marker - scored questions only. */}
                                             {qItem.kind === "scored" && (
                                               <button
                                                 type="button"
@@ -1396,7 +1396,7 @@ export function ConfigEditorDrawer({
                                               />
                                             </div>
                                           </div>
-                                          {/* Help-request marker — reflection questions only.
+                                          {/* Help-request marker - reflection questions only.
                                               Sits on its own line so it never competes with the
                                               option input for width on narrow viewports. */}
                                           {qItem.kind === "reflection" && (

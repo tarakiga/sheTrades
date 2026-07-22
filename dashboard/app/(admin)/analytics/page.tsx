@@ -183,7 +183,7 @@ export default function AnalyticsPage() {
                   description="Figures are computed from the WhatsApp events pipeline."
                 >
                   <p className="admin-review-support-note">
-                    Live streaming is not enabled yet — reload this page to pull the latest
+                    Live streaming is not enabled yet - reload this page to pull the latest
                     snapshot from the events pipeline.
                   </p>
                 </AdminInsightPanel>

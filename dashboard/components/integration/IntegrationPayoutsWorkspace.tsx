@@ -400,7 +400,7 @@ export function IntegrationPayoutsWorkspace({
             : "danger";
       setFeedback({
         tone,
-        text: [response.message, response.result.message].filter(Boolean).join(" — ")
+        text: [response.message, response.result.message].filter(Boolean).join(" - ")
       });
     } catch (error) {
       setFeedback({

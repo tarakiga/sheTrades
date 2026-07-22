@@ -148,7 +148,7 @@ export default function RewardsPage() {
   const [learnerOptions, setLearnerOptions] = useState<Array<LearnerOption>>([]);
 
   // The manual-issue picker offers every learner in the directory (keyed by
-  // phone, which is what the manual endpoint resolves against) — not just the
+  // phone, which is what the manual endpoint resolves against) - not just the
   // learners who already appear in the current rewards list.
   useEffect(() => {
     let cancelled = false;

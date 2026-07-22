@@ -58,7 +58,7 @@ function buildTimeline(reward: RewardLogRow): Array<TimelineStep> {
     steps.push({
       key: `attempt-${index + 1}`,
       title: `Attempt ${index + 1}`,
-      when: "—",
+      when: "-",
       state: "done"
     });
   }
@@ -81,7 +81,7 @@ function buildTimeline(reward: RewardLogRow): Array<TimelineStep> {
     steps.push({
       key: "pending",
       title: "Pending dispatch",
-      when: "—",
+      when: "-",
       state: "current"
     });
   }

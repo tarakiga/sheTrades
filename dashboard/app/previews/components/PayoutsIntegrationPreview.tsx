@@ -120,21 +120,21 @@ export function PayoutsIntegrationPreview() {
   return (
     <div className="preview-card-content">
       <Card
-        title="Africa's Talking — selector + credential fields"
+        title="Africa's Talking - selector + credential fields"
         description="Clicking another provider card resets the sandbox toggle. Sandbox only renders inside the active card."
       >
         <ProviderHarness initialProvider="africas_talking" initialSandbox />
       </Card>
 
       <Card
-        title="Termii — selector + credential fields"
+        title="Termii - selector + credential fields"
         description="API key + optional sender ID. Sender ID is preserved as undefined when blank."
       >
         <ProviderHarness initialProvider="termii" />
       </Card>
 
       <Card
-        title="Reloadly — selector + credential fields"
+        title="Reloadly - selector + credential fields"
         description="Client ID and client secret. Reveal toggles only switch the secret input mode locally."
       >
         <ProviderHarness initialProvider="reloadly" />

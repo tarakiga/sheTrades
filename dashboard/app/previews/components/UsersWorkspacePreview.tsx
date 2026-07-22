@@ -48,7 +48,7 @@ function DrawerClosedVariant() {
   return (
     <div className="preview-card-content">
       <p className="preview-card-content__caption">
-        (Nothing renders below — closed drawer is a no-op.)
+        (Nothing renders below - closed drawer is a no-op.)
       </p>
       <LearnerDetailDrawer
         phone={null}
@@ -69,21 +69,21 @@ export function UsersWorkspacePreview() {
       />
 
       <Card
-        title="Learner Detail Drawer — closed"
+        title="Learner Detail Drawer - closed"
         description="When phone is null and open is false, the drawer renders nothing."
       >
         <DrawerClosedVariant />
       </Card>
 
       <Card
-        title="Learner Detail Drawer — loading (in-frame)"
+        title="Learner Detail Drawer - loading (in-frame)"
         description="Renders the drawer inside a fixed-height preview frame, immediately in loading state while it fetches live data for the mock phone."
       >
         <DrawerInFrameVariant />
       </Card>
 
       <Card
-        title="Learner Detail Drawer — toggle open (overlay)"
+        title="Learner Detail Drawer - toggle open (overlay)"
         description="Click the button to open the drawer as a true full-page overlay. ESC or the Close button dismisses it."
       >
         <DrawerOpenVariant />

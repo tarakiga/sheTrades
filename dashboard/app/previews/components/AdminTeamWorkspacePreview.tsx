@@ -52,7 +52,7 @@ export function AdminTeamWorkspacePreview() {
   return (
     <div className="preview-card-content">
       <Card
-        title="Admin Team — directory + role + status"
+        title="Admin Team - directory + role + status"
         description="Inline role assignment, active/suspended status, and per-row suspend/reactivate. The first row models the signed-in admin (self-actions disabled)."
       >
         <section className="integration-workspace__table-shell">

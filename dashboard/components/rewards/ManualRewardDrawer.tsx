@@ -443,7 +443,7 @@ export function ManualRewardDrawer(
                         className="manual-reward-drawer__suggestion-btn"
                         onMouseDown={(event) => {
                           // Prevent input blur from firing before the click
-                          // handler — otherwise the suggestion list would
+                          // handler - otherwise the suggestion list would
                           // close before the selection registers.
                           event.preventDefault();
                         }}

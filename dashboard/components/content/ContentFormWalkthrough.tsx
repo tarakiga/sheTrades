@@ -8,7 +8,7 @@ const STORAGE_KEY = "shetrades.content.form.tour.v1";
 const STEPS: TourStep[] = [
   {
     title: "Create content, step by step",
-    body: "This form builds a lesson or message piece by piece — no code needed. Here's a quick look at how it works."
+    body: "This form builds a lesson or message piece by piece - no code needed. Here's a quick look at how it works."
   },
   {
     target: ".wizard-mode-toggle",
@@ -28,7 +28,7 @@ const STEPS: TourStep[] = [
   {
     target: ".config-drawer__footer",
     title: "Save, then publish",
-    body: "Save your work as a draft at any time. When it's ready, press Publish to make it live for learners — nothing reaches them until you publish."
+    body: "Save your work as a draft at any time. When it's ready, press Publish to make it live for learners - nothing reaches them until you publish."
   },
   {
     title: "That's the whole form",

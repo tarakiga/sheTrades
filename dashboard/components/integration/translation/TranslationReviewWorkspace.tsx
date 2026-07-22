@@ -16,7 +16,7 @@ import {
 
 /**
  * Types mirror backend/src/translation/draft-store.ts (DraftRow), extract.ts
- * (DraftPayload), and runner.ts (RunReport) — see routes/translation.ts for the
+ * (DraftPayload), and runner.ts (RunReport) - see routes/translation.ts for the
  * /api/admin/translation surface these map to.
  */
 export type TranslationLanguage = "pcm" | "ig";
@@ -50,7 +50,7 @@ export type TranslationDraftRow = {
   assignee: string | null;
   sourceHash: string;
   /** Set by the list endpoint when the live English has changed since this was
-   * translated — promotion will refuse until it is re-run. */
+   * translated - promotion will refuse until it is re-run. */
   stale?: boolean;
   updatedAt: string;
   promotedAt: string | null;
@@ -127,8 +127,8 @@ function hasFlags(runSummary: TranslationRunSummary) {
 }
 
 /**
- * Lesson checklist + language choice + run actions. Presentational only — no
- * fetch logic — so the /previews/components harness can drive it with fixture
+ * Lesson checklist + language choice + run actions. Presentational only - no
+ * fetch logic - so the /previews/components harness can drive it with fixture
  * data exactly like TranslationSettingsForm.
  */
 export function TranslationRunPanel({
@@ -232,7 +232,7 @@ export function TranslationRunPanel({
             </div>
             {report.stoppedForQuota ? (
               <Badge variant="danger">
-                Daily translation quota reached — re-run later to continue with the remaining
+                Daily translation quota reached - re-run later to continue with the remaining
                 lessons.
               </Badge>
             ) : null}
@@ -252,7 +252,7 @@ type DraftTableRow = {
   raw: TranslationDraftRow;
 };
 
-/** Draft list. Presentational — selection and data all come from props. */
+/** Draft list. Presentational - selection and data all come from props. */
 export function TranslationDraftTable({
   drafts,
   lessons,
@@ -336,12 +336,12 @@ export function TranslationDraftTable({
 /**
  * Review panel for a single draft: editable fields, each with the same
  * ConstraintMeter gauge used by the content editor, so the reviewer sees the
- * identical green/yellow/red feedback. Presentational — owns only the local
+ * identical green/yellow/red feedback. Presentational - owns only the local
  * edit buffer (reset whenever a different draft is selected); save/approve/
  * promote are all delegated to the caller.
  *
  * The English source (fetched with the draft) is shown read-only beside each
- * field so a reviewer can translate in place — a field that failed translation
+ * field so a reviewer can translate in place - a field that failed translation
  * is blank, and without the source they would have to hunt down the lesson.
  * Any field whose English source exists but whose translation is empty is
  * flagged "needs translation", uniformly across title/body/question/options.
@@ -376,7 +376,7 @@ export function TranslationDraftReviewPanel({
   feedback
 }: {
   draft: TranslationDraftRow;
-  /** The lesson's English strings, for reference. Best-effort — may be null. */
+  /** The lesson's English strings, for reference. Best-effort - may be null. */
   source: TranslationDraftPayload | null;
   lessonTitle: string;
   onSave: (payload: TranslationDraftPayload) => void;
@@ -436,12 +436,12 @@ export function TranslationDraftReviewPanel({
 
   // A field needs the reviewer's attention when the lesson HAS English for it
   // but the machine produced nothing (failed or not attempted). This covers
-  // failed options (null), omitted body/title/question, and any empty field —
+  // failed options (null), omitted body/title/question, and any empty field -
   // uniformly, from the source rather than the draft's field-by-field shape.
   const needsTranslation = (src: string | null | undefined, value: string) =>
     Boolean(src && src.trim().length > 0) && value.trim().length === 0;
   const fieldLabel = (base: string, src: string | null | undefined, value: string) =>
-    needsTranslation(src, value) ? `${base} — needs translation` : base;
+    needsTranslation(src, value) ? `${base} - needs translation` : base;
 
   const canSave = draft.status === "machine_draft" || draft.status === "in_review";
   const canApprove = draft.status === "in_review";
@@ -450,7 +450,7 @@ export function TranslationDraftReviewPanel({
   return (
     <Card
       title={`Review: ${lessonTitle}`}
-      description={`Translated into ${languageLabel(draft.targetLanguage)}. The English source is shown under each field — translate any field marked "needs translation" in place, and watch each meter below.`}
+      description={`Translated into ${languageLabel(draft.targetLanguage)}. The English source is shown under each field - translate any field marked "needs translation" in place, and watch each meter below.`}
     >
       <div style={{ display: "grid", gap: "var(--space-6)" }}>
         <div className="preview-row">
@@ -574,7 +574,7 @@ export function TranslationDraftReviewPanel({
         </div>
         <p style={{ margin: 0, color: "var(--color-neutral-500)", fontSize: "var(--font-size-sm)" }}>
           {canPromote
-            ? "Approved — ready to promote into live content."
+            ? "Approved - ready to promote into live content."
             : canApprove
               ? "This draft is In Review. Approve it to unlock Promote."
               : canSave
@@ -588,7 +588,7 @@ export function TranslationDraftReviewPanel({
 
 /**
  * Smart wrapper: owns the admin token (same pattern as
- * IntegrationTranslationWorkspace — getStoredAdminConfigToken +
+ * IntegrationTranslationWorkspace - getStoredAdminConfigToken +
  * ADMIN_CONFIG_TOKEN_UPDATED_EVENT) and the fetch calls against
  * /api/admin/translation. Renders the presentational pieces above.
  */
@@ -700,7 +700,7 @@ export function TranslationReviewWorkspace() {
       );
       setReviewSource(response.source ?? null);
     } catch {
-      // Source is best-effort — the panel still works without it (fields just
+      // Source is best-effort - the panel still works without it (fields just
       // won't show the English reference).
       setReviewSource(null);
     }

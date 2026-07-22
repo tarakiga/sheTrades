@@ -8,7 +8,7 @@ const STORAGE_KEY = "shetrades.content.tour.v1";
 const STEPS: TourStep[] = [
   {
     title: "Welcome to your Content workspace",
-    body: "This is where you manage every lesson and message learners receive on WhatsApp — all without writing any code. Let's take a quick 60-second tour."
+    body: "This is where you manage every lesson and message learners receive on WhatsApp - all without writing any code. Let's take a quick 60-second tour."
   },
   {
     target: '[data-tour="content-toolbar"]',
@@ -22,7 +22,7 @@ const STEPS: TourStep[] = [
   },
   {
     target: '[data-tour="content-table"]',
-    title: "Edit safely — draft, then publish",
+    title: "Edit safely - draft, then publish",
     body: "Your edits are saved as a DRAFT first. Nothing reaches learners until you press Publish, so you can revise with confidence. Every version is kept, and you can roll back to a previous one anytime."
   },
   {

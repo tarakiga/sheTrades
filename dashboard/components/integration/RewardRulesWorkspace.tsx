@@ -371,7 +371,7 @@ export function RewardRulesWorkspace() {
                     <p className="integration-workspace__table-description">
                       {activePayload
                         ? `Amount: ₦${activePayload.amount.toLocaleString()} · Channel: ${activePayload.channel} · ${activePayload.enabled ? "Enabled" : "Disabled"}`
-                        : "No rule published — using the system default."}
+                        : "No rule published - using the system default."}
                     </p>
                   </div>
                   <div className="integration-workspace__active-rule-badges">
@@ -461,7 +461,7 @@ export function RewardRulesWorkspace() {
                 <div className="integration-workspace__toggle-field">
                   <span className="integration-workspace__toggle-label">Rule Enabled</span>
                   {/* GAP-H3: this button is a toggle, so expose its on/off state
-                      to assistive tech — the visible label alone doesn't tell a
+                      to assistive tech - the visible label alone doesn't tell a
                       screen reader that it is a pressed/unpressed control. */}
                   <Button
                     variant={form.enabled ? "primary" : "secondary"}

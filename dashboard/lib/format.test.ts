@@ -32,6 +32,6 @@ test("formatRelativeTime returns absolute date for >7 days", () => {
 });
 
 test("formatRelativeTime returns em-dash for null/undefined", () => {
-  assert.equal(formatRelativeTime(null), "—");
-  assert.equal(formatRelativeTime(undefined), "—");
+  assert.equal(formatRelativeTime(null), "-");
+  assert.equal(formatRelativeTime(undefined), "-");
 });

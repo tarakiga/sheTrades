@@ -44,7 +44,7 @@ export default function UsersPage() {
       })
       // GAP-H1: never leave the page without an explanation. The API helper
       // already falls back internally, so this only fires on an unexpected
-      // throw — but without it the page would render an empty table silently
+      // throw - but without it the page would render an empty table silently
       // (and raise an unhandled rejection).
       .catch((error: unknown) => {
         if (cancelled) return;

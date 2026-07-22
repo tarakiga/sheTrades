@@ -3,14 +3,14 @@ import Link from "next/link";
 import { getPublicConfigNamespace } from "../../lib/config/api";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — SheTrades",
+  title: "Privacy Policy - SheTrades",
   description:
     "How SheTrades collects, uses, shares, and protects personal information across its WhatsApp learning service and admin platform."
 };
 
 // Safe fallbacks, used ONLY when the legal config namespace is unpopulated.
-// Every one of these — organisation name, contact email, effective date, and the
-// full policy body — is admin-editable under Settings → Legal as a legal block
+// Every one of these - organisation name, contact email, effective date, and the
+// full policy body - is admin-editable under Settings → Legal as a legal block
 // (keys below). The `seed:legal-privacy` backend script publishes these baselines
 // so they appear in the Legal tab ready to edit.
 const ORG_NAME_FALLBACK = "SheTrades Digital";
@@ -69,7 +69,7 @@ function buildDefaultSections(orgName: string, contactEmail: string): Section[] 
     {
       heading: "5. How we share information",
       body: [
-        "Service providers: we use trusted providers to run the service — including messaging infrastructure (Meta / WhatsApp), cloud hosting, and airtime or mobile top-up partners — who process information only on our instructions.",
+        "Service providers: we use trusted providers to run the service - including messaging infrastructure (Meta / WhatsApp), cloud hosting, and airtime or mobile top-up partners - who process information only on our instructions.",
         "Legal and safety: we may disclose information where required by law, to enforce our terms, or to protect the rights, safety, and security of learners, our team, or the public.",
         "We do not sell your personal information."
       ]
@@ -83,7 +83,7 @@ function buildDefaultSections(orgName: string, contactEmail: string): Section[] 
     {
       heading: "7. How we protect your information",
       body: [
-        "We use technical and organisational measures — including access controls, authentication for administrative accounts, and encryption in transit — to protect personal information. No method of transmission or storage is completely secure, but we work to protect your data and review our safeguards regularly."
+        "We use technical and organisational measures - including access controls, authentication for administrative accounts, and encryption in transit - to protect personal information. No method of transmission or storage is completely secure, but we work to protect your data and review our safeguards regularly."
       ]
     },
     {
@@ -172,7 +172,7 @@ export default async function PrivacyPolicyPage() {
       effectiveDate
     );
   } catch {
-    // Config service unavailable — keep the built-in fallbacks.
+    // Config service unavailable - keep the built-in fallbacks.
   }
 
   const sections = buildDefaultSections(orgName, contactEmail);

@@ -1,12 +1,12 @@
 /**
- * WhatsApp message constraints for the content editor — mirrors
+ * WhatsApp message constraints for the content editor - mirrors
  * `backend/src/whatsapp/constraints.ts` (limits) and the message composition in
  * `backend/src/whatsapp/handler.ts` + defaults in `bot-prompts.ts`.
  *
  * There is no shared package across the app/backend boundary, so these are kept
  * in sync by hand. The point of the compose helpers is that admins see the REAL
- * on-device length — content PLUS the fixed "chrome" the bot wraps around it
- * (the 📖 prefix, quiz instruction, numbered option lines, etc.) — not just the
+ * on-device length - content PLUS the fixed "chrome" the bot wraps around it
+ * (the 📖 prefix, quiz instruction, numbered option lines, etc.) - not just the
  * characters they typed. WhatsApp counts UTF-16 code units (emoji = 2), which is
  * exactly what JS `String.length` returns.
  */
@@ -28,7 +28,7 @@ export const WHATSAPP_LIMITS = {
 
 export type WhatsAppLang = "en" | "pcm" | "ig";
 
-/** UTF-16 code-unit length — WhatsApp's counting unit (emoji count as 2). */
+/** UTF-16 code-unit length - WhatsApp's counting unit (emoji count as 2). */
 export function waLen(value: string): number {
   return (value ?? "").length;
 }
@@ -68,7 +68,7 @@ export type ComposedLength = {
 
 /**
  * Composed length of the delivered lesson message:
- *   `📖 {title}\n\n{body}{quizInstruction}` — must fit `interactiveBody` (1024).
+ *   `📖 {title}\n\n{body}{quizInstruction}` - must fit `interactiveBody` (1024).
  */
 export function composeLessonBody(title: string, body: string, lang: WhatsAppLang): ComposedLength {
   const systemChars =
@@ -80,7 +80,7 @@ export function composeLessonBody(title: string, body: string, lang: WhatsAppLan
  * Composed length of the delivered quiz-question message:
  *   header + `{question}\n` + numbered option lines + answer prompt.
  * Must fit `interactiveBody` (1024). Option texts are also individually capped
- * at `buttonTitle` (20) — see composeQuizOption.
+ * at `buttonTitle` (20) - see composeQuizOption.
  */
 export function composeQuizQuestion(question: string, options: string[], lang: WhatsAppLang): ComposedLength {
   const optionLines = options.reduce((sum, opt, i) => sum + waLen(`${i + 1}. ${opt}\n`), 0);
