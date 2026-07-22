@@ -340,12 +340,32 @@ export function TranslationDraftTable({
  * edit buffer (reset whenever a different draft is selected); save/approve/
  * promote are all delegated to the caller.
  *
- * Nice-to-have deferred: the English source is not fetched/shown alongside
- * each field (the draft payload does not carry it). Fields are labeled with
- * the target language so the reviewer always knows what they are editing.
+ * The English source (fetched with the draft) is shown read-only beside each
+ * field so a reviewer can translate in place — a field that failed translation
+ * is blank, and without the source they would have to hunt down the lesson.
+ * Any field whose English source exists but whose translation is empty is
+ * flagged "needs translation", uniformly across title/body/question/options.
  */
+/** Read-only English reference shown beneath a translation field. */
+function EnglishRef({ text }: { text: string | null | undefined }) {
+  if (!text || !text.trim()) return null;
+  return (
+    <p
+      style={{
+        margin: 0,
+        color: "var(--color-neutral-500)",
+        fontSize: "var(--font-size-xs)",
+        whiteSpace: "pre-wrap"
+      }}
+    >
+      <strong>English:</strong> {text}
+    </p>
+  );
+}
+
 export function TranslationDraftReviewPanel({
   draft,
+  source,
   lessonTitle,
   onSave,
   onApprove,
@@ -356,6 +376,8 @@ export function TranslationDraftReviewPanel({
   feedback
 }: {
   draft: TranslationDraftRow;
+  /** The lesson's English strings, for reference. Best-effort — may be null. */
+  source: TranslationDraftPayload | null;
   lessonTitle: string;
   onSave: (payload: TranslationDraftPayload) => void;
   onApprove: () => void;
@@ -412,6 +434,15 @@ export function TranslationDraftReviewPanel({
   const bodyValue = working.body ?? "";
   const bodyMetrics = composeLessonBody(titleValue, bodyValue, lang);
 
+  // A field needs the reviewer's attention when the lesson HAS English for it
+  // but the machine produced nothing (failed or not attempted). This covers
+  // failed options (null), omitted body/title/question, and any empty field —
+  // uniformly, from the source rather than the draft's field-by-field shape.
+  const needsTranslation = (src: string | null | undefined, value: string) =>
+    Boolean(src && src.trim().length > 0) && value.trim().length === 0;
+  const fieldLabel = (base: string, src: string | null | undefined, value: string) =>
+    needsTranslation(src, value) ? `${base} — needs translation` : base;
+
   const canSave = draft.status === "machine_draft" || draft.status === "in_review";
   const canApprove = draft.status === "in_review";
   const canPromote = draft.status === "approved";
@@ -419,7 +450,7 @@ export function TranslationDraftReviewPanel({
   return (
     <Card
       title={`Review: ${lessonTitle}`}
-      description={`Translated into ${languageLabel(draft.targetLanguage)}. English source is not shown inline (deferred) — edit the machine output directly and watch each meter below.`}
+      description={`Translated into ${languageLabel(draft.targetLanguage)}. The English source is shown under each field — translate any field marked "needs translation" in place, and watch each meter below.`}
     >
       <div style={{ display: "grid", gap: "var(--space-6)" }}>
         <div className="preview-row">
@@ -438,11 +469,12 @@ export function TranslationDraftReviewPanel({
         <div style={{ display: "grid", gap: "var(--space-2)" }}>
           <Input
             id={`${idPrefix}-title`}
-            label="Title"
+            label={fieldLabel("Title", source?.title, titleValue)}
             value={titleValue}
             disabled={!canSave}
             onChange={updateTitle}
           />
+          <EnglishRef text={source?.title} />
           <ConstraintMeter
             label="Title"
             used={titleValue.length}
@@ -454,12 +486,13 @@ export function TranslationDraftReviewPanel({
         <div style={{ display: "grid", gap: "var(--space-2)" }}>
           <Textarea
             id={`${idPrefix}-body`}
-            label="Lesson Body"
+            label={fieldLabel("Lesson Body", source?.body, bodyValue)}
             value={bodyValue}
             rows={5}
             disabled={!canSave}
             onChange={updateBody}
           />
+          <EnglishRef text={source?.body} />
           <ConstraintMeter
             label="Lesson body"
             used={bodyMetrics.total}
@@ -473,6 +506,7 @@ export function TranslationDraftReviewPanel({
           const questionValue = item.question ?? "";
           const optionValues = item.options.map((option) => option ?? "");
           const questionMetrics = composeQuizQuestion(questionValue, optionValues, lang);
+          const sourceQuiz = source?.quiz?.[qi];
 
           return (
             <div
@@ -487,11 +521,12 @@ export function TranslationDraftReviewPanel({
               <h4 style={{ margin: 0 }}>Question {qi + 1}</h4>
               <Input
                 id={`${idPrefix}-q${qi}-question`}
-                label="Question"
+                label={fieldLabel("Question", sourceQuiz?.question, questionValue)}
                 value={questionValue}
                 disabled={!canSave}
                 onChange={(event) => updateQuestion(qi, event)}
               />
+              <EnglishRef text={sourceQuiz?.question} />
               <ConstraintMeter
                 label="Question"
                 used={questionMetrics.total}
@@ -501,17 +536,18 @@ export function TranslationDraftReviewPanel({
               />
 
               {item.options.map((option, oi) => {
-                const failed = option === null;
                 const value = option ?? "";
+                const sourceOption = sourceQuiz?.options?.[oi];
                 return (
                   <div key={oi} style={{ display: "grid", gap: "var(--space-1)" }}>
                     <Input
                       id={`${idPrefix}-q${qi}-opt${oi}`}
-                      label={`Option ${oi + 1}${failed ? " (translation failed — needs manual entry)" : ""}`}
+                      label={fieldLabel(`Option ${oi + 1}`, sourceOption, value)}
                       value={value}
                       disabled={!canSave}
                       onChange={(event) => updateOption(qi, oi, event)}
                     />
+                    <EnglishRef text={sourceOption} />
                     <ConstraintMeter
                       label={`Option ${oi + 1}`}
                       used={value.length}
@@ -570,6 +606,7 @@ export function TranslationReviewWorkspace() {
   const [runError, setRunError] = useState("");
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [reviewSource, setReviewSource] = useState<TranslationDraftPayload | null>(null);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [promoting, setPromoting] = useState(false);
@@ -643,11 +680,30 @@ export function TranslationReviewWorkspace() {
     );
   }
 
-  function selectDraft(key: string) {
+  async function selectDraft(key: string) {
     setSelectedKey(key);
     // A stale success/error banner from the previously reviewed draft should
     // not carry over and be misread as feedback for the newly selected one.
     setActionFeedback(null);
+    setReviewSource(null);
+    const row = drafts.find((r) => draftKey(r) === key);
+    if (!row) return;
+    try {
+      // Fetch the single draft to get its English source for side-by-side review.
+      const response = await request<{
+        draft: TranslationDraftRow;
+        source: TranslationDraftPayload | null;
+      }>(
+        `/api/admin/translation/${encodeURIComponent(row.contentDocumentId)}/${encodeURIComponent(
+          row.targetLanguage
+        )}`
+      );
+      setReviewSource(response.source ?? null);
+    } catch {
+      // Source is best-effort — the panel still works without it (fields just
+      // won't show the English reference).
+      setReviewSource(null);
+    }
   }
 
   async function runTranslation(documentIds: string[] | "all") {
@@ -800,12 +856,13 @@ export function TranslationReviewWorkspace() {
         drafts={drafts}
         lessons={lessons}
         selectedKey={selectedKey}
-        onSelectDraft={selectDraft}
+        onSelectDraft={(key) => void selectDraft(key)}
       />
 
       {selectedDraft ? (
         <TranslationDraftReviewPanel
           draft={selectedDraft}
+          source={reviewSource}
           lessonTitle={selectedLessonTitle}
           onSave={(payload) => void saveDraft(payload)}
           onApprove={() => void approveDraft()}

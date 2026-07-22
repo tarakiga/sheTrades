@@ -8,7 +8,7 @@ import { providersSupporting } from "../translation/providers/contracts.js";
 import { runTranslation } from "../translation/runner.js";
 import { getDraft, listDrafts, saveReviewerEdits, setStatus } from "../translation/draft-store.js";
 import { promoteDraft } from "../translation/promote.js";
-import { hashSource } from "../translation/extract.js";
+import { hashSource, englishDraftFromLesson } from "../translation/extract.js";
 
 export const translationRouter = Router();
 
@@ -100,7 +100,22 @@ translationRouter.get("/:documentId/:language", async (req, res, next) => {
       res.status(404).json({ message: "Translation draft not found." });
       return;
     }
-    res.status(200).json({ draft });
+    // Attach the lesson's English source so the review panel can show the
+    // reviewer what to translate FROM — a field that failed translation is a
+    // blank in the draft, and without the source the reviewer would have to
+    // hunt down the lesson. Best-effort: a missing content doc must not 500 the
+    // review.
+    let source = null;
+    try {
+      const doc = await getConfigPlatformService().getDocumentByNamespaceKey(
+        "content",
+        draft.contentKey
+      );
+      if (doc.published) source = englishDraftFromLesson(doc.published.payload);
+    } catch {
+      source = null;
+    }
+    res.status(200).json({ draft, source });
   } catch (error) {
     next(error);
   }

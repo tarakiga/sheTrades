@@ -85,3 +85,27 @@ export function assembleDraftPayload(lesson: any, outcomes: TranslationOutcome[]
   });
   return draft;
 }
+
+/**
+ * The lesson's ENGLISH strings, in the same `DraftPayload` shape as a
+ * translation. The review UI shows this beside each editable field so a
+ * reviewer can translate in place — the draft payload itself carries only the
+ * translated strings, so a field that failed translation would otherwise be a
+ * blank with nothing to translate FROM, forcing the reviewer to hunt down the
+ * lesson. Every field is populated (English is always present), so the UI can
+ * also flag any field whose source exists but whose translation is empty.
+ */
+export function englishDraftFromLesson(lesson: any): DraftPayload {
+  const en = (v: unknown) => pickLocalized(v as LocalizedValue, "en");
+  const draft: DraftPayload = { quiz: [] };
+  const title = en(lesson?.title);
+  if (title) draft.title = title;
+  const body = String(lesson?.languages?.en ?? "");
+  if (body) draft.body = body;
+  (Array.isArray(lesson?.quiz) ? lesson.quiz : []).forEach((q: any) => {
+    const question = en(q?.question);
+    const options = (Array.isArray(q?.options) ? q.options : []).map((o: unknown) => en(o));
+    draft.quiz.push({ ...(question ? { question } : {}), options });
+  });
+  return draft;
+}

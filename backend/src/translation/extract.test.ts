@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractUnits, hashSource, assembleDraftPayload } from "./extract.js";
+import { extractUnits, hashSource, assembleDraftPayload, englishDraftFromLesson } from "./extract.js";
 import { WHATSAPP_LIMITS } from "../whatsapp/constraints.js";
 
 const LESSON = {
@@ -112,4 +112,24 @@ test("an empty-string option still emits a unit so positions never shift", () =>
   // Three units for three options — the empty one is NOT skipped.
   assert.deepEqual(optionUnits.map((u) => u.id), ["q0.opt0", "q0.opt1", "q0.opt2"]);
   assert.equal(optionUnits.length, 3);
+});
+
+test("englishDraftFromLesson returns the English strings in draft shape", () => {
+  const src = englishDraftFromLesson(LESSON);
+  assert.equal(src.title, "My WhatsApp Business Shop");
+  assert.equal(src.body, "Using standard WhatsApp to run a busy shop is like...");
+  assert.equal(src.quiz[0]?.question, "Which tool shows products with prices?");
+  assert.deepEqual(src.quiz[0]?.options, ["Catalog", "Status only", "Profile photo"]);
+});
+
+test("englishDraftFromLesson reads localized-object English too", () => {
+  const lesson = {
+    title: { en: "T", ig: "T-ig" },
+    languages: { en: "Body", ig: "Body-ig" },
+    quiz: [{ question: { en: "Q?" }, options: [{ en: "A" }, { en: "B" }], answerIndex: 0 }]
+  };
+  const src = englishDraftFromLesson(lesson);
+  assert.equal(src.title, "T");        // English, not the ig variant
+  assert.equal(src.body, "Body");
+  assert.deepEqual(src.quiz[0]?.options, ["A", "B"]);
 });

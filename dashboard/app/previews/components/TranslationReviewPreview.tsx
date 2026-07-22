@@ -251,6 +251,16 @@ function TranslationReviewHarness() {
       {selectedDraft ? (
         <TranslationDraftReviewPanel
           draft={selectedDraft}
+          source={{
+            title: "My WhatsApp Business Shop",
+            body: "Using standard WhatsApp to run a busy shop is like carrying a full market load in a small handbag. WhatsApp Business is a separate, free app built for traders.",
+            quiz: [
+              {
+                question: "Which WhatsApp Business feature shows an organised menu of products with prices?",
+                options: ["The Catalog tool", "The Status bar", "Broadcast groups"]
+              }
+            ]
+          }}
           lessonTitle={selectedLessonTitle}
           onSave={handleSave}
           onApprove={handleApprove}
