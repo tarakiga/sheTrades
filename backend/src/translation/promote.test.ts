@@ -38,6 +38,21 @@ test("merge never changes the option array length or order", () => {
   assert.equal(merged.quiz[0].options.length, 3);
 });
 
+test("a draft with FEWER options than live translates none of them", () => {
+  const draft = { quiz: [{ options: ["A-ig", "B-ig"] }] }; // live has 3
+  const merged = mergeTranslationIntoPayload(LIVE, "ig", draft);
+  assert.equal("ig" in (merged.quiz[0].options[0] as object), false);
+  assert.equal(merged.quiz[0].options.length, 3);        // length preserved
+  assert.equal(merged.quiz[0].answerIndex, 0);           // intact
+});
+
+test("a draft with MORE options than live translates none of them", () => {
+  const draft = { quiz: [{ options: ["A-ig", "B-ig", "C-ig", "D-ig"] }] }; // live has 3
+  const merged = mergeTranslationIntoPayload(LIVE, "ig", draft);
+  assert.equal("ig" in (merged.quiz[0].options[0] as object), false);
+  assert.equal(merged.quiz[0].options.length, 3);
+});
+
 test("merge does not mutate the input live payload", () => {
   // Promotion must be pure — a caller may reuse the live payload.
   const draft = { title: "Ahia", quiz: [] };
@@ -50,6 +65,20 @@ test("a bare-string title is upgraded to an object with both languages", () => {
   const live = { title: "Shop", languages: { en: "b" }, quiz: [] };
   const merged = mergeTranslationIntoPayload(live, "ig", { title: "Ahia", quiz: [] });
   assert.deepEqual(merged.title, { en: "Shop", ig: "Ahia" });
+});
+
+test("promoting ig leaves an existing pcm translation untouched", () => {
+  const live = {
+    title: { en: "Shop", pcm: "Shop-pcm" },
+    languages: { en: "English body", pcm: "Pidgin body" },
+    quiz: [{ question: { en: "Q?", pcm: "Q-pcm" }, options: [{ en: "A", pcm: "A-pcm" }, { en: "B", pcm: "B-pcm" }], answerIndex: 0 }]
+  };
+  const draft = { title: "Ahia", body: "Igbo body", quiz: [{ question: "Q-ig", options: ["A-ig", "B-ig"] }] };
+  const merged = mergeTranslationIntoPayload(live, "ig", draft);
+  assert.deepEqual(merged.title, { en: "Shop", pcm: "Shop-pcm", ig: "Ahia" });
+  assert.equal(merged.languages.pcm, "Pidgin body");
+  assert.equal(merged.languages.ig, "Igbo body");
+  assert.deepEqual(merged.quiz[0].options[0], { en: "A", pcm: "A-pcm", ig: "A-ig" });
 });
 
 // ---- Orchestration: conflict guard + happy path (no DB) ----
@@ -128,4 +157,17 @@ test("promote publishes the merged payload and marks the draft promoted", async 
   assert.equal(publishInput.expectedDraftVersionId, "new-draft-1");
   // The draft advanced to promoted.
   assert.equal(promotedTo, "promoted");
+});
+
+test("a failed publish leaves the draft un-promoted", async () => {
+  const { service } = fakeService({
+    publishDocument: async () => { throw new Error("Expected draft version was not found"); }
+  });
+  let promotedTo = "";
+  await assert.rejects(() => promoteDraft(ACTOR, "doc-1", "ig", {
+    service: service as never,
+    getDraftFn: async () => APPROVED_DRAFT as never,
+    setStatusFn: async (_d: string, _l: string, to: string) => { promotedTo = to; return APPROVED_DRAFT as never; }
+  }));
+  assert.equal(promotedTo, ""); // setStatus("promoted") was never reached
 });

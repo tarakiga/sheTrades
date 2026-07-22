@@ -92,6 +92,11 @@ export async function promoteDraft(
   }
 
   const doc = await service.getDocumentByNamespaceKey("content", draft.contentKey);
+  // NOTE: this guards a draft existing at READ time. A draft created between
+  // this read and updateDraft would be silently replaced — an accepted
+  // residual of the platform's single-draft, no-CAS updateDraft. The
+  // expectedDraftVersionId on publish protects only the updateDraft→publish
+  // window, not read→updateDraft.
   if (doc.draft) {
     throw new Error(
       "This lesson has unpublished changes; publish or discard them before promoting a translation."
