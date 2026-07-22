@@ -55,7 +55,7 @@ const POLICY_SECTIONS: Array<{ heading: string; paragraphs: string[] }> = [
   {
     heading: "5. How we share information",
     paragraphs: [
-      "Service providers: we use trusted providers to run the service — including messaging infrastructure (Meta / WhatsApp), cloud hosting, and airtime or mobile top-up partners — who process information only on our instructions.",
+      "Service providers: we use trusted providers to run the service - including messaging infrastructure (Meta / WhatsApp), cloud hosting, and airtime or mobile top-up partners - who process information only on our instructions.",
       "Legal and safety: we may disclose information where required by law, to enforce our terms, or to protect the rights, safety, and security of learners, our team, or the public.",
       "We do not sell your personal information."
     ]
@@ -69,7 +69,7 @@ const POLICY_SECTIONS: Array<{ heading: string; paragraphs: string[] }> = [
   {
     heading: "7. How we protect your information",
     paragraphs: [
-      "We use technical and organisational measures — including access controls, authentication for administrative accounts, and encryption in transit — to protect personal information. No method of transmission or storage is completely secure, but we work to protect your data and review our safeguards regularly."
+      "We use technical and organisational measures - including access controls, authentication for administrative accounts, and encryption in transit - to protect personal information. No method of transmission or storage is completely secure, but we work to protect your data and review our safeguards regularly."
     ]
   },
   {
@@ -120,7 +120,7 @@ type SeedEntry = {
 const SEED_ENTRIES: SeedEntry[] = [
   {
     key: "legal.privacy.policy",
-    title: "Privacy policy — body",
+    title: "Privacy policy - body",
     payload: {
       title: "Privacy Policy",
       body: { en: POLICY_BODY },
@@ -130,7 +130,7 @@ const SEED_ENTRIES: SeedEntry[] = [
   },
   {
     key: "legal.privacy.org_name",
-    title: "Privacy policy — organisation name",
+    title: "Privacy policy - organisation name",
     payload: {
       title: "Organisation name",
       body: { en: ORG_NAME },
@@ -140,7 +140,7 @@ const SEED_ENTRIES: SeedEntry[] = [
   },
   {
     key: "legal.privacy.contact_email",
-    title: "Privacy policy — contact email",
+    title: "Privacy policy - contact email",
     payload: {
       title: "Privacy contact email",
       body: { en: CONTACT_EMAIL },
