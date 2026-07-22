@@ -154,6 +154,18 @@ export function ConfigEditorDrawer({
   const [showAudioAccordion, setShowAudioAccordion] = useState(false);
   const [simulatorSelectedAnswer, setSimulatorSelectedAnswer] = useState<Record<number, number>>({});
 
+  // Legal block form (namespace === "legal"): a friendly form beside the raw
+  // JSON, mirroring the content wizard. Legal payloads are
+  // { title, body: {en,pcm,ig}, complianceTag, effectiveFrom }.
+  const [legalForm, setLegalForm] = useState({
+    title: "",
+    bodyEn: "",
+    bodyPcm: "",
+    bodyIg: "",
+    complianceTag: "",
+    effectiveFrom: ""
+  });
+
   // Curriculum states. `titleI18n` and each quiz question/option are now
   // language-aware (LangObj); the WhatsApp answer index stays shared.
   const [titleI18n, setTitleI18n] = useState<LangObj>(emptyLangObj());
@@ -191,7 +203,7 @@ export function ConfigEditorDrawer({
     if (open && !lastOpenRef.current) {
       setActiveStep(1);
       setSimulatorSelectedAnswer({});
-      if (namespace === "content") {
+      if (namespace === "content" || namespace === "legal") {
         setEditorModeState("wizard");
       } else {
         setEditorModeState("json");
@@ -248,6 +260,26 @@ export function ConfigEditorDrawer({
       }
     } catch {
       // Ignore parsing error
+    }
+
+    // Legal blocks have their own shape and form; parse into legalForm and stop
+    // so none of the content/lesson state (which serialises a different shape)
+    // is touched for a legal document.
+    if (namespace === "legal") {
+      const bodyRaw = parsed?.body;
+      const body =
+        bodyRaw && typeof bodyRaw === "object" ? (bodyRaw as Record<string, unknown>) : {};
+      const s = (input: unknown) => (typeof input === "string" ? input : "");
+      setLegalForm({
+        title: s(parsed?.title),
+        bodyEn: s(body.en),
+        bodyPcm: s(body.pcm),
+        bodyIg: s(body.ig),
+        complianceTag: s(parsed?.complianceTag),
+        effectiveFrom: s(parsed?.effectiveFrom)
+      });
+      setLocalSerialized(value);
+      return;
     }
 
     const segments = keyValue.split(".");
@@ -332,6 +364,8 @@ export function ConfigEditorDrawer({
   // Synchronize state changes back to parent payload
   useEffect(() => {
     if (!open) return;
+    // Legal documents serialise through their own effect below.
+    if (namespace === "legal") return;
 
     // If the parent payloadValue is different from our localSerialized,
     // it means a parent-initiated change (like applying a template or loading)
@@ -404,6 +438,33 @@ export function ConfigEditorDrawer({
     payloadValue,
     localSerialized
   ]);
+
+  // Serialise the legal form back to the payload. Its own effect so it can never
+  // run the content/lesson serialiser against a legal document (whose shape is
+  // { title, body:{en,pcm,ig}, complianceTag, effectiveFrom }).
+  useEffect(() => {
+    if (!open || namespace !== "legal") return;
+    if (payloadValue !== localSerialized) return;
+    try {
+      const payload = {
+        title: legalForm.title,
+        body: {
+          en: legalForm.bodyEn,
+          ...(legalForm.bodyPcm ? { pcm: legalForm.bodyPcm } : {}),
+          ...(legalForm.bodyIg ? { ig: legalForm.bodyIg } : {})
+        },
+        complianceTag: legalForm.complianceTag,
+        effectiveFrom: legalForm.effectiveFrom
+      };
+      const str = JSON.stringify(payload, null, 2);
+      if (str !== payloadValue && str !== localSerialized) {
+        setLocalSerialized(str);
+        onPayloadChange(str);
+      }
+    } catch {
+      // ignore serialisation errors
+    }
+  }, [open, namespace, legalForm, payloadValue, localSerialized, onPayloadChange]);
 
   // Quiz Builder utilities (state changes flow back to the payload via the
   // serialize effect, so these no longer call the no-op syncPayload).
@@ -647,7 +708,7 @@ export function ConfigEditorDrawer({
         </div>
 
         {/* 1. Mode Selector Toggle */}
-        {namespace === "content" ? (
+        {namespace === "content" || namespace === "legal" ? (
           <div className="wizard-mode-toggle" role="group" aria-label="Editor mode">
             <button
               type="button"
@@ -1921,8 +1982,88 @@ export function ConfigEditorDrawer({
           </div>
         ) : null}
 
+        {/* 3b. Legal block form (rich text beside the JSON) */}
+        {editorModeState === "wizard" && namespace === "legal" ? (
+          <div className="wizard-container">
+            <div className="wizard-step">
+              <Input
+                id="legal-title"
+                label="Title"
+                value={legalForm.title}
+                onChange={(event) => setLegalForm({ ...legalForm, title: event.target.value })}
+                hint="The heading for this legal block."
+              />
+
+              <div className="wizard-mode-toggle" role="group" aria-label="Body language">
+                {(["en", "pcm", "ig"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    className={`wizard-mode-toggle__btn ${
+                      activeTabLanguage === lang ? "wizard-mode-toggle__btn--active" : ""
+                    }`}
+                    aria-pressed={activeTabLanguage === lang}
+                    onClick={() => setActiveTabLanguage(lang)}
+                  >
+                    {lang === "en" ? "English" : lang === "pcm" ? "Pidgin" : "Igbo"}
+                  </button>
+                ))}
+              </div>
+
+              {activeTabLanguage === "en" ? (
+                <RichTextEditor
+                  id="legal-body-en"
+                  label="Body (English)"
+                  value={legalForm.bodyEn}
+                  onChange={(next) => setLegalForm({ ...legalForm, bodyEn: next })}
+                />
+              ) : activeTabLanguage === "pcm" ? (
+                <RichTextEditor
+                  id="legal-body-pcm"
+                  label="Body (Nigerian Pidgin)"
+                  value={legalForm.bodyPcm}
+                  onChange={(next) => setLegalForm({ ...legalForm, bodyPcm: next })}
+                />
+              ) : (
+                <RichTextEditor
+                  id="legal-body-ig"
+                  label="Body (Igbo)"
+                  value={legalForm.bodyIg}
+                  onChange={(next) => setLegalForm({ ...legalForm, bodyIg: next })}
+                />
+              )}
+
+              <Input
+                id="legal-compliance-tag"
+                label="Compliance Tag"
+                value={legalForm.complianceTag}
+                onChange={(event) =>
+                  setLegalForm({ ...legalForm, complianceTag: event.target.value })
+                }
+                hint="A short tag for this block, e.g. privacy-policy."
+              />
+
+              <Input
+                id="legal-effective-from"
+                label="Effective From"
+                type="date"
+                value={legalForm.effectiveFrom ? legalForm.effectiveFrom.slice(0, 10) : ""}
+                onChange={(event) =>
+                  setLegalForm({
+                    ...legalForm,
+                    effectiveFrom: event.target.value
+                      ? `${event.target.value}T00:00:00.000Z`
+                      : ""
+                  })
+                }
+                hint="The date this version takes effect."
+              />
+            </div>
+          </div>
+        ) : null}
+
         {/* 4. Backward-Compatible Raw JSON Block */}
-        {editorModeState === "json" || namespace !== "content" ? (
+        {editorModeState === "json" || (namespace !== "content" && namespace !== "legal") ? (
           <>
             {keyField ?? (
               <Input
