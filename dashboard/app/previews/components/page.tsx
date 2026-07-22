@@ -26,6 +26,7 @@ import { IntegrationWorkspacePreview } from "./IntegrationWorkspacePreview";
 import { OverlayPreviewDemo } from "./OverlayPreviewDemo";
 import { OverviewUsersWorkspacePreview } from "./OverviewUsersWorkspacePreview";
 import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
+import { TranslationSettingsPreview } from "./TranslationSettingsPreview";
 import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
@@ -434,6 +435,19 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <PayoutsIntegrationPreview />
+        </Card>
+
+        <Card
+          title={t(
+            "preview.translationSettings.title",
+            "Translation Settings — provider config + test connection"
+          )}
+          description={t(
+            "preview.translationSettings.description",
+            "Preview the Translations settings tab: per-language provider selects (Pidgin excludes Igbo API), Igbo API/Gemini/Anthropic credential fields, the connection test result badge, and field-level error states."
+          )}
+        >
+          <TranslationSettingsPreview />
         </Card>
 
         <Card

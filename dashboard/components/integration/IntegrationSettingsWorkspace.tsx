@@ -24,6 +24,10 @@ import {
   IntegrationPayoutsWorkspace,
   type PayoutsProviderConfig
 } from "./IntegrationPayoutsWorkspace";
+import {
+  IntegrationTranslationWorkspace,
+  type TranslationProviderConfig
+} from "./IntegrationTranslationWorkspace";
 import type {
   IntegrationConnectionResult,
   IntegrationDocumentDetail,
@@ -101,6 +105,17 @@ const PAYOUTS_PROVIDER: PayoutsProviderConfig = {
   emptyTitle: "Configure a payouts provider",
   emptyDescription:
     "Pick a provider (Africa's Talking, Termii, or Reloadly) and enter credentials to start dispatching rewards."
+};
+
+const TRANSLATION_PROVIDER: TranslationProviderConfig = {
+  id: "translation",
+  label: "Translations",
+  description: "Machine-translation providers for Pidgin and Igbo lesson and quiz content.",
+  key: "integration.translation.primary",
+  title: "Translation Integration",
+  emptyTitle: "Configure a translation provider",
+  emptyDescription:
+    "Pick a provider per target language (Igbo API, Gemini, or Anthropic) and enter credentials to start translating content."
 };
 
 function tFactory(copy: Record<string, string>) {
@@ -887,7 +902,7 @@ export function IntegrationSettingsWorkspace({ copy }: IntegrationSettingsWorksp
           "Manage provider credentials, test connectivity, and publish operational integrations from one premium workspace."
         )}
         summary={[
-          { label: t("integration.summary.providers", "Providers"), value: "3" },
+          { label: t("integration.summary.providers", "Providers"), value: "4" },
           { label: t("integration.summary.access", "Access"), value: "Admin Only" },
           { label: t("integration.summary.workflow", "Workflow"), value: "Draft + Live" }
         ]}
@@ -912,6 +927,11 @@ export function IntegrationSettingsWorkspace({ copy }: IntegrationSettingsWorksp
               id: PAYOUTS_PROVIDER.id,
               label: PAYOUTS_PROVIDER.label,
               content: <IntegrationPayoutsWorkspace provider={PAYOUTS_PROVIDER} />
+            },
+            {
+              id: TRANSLATION_PROVIDER.id,
+              label: TRANSLATION_PROVIDER.label,
+              content: <IntegrationTranslationWorkspace provider={TRANSLATION_PROVIDER} />
             }
           ]}
         />
