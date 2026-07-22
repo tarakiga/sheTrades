@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import "./globals.css";
 import { getPublicConfigNamespace } from "../lib/config/api";
+import { getBranding, brandingStyleVars } from "../lib/branding";
+import { BrandingProvider } from "../components/branding/BrandingProvider";
 
 export async function generateMetadata(): Promise<Metadata> {
+  const branding = await getBranding();
   const fallback = {
-    title: "SheTrades Admin Dashboard",
-    description: "Admin dashboard for SheTrades Digital"
+    title: `${branding.organisationName} Admin Dashboard`,
+    description: `Admin dashboard for ${branding.organisationName}`
   };
   const result = await getPublicConfigNamespace("content");
   const titleDoc = result.data.documents.find((item) => item.key === "admin.ui.meta.title");
@@ -26,10 +29,17 @@ type RootLayoutProps = {
   children: ReactNode;
 };
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const branding = await getBranding();
+  // White-label theme: overrides the brand/accent/font tokens from the published
+  // branding config as inherited CSS custom properties on <body>, re-theming the
+  // whole component library. Safe by construction — no injected markup.
+  const themeVars = brandingStyleVars(branding) as CSSProperties;
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning style={themeVars}>
+        <BrandingProvider value={branding}>{children}</BrandingProvider>
+      </body>
     </html>
   );
 }

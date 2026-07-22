@@ -5,10 +5,11 @@ import { ConfigAdminManager } from "../../../components/config/ConfigAdminManage
 import { IntegrationSettingsWorkspace } from "../../../components/integration/IntegrationSettingsWorkspace";
 import { RewardRulesWorkspace } from "../../../components/integration/RewardRulesWorkspace";
 import { AdminTeamWorkspace } from "../../../components/admin-team/AdminTeamWorkspace";
+import { BrandingWorkspace } from "../../../components/branding/BrandingWorkspace";
 import { getPublicConfigNamespace } from "../../../lib/config/api";
 import { getAdminUiCopy } from "../../../lib/config/admin-ui-copy";
 
-type SettingsTabId = "options" | "legal" | "integration" | "rewards" | "admins";
+type SettingsTabId = "options" | "legal" | "integration" | "rewards" | "admins" | "branding";
 
 type SettingsPageProps = {
   searchParams?: Promise<{
@@ -65,6 +66,13 @@ const TABS_BY_ID: Record<SettingsTabId, TabConfig> = {
     titleFallback: "Admins",
     hintKey: "settings.tab.admins.hint",
     hintFallback: "Manage admin users and roles"
+  },
+  branding: {
+    id: "branding",
+    titleKey: "settings.tab.branding",
+    titleFallback: "Branding",
+    hintKey: "settings.tab.branding.hint",
+    hintFallback: "Name, colours, and font (white-label)"
   }
 };
 
@@ -73,7 +81,8 @@ const TABS: Array<TabConfig> = [
   TABS_BY_ID.legal,
   TABS_BY_ID.integration,
   TABS_BY_ID.rewards,
-  TABS_BY_ID.admins
+  TABS_BY_ID.admins,
+  TABS_BY_ID.branding
 ];
 
 function resolveActiveTab(raw: string | undefined): SettingsTabId {
@@ -82,7 +91,8 @@ function resolveActiveTab(raw: string | undefined): SettingsTabId {
     raw === "legal" ||
     raw === "integration" ||
     raw === "rewards" ||
-    raw === "admins"
+    raw === "admins" ||
+    raw === "branding"
   ) {
     return raw;
   }
@@ -161,6 +171,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         <RewardRulesWorkspace />
       ) : activeTab.id === "admins" ? (
         <AdminTeamWorkspace />
+      ) : activeTab.id === "branding" ? (
+        <BrandingWorkspace />
       ) : activeTab.namespace && activeTab.defaultType ? (
         <ConfigAdminManager
           namespace={activeTab.namespace}

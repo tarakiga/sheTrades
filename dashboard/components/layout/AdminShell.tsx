@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { ProfileSidebarCard } from "../auth/ProfileSidebarCard";
 import { useAdminSession } from "../auth/AdminSessionProvider";
+import { useBranding } from "../branding/BrandingProvider";
 
 type AdminShellProps = {
   children: ReactNode;
@@ -146,7 +147,8 @@ function brandInitials(brand: string) {
 export function AdminShell({ children, copy = {} }: AdminShellProps) {
   const pathname = usePathname();
   const { status, user } = useAdminSession();
-  const brand = resolveCopy(copy, "shell.brand", "SheTrades Admin");
+  const branding = useBranding();
+  const brand = resolveCopy(copy, "shell.brand", `${branding.organisationName} Admin`);
 
   return (
     <div className="admin-shell">

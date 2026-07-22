@@ -2,13 +2,15 @@
 
 import { AuthPageShell } from "./AuthPageShell";
 import { LoadingState } from "../ui";
+import { useBranding } from "../branding/BrandingProvider";
 
 export function LoginPageFallback() {
+  const branding = useBranding();
   return (
     <main className="auth-page" suppressHydrationWarning>
       <AuthPageShell
         desktopMode="viewport-fit"
-        eyebrow="SheTrades Admin"
+        eyebrow={`${branding.organisationName} Admin`}
         title="Preparing your workspace"
         description="Loading the secure sign-in experience and validating your current session."
         asideLabel="Secure admin access"

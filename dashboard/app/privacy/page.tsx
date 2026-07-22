@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getPublicConfigNamespace } from "../../lib/config/api";
+import { getBranding } from "../../lib/branding";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy - SheTrades",
-  description:
-    "How SheTrades collects, uses, shares, and protects personal information across its WhatsApp learning service and admin platform."
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { organisationName } = await getBranding();
+  return {
+    title: `Privacy Policy - ${organisationName}`,
+    description: `How ${organisationName} collects, uses, shares, and protects personal information across its WhatsApp learning service and admin platform.`
+  };
+}
 
 // Safe fallbacks, used ONLY when the legal config namespace is unpopulated.
 // Every one of these - organisation name, contact email, effective date, and the

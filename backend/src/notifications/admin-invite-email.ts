@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import type { NotificationIntegrationPayload } from "../config-platform/contracts.js";
-import { getRuntimeNotificationConfig, getRuntimeText } from "../config-platform/runtime-config.js";
+import { getRuntimeBranding, getRuntimeNotificationConfig, getRuntimeText } from "../config-platform/runtime-config.js";
 import { buildSmtpTransportOptions } from "../integrations/smtp-transport.js";
 
 /**
@@ -72,14 +72,15 @@ export function buildAdminInviteEmail(
 ): { subject: string; text: string } {
   const name = context.fullName.trim() || "there";
   const invitedBy = context.invitedByName?.trim();
-  const subject = "You have been added to the SheTrades admin dashboard";
+  const org = getRuntimeBranding().organisationName;
+  const subject = `You have been added to the ${org} admin dashboard`;
 
   const lines: string[] = [
     `Hi ${name},`,
     ``,
     invitedBy
-      ? `${invitedBy} has added you to the SheTrades admin dashboard.`
-      : `You have been added to the SheTrades admin dashboard.`,
+      ? `${invitedBy} has added you to the ${org} admin dashboard.`
+      : `You have been added to the ${org} admin dashboard.`,
     ``,
     `Role:   ${roleLabel(context.role)}`,
     `Sign in with this email address: ${context.email}`,
@@ -98,7 +99,7 @@ export function buildAdminInviteEmail(
     `password your administrator set for you, then change it after your first`,
     `sign-in from your profile page.`,
     ``,
-    `SheTrades admin`
+    `${org} admin`
   );
 
   return { subject, text: lines.join("\n") };

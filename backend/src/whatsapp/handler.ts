@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getRuntimeOptionSet, getRuntimeText, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson, pickLocalized } from "../config-platform/runtime-config.js";
+import { getRuntimeOptionSet, getRuntimeText, getRuntimeBranding, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson, pickLocalized } from "../config-platform/runtime-config.js";
 import { sendHelpRequestEmail } from "../notifications/help-request-email.js";
 import { BOT_PROMPT_DEFAULTS, BOT_PROMPT_CONFIG_PREFIX } from "./bot-prompts.js";
 import { prisma } from "../admin/prisma.js";
@@ -893,7 +893,7 @@ function transition(
         state: "awaiting_name",
         reply: getRuntimeText(
           "bot.awaiting_name.prompt",
-          "Welcome to SheTrades. Please reply with your full name to begin."
+          `Welcome to ${getRuntimeBranding().organisationName}. Please reply with your full name to begin.`
         )
       };
     }

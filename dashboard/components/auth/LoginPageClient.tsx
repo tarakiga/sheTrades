@@ -7,6 +7,7 @@ import { Button } from "../ui";
 import { AuthPageShell } from "./AuthPageShell";
 import { LoginFormCard, type LoginFormValue } from "./LoginFormCard";
 import { useAdminSession } from "./AdminSessionProvider";
+import { useBranding } from "../branding/BrandingProvider";
 import type { AuthStatusMessage } from "./types";
 import { LoginPageFallback } from "./LoginPageFallback";
 
@@ -24,6 +25,7 @@ export function LoginPageClient() {
   }, []);
 
   const { t } = useAdminUiCopyClient();
+  const branding = useBranding();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status, signIn } = useAdminSession();
@@ -123,7 +125,7 @@ export function LoginPageClient() {
     <main className="auth-page" suppressHydrationWarning>
       <AuthPageShell
         desktopMode="viewport-fit"
-        eyebrow={t("auth.login.eyebrow", "SheTrades Admin")}
+        eyebrow={t("auth.login.eyebrow", `${branding.organisationName} Admin`)}
         title={t("auth.login.pageTitle", "Welcome back")}
         description={t(
           "auth.login.pageDescription",

@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import type { NotificationIntegrationPayload } from "../config-platform/contracts.js";
-import { getRuntimeNotificationConfig, getRuntimeText } from "../config-platform/runtime-config.js";
+import { getRuntimeBranding, getRuntimeNotificationConfig, getRuntimeText } from "../config-platform/runtime-config.js";
 import { buildSmtpTransportOptions } from "../integrations/smtp-transport.js";
 
 /**
@@ -95,7 +95,7 @@ export function buildHelpRequestEmail(context: HelpRequestContext): {
     `This learner is now flagged for follow-up in the admin dashboard, under`,
     `Users. Reply to them on WhatsApp at the number above.`,
     ``,
-    `— SheTrades learning bot`
+    `${getRuntimeBranding().organisationName} learning bot`
   ].join("\n");
 
   return { subject, text };

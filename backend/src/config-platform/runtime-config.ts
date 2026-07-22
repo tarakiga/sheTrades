@@ -99,6 +99,43 @@ export function getRuntimeText(key: string, fallback: string) {
   return resolved ?? fallback;
 }
 
+/**
+ * White-label branding. Read from the published `branding.identity` content
+ * document so a partner organisation can rename the product and re-theme it with
+ * no code change. Every field falls back to the SheTrades defaults so the app
+ * still renders on a fresh deploy with nothing published.
+ */
+export type RuntimeBranding = {
+  organisationName: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  fontFamily: string;
+};
+
+export const BRANDING_FALLBACK: RuntimeBranding = {
+  organisationName: "SheTrades",
+  primaryColor: "#334e58",
+  secondaryColor: "#ffbe22",
+  accentColor: "#f0a90e",
+  fontFamily: "Inter"
+};
+
+export function getRuntimeBranding(): RuntimeBranding {
+  const data = getPublishedData("content", "branding.identity");
+  if (!data || typeof data !== "object") return BRANDING_FALLBACK;
+  const record = data as Record<string, unknown>;
+  const str = (value: unknown, fallback: string) =>
+    typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+  return {
+    organisationName: str(record.organisationName, BRANDING_FALLBACK.organisationName),
+    primaryColor: str(record.primaryColor, BRANDING_FALLBACK.primaryColor),
+    secondaryColor: str(record.secondaryColor, BRANDING_FALLBACK.secondaryColor),
+    accentColor: str(record.accentColor, BRANDING_FALLBACK.accentColor),
+    fontFamily: str(record.fontFamily, BRANDING_FALLBACK.fontFamily)
+  };
+}
+
 export function getRuntimeLocalizedText(key: string, fallback: LocalizedText): LocalizedText {
   const data = getPublishedData("content", key);
   if (!data || typeof data !== "object") {

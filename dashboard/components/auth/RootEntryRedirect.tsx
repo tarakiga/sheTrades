@@ -6,6 +6,7 @@ import { useAdminUiCopyClient } from "../../lib/config/admin-ui-copy-client";
 import { Badge, LoadingState } from "../ui";
 import { AuthPageShell } from "./AuthPageShell";
 import { useAdminSession } from "./AdminSessionProvider";
+import { useBranding } from "../branding/BrandingProvider";
 
 export type RootEntryRedirectProps = {
   statusOverride?: "loading" | "authenticated" | "unauthenticated";
@@ -13,7 +14,8 @@ export type RootEntryRedirectProps = {
 
 function getEntryPresentation(
   status: "loading" | "authenticated" | "unauthenticated",
-  t: (key: string, fallback: string) => string
+  t: (key: string, fallback: string) => string,
+  orgName: string
 ) {
   switch (status) {
     case "authenticated":
@@ -22,7 +24,7 @@ function getEntryPresentation(
         title: t("auth.entry.authenticated.title", "Opening your dashboard"),
         description: t(
           "auth.entry.authenticated.description",
-          "Your admin session is active. We are taking you into the SheTrades control workspace now."
+          `Your admin session is active. We are taking you into the ${orgName} control workspace now.`
         ),
         loadingLabel: t("auth.entry.authenticated.loading", "Opening dashboard..."),
         asideTitle: t("auth.entry.authenticated.asideTitle", "Verified admin session"),
@@ -60,7 +62,7 @@ function getEntryPresentation(
         title: t("auth.entry.loading.title", "Preparing your workspace"),
         description: t(
           "auth.entry.loading.description",
-          "Checking your admin session and routing you into the right SheTrades entry experience."
+          `Checking your admin session and routing you into the right ${orgName} entry experience.`
         ),
         loadingLabel: t("auth.entry.loading.loading", "Preparing workspace..."),
         asideTitle: t("auth.entry.loading.asideTitle", "Calm entry handoff"),
@@ -78,10 +80,11 @@ function getEntryPresentation(
 
 export function RootEntryRedirect({ statusOverride }: RootEntryRedirectProps) {
   const { t } = useAdminUiCopyClient();
+  const branding = useBranding();
   const router = useRouter();
   const { status } = useAdminSession();
   const resolvedStatus = statusOverride ?? status;
-  const presentation = getEntryPresentation(resolvedStatus, t);
+  const presentation = getEntryPresentation(resolvedStatus, t, branding.organisationName);
 
   useEffect(() => {
     if (statusOverride) {
@@ -101,7 +104,7 @@ export function RootEntryRedirect({ statusOverride }: RootEntryRedirectProps) {
   return (
     <main className="auth-page">
       <AuthPageShell
-        eyebrow={t("auth.entry.eyebrow", "SheTrades Admin")}
+        eyebrow={t("auth.entry.eyebrow", `${branding.organisationName} Admin`)}
         title={presentation.title}
         description={presentation.description}
         heroBadge={<Badge variant="info">{presentation.heroBadge}</Badge>}
