@@ -27,6 +27,7 @@ import { OverlayPreviewDemo } from "./OverlayPreviewDemo";
 import { OverviewUsersWorkspacePreview } from "./OverviewUsersWorkspacePreview";
 import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
 import { TranslationSettingsPreview } from "./TranslationSettingsPreview";
+import { TranslationReviewPreview } from "./TranslationReviewPreview";
 import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
@@ -448,6 +449,19 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <TranslationSettingsPreview />
+        </Card>
+
+        <Card
+          title={t(
+            "preview.translationReview.title",
+            "Translation Review — run, gauges, approve/promote"
+          )}
+          description={t(
+            "preview.translationReview.description",
+            "Preview the Translations REVIEW workspace: run panel, draft list with status/flag badges, and the review panel with live WhatsApp character gauges — including a red over-limit title, a red over-limit quiz option, and a failed option needing manual entry."
+          )}
+        >
+          <TranslationReviewPreview />
         </Card>
 
         <Card

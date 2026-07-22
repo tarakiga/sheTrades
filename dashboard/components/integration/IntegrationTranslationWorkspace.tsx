@@ -20,6 +20,7 @@ import {
   createEmptyTranslationForm,
   DEFAULT_TRANSLATION_TITLE
 } from "./translation/TranslationSettingsForm";
+import { TranslationReviewWorkspace } from "./translation/TranslationReviewWorkspace";
 import type {
   TranslationFormState,
   TranslationIgboProviderKey,
@@ -763,6 +764,8 @@ export function IntegrationTranslationWorkspace({
         onCancel={() => setConfirmArchiveOpen(false)}
         onConfirm={() => void archiveOrRestore()}
       />
+
+      <TranslationReviewWorkspace />
     </section>
   );
 }
