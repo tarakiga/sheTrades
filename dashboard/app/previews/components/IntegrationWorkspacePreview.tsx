@@ -11,8 +11,6 @@ import {
   type IntegrationConnectionResult
 } from "../../../components/integration/types";
 
-const copy = {} satisfies Record<string, string>;
-
 export function IntegrationWorkspacePreview() {
   const [drawerProvider, setDrawerProvider] = useState<"whatsapp" | "notification" | null>(null);
   const [previewProvider, setPreviewProvider] = useState<"whatsapp" | "notification" | null>(null);

@@ -111,9 +111,18 @@ export function WhatsAppSandboxSimulator() {
     setFeedback(null);
 
     // Format payload: if sent via button, send as WhatsApp interactive button reply
-    const messageObj: any = {
+    type SandboxInboundMessage = {
+      id: string;
+      from: string;
+      interactive?: {
+        type: "button_reply";
+        button_reply: { id: string; title: string };
+      };
+      text?: { body: string };
+    };
+    const messageObj: SandboxInboundMessage = {
       id: userMsgId,
-      from: phone.trim(),
+      from: phone.trim()
     };
 
     if (buttonText) {

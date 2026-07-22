@@ -81,7 +81,6 @@ export function RewardsToolbar(props: RewardsToolbarProps): ReactElement {
   useEffect(() => {
     setSearchDraft(props.query);
     // We intentionally only react to changes in the upstream query value.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.query]);
 
   useEffect(() => {

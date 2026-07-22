@@ -33,9 +33,7 @@ import type {
   IntegrationDocumentDetail,
   IntegrationFormState,
   IntegrationHistoryResponse,
-  IntegrationProviderId,
-  NotificationIntegrationForm,
-  WhatsAppIntegrationForm
+  IntegrationProviderId
 } from "./types";
 import {
   createEmptyNotificationForm,

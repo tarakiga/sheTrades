@@ -28,6 +28,31 @@ const fromLocalized = (value: LocalizedValue | undefined | null): LangObj => {
   return { en: value.en || "", pcm: value.pcm || "", ig: value.ig || "" };
 };
 
+/**
+ * Shape of a lesson/content JSON payload as parsed from the editor's raw text.
+ * Deliberately permissive — the values come from admin-authored JSON — but typed
+ * enough to drop the `any` the parse routine used to lean on.
+ */
+type ParsedQuizItem = {
+  question?: LocalizedValue;
+  options?: LocalizedValue[];
+  answerIndex?: number;
+  kind?: string;
+  helpOptionIndex?: number;
+};
+
+type ParsedConfigPayload = {
+  title?: LocalizedValue;
+  module?: string;
+  languages?: { en?: string; pcm?: string; ig?: string };
+  audioUrls?: { en?: string; pcm?: string; ig?: string };
+  quiz?: ParsedQuizItem[];
+  en?: string;
+  pcm?: string;
+  ig?: string;
+  [key: string]: unknown;
+};
+
 const toLocalized = (obj: LangObj): LocalizedValue => {
   const hasTranslation = obj.pcm.trim().length > 0 || obj.ig.trim().length > 0;
   if (!hasTranslation) return obj.en;
@@ -153,24 +178,13 @@ export function ConfigEditorDrawer({
 
   // Generic translation state
   const [translationCopy, setTranslationCopy] = useState({ en: "", pcm: "", ig: "" });
-  const [extraPayloadFields, setExtraPayloadFields] = useState<Record<string, any>>({});
+  const [extraPayloadFields, setExtraPayloadFields] = useState<Record<string, unknown>>({});
 
   // Expanded quiz question index
   const [expandedQuizIndex, setExpandedQuizIndex] = useState<number | null>(0);
 
-  // Textarea references for emoji inserter
-  const enTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const pcmTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const igTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const transEnRef = useRef<HTMLTextAreaElement | null>(null);
-  const transPcmRef = useRef<HTMLTextAreaElement | null>(null);
-  const transIgRef = useRef<HTMLTextAreaElement | null>(null);
-
   // Sync tracking to prevent infinite state updates
   const [localSerialized, setLocalSerialized] = useState("");
-
-  // Default emoji list for quick bar
-  const emojis = ["📝", "💰", "📈", "📱", "🤝", "🎉", "💡", "❓", "✨", "⭐", "👉", "✅"];
 
   // Parse payload JSON on mount or open
   useEffect(() => {
@@ -208,7 +222,7 @@ export function ConfigEditorDrawer({
               typeof parsed === "object" &&
               ("languages" in parsed || "quiz" in parsed || "module" in parsed)
           );
-        } catch (e) {
+        } catch {
           return false;
         }
       };
@@ -227,12 +241,12 @@ export function ConfigEditorDrawer({
 
   const parseAndSetPayload = (value: string) => {
     let detectedIsLesson = false;
-    let parsed: any = null;
+    let parsed: ParsedConfigPayload | null = null;
     try {
       if (value) {
-        parsed = JSON.parse(value);
+        parsed = JSON.parse(value) as ParsedConfigPayload;
       }
-    } catch (e) {
+    } catch {
       // Ignore parsing error
     }
 
@@ -270,21 +284,20 @@ export function ConfigEditorDrawer({
         pcm: parsed?.audioUrls?.pcm || "",
         ig: parsed?.audioUrls?.ig || ""
       });
+      const rawQuiz: ParsedQuizItem[] = Array.isArray(parsed?.quiz) ? (parsed?.quiz ?? []) : [];
       setQuiz(
-        Array.isArray(parsed?.quiz)
-          ? parsed.quiz.map((q: any) => ({
-              question: fromLocalized(q?.question),
-              options:
-                Array.isArray(q?.options) && q.options.length > 0
-                  ? q.options.map(fromLocalized)
-                  : [emptyLangObj(), emptyLangObj()],
-              answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0,
-              // Absent `kind` in stored JSON means "scored" (backend contract).
-              kind: q?.kind === "reflection" ? "reflection" : "scored",
-              helpOptionIndex:
-                typeof q?.helpOptionIndex === "number" ? q.helpOptionIndex : null
-            }))
-          : []
+        rawQuiz.map((q) => ({
+          question: fromLocalized(q?.question),
+          options:
+            Array.isArray(q?.options) && q.options.length > 0
+              ? q.options.map(fromLocalized)
+              : [emptyLangObj(), emptyLangObj()],
+          answerIndex: typeof q?.answerIndex === "number" ? q.answerIndex : 0,
+          // Absent `kind` in stored JSON means "scored" (backend contract).
+          kind: q?.kind === "reflection" ? "reflection" : "scored",
+          helpOptionIndex:
+            typeof q?.helpOptionIndex === "number" ? q.helpOptionIndex : null
+        }))
       );
     } else {
       setTranslationCopy({
@@ -292,7 +305,7 @@ export function ConfigEditorDrawer({
         pcm: parsed?.pcm || parsed?.languages?.pcm || "",
         ig: parsed?.ig || parsed?.languages?.ig || ""
       });
-      const extras: Record<string, any> = {};
+      const extras: Record<string, unknown> = {};
       if (parsed && typeof parsed === "object") {
         Object.keys(parsed).forEach((k) => {
           if (
@@ -314,7 +327,7 @@ export function ConfigEditorDrawer({
   };
 
   // syncPayload is now a no-op to allow unified, safe, after-render updates in useEffect
-  const syncPayload = (..._args: any[]) => {};
+  const syncPayload = (..._args: unknown[]) => {};
 
   // Synchronize state changes back to parent payload
   useEffect(() => {
@@ -375,7 +388,7 @@ export function ConfigEditorDrawer({
         setLocalSerialized(str);
         onPayloadChange(str);
       }
-    } catch (e) {
+    } catch {
       // Catch silently
     }
   }, [
@@ -391,61 +404,6 @@ export function ConfigEditorDrawer({
     payloadValue,
     localSerialized
   ]);
-
-  // Cursor-aware emoji insertion logic
-  const insertEmoji = (
-    emoji: string,
-    lang: "en" | "pcm" | "ig",
-    ref: React.RefObject<HTMLTextAreaElement | null>,
-    isLessonMode: boolean
-  ) => {
-    const textarea = ref.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const before = text.substring(0, start);
-    const after = text.substring(end, text.length);
-    const updatedValue = before + emoji + after;
-
-    if (isLessonMode) {
-      setLanguages((prev) => {
-        const next = { ...prev, [lang]: updatedValue };
-        syncPayload(
-          isLesson,
-          titleI18n,
-          lessonModule,
-          next,
-          audioUrls,
-          quiz,
-          translationCopy,
-          extraPayloadFields
-        );
-        return next;
-      });
-    } else {
-      setTranslationCopy((prev) => {
-        const next = { ...prev, [lang]: updatedValue };
-        syncPayload(
-          isLesson,
-          titleI18n,
-          lessonModule,
-          languages,
-          audioUrls,
-          quiz,
-          next,
-          extraPayloadFields
-        );
-        return next;
-      });
-    }
-
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + emoji.length, start + emoji.length);
-    }, 50);
-  };
 
   // Quiz Builder utilities (state changes flow back to the payload via the
   // serialize effect, so these no longer call the no-op syncPayload).
@@ -639,7 +597,7 @@ export function ConfigEditorDrawer({
           </div>
           <div className="config-drawer__footer-group config-drawer__footer-group--primary" style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
             {editorModeState === "wizard" && namespace === "content" && getValidationHint() && (
-              <span className="config-drawer__validation-hint" style={{ fontSize: "11px", color: "#ef4444", marginRight: "var(--space-2)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              <span className="config-drawer__validation-hint" style={{ fontSize: "11px", color: "var(--color-danger)", marginRight: "var(--space-2)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                 <span>⚠️</span> <span>{getValidationHint()}</span>
               </span>
             )}
@@ -1182,13 +1140,13 @@ export function ConfigEditorDrawer({
 
                       <div
                         style={{
-                          backgroundColor: "#fffbeb",
-                          borderLeft: "4px solid #f59e0b",
+                          backgroundColor: "var(--color-warning-50)",
+                          borderLeft: "4px solid var(--color-warning-500)",
                           padding: "var(--space-3)",
                           marginBottom: "var(--space-4)",
                           borderRadius: "var(--radius-sm)",
                           fontSize: "13px",
-                          color: "#92400e"
+                          color: "var(--color-warning-700)"
                         }}
                       >
                         <strong>⚠️ WhatsApp Limitations:</strong> You can provide a maximum of <strong>3 options</strong> per question. Each option text must be <strong>20 characters or less</strong>.
@@ -1583,7 +1541,7 @@ export function ConfigEditorDrawer({
                                       className="whatsapp-bubble"
                                       style={{
                                         alignSelf: "flex-end",
-                                        background: "#d9fdd3",
+                                        background: "var(--color-whatsapp-bubble)",
                                         borderTopLeftRadius: "8px",
                                         borderTopRightRadius: "0"
                                       }}
@@ -1637,7 +1595,7 @@ export function ConfigEditorDrawer({
                                         className="whatsapp-bubble"
                                         style={{
                                           alignSelf: "flex-end",
-                                          background: "#d9fdd3", /* WhatsApp outbound bubble color */
+                                          background: "var(--color-whatsapp-bubble)", /* WhatsApp outbound bubble color */
                                           borderTopLeftRadius: "8px",
                                           borderTopRightRadius: "0"
                                         }}

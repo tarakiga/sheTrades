@@ -25,10 +25,6 @@ type MePayload = {
   };
 };
 
-type ProfilePayload = {
-  user: AdminSessionUser;
-};
-
 type AdminSessionContextValue = {
   status: "loading" | "authenticated" | "unauthenticated";
   user: AdminSessionUser | null;

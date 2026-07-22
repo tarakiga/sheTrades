@@ -112,7 +112,7 @@ export function RichTextEditor({ id, value, onChange, placeholder, label }: Rich
           border: isFocused ? "1px solid var(--color-brand-500)" : "1px solid var(--color-gray-300)",
           borderRadius: "var(--radius-md)",
           overflow: "hidden",
-          backgroundColor: "#fff",
+          backgroundColor: "var(--color-neutral-0)",
           transition: "border-color 0.2s ease, box-shadow 0.2s ease",
           boxShadow: isFocused ? "0 0 0 3px var(--color-brand-100)" : "none"
         }}

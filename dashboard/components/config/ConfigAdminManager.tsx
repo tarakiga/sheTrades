@@ -11,6 +11,7 @@ import {
   Select,
   Table
 } from "../ui";
+import type { TableColumn } from "../ui";
 import { CategoryManagementDrawer, type CategoryManagerItem } from "./CategoryManagementDrawer";
 import { ConfigEditorDrawer } from "./ConfigEditorDrawer";
 import { ConfigPreviewDrawer } from "./ConfigPreviewDrawer";
@@ -1907,7 +1908,7 @@ export function ConfigAdminManager({
               {
                 key: "title",
                 header: t("configAdmin.table.key", "Item"),
-                render: (value: any, row: any) => (
+                render: (value: unknown, row: Record<string, unknown>) => (
                   <div className="config-table__item">
                     <div className="config-table__title">
                       <span className="config-table__title-text">{String(value)}</span>
@@ -1937,7 +1938,7 @@ export function ConfigAdminManager({
               {
                 key: "status",
                 header: t("configAdmin.table.status", "Status"),
-                render: (value: any, row: any) => (
+                render: (value: unknown, row: Record<string, unknown>) => (
                   <div className="config-table__status">
                     <Badge variant={getVisibilityVariant(row.active === true)}>
                       {String(value)}
@@ -1948,17 +1949,17 @@ export function ConfigAdminManager({
               {
                 key: "draft",
                 header: t("configAdmin.table.draft", "Draft"),
-                render: (value: any) => <span className="config-table__version">{String(value)}</span>
+                render: (value: unknown) => <span className="config-table__version">{String(value)}</span>
               },
               {
                 key: "published",
                 header: t("configAdmin.table.published", "Live"),
-                render: (value: any) => <span className="config-table__version">{String(value)}</span>
+                render: (value: unknown) => <span className="config-table__version">{String(value)}</span>
               },
               {
                 key: "actions",
                 header: t("configAdmin.table.actions", "Actions"),
-                render: (_value: any, row: any) => (
+                render: (_value: unknown, row: Record<string, unknown>) => (
                   <div className="config-table__action-rail">
                     <IconActionButton
                       icon={<PreviewIcon />}
@@ -1988,7 +1989,7 @@ export function ConfigAdminManager({
                   </div>
                 )
               }
-            ] as any}
+            ] as Array<TableColumn<Record<string, unknown>>>}
             rows={filteredDocs.map((item) => ({
               key: item.document.key,
               title: item.document.title,
