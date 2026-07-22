@@ -44,15 +44,19 @@ export function createEmptyTranslationForm(): TranslationFormState {
 // Cloud Translation, and Nkọwa okwu only covers Igbo), so it can never
 // produce Pidgin. It is therefore never offered as a Pidgin provider option,
 // rather than being offered and rejected server-side.
+//
+// Anthropic is intentionally NOT offered yet: the backend adapter is a
+// documented stub (see backend/src/translation/providers/llm.ts). Offering it
+// would let an admin pick a dead end whose failure surfaces a developer-facing
+// message. Gemini covers both languages. Re-add these entries once the
+// Anthropic adapter is implemented — the type and backend already allow it.
 const PCM_PROVIDER_OPTIONS: Array<{ value: TranslationPidginProviderKey; label: string }> = [
-  { value: "gemini", label: "Gemini" },
-  { value: "anthropic", label: "Anthropic" }
+  { value: "gemini", label: "Gemini" }
 ];
 
 const IG_PROVIDER_OPTIONS: Array<{ value: TranslationIgboProviderKey; label: string }> = [
   { value: "igbo_api", label: "Igbo API" },
-  { value: "gemini", label: "Gemini" },
-  { value: "anthropic", label: "Anthropic" }
+  { value: "gemini", label: "Gemini" }
 ];
 
 export type TranslationSettingsFormProps = {
@@ -159,7 +163,7 @@ export function TranslationSettingsForm({
           disabled={disabled}
           options={IG_PROVIDER_OPTIONS}
           onChange={(next) => onChange("igProvider", next as TranslationIgboProviderKey)}
-          hint="Igbo API is a dedicated eng<->ibo translation service; Gemini and Anthropic are LLM alternatives."
+          hint="Igbo API is a dedicated eng<->ibo translation service; Gemini is the LLM alternative."
         />
       </div>
 
@@ -215,27 +219,13 @@ export function TranslationSettingsForm({
           {...withError(errors.geminiApiKey)}
         />
       </div>
-
-      <div className="integration-config-drawer__grid">
-        <Input
-          id="translation-anthropic-model"
-          label="Anthropic Model"
-          value={value.anthropicModel}
-          disabled={disabled}
-          onChange={(event) => onChange("anthropicModel", event.target.value)}
-          hint="Defaults to claude-sonnet-5."
-          {...withError(errors.anthropicModel)}
-        />
-        <SecretField
-          id="translation-anthropic-api-key"
-          label="Anthropic API Key"
-          value={value.anthropicApiKey}
-          disabled={disabled}
-          onChange={(next) => onChange("anthropicApiKey", next)}
-          hint="Used only when Anthropic is selected as a provider above."
-          {...withError(errors.anthropicApiKey)}
-        />
-      </div>
+      {/*
+        Anthropic credential fields are intentionally not rendered: Anthropic is
+        not offered as a provider yet (its backend adapter is a stub), so there
+        is nothing to configure. The form state still carries anthropic defaults
+        so the saved payload stays schema-valid; re-add these inputs when the
+        Anthropic adapter ships.
+      */}
 
       <Textarea
         id="translation-notes"
