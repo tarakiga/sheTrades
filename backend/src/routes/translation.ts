@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { z, ZodError } from "zod";
 import { authenticateJwt, requireRoles } from "../auth/jwt-rbac.js";
 import { getConfigPlatformService } from "../config-platform/service.js";
-import { getRuntimeTranslationConfig } from "../config-platform/runtime-config.js";
+import { getRuntimeTranslationConfig, refreshRuntimeConfigCache } from "../config-platform/runtime-config.js";
 import { providersSupporting } from "../translation/providers/contracts.js";
 import { runTranslation } from "../translation/runner.js";
 import { getDraft, listDrafts, saveReviewerEdits, setStatus } from "../translation/draft-store.js";
@@ -150,6 +150,12 @@ translationRouter.post("/:documentId/:language/promote", requireEditor, async (r
     const language = languageParamSchema.parse(req.params.language);
     const actor = { id: req.authUser?.id ?? "unknown", role: req.authUser?.role ?? ("viewer" as const) };
     await promoteDraft(actor, String(req.params.documentId), language);
+    // Promotion published the translation into the content document, but the bot
+    // serves lessons from an in-memory cache that is only rebuilt on refresh.
+    // Every mutating route in config-admin.ts refreshes after writing published
+    // content; without the same call here the webhook keeps serving the pre-
+    // promotion placeholder until the process restarts.
+    await refreshRuntimeConfigCache();
     res.status(200).json({ ok: true });
   } catch (error) {
     respondZodError(error, res, next);

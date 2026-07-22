@@ -3,8 +3,18 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import { createApp } from "../app.js";
 import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
-import { setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
-import { upsertMachineDraft } from "../translation/draft-store.js";
+import {
+  setRuntimeIntegrationConfigForTests,
+  refreshRuntimeConfigCache,
+  getRuntimeLessons
+} from "../config-platform/runtime-config.js";
+import { getConfigPlatformService } from "../config-platform/service.js";
+import { hashSource } from "../translation/extract.js";
+import {
+  upsertMachineDraft,
+  saveReviewerEdits,
+  setStatus
+} from "../translation/draft-store.js";
 
 const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
 
@@ -59,4 +69,60 @@ test("approving a machine_draft (skipping review) returns 409, not 500", { skip:
   const res = await request(app).post(`/api/admin/translation/${docId}/ig/approve`).set(auth);
   assert.equal(res.status, 409); // illegal transition machine_draft -> approved
   assert.match(res.body.message ?? "", /illegal transition/i);
+});
+
+// Regression: promoting a translation must make the bot serve it immediately.
+// The bot reads lessons from an in-memory cache; publishing into the content
+// document is not enough — the promote route must ALSO refresh that cache, the
+// same way every mutating config-admin route does. Before the fix the route
+// published the translation but left the cache stale, so the webhook kept
+// serving the pre-promotion placeholder (observed on m1_l2 pcm in staging).
+test("promoting a translation refreshes the runtime cache so the bot serves it", { skip: skipWithoutDb }, async () => {
+  const service = getConfigPlatformService();
+  const actor = { id: "promote-cache-test", role: "admin" as const };
+  const key = `content.lesson.promote_cache_${Date.now()}`;
+
+  // Publish a lesson whose Pidgin body is a placeholder, then prime the cache.
+  const created = await service.createDocument(actor, {
+    namespace: "content",
+    key,
+    type: "lesson_content",
+    title: "Promote Cache Lesson",
+    initialPayload: {
+      title: "Promote Cache Lesson",
+      module: "m1",
+      languages: { en: "Grow your business step by step.", pcm: "PCM PLACEHOLDER" },
+      quiz: []
+    }
+  });
+  await service.publishDocument(actor, created.document.id, { expectedDraftVersionId: created.draft.id });
+  await refreshRuntimeConfigCache();
+  const before = getRuntimeLessons().find((l) => l.key === key);
+  assert.equal(before?.languages.pcm, "PCM PLACEHOLDER");
+
+  // An approved Pidgin draft whose sourceHash matches the live English.
+  const published = await service.getPublishedDocumentByNamespaceKey("content", key);
+  const sourceHash = hashSource(published!.published.payload);
+  const translatedBody = "Grow your business small small.";
+  await upsertMachineDraft({
+    contentDocumentId: created.document.id,
+    contentKey: key,
+    targetLanguage: "pcm",
+    payload: { body: translatedBody, quiz: [] },
+    runSummary: null,
+    sourceHash
+  });
+  await saveReviewerEdits(created.document.id, "pcm", { body: translatedBody, quiz: [] });
+  await setStatus(created.document.id, "pcm", "approved");
+
+  const res = await request(app)
+    .post(`/api/admin/translation/${created.document.id}/pcm/promote`)
+    .set(auth);
+  assert.equal(res.status, 200);
+
+  // The bot's runtime view must reflect the promotion WITHOUT any manual
+  // refresh here — that is the behaviour the missing route call broke.
+  const after = getRuntimeLessons().find((l) => l.key === key);
+  assert.equal(after?.languages.pcm, translatedBody);
+  assert.equal(after?.languages.en, "Grow your business step by step.");
 });
