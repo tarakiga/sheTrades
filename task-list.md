@@ -221,6 +221,48 @@ effectively paying learners to misreport, corrupting the completion figures repo
   message) so content already in the database that violates the bounds is visible in logs.
   Deliberately not clamped: picking a correct answer would fabricate an assessment result.
 
+## Machine Translation Workflow (2026-07-22) — DONE
+
+Plan: `docs/superpowers/plans/2026-07-22-machine-translation-workflow.md`. Branch
+`feat/translation-provider-adapter`. Executed subagent-driven, two-stage review on the
+correctness-critical pieces.
+
+Bulk/single machine translation of the 43 lessons into Pidgin and Igbo, into a review draft
+area with the WhatsApp character gauges, promoted per-language into live content.
+
+- `[x]` Provider-agnostic adapters: Igbo API (eng↔ibo, one-string-per-request, daily cap) and
+  an LLM (Gemini complete; Anthropic a documented stub — load the claude-api skill to finish).
+  Provider chosen PER LANGUAGE (Igbo API can't produce Pidgin; only an LLM can honour the
+  20-char option budget).
+- `[x]` `translation_drafts` store + repository with forward-only review status
+  (machine_draft→in_review→approved→promoted); a re-run never overwrites reviewed work.
+- `[x]` Position-keyed extraction + reassembly BY ID — a provider that reorders/drops options
+  can't misalign answerIndex; a failed option stays English (reviewed adversarially).
+- `[x]` Quota-aware resumable runner — proven (translateCalls===0) that reviewed/up-to-date
+  work never hits the paid API; stops at the cap and resumes next run.
+- `[x]` Conflict-aware per-language promotion — changes only the target language, never
+  answerIndex, refuses if the lesson has a pending English edit, atomic via
+  expectedDraftVersionId (reviewed adversarially; branches executed).
+- `[x]` Admin routes (run/review/approve/promote + test connection), gated, business-rule
+  errors mapped to 409 not 500.
+- `[x]` Translations tab after Payouts: provider settings + Test Connection, and the review
+  workspace with the gauges (browser-verified: RED over-limit meters on title 39/24 and
+  option 28/20, full approve→promote state machine).
+- `[x]` Staleness: promote refuses if the English changed since translation; review list shows
+  an "English changed" badge.
+
+**Verification:** 72 translation tests pass / 3 skipped (DB-guarded); both packages typecheck
+clean; UI browser-verified via `/previews/components`.
+
+**Still open / for the operator:**
+- Set the Igbo API `dailyRequestLimit` to the key's REAL cap (docs say 2,500/day; operator
+  reported 500) before the first bulk run.
+- **Shorten the 27 over-1024-char English lessons before bulk-translating** — translations
+  inherit and worsen the overflow, or reviewers fix over-length copy twice.
+- Anthropic adapter is a stub (Gemini covers both languages with the operator's key).
+- The end-to-end run against real content + a real Gemini/Igbo key has NOT been exercised —
+  the paths are unit-tested but not run live.
+
 ### DEFERRED — circle back after translations (paused 2026-07-21)
 
 Both are intentionally parked, not forgotten. Neither blocks the Pidgin/Igbo work.

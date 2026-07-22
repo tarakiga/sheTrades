@@ -544,3 +544,51 @@ disclosed it; I re-verified HEAD, untracked files, both typechecks and the full 
 continuing. One casualty: a local modification to `dashboard/next-env.d.ts` was reverted to the
 committed version (auto-generated, regenerates on build). Later agents were instructed not to
 create worktrees.
+
+---
+
+## 2026-07-22 — Machine translation workflow (branch `feat/translation-provider-adapter`)
+
+Plan: `docs/superpowers/plans/2026-07-22-machine-translation-workflow.md`. 17 commits.
+
+Bulk/single machine translation of the 43 lessons into Nigerian Pidgin and Igbo. Machine output
+lands in a `translation_drafts` review store (never live content), is reviewed against the same
+WhatsApp character gauges the content form uses, and is promoted per-language into live content
+through the config platform's normal audited publish path.
+
+**Architecture — why per-language providers:** no single provider covers the need. The Igbo API
+(Nkọwa okwu) does eng↔ibo only, one string per request, under a daily cap — it CANNOT produce
+Pidgin. Pidgin only comes from an LLM, which is also the only provider that can be told the
+20-char WhatsApp button budget quiz options must fit. So `providerByLanguage: {pcm, ig}` selects
+an adapter per language; the Pidgin select is type-restricted to the LLM providers.
+
+**The two correctness-critical pieces (both adversarially reviewed):**
+- `extract.ts` — options extracted as position-keyed units (`q0.opt2`), reassembled BY ID not
+  provider order, so answerIndex can't be misaligned; a failed option becomes null → its whole
+  question stays English on promote.
+- `promote.ts` — merges only the target language, never touches answerIndex, refuses when the
+  lesson has a pending draft (would clobber an unfinished English edit), atomic via
+  publishDocument's expectedDraftVersionId, and refuses a stale translation (English changed
+  since it was made).
+
+**Runner** paces against the Igbo API daily cap (`dailyRequestLimit`, config not assumption),
+stops cleanly, and resumes — proven by test that reviewed/up-to-date lessons never reach the
+paid adapter (`translateCalls===0`).
+
+**Nothing auto-publishes.** Machine output is `machine_draft`; a human moves it in_review →
+approved; only approved promotes. Content teaches money decisions — the human gate is deliberate.
+
+**Verification:** 72 translation tests pass / 3 skipped (DB-guarded, ran green against local
+Postgres for the draft store). Both packages typecheck clean. UI browser-verified on
+`/previews/components` (RED over-limit gauges, approve→promote state machine, "English changed"
+badge). Full backend suite has 33 pre-existing DB-dependent route failures unrelated to this
+work (webhook 5/10 etc., unchanged; CI runs with Postgres).
+
+**Operator TODO before first use:**
+1. Configure + PUBLISH the Translation integration (Settings → Integration → Translations),
+   with a Gemini key (covers both languages). Set the Igbo API dailyRequestLimit to the key's
+   real cap (docs say 2,500/day; reported 500).
+2. **Shorten the 27 lessons whose English body exceeds 1024 chars FIRST** — translations run
+   longer and inherit the overflow; the gauges will show red on content that was already over.
+3. The Anthropic adapter is a documented stub (load the claude-api skill to finish it).
+4. End-to-end run against real content + a real key has NOT been exercised — unit-tested only.
