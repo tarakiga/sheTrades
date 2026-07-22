@@ -8,6 +8,7 @@ import {
   resetAdminPasswordRequestSchema,
   updateAdminRoleRequestSchema
 } from "../auth/contracts.js";
+import { sendAdminInviteEmail } from "../notifications/admin-invite-email.js";
 
 /**
  * Admin team management — create admins, change roles, suspend/reactivate,
@@ -71,7 +72,31 @@ adminTeamRouter.post("/", async (req, res, next) => {
     const actorId = req.authUser?.id ?? null;
     const admin = await authService.createAccount(body, actorId);
     logAction(actorId ?? "", "create", admin.id, { role: admin.role, email: admin.email });
-    res.status(201).json({ message: "Admin account created.", admin });
+
+    // Notify the new member that they have an account and should log in.
+    // Best-effort: the account already exists, so a mail failure (or no SMTP
+    // configured) must not turn a successful creation into an error.
+    const invite = await sendAdminInviteEmail({
+      fullName: body.fullName,
+      email: body.email,
+      role: admin.role,
+      invitedByName: null
+    });
+    if (invite.status === "sent") {
+      logAction(actorId ?? "", "invite_email_sent", admin.id);
+    } else {
+      console.log(
+        JSON.stringify({
+          event: "admin_team.invite_email",
+          status: invite.status,
+          reason: invite.reason,
+          targetId: admin.id,
+          updatedAt: new Date().toISOString()
+        })
+      );
+    }
+
+    res.status(201).json({ message: "Admin account created.", admin, invite });
   } catch (error) {
     respondError(error, res, next);
   }
