@@ -1,6 +1,6 @@
 import { Router } from "express";
-import type { NextFunction, Response } from "express";
-import { z } from "zod";
+import type { NextFunction, Request, Response } from "express";
+import { z, ZodError } from "zod";
 import { authenticateJwt, requireRoles } from "../auth/jwt-rbac.js";
 import { getConfigPlatformService } from "../config-platform/service.js";
 import { getRuntimeTranslationConfig } from "../config-platform/runtime-config.js";
@@ -124,4 +124,28 @@ translationRouter.post("/:documentId/:language/promote", requireEditor, async (r
   } catch (error) {
     respondZodError(error, res, next);
   }
+});
+
+// Map business-rule failures to actionable status codes so the review UI can
+// show the real message. Without this they fall through to the app's generic
+// handler, which returns 500 for anything not containing "not found" — turning
+// an expected "resolve the pending edit first" into a scary server error.
+translationRouter.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+  if (error instanceof ZodError) {
+    res.status(400).json({ message: "Invalid translation request.", details: error.issues.map((i) => i.message) });
+    return;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  if (/not found/i.test(message)) {
+    res.status(404).json({ message });
+    return;
+  }
+  // Conflicts and workflow-rule violations the operator can act on: the pending
+  // -draft refusal, illegal status transitions, approve/promote out of order,
+  // an unsupported provider/language pairing that reached the service.
+  if (/unpublished changes|only an approved|illegal transition|cannot edit|cannot produce|no published version/i.test(message)) {
+    res.status(409).json({ message });
+    return;
+  }
+  next(error); // genuinely unexpected -> the app's generic 500 handler
 });
