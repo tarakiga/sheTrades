@@ -12,9 +12,15 @@ import {
 } from "../integrations/connection-tests.js";
 import { payoutsIntegrationPayloadSchema } from "../payouts/providers/contracts.js";
 import { verifyPayoutsConfig } from "../payouts/providers/index.js";
+import { translationIntegrationPayloadSchema } from "../translation/providers/contracts.js";
+import { verifyTranslationConfig } from "../translation/providers/index.js";
 
 const testPayoutsConnectionRequestSchema = z.object({
   config: payoutsIntegrationPayloadSchema
+});
+
+const testTranslationConnectionRequestSchema = z.object({
+  config: translationIntegrationPayloadSchema
 });
 
 export const integrationsAdminRouter = Router();
@@ -66,6 +72,24 @@ integrationsAdminRouter.post("/payouts/test", async (req, res, next) => {
           : result.status === "degraded"
             ? "Payouts connection responded with warnings."
             : "Payouts connection test failed.",
+      result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+integrationsAdminRouter.post("/translation/test", async (req, res, next) => {
+  try {
+    const body = testTranslationConnectionRequestSchema.parse(req.body);
+    const result = await verifyTranslationConfig(body.config);
+    res.status(200).json({
+      message:
+        result.status === "healthy"
+          ? "Translation connection test succeeded."
+          : result.status === "degraded"
+            ? "Translation connection responded with warnings."
+            : "Translation connection test failed.",
       result
     });
   } catch (error) {

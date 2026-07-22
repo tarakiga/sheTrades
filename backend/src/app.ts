@@ -2,6 +2,7 @@ import express from "express";
 import { adminRouter } from "./routes/admin.js";
 import { adminAuthRouter } from "./routes/admin-auth.js";
 import { adminTeamRouter } from "./routes/admin-team.js";
+import { translationRouter } from "./routes/translation.js";
 import { getReadiness } from "./health/readiness.js";
 import { webhookRouter } from "./routes/webhook.js";
 import { learningRouter } from "./routes/learning.js";
@@ -88,6 +89,11 @@ export function createApp() {
   // /api/admin/team is handled by its own role-gated router rather than
   // falling through adminRouter's authenticateJwt middleware first.
   app.use("/api/admin/team", adminTeamRouter);
+  // Same reasoning as adminTeamRouter above: mount the translation admin API
+  // at its own prefix before the generic admin data router, so it is handled
+  // by its own JWT + editor/admin gating rather than falling through
+  // adminRouter's authenticateJwt middleware first.
+  app.use("/api/admin/translation", translationRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/config/admin", configAdminRouter);
   app.use("/api/config/public", configPublicRouter);
