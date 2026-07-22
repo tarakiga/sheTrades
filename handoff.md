@@ -657,3 +657,31 @@ report generation). None implemented yet — spec only.
 
 Verification: backend + dashboard typecheck clean; dashboard lint exit 0;
 `/privacy` renders 200 locally (fallback path).
+
+---
+
+## New-member invite email + dashboard em-dash sweep
+
+**Invite email (commit, deployed rev 00091-hbm).** Adding a team member in
+Settings → Admins now emails the new member a login prompt.
+`backend/src/notifications/admin-invite-email.ts` mirrors the help-request-email
+pattern (reuses the SMTP notification integration + shared transport; best-effort
+so a mail failure never fails account creation). Security: the email NEVER
+contains the password — it states the login email, links to /login, and asks the
+member to change the password after first sign-in. Login URL resolves
+config → env `ADMIN_DASHBOARD_URL` → first `BACKEND_CORS_ALLOWED_ORIGINS`
+origin + `/login`. 9 unit tests. Wired into `POST /api/admin/team`; the response
+now carries an `invite` status field.
+  - Optional: set `ADMIN_DASHBOARD_URL` (or the `admin.invite.login_url` config)
+    for a precise login link; otherwise it derives from the CORS origin.
+
+**Em-dash sweep (commit ee82480).** Replaced every em-dash (U+2014) with a hyphen
+across dashboard app/components/lib — 137 occurrences in 37 files (UI copy,
+comments, preview fixtures). Pure character swap, spacing preserved, arrows (→)
+untouched. typecheck + lint + format test all clean.
+  - Known loose end: the PUBLISHED privacy legal blocks (seeded from
+    `backend/src/config-platform/seed-legal-privacy.ts`) still contain em-dashes
+    in the policy prose, so the live /privacy body (which reads published config,
+    overriding the dashboard fallback) still shows them. To make the live page
+    em-dash-free, update the seed prose + re-run `seed:legal-privacy`, or edit the
+    `legal.privacy.policy` block in Settings → Legal.
