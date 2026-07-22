@@ -1,6 +1,6 @@
 import { getConfigPlatformService } from "../config-platform/service.js";
 import { getDraft, setStatus, type DraftStatus } from "./draft-store.js";
-import type { DraftPayload } from "./extract.js";
+import { hashSource, type DraftPayload } from "./extract.js";
 
 type LangVariants = { en?: string; pcm?: string; ig?: string };
 type LocalizedValue = string | LangVariants;
@@ -103,6 +103,19 @@ export async function promoteDraft(
     );
   }
   if (!doc.published) throw new Error("This lesson has no published version to translate.");
+
+  // Staleness guard: refuse to promote a translation of English that has since
+  // changed. Review can happen weeks after a run, and an English edit in the
+  // meantime is made by someone not thinking about the downstream translation.
+  // Without this, an approved Igbo/Pidgin translation of the OLD English would
+  // silently go live — on content that teaches money decisions. The draft's
+  // sourceHash was taken from the published English at run time; if the live
+  // English no longer hashes to it, the translation is stale and must be re-run.
+  if (draft.sourceHash && hashSource(doc.published.payload) !== draft.sourceHash) {
+    throw new Error(
+      "The English has changed since this was translated — re-run the translation before promoting."
+    );
+  }
 
   const merged = mergeTranslationIntoPayload(doc.published.payload, language, draft.payload as DraftPayload);
 

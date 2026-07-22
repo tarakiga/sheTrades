@@ -59,6 +59,8 @@ function buildFixtureDrafts(): TranslationDraftRow[] {
       status: "in_review",
       assignee: "Chiamaka N.",
       sourceHash: "fixture-hash-2",
+      // The English changed after this was translated — promotion will refuse.
+      stale: true,
       updatedAt: "2026-07-20T09:15:00.000Z",
       promotedAt: null
     },

@@ -8,6 +8,7 @@ import { providersSupporting } from "../translation/providers/contracts.js";
 import { runTranslation } from "../translation/runner.js";
 import { getDraft, listDrafts, saveReviewerEdits, setStatus } from "../translation/draft-store.js";
 import { promoteDraft } from "../translation/promote.js";
+import { hashSource } from "../translation/extract.js";
 
 export const translationRouter = Router();
 
@@ -48,7 +49,21 @@ translationRouter.get("/", async (_req, res, next) => {
     const lessons = result.items
       .filter((i) => i.document.key.startsWith("content.lesson.") && i.published)
       .map((i) => ({ id: i.document.id, key: i.document.key, title: i.document.title ?? i.document.key }));
-    res.status(200).json({ drafts, lessons });
+
+    // Annotate each draft with whether the live English has changed since it was
+    // translated, so the review list can flag stale drafts (the same condition
+    // that makes promotion refuse). Compare the draft's sourceHash against the
+    // hash of the lesson's current published English.
+    const hashByDoc = new Map<string, string>();
+    for (const i of result.items) {
+      if (i.published) hashByDoc.set(i.document.id, hashSource(i.published.payload));
+    }
+    const annotated = drafts.map((d) => ({
+      ...d,
+      stale: Boolean(d.sourceHash) && hashByDoc.get(d.contentDocumentId) !== d.sourceHash
+    }));
+
+    res.status(200).json({ drafts: annotated, lessons });
   } catch (error) {
     next(error);
   }
@@ -143,7 +158,7 @@ translationRouter.use((error: unknown, _req: Request, res: Response, next: NextF
   // Conflicts and workflow-rule violations the operator can act on: the pending
   // -draft refusal, illegal status transitions, approve/promote out of order,
   // an unsupported provider/language pairing that reached the service.
-  if (/unpublished changes|only an approved|illegal transition|cannot edit|cannot produce|no published version/i.test(message)) {
+  if (/unpublished changes|only an approved|illegal transition|cannot edit|cannot produce|no published version|english has changed/i.test(message)) {
     res.status(409).json({ message });
     return;
   }

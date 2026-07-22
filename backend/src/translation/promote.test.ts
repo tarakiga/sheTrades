@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mergeTranslationIntoPayload, promoteDraft } from "./promote.js";
+import { hashSource } from "./extract.js";
 
 const LIVE = {
   title: { en: "Shop" },
@@ -107,7 +108,9 @@ function fakeService(over: Record<string, unknown> = {}) {
 const ACTOR = { id: "admin-1", role: "admin" as const };
 const APPROVED_DRAFT = {
   contentDocumentId: "doc-1", contentKey: "content.lesson.a", targetLanguage: "ig",
-  status: "approved", payload: { title: "Ahia", body: "Igbo body", quiz: [{ question: "Q-ig", options: ["A-ig", "B-ig", "C-ig"] }] }
+  status: "approved", payload: { title: "Ahia", body: "Igbo body", quiz: [{ question: "Q-ig", options: ["A-ig", "B-ig", "C-ig"] }] },
+  // Matches the live English (LIVE) so the staleness guard passes on the happy path.
+  sourceHash: hashSource(LIVE)
 };
 
 test("promote refuses when the content document has a pending draft", async () => {
@@ -170,4 +173,17 @@ test("a failed publish leaves the draft un-promoted", async () => {
     setStatusFn: async (_d: string, _l: string, to: string) => { promotedTo = to; return APPROVED_DRAFT as never; }
   }));
   assert.equal(promotedTo, ""); // setStatus("promoted") was never reached
+});
+
+test("promote refuses when the English has changed since translation (stale)", async () => {
+  // The draft was translated from a DIFFERENT English than what is live now.
+  const { service } = fakeService();
+  await assert.rejects(
+    () => promoteDraft(ACTOR, "doc-1", "ig", {
+      service: service as never,
+      getDraftFn: async () => ({ ...APPROVED_DRAFT, sourceHash: "STALE-HASH-FROM-OLD-ENGLISH" }) as never,
+      setStatusFn: async () => APPROVED_DRAFT as never
+    }),
+    /english has changed/i
+  );
 });

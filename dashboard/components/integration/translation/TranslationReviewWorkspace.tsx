@@ -49,6 +49,9 @@ export type TranslationDraftRow = {
   status: TranslationDraftStatus;
   assignee: string | null;
   sourceHash: string;
+  /** Set by the list endpoint when the live English has changed since this was
+   * translated — promotion will refuse until it is re-run. */
+  stale?: boolean;
   updatedAt: string;
   promotedAt: string | null;
 };
@@ -304,7 +307,10 @@ export function TranslationDraftTable({
             key: "flagsLabel",
             header: "Flags",
             render: (value, row) => (
-              <Badge variant={hasFlags(row.raw.runSummary) ? "danger" : "neutral"}>{String(value)}</Badge>
+              <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                <Badge variant={hasFlags(row.raw.runSummary) ? "danger" : "neutral"}>{String(value)}</Badge>
+                {row.raw.stale ? <Badge variant="warning">English changed</Badge> : null}
+              </div>
             )
           },
           {
