@@ -685,3 +685,33 @@ untouched. typecheck + lint + format test all clean.
     overriding the dashboard fallback) still shows them. To make the live page
     em-dash-free, update the seed prose + re-run `seed:legal-privacy`, or edit the
     `legal.privacy.policy` block in Settings → Legal.
+
+---
+
+## White-label branding, legal rich-text editor, loose ends
+
+**Loose ends.** Removed em-dashes from the privacy seed prose and re-seeded, so
+the live /privacy body is em-dash-free. The team-invite login URL is pinned via
+the new `admin.invite.login_url` config (resolves to https://she-trades.vercel.app/login).
+
+**White-label branding (commits b681d51, 5142f5a).** New config-driven branding
+layer. A `branding.identity` content doc holds organisationName + primary/
+secondary/accent colours + fontFamily, edited from Settings → Branding (new tab
+after Admins) with draft/publish. `getRuntimeBranding()` (backend) feeds the org
+name into the bot welcome + help/invite emails; `getBranding()` + BrandingProvider
+(dashboard) inject the brand/accent/font tokens as inherited CSS custom properties
+on <body> (re-theming the whole component library) and supply the org name to the
+shell, login, entry, and page metadata. Values sanitised; no innerHTML. Functional
+strings (the "Hello SheTrades" bot trigger, X-SheTrades-Source header) left as-is.
+Run `seed:branding` to (re)publish the baseline. Deployed backend 00092-9t6;
+branding.identity + admin.invite.login_url published to staging.
+
+**Legal rich-text editor (commit 9fc9805).** Legal blocks now open in a form with
+a Visual/Raw JSON toggle (like content): title, per-language rich-text body
+(en/pcm/ig), compliance tag, effective date. Legal has its own parse+serialise
+effect and the content serialiser early-returns for legal, so the shapes can't
+cross-contaminate (also fixes a latent legal-misserialisation bug).
+
+Verified: backend + dashboard typecheck + lint clean; branding renders in SSR
+(body theme vars + org name present); pages 200. Interactive check of the legal
+drawer and a live branding change still worth an eyeball on the deployed app.
