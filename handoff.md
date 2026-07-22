@@ -619,3 +619,41 @@ from the DB, so the already-promoted m1_l2 pcm now serves correctly too.
 **Known limitation:** the refresh is per-process/per-instance (same as config-admin). If staging
 autoscales beyond one instance, a promote refreshes only the instance that served the request;
 others catch up on next deploy/restart. Acceptable for the pinned single-instance staging.
+
+---
+
+## Full-page audit follow-up: privacy config, ESLint repair, coming-soon spec
+
+Three deliverables from the page audit (see the audit findings for context):
+
+**1. Privacy policy fully config-driven (commit cc8d41d).**
+`/privacy` no longer hardcodes org name / effective date / contact email in its
+header. All three plus the policy body read from the `legal` namespace
+(`legal.privacy.org_name`, `legal.privacy.contact_email`, `legal.privacy.policy`),
+with the in-code values kept as safe fallbacks. Fixed the override to read the
+real legal_block field (`body.en`, legacy `{en}` tolerated) and format the date
+from `effectiveFrom`. New `npm run seed:legal-privacy -w @shetrades/backend`
+creates + publishes these three legal blocks so they appear in Settings → Legal.
+  - **Operator action:** run the seed against staging to populate the Legal tab:
+    `ADMIN_CONFIG_JWT_SECRET=<secret> LEGAL_PRIVACY_SEED_BASE_URL=<staging-url> npm run seed:legal-privacy -w @shetrades/backend`
+    (or create the three legal blocks by hand in the Legal tab). Until then the
+    page renders the built-in fallbacks. Set the real client privacy email there.
+
+**2. ESLint repaired + all 43 errors cleared + inline colors tokenized (commit 24efe8c).**
+Root cause: dashboard had no local ESLint config, so lint fell back to the root
+config which lacked the React/Next plugins the source references via
+eslint-disable directives (→ "rule not found"), and `next build` didn't lint —
+so dead code + `any` accumulated. Added `eslint-plugin-react-hooks` +
+`@next/eslint-plugin-next` and `dashboard/eslint.config.mjs`. Removed dead code,
+replaced `any` with real types, tokenized hardcoded colours (new
+`--color-whatsapp-bubble` token). `npm run lint` now exits 0 (20 advisory
+exhaustive-deps warnings remain, non-blocking).
+
+**3. Spec for the 7 "coming soon" features** — `docs/coming-soon-features-spec.md`.
+Per-feature purpose, backend/endpoint, data model, config-driven notes,
+acceptance criteria, effort (S/M/L), and priority. Cheapest wins: the two CSV
+exports + the analytics-setup deep link. Heaviest: report scheduling (depends on
+report generation). None implemented yet — spec only.
+
+Verification: backend + dashboard typecheck clean; dashboard lint exit 0;
+`/privacy` renders 200 locally (fallback path).
