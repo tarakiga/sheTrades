@@ -1011,3 +1011,39 @@ builder controls exist; marking them is a content task in the admin.
   them changes the programme's cost model, so import is paused until the
   pricing impact is understood. Ref:
   https://merltech.org/meta-just-dropped-a-bomb-on-the-development-humanitarian-sectors-heres-why/
+
+## CS-7 Report Scheduling shipped (2026-07-23)
+
+CS-5 (learner CSV import) is ON HOLD (see above - Meta pricing change). CS-7 is live
+on staging: standing schedules that generate a report preset and email the CSV.
+
+How it fits together:
+- Schedule = presetId + cadenceKey + recipients[], stored in `report_schedules`
+  (migration 20260723120000, applied; ensurePrismaTables mirrors it).
+- Cadence OFFERINGS are config (`reports.cadence_options`, metadata
+  {kind, hourUtc, weekdayUtc?/dayOfMonthUtc?} in UTC); code only knows how to
+  compute "next occurrence" for daily/weekly/monthly kinds.
+- Recipients are per-schedule data; the drawer's picker is fed from the admin
+  team (/api/admin/team) + `reports.recipient_directory` (external stakeholders,
+  config-governed; sample entry ships DISABLED). One-off emails allowed, validated.
+- Email subject/body are config ui_copy (`reports.schedule.email_subject`/`_body`)
+  with {{orgName}} {{reportLabel}} {{period}} {{fileName}} {{cadenceLabel}}.
+  One message per recipient (addresses stay private); CSV attached.
+- Execution: Cloud Scheduler job `shetrades-reports-dispatcher-staging`
+  (*/15 min) -> POST /internal/reports/schedules/dispatch (X-Internal-Worker-Token;
+  REPORTS_WORKER_TOKEN or fallback PAYOUTS_WORKER_TOKEN - currently the payouts
+  secret drives both). Claim = optimistic updateMany on nextRunAt (no double-send
+  across instances); missed slots are NOT replayed (next run computed from now).
+  Export requestId = schedule:{id}:{slot} for idempotency in the export pipeline.
+- Failure handling: unresolvable cadence parks the schedule (enabled=false, detail
+  says why); SMTP unconfigured -> lastRunStatus "skipped"; partial recipient
+  failures listed in lastRunDetail.
+
+Verified on staging (rev 00099-xll + attribution-fix redeploy): create -> run-now
+returned "sent" with donor_summary CSV emailed to the operator (tar112@gmail.com -
+check inbox for proof); dispatch tick 403 without token, {due:0,outcomes:[]} with;
+next-run correctly Mon 08:00 UTC. The test schedule is left PAUSED on /reports.
+
+Open follow-ups: consider a dedicated reports-worker-token secret (currently reuses
+payouts token, same trust tier); edit-in-place for schedules (v1 = recreate);
+report date-ranges + real PDF remain v2 items from the CS-6 spec.

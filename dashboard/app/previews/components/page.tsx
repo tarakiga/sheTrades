@@ -32,6 +32,7 @@ import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { BrandingEditorPreview } from "./BrandingEditorPreview";
 import { ContactLearnerPreview } from "./ContactLearnerPreview";
 import { GenerateReportPreview } from "./GenerateReportPreview";
+import { ReportSchedulePreview } from "./ReportSchedulePreview";
 import { FunnelBarsPreview } from "./FunnelBarsPreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
@@ -506,6 +507,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <GenerateReportPreview />
+        </Card>
+
+        <Card
+          title={t("preview.reportSchedule.title", "Report Schedule - recurring emailed exports")}
+          description={t(
+            "preview.reportSchedule.description",
+            "Preview the schedule-creation drawer: config-driven preset and cadence pickers, the two-source recipient picker (team + directory), and the validated one-off email flow (empty pickers and error-on-create shown here - the gallery has no backend)."
+          )}
+        >
+          <ReportSchedulePreview />
         </Card>
 
         <Card

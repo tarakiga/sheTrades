@@ -182,6 +182,35 @@ model OutboundMessage {
   @@map("outbound_messages")
 }
 
+/// CS-7: a standing instruction to generate a report on a cadence and email it.
+/// Cadence semantics (weekly/monthly/…) come from the reports.cadence_options
+/// config option set; this row stores the chosen option's value plus a snapshot
+/// of its metadata so an unattended run still works if the option set changes
+/// underneath it. recipients is [{ email, label? }].
+model ReportSchedule {
+  id              String    @id @default(uuid())
+  presetId        String
+  /// Report type resolved from the preset's config metadata at save time.
+  /// The worker re-resolves from live config first and falls back to this,
+  /// so a schedule survives a preset being edited or unpublished.
+  reportType      String
+  cadenceKey      String
+  cadenceSnapshot Json
+  recipients      Json
+  enabled         Boolean   @default(true)
+  lastRunAt       DateTime?
+  lastRunStatus   String?
+  lastRunDetail   String?
+  nextRunAt       DateTime
+  createdBy       String
+  updatedBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([enabled, nextRunAt])
+  @@map("report_schedules")
+}
+
 /// GAP-D1: admin sessions were held in an in-memory Map, so a session minted on
 /// one Cloud Run instance was invalid on another and every session was dropped
 /// when the service scaled to zero — logging admins out unpredictably.

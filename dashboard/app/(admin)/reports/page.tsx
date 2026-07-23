@@ -2,21 +2,28 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  deleteReportSchedule,
   downloadAdminCsv,
   getReportJobs,
+  getReportSchedules,
   getReportsPageData,
   reportDownloadEndpoint,
-  type ReportJobRow
+  runReportScheduleNow,
+  updateReportSchedule,
+  type ReportJobRow,
+  type ReportScheduleRow
 } from "../../../lib/admin/api";
 import type { ApiResult, ReportsPageData } from "../../../lib/admin/contracts";
 import { fetchPublicOptionSet } from "../../../lib/config/options";
 import { GenerateReportDrawer } from "../../../components/reports/GenerateReportDrawer";
+import { ReportScheduleDrawer } from "../../../components/reports/ReportScheduleDrawer";
 import {
   AdminReviewTableShell,
   AdminReviewWorkspace,
   Badge,
   Button,
   Card,
+  ConfirmationModal,
   EmptyState,
   Table,
   Tabs
@@ -117,6 +124,34 @@ export default function ReportsPage() {
   useEffect(() => {
     void loadJobs();
   }, [loadJobs]);
+
+  // Standing schedules (CS-7).
+  const [schedules, setSchedules] = useState<ReportScheduleRow[]>([]);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleBusyId, setScheduleBusyId] = useState<string | null>(null);
+  const [scheduleNote, setScheduleNote] = useState<string | null>(null);
+  const [scheduleToDelete, setScheduleToDelete] = useState<ReportScheduleRow | null>(null);
+  const loadSchedules = useCallback(async () => {
+    const schedulesResult = await getReportSchedules();
+    setSchedules(schedulesResult.data.schedules);
+  }, []);
+  useEffect(() => {
+    void loadSchedules();
+  }, [loadSchedules]);
+
+  async function withScheduleBusy(id: string, action: () => Promise<string | null>) {
+    setScheduleBusyId(id);
+    setScheduleNote(null);
+    try {
+      const note = await action();
+      if (note) setScheduleNote(note);
+      await loadSchedules();
+    } catch (error) {
+      setScheduleNote(error instanceof Error ? error.message : "Schedule action failed.");
+    } finally {
+      setScheduleBusyId(null);
+    }
+  }
 
   const presetLabelByReportType = useMemo(() => {
     const map: Record<string, string> = {};
@@ -267,17 +302,89 @@ export default function ReportsPage() {
 
           <Card
             title="Scheduled Jobs"
-            description="No scheduled report jobs configured yet."
+            description="Standing schedules that generate a report and email it automatically."
           >
-            <EmptyState
-              title="No scheduled report jobs"
-              description="Create scheduled jobs to automatically generate donor and operations reports."
-              action={
-                <Button variant="secondary" disabled>
-                  Create Schedule (coming soon)
+            {schedules.length === 0 ? (
+              <EmptyState
+                title="No scheduled report jobs"
+                description="Create a schedule to generate and email partner or operations reports automatically."
+                action={
+                  <Button variant="secondary" onClick={() => setScheduleOpen(true)}>
+                    Create Schedule
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="schedule-list">
+                <ul className="schedule-list__items">
+                  {schedules.map((schedule) => {
+                    const busy = scheduleBusyId === schedule.id;
+                    return (
+                      <li key={schedule.id} className="schedule-list__item">
+                        <div className="schedule-list__head">
+                          <span className="schedule-list__name">{schedule.presetLabel}</span>
+                          <Badge variant={schedule.enabled ? "success" : "neutral"}>
+                            {schedule.enabled ? "Active" : "Paused"}
+                          </Badge>
+                        </div>
+                        <p className="schedule-list__meta">
+                          {schedule.cadenceLabel} · {schedule.recipients.length}{" "}
+                          {schedule.recipients.length === 1 ? "recipient" : "recipients"}
+                        </p>
+                        <p className="schedule-list__meta">
+                          Next run: {new Date(schedule.nextRunAt).toLocaleString()}
+                          {schedule.lastRunAt
+                            ? ` · Last run ${schedule.lastRunStatus ?? "unknown"} (${new Date(schedule.lastRunAt).toLocaleString()})`
+                            : " · Never run"}
+                        </p>
+                        <div className="schedule-list__actions">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() =>
+                              void withScheduleBusy(schedule.id, async () => {
+                                const result = await runReportScheduleNow(schedule.id);
+                                return result.outcome.detail;
+                              })
+                            }
+                          >
+                            Run Now
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() =>
+                              void withScheduleBusy(schedule.id, async () => {
+                                await updateReportSchedule(schedule.id, {
+                                  enabled: !schedule.enabled
+                                });
+                                return null;
+                              })
+                            }
+                          >
+                            {schedule.enabled ? "Pause" : "Resume"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => setScheduleToDelete(schedule)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {scheduleNote ? <p className="schedule-list__note">{scheduleNote}</p> : null}
+                <Button variant="secondary" onClick={() => setScheduleOpen(true)}>
+                  Create Schedule
                 </Button>
-              }
-            />
+              </div>
+            )}
           </Card>
 
           <Card
@@ -311,6 +418,38 @@ export default function ReportsPage() {
       presets={generatablePresets}
       onGenerated={() => {
         void loadJobs();
+      }}
+    />
+
+    <ReportScheduleDrawer
+      open={scheduleOpen}
+      onClose={() => setScheduleOpen(false)}
+      presets={generatablePresets}
+      onCreated={() => {
+        void loadSchedules();
+      }}
+    />
+
+    <ConfirmationModal
+      open={scheduleToDelete !== null}
+      title="Delete schedule?"
+      description={
+        scheduleToDelete
+          ? `The ${scheduleToDelete.presetLabel} schedule (${scheduleToDelete.cadenceLabel}) will stop running and its recipient list will be removed. This cannot be undone.`
+          : ""
+      }
+      confirmLabel="Delete Schedule"
+      tone="danger"
+      loading={scheduleBusyId === scheduleToDelete?.id}
+      onCancel={() => setScheduleToDelete(null)}
+      onConfirm={() => {
+        if (!scheduleToDelete) return;
+        const target = scheduleToDelete;
+        void withScheduleBusy(target.id, async () => {
+          await deleteReportSchedule(target.id);
+          setScheduleToDelete(null);
+          return null;
+        });
       }}
     />
     </>

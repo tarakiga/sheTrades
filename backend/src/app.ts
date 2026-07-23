@@ -14,6 +14,7 @@ import { configPublicRouter } from "./routes/config-public.js";
 import { integrationsAdminRouter } from "./routes/integrations-admin.js";
 import { translationRequestsRouter } from "./routes/translation-requests.js";
 import { payoutsRouter } from "./payouts/routes.js";
+import { reportSchedulesWorkerRouter } from "./reports/schedule-routes.js";
 
 const DEFAULT_LOCAL_CORS_ORIGINS = [
   "http://localhost:3000",
@@ -105,6 +106,7 @@ export function createApp() {
   app.use("/api", translationRequestsRouter);
   app.use("/webhook", webhookRouter);
   app.use("/", payoutsRouter);
+  app.use("/", reportSchedulesWorkerRouter);
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error("Unhandled express error:", error);

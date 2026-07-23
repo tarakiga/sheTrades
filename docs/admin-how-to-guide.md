@@ -157,3 +157,36 @@ _Maintained alongside the codebase. The features above map to: Settings tabs
 (Options/Legal/Integration/Rewards/Admins), Content, the config-platform
 draft/publish workflow, and the admin-team management API
 (`/api/admin/team`)._
+
+## 7. Scheduled reports (Reports → Scheduled Jobs)
+
+A schedule generates a report preset on a cadence and emails the CSV to a
+recipient list automatically.
+
+**Create one:** Reports → Scheduled Jobs → Create Schedule. Pick a preset
+(managed in `reports.presets`), a cadence (managed in
+`reports.cadence_options`), and recipients. Recipients come from three places:
+
+1. **Your admin team** - active members from Settings → Admins appear
+   automatically.
+2. **The recipient directory** (`reports.recipient_directory` under Settings →
+   Options) - external stakeholders (partner M&E contacts, client finance)
+   who should receive reports but have no dashboard login. Add them once
+   there (value = email, label = who it reaches), publish, and they appear in
+   every schedule's picker. This list is version-controlled and attributed,
+   so you always have a record of who receives beneficiary data. Disabling an
+   entry there removes the person from future sends across all schedules.
+3. **A one-off email** typed into the drawer - for recipients you do not want
+   in the directory.
+
+**Manage:** each schedule card shows cadence, recipient count, next run and
+last run outcome. Pause/Resume stops or restarts it (resuming never back-fills
+missed runs); Run Now sends immediately without touching the cadence; Delete
+(admin role only) asks for confirmation.
+
+**Email copy:** subject and body live in `reports.schedule.email_subject` /
+`reports.schedule.email_body` (Settings → Config, content namespace) with
+placeholders {{orgName}}, {{reportLabel}}, {{period}}, {{fileName}},
+{{cadenceLabel}}. Sending uses the same SMTP integration as team invites
+(Settings → Integration); if SMTP is disabled, runs record "skipped" instead
+of failing silently.

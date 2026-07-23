@@ -8,15 +8,15 @@ component-library rule (compose from `components/ui`, no one-off UI).
 
 Legend — **Effort**: S ≈ <1 day, M ≈ 1–3 days, L ≈ 3+ days.
 
-| # | Feature | Page | Effort | Priority |
-|---|---------|------|--------|----------|
-| 1 | Download CSV (analytics) | `/analytics` | S | High |
-| 2 | Export Summary (overview) | `/dashboard` | S | Medium |
-| 3 | Review Analytics Setup | `/analytics` | S | Medium |
-| 4 | Contact learner | `/users` | M | High |
-| 5 | Create Import Batch | `/users` | L | Medium |
-| 6 | Generate Report | `/reports` | M | Medium |
-| 7 | Create Schedule | `/reports` | L | Low |
+| # | Feature | Page | Effort | Priority | Status |
+|---|---------|------|--------|----------|--------|
+| 1 | Download CSV (analytics) | `/analytics` | S | High | Shipped |
+| 2 | Export Summary (overview) | `/dashboard` | S | Medium | Shipped |
+| 3 | Review Analytics Setup | `/analytics` | S | Medium | Shipped (as retry CTA) |
+| 4 | Contact learner | `/users` | M | High | Shipped |
+| 5 | Create Import Batch | `/users` | L | Medium | ON HOLD (operator call, 2026-07-23: Meta per-message pricing from Oct 2026 changes bulk-onboarding economics) |
+| 6 | Generate Report | `/reports` | M | Medium | Shipped |
+| 7 | Create Schedule | `/reports` | L | Low | Shipped (2026-07-23) |
 
 The two CSV exports (1, 2) and the setup shortcut (3) are the cheapest wins and
 reuse infrastructure that already exists (`downloadAdminCsv`, the config editor).

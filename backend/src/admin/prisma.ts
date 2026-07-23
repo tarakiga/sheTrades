@@ -196,6 +196,35 @@ export async function ensurePrismaTables() {
       `CREATE INDEX IF NOT EXISTS outbound_messages_phone_created_idx ON outbound_messages ("phone", "createdAt");`
     );
 
+    // report_schedules — CS-7: standing report-generation + email schedules.
+    // Keep in sync with the ReportSchedule model in schema.prisma.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS report_schedules (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["presetId", "TEXT"],
+      ["reportType", "TEXT"],
+      ["cadenceKey", "TEXT"],
+      ["cadenceSnapshot", "JSONB NOT NULL DEFAULT '{}'::jsonb"],
+      ["recipients", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
+      ["enabled", "BOOLEAN NOT NULL DEFAULT true"],
+      ["lastRunAt", "TIMESTAMP(3)"],
+      ["lastRunStatus", "TEXT"],
+      ["lastRunDetail", "TEXT"],
+      ["nextRunAt", "TIMESTAMP(3)"],
+      ["createdBy", "TEXT NOT NULL DEFAULT ''"],
+      ["updatedBy", "TEXT NOT NULL DEFAULT ''"],
+      ["createdAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"],
+      ["updatedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE report_schedules ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "report_schedules_enabled_nextRunAt_idx" ON report_schedules ("enabled", "nextRunAt");`
+    );
+
     // users
     await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);

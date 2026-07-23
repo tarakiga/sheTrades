@@ -307,3 +307,16 @@ Confirmed constraints from the codebase:
 - `[x]` AUM-D1: Typecheck + build (backend + dashboard); run new tests; manual e2e on staging (create → login as new admin → suspend → login blocked → reactivate).
 - `[x]` AUM-D2: Document in `docs/admin-how-to-guide.md` (ties into GAP-G1): managing admins, roles, suspension, password resets.
 - `[x]` AUM-D3: Deploy backend (Cloud Run) + push (Vercel); update handoff.md.
+
+## CS-7: Report Scheduling (2026-07-23) - SHIPPED
+Recurring "generate + email" report schedules per docs/coming-soon-features-spec.md #7,
+with the two-layer recipient model the operator approved (per-schedule recipients; pickers
+fed from the admin team + the reports.recipient_directory option set).
+- `[x]` CS7-1: `report_schedules` table (Prisma model + migration `20260723120000_report_schedules` applied on staging + ensurePrismaTables mirror).
+- `[x]` CS7-2: Config seeds published to staging: `reports.cadence_options` (metadata drives next-run), `reports.recipient_directory` (sample shipped disabled), `reports.schedule.email_subject` / `.email_body` ({{placeholder}} templates).
+- `[x]` CS7-3: Admin CRUD + run-now under `/api/admin/reports/schedules` (create/delete admin-only; pause/resume/run editor+; audit-logged with actor fallback to JWT sub).
+- `[x]` CS7-4: Worker engine in `backend/src/reports/schedule-service.ts`: optimistic nextRunAt claim (no cross-instance double-send), slot-keyed export requestId, per-recipient email with CSV attachment, no backlog replay, cadence-gone parking. Dispatch route `/internal/reports/schedules/dispatch` (worker token, payouts pattern).
+- `[x]` CS7-5: Cloud Scheduler job `shetrades-reports-dispatcher-staging` (*/15, Africa/Lagos) created and ENABLED.
+- `[x]` CS7-6: Dashboard: `ReportScheduleDrawer` (preset + cadence + two-source recipient picker + validated one-off email), live Scheduled Jobs card (list, pause/resume, run now, delete w/ confirm), gallery story. Verified in browser.
+- `[x]` CS7-7: 9 new backend tests (next-run engine incl. month clamping, cadence metadata contract, input normalisation, email templating, dispatch guard) - suite 411/0 fail/42 skipped.
+- `[x]` CS7-8: Staging e2e: created weekly Partner schedule, run-now returned status "sent" ("Sent donor_summary-2026-07-23.csv to tar112@gmail.com"), dispatch tick {due:0} with token + 403 without, schedule left PAUSED for operator inspection.

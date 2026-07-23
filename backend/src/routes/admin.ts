@@ -17,6 +17,13 @@ import {
   listReportSchemas,
   requestReportExport
 } from "../reports/export-service.js";
+import {
+  createSchedule,
+  deleteSchedule,
+  listSchedules,
+  runScheduleNow,
+  updateSchedule
+} from "../reports/schedule-service.js";
 import { randomUUID } from "node:crypto";
 import {
   getRuntimeOptionSet,
@@ -560,6 +567,129 @@ adminRouter.post("/reports/generate", requireWriteAccess, async (req, res, next)
       res.status(400).json({ message: error.issues[0]?.message ?? "Invalid request." });
       return;
     }
+    next(error);
+  }
+});
+
+// ---- Report schedules (CS-7) ----
+// Standing "generate + email on a cadence" instructions. Recipients are data
+// on each schedule; the pickers that feed them (admin team, the
+// reports.recipient_directory option set) are managed elsewhere. Deleting and
+// creating schedules is admin-only; editors may pause/resume and run now.
+
+const requireAdminOnly = requireRoles(["admin"]);
+
+// Dashboard logins carry a session (authUser); service tokens (seeds, ops
+// scripts) only carry JWT claims. Fall back to the token subject so the
+// compliance-sensitive schedule audit trail never records "unknown" for a
+// legitimately authenticated caller.
+function scheduleActorId(req: Request): string {
+  return req.authUser?.id ?? req.auth?.sub ?? "unknown";
+}
+
+adminRouter.get("/reports/schedules", async (_req, res, next) => {
+  try {
+    res.status(200).json({ schedules: await listSchedules() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/reports/schedules", requireAdminOnly, async (req, res, next) => {
+  try {
+    const result = await createSchedule(req.body, scheduleActorId(req));
+    if (!result.ok) {
+      res.status(result.status).json({ message: result.message });
+      return;
+    }
+    console.log(
+      JSON.stringify({
+        event: "admin.report_schedule.created",
+        scheduleId: result.schedule.id,
+        presetId: result.schedule.presetId,
+        cadenceKey: result.schedule.cadenceKey,
+        recipientCount: result.schedule.recipients.length,
+        actorId: req.authUser?.id ?? null,
+        updatedAt: new Date().toISOString()
+      })
+    );
+    res.status(201).json({ message: "Schedule created.", schedule: result.schedule });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ message: error.issues[0]?.message ?? "Invalid request." });
+      return;
+    }
+    next(error);
+  }
+});
+
+adminRouter.patch("/reports/schedules/:id", requireWriteAccess, async (req, res, next) => {
+  try {
+    const result = await updateSchedule(String(req.params.id), req.body, scheduleActorId(req));
+    if (!result.ok) {
+      res.status(result.status).json({ message: result.message });
+      return;
+    }
+    console.log(
+      JSON.stringify({
+        event: "admin.report_schedule.updated",
+        scheduleId: result.schedule.id,
+        enabled: result.schedule.enabled,
+        actorId: req.authUser?.id ?? null,
+        updatedAt: new Date().toISOString()
+      })
+    );
+    res.status(200).json({ message: "Schedule updated.", schedule: result.schedule });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ message: error.issues[0]?.message ?? "Invalid request." });
+      return;
+    }
+    next(error);
+  }
+});
+
+adminRouter.delete("/reports/schedules/:id", requireAdminOnly, async (req, res, next) => {
+  try {
+    const result = await deleteSchedule(String(req.params.id));
+    if (!result.ok) {
+      res.status(result.status).json({ message: result.message });
+      return;
+    }
+    console.log(
+      JSON.stringify({
+        event: "admin.report_schedule.deleted",
+        scheduleId: String(req.params.id),
+        actorId: req.authUser?.id ?? null,
+        updatedAt: new Date().toISOString()
+      })
+    );
+    res.status(200).json({ message: "Schedule deleted." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/reports/schedules/:id/run", requireWriteAccess, async (req, res, next) => {
+  try {
+    const result = await runScheduleNow(String(req.params.id));
+    if (!result.ok) {
+      res.status(result.status).json({ message: result.message });
+      return;
+    }
+    console.log(
+      JSON.stringify({
+        event: "admin.report_schedule.manual_run",
+        scheduleId: String(req.params.id),
+        status: result.outcome.status,
+        actorId: req.authUser?.id ?? null,
+        updatedAt: new Date().toISOString()
+      })
+    );
+    // 200 even for failed/skipped runs: the REQUEST succeeded, the outcome is
+    // data the drawer surfaces (e.g. "SMTP not configured").
+    res.status(200).json({ message: "Run finished.", outcome: result.outcome });
+  } catch (error) {
     next(error);
   }
 });

@@ -340,3 +340,98 @@ export function getReportJobs() {
 export function reportDownloadEndpoint(exportId: string): string {
   return `/api/admin/reports/exports/${encodeURIComponent(exportId)}/download`;
 }
+
+// ---- Report schedules (CS-7) ----
+
+export type ScheduleRecipient = { email: string; label?: string };
+
+export type ReportScheduleRow = {
+  id: string;
+  presetId: string;
+  presetLabel: string;
+  reportType: string;
+  cadenceKey: string;
+  cadenceLabel: string;
+  recipients: ScheduleRecipient[];
+  enabled: boolean;
+  lastRunAt: string | null;
+  lastRunStatus: string | null;
+  lastRunDetail: string | null;
+  nextRunAt: string;
+  createdBy: string;
+  updatedBy: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ScheduleRunOutcome = {
+  scheduleId: string;
+  status: "sent" | "failed" | "skipped";
+  detail: string;
+};
+
+export function getReportSchedules() {
+  return fetchWithFallback<{ schedules: ReportScheduleRow[] }>(`/api/admin/reports/schedules`, {
+    schedules: []
+  });
+}
+
+export function createReportSchedule(body: {
+  presetId: string;
+  cadenceKey: string;
+  recipients: ScheduleRecipient[];
+}) {
+  return rewardsActionFetch<{ message: string; schedule: ReportScheduleRow }>(
+    `/api/admin/reports/schedules`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    "Create schedule failed"
+  );
+}
+
+export function updateReportSchedule(
+  id: string,
+  body: Partial<{ presetId: string; cadenceKey: string; recipients: ScheduleRecipient[]; enabled: boolean }>
+) {
+  return rewardsActionFetch<{ message: string; schedule: ReportScheduleRow }>(
+    `/api/admin/reports/schedules/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    "Update schedule failed"
+  );
+}
+
+export function deleteReportSchedule(id: string) {
+  return rewardsActionFetch<{ message: string }>(
+    `/api/admin/reports/schedules/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    "Delete schedule failed"
+  );
+}
+
+export function runReportScheduleNow(id: string) {
+  return rewardsActionFetch<{ message: string; outcome: ScheduleRunOutcome }>(
+    `/api/admin/reports/schedules/${encodeURIComponent(id)}/run`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) },
+    "Run schedule failed"
+  );
+}
+
+export type AdminTeamMember = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  status: string;
+};
+
+/** Team directory, used as the internal-recipient picker for scheduled reports. */
+export function getAdminTeamDirectory() {
+  return fetchWithFallback<{ admins: AdminTeamMember[] }>(`/api/admin/team`, { admins: [] });
+}

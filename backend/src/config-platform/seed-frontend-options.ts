@@ -22,7 +22,10 @@ type OptionItem = {
 type SeedEntry = {
   key: string;
   title: string;
-  payload: { title: string; items: OptionItem[] };
+  // option_set entries live in the "options" namespace; ui_copy entries (email
+  // subject/body templates etc.) live in "content". Defaults to option_set.
+  type?: "option_set" | "ui_copy";
+  payload: { title: string; items: OptionItem[] } | Record<string, unknown>;
 };
 
 const SEED_ENTRIES: SeedEntry[] = [
@@ -139,6 +142,94 @@ const SEED_ENTRIES: SeedEntry[] = [
         }
       ]
     }
+  },
+  {
+    key: "reports.cadence_options",
+    title: "Report schedule cadences",
+    payload: {
+      title: "Report schedule cadences",
+      // metadata drives the scheduler's next-run computation. Times are stored
+      // in UTC (hourUtc, weekdayUtc uses the JS convention 0=Sunday..6=Saturday,
+      // dayOfMonthUtc is 1-based); labels show the operator's local WAT (UTC+1).
+      items: [
+        {
+          id: "daily_0800utc",
+          value: "daily_0800utc",
+          label: "Daily at 09:00 (WAT)",
+          enabled: true,
+          sortOrder: 1,
+          metadata: { kind: "daily", hourUtc: 8 }
+        },
+        {
+          id: "weekly_mon_0800utc",
+          value: "weekly_mon_0800utc",
+          label: "Weekly on Mondays at 09:00 (WAT)",
+          enabled: true,
+          sortOrder: 2,
+          metadata: { kind: "weekly", weekdayUtc: 1, hourUtc: 8 }
+        },
+        {
+          id: "monthly_1st_0800utc",
+          value: "monthly_1st_0800utc",
+          label: "Monthly on the 1st at 09:00 (WAT)",
+          enabled: true,
+          sortOrder: 3,
+          metadata: { kind: "monthly", dayOfMonthUtc: 1, hourUtc: 8 }
+        }
+      ]
+    }
+  },
+  {
+    key: "reports.recipient_directory",
+    title: "Report recipient directory",
+    payload: {
+      title: "Report recipient directory",
+      // External stakeholders who may receive scheduled reports but have no
+      // dashboard login. value = the email address; label = who it reaches.
+      // Compliance-sensitive by design: managed through the config platform so
+      // every change to who receives beneficiary data is versioned + attributed.
+      items: [
+        {
+          id: "sample_partner_contact",
+          value: "reports@example.org",
+          label: "Sample partner contact (replace me)",
+          enabled: false,
+          sortOrder: 1,
+          metadata: {
+            organisation: "Example Partner Org",
+            description:
+              "Placeholder entry shipped disabled so no real report can ever be mailed to it. Replace with your partner or finance contacts, then enable."
+          }
+        }
+      ]
+    }
+  },
+  {
+    key: "reports.schedule.email_subject",
+    title: "Scheduled report email subject",
+    type: "ui_copy",
+    payload: {
+      en: "{{orgName}} scheduled report: {{reportLabel}} ({{period}})"
+    }
+  },
+  {
+    key: "reports.schedule.email_body",
+    title: "Scheduled report email body",
+    type: "ui_copy",
+    payload: {
+      en: [
+        "Hello,",
+        "",
+        "Please find attached the scheduled {{reportLabel}} report from {{orgName}}, covering {{period}}.",
+        "",
+        "Attachment: {{fileName}}",
+        "Cadence: {{cadenceLabel}}",
+        "",
+        "This report was generated and sent automatically. If you believe you received it in error, or no longer wish to receive it, reply to this email and the {{orgName}} team will update the recipient list.",
+        "",
+        "{{orgName}}"
+      ].join("\n")
+    }
   }
 ];
 
@@ -176,12 +267,18 @@ async function requestJson<T>(
   return { status: response.status, body };
 }
 
+/** option_set documents live under /options, ui_copy under /content. */
+function namespaceFor(entry: SeedEntry) {
+  return (entry.type ?? "option_set") === "ui_copy" ? "content" : "options";
+}
+
 async function ensureDocument(baseUrl: string, token: string, entry: SeedEntry): Promise<DocumentEnvelope> {
   const encodedKey = encodeURIComponent(entry.key);
+  const namespace = namespaceFor(entry);
   const existing = await requestJson<DocumentEnvelope | { message?: string }>(
     baseUrl,
     token,
-    `/api/config/admin/options/documents/${encodedKey}`
+    `/api/config/admin/${namespace}/documents/${encodedKey}`
   );
   if (existing.status === 200 && existing.body && "document" in existing.body) {
     return existing.body;
@@ -192,9 +289,9 @@ async function ensureDocument(baseUrl: string, token: string, entry: SeedEntry):
 
   const created = await requestJson<
     { document: { id: string; key: string; type: string }; draft: { id: string } } | { message?: string }
-  >(baseUrl, token, "/api/config/admin/options/documents", {
+  >(baseUrl, token, `/api/config/admin/${namespace}/documents`, {
     method: "POST",
-    body: JSON.stringify({ key: entry.key, type: "option_set", title: entry.title, initialPayload: entry.payload })
+    body: JSON.stringify({ key: entry.key, type: entry.type ?? "option_set", title: entry.title, initialPayload: entry.payload })
   });
   if (created.status !== 201 || !created.body || !("document" in created.body)) {
     const message =
@@ -208,15 +305,17 @@ async function ensureDocument(baseUrl: string, token: string, entry: SeedEntry):
 
 async function updateDraftAndPublish(baseUrl: string, token: string, entry: SeedEntry) {
   const encodedKey = encodeURIComponent(entry.key);
+  const namespace = namespaceFor(entry);
+  const expectedType = entry.type ?? "option_set";
   const ensured = await ensureDocument(baseUrl, token, entry);
-  if (ensured.document.type !== "option_set") {
-    throw new Error(`Seed key ${entry.key} already exists with type ${ensured.document.type}; expected option_set`);
+  if (ensured.document.type !== expectedType) {
+    throw new Error(`Seed key ${entry.key} already exists with type ${ensured.document.type}; expected ${expectedType}`);
   }
 
   const updated = await requestJson<{ draft: { id: string } } | { message?: string }>(
     baseUrl,
     token,
-    `/api/config/admin/options/documents/${encodedKey}/draft`,
+    `/api/config/admin/${namespace}/documents/${encodedKey}/draft`,
     { method: "PUT", body: JSON.stringify({ payload: entry.payload, changeSummary: "Seed frontend option baseline" }) }
   );
   if (updated.status !== 200 || !updated.body || !("draft" in updated.body)) {
@@ -226,7 +325,7 @@ async function updateDraftAndPublish(baseUrl: string, token: string, entry: Seed
   const published = await requestJson<{ message?: string }>(
     baseUrl,
     token,
-    `/api/config/admin/options/documents/${encodedKey}/publish`,
+    `/api/config/admin/${namespace}/documents/${encodedKey}/publish`,
     { method: "POST", body: JSON.stringify({ expectedDraftVersionId: updated.body.draft.id, publishNote: "Seed frontend option baseline" }) }
   );
   if (published.status !== 200) {
