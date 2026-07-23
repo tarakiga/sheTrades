@@ -115,7 +115,7 @@ Plan: `docs/superpowers/plans/2026-06-04-rewards-redesign.md`
 
 ### F. CI / tests / migrations
 - `[x]` GAP-F1 (HIGH): Run the test suite in CI (`npm run test -w @shetrades/backend`, with a Postgres service) + `next build` for the dashboard. `.github/workflows/ci.yml`
-- `[~]` GAP-F2 (MED): Prisma migrations - baseline migration + db:migrate scripts committed (3c26e5a); ensurePrismaTables stays authoritative until the one-time `npm run db:migrate:baseline -w @shetrades/backend` is run WITH POSTGRES_URL against staging, then future changes use `prisma migrate dev` and the bootstrap can be retired.
+- `[x]` GAP-F2 (MED): Prisma migrations ADOPTED - baseline generated (3c26e5a) and STAMPED on staging via Cloud SQL proxy (migrate status: "Database schema is up to date"). Future schema changes: `prisma migrate dev` locally, `npm run db:migrate:deploy` on release. Remaining follow-up: wire migrate deploy into startup/CI, then retire ensurePrismaTables.
 - `[x]` GAP-F3 (MED): Add `POSTGRES_URL` to `.env.example`.
 
 ### G. Required documentation deliverable

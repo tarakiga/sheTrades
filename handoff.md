@@ -935,3 +935,23 @@ structural 120/300px heights intentionally literal).
 
 Still-accepted debt: in-memory report-export jobs (regenerable, by design);
 public /previews gallery (fixtures only).
+
+---
+
+## Prisma migration baseline STAMPED on staging (cutover step 1 complete)
+
+The operator pointed out DB access existed after all: POSTGRES_URL lives in
+Secret Manager (secret `postgres-url`, not in cloudrun-staging-env.yaml), and
+cloud-sql-proxy ships with the installed Cloud SDK. Ran the proxy against
+shetrades-pg-staging, rewrote the socket-style URL to localhost, and executed
+`prisma migrate resolve --applied 000000000000_baseline`.
+
+Verified: status before = "migration not yet applied"; after = "Database
+schema is up to date!". Non-destructive - only the _prisma_migrations
+bookkeeping row was written.
+
+From now on: schema changes via `prisma migrate dev` (creates a numbered
+migration) and `npm run db:migrate:deploy -w @shetrades/backend` on release.
+ensurePrismaTables remains in startup as a harmless idempotent safety net; the
+remaining follow-up is wiring `migrate deploy` into startup/CI and then
+retiring the bootstrap.
