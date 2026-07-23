@@ -4,9 +4,11 @@ import request from "supertest";
 import { createApp } from "../app.js";
 import { resetLearningEngineState } from "../learning/engine.js";
 
+const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
+
 const app = createApp();
 
-test("GET /api/users/:phone returns default user learning state", async () => {
+test("GET /api/users/:phone returns default user learning state", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
   const response = await request(app).get("/api/users/+234800000101").expect(200);
 
@@ -16,7 +18,7 @@ test("GET /api/users/:phone returns default user learning state", async () => {
   assert.ok(Array.isArray(response.body.rewards));
 });
 
-test("POST /api/progress applies lesson completion in sequence", async () => {
+test("POST /api/progress applies lesson completion in sequence", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
   const response = await request(app)
     .post("/api/progress")
@@ -36,7 +38,7 @@ test("POST /api/progress applies lesson completion in sequence", async () => {
   assert.deepEqual(response.body.state.modules.module1.completedLessons, [1]);
 });
 
-test("POST /api/progress rejects out-of-order lesson transitions", async () => {
+test("POST /api/progress rejects out-of-order lesson transitions", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
   const response = await request(app)
     .post("/api/progress")
@@ -56,7 +58,7 @@ test("POST /api/progress rejects out-of-order lesson transitions", async () => {
   assert.equal(response.body.state.progress.module1, 0);
 });
 
-test("POST /api/progress enforces quiz submission only after lessons are complete", async () => {
+test("POST /api/progress enforces quiz submission only after lessons are complete", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
   const response = await request(app)
     .post("/api/progress")
@@ -79,7 +81,7 @@ test("POST /api/progress enforces quiz submission only after lessons are complet
   );
 });
 
-test("POST /api/progress applies quiz scoring and module completion", async () => {
+test("POST /api/progress applies quiz scoring and module completion", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
   const phone = "+234800000105";
 
@@ -130,7 +132,7 @@ test("POST /api/progress applies quiz scoring and module completion", async () =
   assert.equal(quizResponse.body.state.rewards[0].module, 1);
 });
 
-test("POST /api/progress handles idempotent update ids", async () => {
+test("POST /api/progress handles idempotent update ids", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
   const payload = {
     phone: "+234800000106",

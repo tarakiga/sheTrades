@@ -1,10 +1,20 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { createApp } from "../app.js";
 import { getConfigPlatformService } from "../config-platform/service.js";
 import { resetWhatsAppState } from "../whatsapp/handler.js";
 import { refreshRuntimeConfigCache, setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
+
+const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
+
+import { disconnectPrismaForTests } from "../admin/prisma.js";
+
+// A failed pg connection (local runs without POSTGRES_URL) leaves a socket
+// open that pins the test runner for ~60s - tear the client down explicitly.
+after(async () => {
+  await disconnectPrismaForTests();
+});
 
 const app = createApp();
 const configService = getConfigPlatformService();
@@ -58,7 +68,7 @@ function makeWebhookPayload(messageId: string, from: string, body: string) {
 }
 
 test("GET /webhook/whatsapp verifies webhook challenge", { concurrency: false }, async () => {
-  resetWhatsAppState();
+  if (!skipWithoutDb) void resetWhatsAppState();
   configService.resetForTests();
   await withEnv({ WHATSAPP_VERIFY_TOKEN: "abc123" }, async () => {
     const response = await request(app)
@@ -78,7 +88,7 @@ test(
   "GET /webhook/whatsapp uses published integration config before env fallback",
   { concurrency: false },
   async () => {
-    resetWhatsAppState();
+    if (!skipWithoutDb) void resetWhatsAppState();
     configService.resetForTests();
 
     const created = await configService.createDocument(
@@ -125,8 +135,8 @@ test(
   }
 );
 
-test("POST /webhook/whatsapp transitions onboarding to language step", async () => {
-  resetWhatsAppState();
+test("POST /webhook/whatsapp transitions onboarding to language step", { skip: skipWithoutDb }, async () => {
+  if (!skipWithoutDb) void resetWhatsAppState();
   configService.resetForTests();
   const response = await request(app)
     .post("/webhook/whatsapp")
@@ -138,8 +148,8 @@ test("POST /webhook/whatsapp transitions onboarding to language step", async () 
   assert.match(String(response.body.reply), /Choose language/i);
 });
 
-test("POST /webhook/whatsapp applies language and routes to main menu", async () => {
-  resetWhatsAppState();
+test("POST /webhook/whatsapp applies language and routes to main menu", { skip: skipWithoutDb }, async () => {
+  if (!skipWithoutDb) void resetWhatsAppState();
   configService.resetForTests();
   await request(app)
     .post("/webhook/whatsapp")
@@ -157,8 +167,8 @@ test("POST /webhook/whatsapp applies language and routes to main menu", async ()
   assert.match(String(response.body.reply), /Language set: Pidgin/i);
 });
 
-test("POST /webhook/whatsapp ignores duplicate message ids", async () => {
-  resetWhatsAppState();
+test("POST /webhook/whatsapp ignores duplicate message ids", { skip: skipWithoutDb }, async () => {
+  if (!skipWithoutDb) void resetWhatsAppState();
   configService.resetForTests();
   await request(app)
     .post("/webhook/whatsapp")
@@ -174,8 +184,8 @@ test("POST /webhook/whatsapp ignores duplicate message ids", async () => {
   assert.equal(duplicate.body.state, "awaiting_language");
 });
 
-test("POST /webhook/whatsapp returns ignored for unsupported payload", async () => {
-  resetWhatsAppState();
+test("POST /webhook/whatsapp returns ignored for unsupported payload", { skip: skipWithoutDb }, async () => {
+  if (!skipWithoutDb) void resetWhatsAppState();
   configService.resetForTests();
   const response = await request(app)
     .post("/webhook/whatsapp")
@@ -184,7 +194,7 @@ test("POST /webhook/whatsapp returns ignored for unsupported payload", async () 
   assert.equal(response.body.status, "ignored");
 });
 
-test("POST /webhook/whatsapp delivers via Meta when NOT sandbox-marked", async () => {
+test("POST /webhook/whatsapp delivers via Meta when NOT sandbox-marked", { skip: skipWithoutDb }, async () => {
   setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0" });
   const graphCalls: string[] = [];
   const realFetch = globalThis.fetch;

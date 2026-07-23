@@ -3,10 +3,44 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { logger } from '../lib/logging.js';
 
-const connectionString = process.env.POSTGRES_URL;
-const pool = new Pool({ connectionString });
+// Without POSTGRES_URL, point at a guaranteed-closed port so any accidental
+// query fails FAST with ECONNREFUSED. An undefined connection string makes pg
+// dial the developer's LOCAL Postgres (localhost:5432, OS user, no password);
+// when one is running, the SASL handshake fails in a way that orphans the
+// socket inside pg - pinning the node:test event loop for ~60s per file.
+const connectionString =
+  process.env.POSTGRES_URL ?? "postgres://unset:unset@127.0.0.1:1/unset";
+// allowExitOnIdle: idle sockets must not pin the event loop - without it, a
+// failed connection attempt (e.g. local runs with no POSTGRES_URL) holds the
+// test runner hostage for ~60s after the tests finish.
+const pool = new Pool({ connectionString, allowExitOnIdle: true });
+// A pool-level error listener: pg emits errors for idle clients OUTSIDE any
+// query promise chain. Unhandled, those become unhandledRejection/uncaught
+// events - which on Node crashes the process, turning a transient DB blip
+// into a container restart mid-request. The failing query itself still
+// rejects to its caller; this only tames the background duplicate.
+pool.on("error", (error) => {
+  logger.warn("pg.pool.client_error", { error: error.message });
+});
 const adapter = new PrismaPg(pool);
 export const prisma = new PrismaClient({ adapter });
+
+/**
+ * Test-only teardown. A pg client whose connection FAILED (e.g. local runs
+ * with no POSTGRES_URL) can leave its socket open, pinning the node:test
+ * event loop for ~60s and failing the file on "stray activity". Test files
+ * whose passing tests touch prisma call this from an after() hook.
+ */
+export async function disconnectPrismaForTests(): Promise<void> {
+  try {
+    await prisma.$disconnect();
+    // With a driver adapter the APP owns the pool - $disconnect does not end
+    // it, so close it explicitly or its sockets outlive the tests.
+    await pool.end();
+  } catch {
+    // Teardown must never fail a test run.
+  }
+}
 
 /**
  * Idempotent bootstrap of the Prisma-managed tables. The Prisma schema lives

@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import { prisma } from "./prisma.js";
 import { getLearnerDetail } from "./users-detail.js";
 
-test("getLearnerDetail returns null for an unknown phone", async () => {
+const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
+
+test("getLearnerDetail returns null for an unknown phone", { skip: skipWithoutDb }, async () => {
   const result = await getLearnerDetail("+234000000nope");
   assert.equal(result, null);
 });
 
-test("getLearnerDetail aggregates identity, session, progress, quiz, rewards", async () => {
+test("getLearnerDetail aggregates identity, session, progress, quiz, rewards", { skip: skipWithoutDb }, async () => {
   const phone = `+234${Date.now()}`.slice(0, 14);
   const user = await prisma.user.create({
     data: {

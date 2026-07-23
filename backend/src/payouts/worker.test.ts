@@ -5,6 +5,8 @@ import { dispatchTick } from "./worker.js";
 import { setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
 import type { PayoutProvider } from "./providers/contracts.js";
 
+const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
+
 async function seedReward(opts: Partial<{ status: string; retryCount: number; nextAttemptAt: Date | null }> = {}) {
   const phone = `+234${Math.floor(Math.random() * 1e10)}`;
   const user = await prisma.user.create({ data: { phone } });
@@ -48,7 +50,7 @@ test("dispatchTick skips when no provider is configured", async () => {
   assert.equal(summary.dispatched, 0);
 });
 
-test("dispatchTick marks success as Issued with providerTxnId", async () => {
+test("dispatchTick marks success as Issued with providerTxnId", { skip: skipWithoutDb }, async () => {
   setRuntimeIntegrationConfigForTests("integration.payouts.primary", baseConfig);
   const reward = await seedReward();
   await dispatchTick({ providerOverrideForTests: makeProvider("ok"), configOverrideForTests: baseConfig });
@@ -58,7 +60,7 @@ test("dispatchTick marks success as Issued with providerTxnId", async () => {
   assert.equal(updated.attemptInProgress, false);
 });
 
-test("dispatchTick schedules backoff on retryable failure: 5 min after first attempt", async () => {
+test("dispatchTick schedules backoff on retryable failure: 5 min after first attempt", { skip: skipWithoutDb }, async () => {
   const reward = await seedReward({ retryCount: 0 });
   await dispatchTick({ providerOverrideForTests: makeProvider("retryable"), configOverrideForTests: baseConfig });
   const updated = await prisma.reward.findUniqueOrThrow({ where: { id: reward.id } });
@@ -69,7 +71,7 @@ test("dispatchTick schedules backoff on retryable failure: 5 min after first att
   assert.ok(deltaMin >= 4.5 && deltaMin <= 5.5, `expected ~5 min delay, got ${deltaMin}`);
 });
 
-test("dispatchTick marks Failed when non-retryable", async () => {
+test("dispatchTick marks Failed when non-retryable", { skip: skipWithoutDb }, async () => {
   const reward = await seedReward({ retryCount: 0 });
   await dispatchTick({ providerOverrideForTests: makeProvider("non_retryable"), configOverrideForTests: baseConfig });
   const updated = await prisma.reward.findUniqueOrThrow({ where: { id: reward.id } });
@@ -77,7 +79,7 @@ test("dispatchTick marks Failed when non-retryable", async () => {
   assert.equal(updated.failureReason, "InvalidPhone");
 });
 
-test("dispatchTick marks Failed after the third retryable attempt", async () => {
+test("dispatchTick marks Failed after the third retryable attempt", { skip: skipWithoutDb }, async () => {
   const reward = await seedReward({ retryCount: 2 });
   await dispatchTick({ providerOverrideForTests: makeProvider("retryable"), configOverrideForTests: baseConfig });
   const updated = await prisma.reward.findUniqueOrThrow({ where: { id: reward.id } });
@@ -85,7 +87,7 @@ test("dispatchTick marks Failed after the third retryable attempt", async () => 
   assert.equal(updated.retryCount, 3);
 });
 
-test("dispatchTick does not pick up rows whose nextAttemptAt is in the future", async () => {
+test("dispatchTick does not pick up rows whose nextAttemptAt is in the future", { skip: skipWithoutDb }, async () => {
   const reward = await seedReward({ nextAttemptAt: new Date(Date.now() + 60 * 60_000) });
   const summary = await dispatchTick({ providerOverrideForTests: makeProvider("ok"), configOverrideForTests: baseConfig });
   const updated = await prisma.reward.findUniqueOrThrow({ where: { id: reward.id } });
@@ -93,7 +95,7 @@ test("dispatchTick does not pick up rows whose nextAttemptAt is in the future", 
   assert.equal(updated.providerTxnId, null);
 });
 
-test("dispatchTick row-claim prevents double dispatch under concurrent ticks", async () => {
+test("dispatchTick row-claim prevents double dispatch under concurrent ticks", { skip: skipWithoutDb }, async () => {
   const reward = await seedReward();
   const provider = makeProvider("ok");
   await Promise.all([

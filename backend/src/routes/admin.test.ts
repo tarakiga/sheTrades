@@ -5,6 +5,8 @@ import { createApp } from "../app.js";
 import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 import { setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
 
+const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
+
 process.env.ADMIN_CONFIG_JWT_SECRET = process.env.ADMIN_CONFIG_JWT_SECRET ?? "test-secret";
 
 const app = createApp();
@@ -293,10 +295,7 @@ test(
   }
 );
 
-test(
-  "POST /api/admin/rewards/:id/retry rejects when reward not found",
-  { concurrency: false },
-  async () => {
+test("POST /api/admin/rewards/:id/retry rejects when reward not found", { concurrency: false, skip: skipWithoutDb }, async () => {
     const fakeId = "00000000-0000-4000-8000-000000000000";
     await request(app)
       .post(`/api/admin/rewards/${fakeId}/retry`)
@@ -371,7 +370,7 @@ test(
   }
 );
 
-test("GET /api/admin/users/:phone returns 404 for unknown learner", async () => {
+test("GET /api/admin/users/:phone returns 404 for unknown learner", { skip: skipWithoutDb }, async () => {
   await request(app)
     .get("/api/admin/users/%2B234000000nope")
     .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
@@ -432,7 +431,7 @@ test("POST /api/admin/users/:phone/message rejects an empty body", async () => {
     .expect(400);
 });
 
-test("POST /api/admin/users/:phone/flag returns 404 for unknown learner", async () => {
+test("POST /api/admin/users/:phone/flag returns 404 for unknown learner", { skip: skipWithoutDb }, async () => {
   await request(app)
     .post("/api/admin/users/%2B234000nope/flag")
     .set("Authorization", `Bearer ${ADMIN_TOKEN}`)

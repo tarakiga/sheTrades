@@ -5,6 +5,8 @@ import { createApp } from "../app.js";
 import { resetRewardServiceState } from "../rewards/service.js";
 import { resetLearningEngineState } from "../learning/engine.js";
 
+const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
+
 const app = createApp();
 
 async function withEnv(
@@ -33,7 +35,7 @@ async function withEnv(
   }
 }
 
-test("POST /api/rewards/issue supports manual issuance", async () => {
+test("POST /api/rewards/issue supports manual issuance", { skip: skipWithoutDb }, async () => {
   resetRewardServiceState();
   const response = await request(app)
     .post("/api/rewards/issue")
@@ -53,7 +55,7 @@ test("POST /api/rewards/issue supports manual issuance", async () => {
   assert.equal(response.body.reward.status, "issued");
 });
 
-test("POST /api/rewards/issue is idempotent by issue id", async () => {
+test("POST /api/rewards/issue is idempotent by issue id", { skip: skipWithoutDb }, async () => {
   resetRewardServiceState();
   const payload = {
     issueId: "manual-2",
@@ -72,7 +74,7 @@ test("POST /api/rewards/issue is idempotent by issue id", async () => {
   assert.equal(second.body.reward.issueId, "manual-2");
 });
 
-test("POST /api/rewards/issue retries transient provider failure", async () => {
+test("POST /api/rewards/issue retries transient provider failure", { skip: skipWithoutDb }, async () => {
   resetRewardServiceState();
   await withEnv({ REWARD_PROVIDER_MODE: "flaky_once", REWARD_RETRY_ATTEMPTS: "3" }, async () => {
     const response = await request(app)
@@ -91,7 +93,7 @@ test("POST /api/rewards/issue retries transient provider failure", async () => {
   });
 });
 
-test("POST /api/rewards/issue returns failed status with audit trail on persistent failure", async () => {
+test("POST /api/rewards/issue returns failed status with audit trail on persistent failure", { skip: skipWithoutDb }, async () => {
   resetRewardServiceState();
   await withEnv({ REWARD_PROVIDER_MODE: "always_fail", REWARD_RETRY_ATTEMPTS: "2" }, async () => {
     const response = await request(app)
@@ -118,7 +120,7 @@ test("POST /api/rewards/issue returns failed status with audit trail on persiste
   });
 });
 
-test("POST /api/progress triggers automated reward issuance on module pass", async () => {
+test("POST /api/progress triggers automated reward issuance on module pass", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
   resetRewardServiceState();
   const phone = "+234800001205";
