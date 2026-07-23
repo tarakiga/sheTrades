@@ -1765,6 +1765,15 @@ body {
   gap: var(--space-1);
 }
 
+/* Badges are grid items here and would stretch to the full column width
+   (justify-items defaults to stretch), leaving the pill background extending
+   far past its text. Scoped to the badge so name/meta truncation behaviour in
+   the compact tables is untouched. */
+.users-directory__identity .ui-badge,
+.users-directory__progress .ui-badge {
+  justify-self: start;
+}
+
 .users-directory__name {
   color: var(--color-neutral-950);
   font-size: var(--font-size-sm);
@@ -2184,6 +2193,9 @@ body {
 }
 
 .integration-workspace__header-actions {
+  /* Center, not the default stretch: a status badge in this row would otherwise
+     be stretched to the neighbouring button's 40px height and read as a blob. */
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
