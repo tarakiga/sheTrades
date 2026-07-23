@@ -901,3 +901,37 @@ scheduling (L - now unblocked by CS-6).
 
 Verified: reports 8/8, handler 37/37, tsc+lint clean, funnel eyeballed in the
 gallery, states_full live on public options (37 items).
+
+---
+
+## Engineering debt cleared (commits ..3c26e5a, backend rev 00097-jkw)
+
+**1. Local test signal restored** - `npm test` was permanently red (33
+DB-dependent failures + ~60s stall); now 402 tests, 0 fail, 42 skipped, ~14s.
+skipWithoutDb guards added (each failure confirmed DB-caused first). Root cause
+of the stall: with POSTGRES_URL unset, pg dialed the developer's LOCAL Postgres
+and the failed SASL handshake orphaned a socket pinning the event loop. Pool now
+defaults to a guaranteed-closed address (fail-fast ECONNREFUSED). Two production
+hardenings found en route: pool-level error listener (unhandled idle-client
+error = container crash on a DB blip) and allowExitOnIdle. Also exposed two
+FALSE PASSES (webhook challenge tests' un-awaited resetWhatsAppState failed
+silently post-test); resets now DB-conditional.
+
+**2. Cross-instance cache staleness bounded** - runtime-config cache re-pulls
+every CONFIG_CACHE_REFRESH_SECONDS (default 60; 0 disables; unref'd interval).
+Safe to autoscale: other instances converge within a minute of a publish.
+
+**3. Prisma migrations (bounded adoption)** - baseline migration
+(prisma/migrations/000000000000_baseline, 10 tables) generated from
+schema.prisma + db:migrate:baseline / db:migrate:deploy scripts. CUTOVER (needs
+DB access, one time): run `npm run db:migrate:baseline -w @shetrades/backend`
+with staging POSTGRES_URL, then future schema changes via `prisma migrate dev`;
+after that ensurePrismaTables can be retired. Until then it remains authoritative.
+
+**4. GAP-H2 closed** - remaining raw px inline styles tokenized in
+ConfigEditorDrawer / ConfigAdminManager / GuidedInternalNameBuilder /
+RichTextEditor (nearest-token mapping, few 1px font shifts; hairline borders and
+structural 120/300px heights intentionally literal).
+
+Still-accepted debt: in-memory report-export jobs (regenerable, by design);
+public /previews gallery (fixtures only).
