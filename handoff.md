@@ -880,3 +880,24 @@ that was previously only reachable via the donor-API token surface.
 
 Remaining from the coming-soon spec: CS-5 learner CSV import (L), CS-7 report
 scheduling (L - now unblocked by CS-6).
+
+---
+
+## Donor report rename + visual funnel + full-state picker (commit b5599cf, rev 00096-nss)
+
+1. **donor_summary columns renamed** to the truth (period, recipients,
+   rewardsIssued, totalNgnIssued; schemaVersion v2). No donor entity exists -
+   the report summarises reward disbursements; the old donor-flavoured headers
+   misled. Donor-API callers pinning v1 get the designed 409 mismatch.
+2. **Analytics funnel is now visual**: FunnelBars ui component (gallery story)
+   replaces the text line - single brand hue, share-of-registered captions
+   (stages are non-monotonic, so stage-over-stage % would mislead), raw-text
+   fallback when the summary string doesn't parse; per-state 3-stage minis.
+3. **Bot state picker**: "Others" now opens the full 36-states+FCT list paged
+   9-per-list (WhatsApp caps lists at 10 rows) via __states_page_N__ tokens;
+   admin-managed bot.states_full option set (seeded to staging, 37 items) with
+   the complete built-in fallback; free-text entry kept for in-flight
+   sessions. Pure-helper tests cover row caps/terminal page/clamping.
+
+Verified: reports 8/8, handler 37/37, tsc+lint clean, funnel eyeballed in the
+gallery, states_full live on public options (37 items).
