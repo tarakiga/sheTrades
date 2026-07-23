@@ -752,3 +752,26 @@ accent colour #ff8000. Branding (name + colours) is wired end-to-end.
   --sidebar-accent / --sidebar-mark-gradient / --tour-ring now = the branding
   accent (#ff8000). Note: hardcoded glow shadows (--sidebar-mark-glow,
   --tour-glow, rgba gold) are left as-is - subtle shadows, not fills.
+
+---
+
+## Premium UI polish pass (commit dd657a5)
+
+Purely presentational token surgery from the UX audit; no markup/logic/layout/ARIA
+changes. Layered ambient+key shadows (same --shadow-* token names), new motion
+tokens (--ease-out-soft, --duration-fast/base), display tracking + tabular-nums on
+titles/KPI values, card hairline borders (--border-hairline), uppercase xs table
+headers, space-3 cell padding, sidebar muted text 0.5 -> 0.75 alpha (a11y ~4.6:1),
+reduced-motion guards.
+
+Two white-label fixes folded in: primary-button hover now DERIVES a darker step
+via color-mix from brand-500 (branded installs set brand-500/700 identical, which
+had silently removed hover feedback; brand-700 kept as parse-time fallback), and
+the focus ring follows the brand primary via the branding style vars (hex+alpha in
+JS, deliberately NOT CSS color-mix inside var(--focus-ring): an unsupported
+color-mix there is invalid-at-computed-value and would delete the ring at every
+:focus-visible call site instead of falling back).
+
+Verified live on she-trades.vercel.app: <html> carries --focus-ring derived from
+the currently-published primary; deployed CSS has the layered shadows, press
+scale, color-mix hover + fallback, and 75%-alpha muted text.
