@@ -90,7 +90,11 @@ export function WhatsAppSandboxSimulator() {
     }
   }, [phone]);
 
-  const handleSend = async (e?: React.FormEvent, buttonText?: string) => {
+  const handleSend = async (
+    e?: React.FormEvent,
+    buttonText?: string,
+    listRow?: { id: string; title: string }
+  ) => {
     if (e) e.preventDefault();
     const textToSend = buttonText ? buttonText.trim() : inputText.trim();
     if (!textToSend || isLoading) return;
@@ -110,14 +114,16 @@ export function WhatsAppSandboxSimulator() {
     setIsLoading(true);
     setFeedback(null);
 
-    // Format payload: if sent via button, send as WhatsApp interactive button reply
+    // Format payload the way Meta does: a tapped LIST row arrives as a
+    // list_reply carrying the row's canonical id (which the handler prefers -
+    // ids like "__states_page_2__" or a lesson key are load-bearing); a tapped
+    // BUTTON arrives as a button_reply; anything else is plain text.
     type SandboxInboundMessage = {
       id: string;
       from: string;
-      interactive?: {
-        type: "button_reply";
-        button_reply: { id: string; title: string };
-      };
+      interactive?:
+        | { type: "button_reply"; button_reply: { id: string; title: string } }
+        | { type: "list_reply"; list_reply: { id: string; title: string } };
       text?: { body: string };
     };
     const messageObj: SandboxInboundMessage = {
@@ -125,7 +131,12 @@ export function WhatsAppSandboxSimulator() {
       from: phone.trim()
     };
 
-    if (buttonText) {
+    if (listRow) {
+      messageObj.interactive = {
+        type: "list_reply",
+        list_reply: { id: listRow.id, title: listRow.title }
+      };
+    } else if (buttonText) {
       messageObj.interactive = {
         type: "button_reply",
         button_reply: {
@@ -331,7 +342,7 @@ export function WhatsAppSandboxSimulator() {
                                     key={row.id}
                                     type="button"
                                     disabled={isLoading}
-                                    onClick={() => void handleSend(undefined, row.title)}
+                                    onClick={() => void handleSend(undefined, row.title, row)}
                                     className="chat-bubble-button"
                                   >
                                     {row.title}

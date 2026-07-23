@@ -421,7 +421,7 @@ function mainMenuText(name: string): string {
   return text.replace("{name}", name);
 }
 
-function extractInboundMessage(payload: unknown): InboundMessage | null {
+export function extractInboundMessage(payload: unknown): InboundMessage | null {
   const parsed = webhookPayloadSchema.safeParse(payload);
   if (!parsed.success) return null;
 

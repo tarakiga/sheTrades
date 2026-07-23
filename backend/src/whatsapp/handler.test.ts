@@ -278,3 +278,43 @@ test("an out-of-range page clamps instead of erroring", () => {
   const page = buildStatesPageReply("en", 99);
   assert.match(page.reply, /\(5\/5\)$/);
 });
+
+// ---- Inbound extraction: list taps must resolve by row ID ----
+// The sandbox simulator now sends real list_reply payloads (id + title) like
+// Meta does; these pin the id-first contract both sides rely on - a "More
+// states" tap must surface __states_page_2__, never its display title.
+
+import { extractInboundMessage } from "./handler.js";
+
+function listReplyPayload(id: string, title: string) {
+  return {
+    entry: [
+      {
+        changes: [
+          {
+            value: {
+              messages: [
+                {
+                  id: "wamid.test.1",
+                  from: "+2348000000001",
+                  interactive: { type: "list_reply", list_reply: { id, title } }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  };
+}
+
+test("a tapped list row extracts its canonical id, not its display title", () => {
+  const inbound = extractInboundMessage(listReplyPayload(statesPageId(2), "More states ➡️"));
+  assert.equal(inbound?.text, "__states_page_2__");
+  assert.equal(parseStatesPageId(inbound?.text ?? ""), 2);
+});
+
+test("a tapped state row extracts the state id from any page", () => {
+  const inbound = extractInboundMessage(listReplyPayload("akwa_ibom", "Akwa Ibom"));
+  assert.equal(inbound?.text, "akwa_ibom");
+});
