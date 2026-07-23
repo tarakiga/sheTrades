@@ -195,7 +195,7 @@ effectively paying learners to misreport, corrupting the completion figures repo
   serialize byte-identically so no version-history noise. WhatsApp simulator in the drawer
   also corrected — it was hardcoded to scored semantics and contradicted the feature.
 - `[x]` Preview entry for the quiz builder (it rendered nowhere in `/previews/components`).
-- `[ ]` **Content backfill outstanding** — `docs/reflection-question-candidates.md` lists 11
+- `[x]` **Content backfill DONE (verified live 2026-07-23: 37/129 quiz questions marked reflection, incl. every real check-in - a heuristic sweep found zero unmarked)**  was: — `docs/reflection-question-candidates.md` lists 11
   candidate questions for a human verdict. Nothing changes until an editor marks a question
   in the admin UI; every question is treated as scored by default, so leaving it undone is safe.
 
@@ -264,12 +264,12 @@ clean; UI browser-verified via `/previews/components`.
 
 Both are intentionally parked, not forgotten. Neither blocks the Pidgin/Igbo work.
 
-- `[ ]` **GAP-F2 (MED) — Adopt Prisma migrations.** Needs its own planned change, not a drive-by:
+- `[x]` **GAP-F2 DONE (see line 118: baseline stamped on staging, migrate deploy exercised)** was: Needs its own planned change, not a drive-by:
   baseline the live schema (`migrate diff` → initial migration), `migrate resolve --applied` against
   staging + prod, add a migration step to the deploy pipeline, THEN delete `ensurePrismaTables()`.
   **Risk:** the DB holds real learner progress; a botched cutover means a failed deploy or data loss.
   Do it with a fresh backup and a quiet window. Until then `ensurePrismaTables()` is idempotent and safe.
-- `[ ]` **GAP-H2 (MED) — Tokenize raw inline styles/hex.** Mechanical but a large diff across
+- `[x]` **GAP-H2 DONE (see line 126)** was: Mechanical but a large diff across
   `ConfigAdminManager`, `ConfigEditorDrawer`, `GuidedInternalNameBuilder`, `RichTextEditor`.
   **Risk:** a mistranslated hex→token silently changes the UI, so it needs visual verification against
   `/previews/components` after. Best done in one focused pass, not interleaved with feature work.
