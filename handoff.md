@@ -798,3 +798,20 @@ Verified on she-trades.vercel.app: --font-family-sans:var(--font-asap), five
 __variable classes on <html>, five woff2 preloads, fonts served as font/woff2.
 Adding a font later = one entry in lib/fonts.ts + CURATED_FONT_VARS/FONT_CHOICES
 in lib/branding.ts.
+
+---
+
+## Premium branding editor (commit eef51d3)
+
+Rebuilt the Settings → Branding tab from a full-width vertical stack of bare
+controls into a premium editor: grouped Identity / Colour Palette / Typography
+sections (hairline dividers, uppercase micro-labels, readable column width),
+a new shared ColorField ui atom (swatch card + live hex readout, on the gallery),
+and a sticky LIVE PREVIEW panel - sidebar mock with brand-mark gradient and
+accent nav rail, type specimen, primary button, accent chip - driven by the
+in-progress form values via scoped --pv-* vars so the theme is visible before
+publishing. BrandingWorkspace is now a data shell around an exported
+presentational BrandingEditor with a network-free story on /previews/components
+(per the component-library rules). Save/publish logic unchanged. Verified
+visually via gallery screenshots + on the deployed previews page (3 swatch
+cards, preview rail, specimen present).
