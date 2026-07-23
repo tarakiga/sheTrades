@@ -31,6 +31,7 @@ import { TranslationReviewPreview } from "./TranslationReviewPreview";
 import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { BrandingEditorPreview } from "./BrandingEditorPreview";
 import { ContactLearnerPreview } from "./ContactLearnerPreview";
+import { GenerateReportPreview } from "./GenerateReportPreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
 import { HelpRequestsPanelPreview } from "./HelpRequestsPanelPreview";
@@ -494,6 +495,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <ContactLearnerPreview />
+        </Card>
+
+        <Card
+          title={t("preview.generateReport.title", "Generate Report - on-demand exports")}
+          description={t(
+            "preview.generateReport.description",
+            "Preview the report-generation drawer: config-driven preset picker with dataset descriptions, generate action, and the immediate download offer (error state shown on generate here - the gallery has no backend)."
+          )}
+        >
+          <GenerateReportPreview />
         </Card>
 
         <Card

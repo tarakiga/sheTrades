@@ -308,3 +308,35 @@ export function getLearnerMessages(phone: string) {
     { messages: [] }
   );
 }
+
+export type ReportJobRow = {
+  exportId: string;
+  reportType: string;
+  format: string;
+  requestedBy: string;
+  status: string;
+  fileName: string | null;
+  error: string | null;
+  createdAt: string;
+};
+
+/** Generate a report on demand; resolves with the finished job (sync render). */
+export function generateReport(reportType: string) {
+  return rewardsActionFetch<{ message: string; job: ReportJobRow }>(
+    `/api/admin/reports/generate`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reportType })
+    },
+    "Report generation failed"
+  );
+}
+
+export function getReportJobs() {
+  return fetchWithFallback<{ jobs: ReportJobRow[] }>(`/api/admin/reports/exports`, { jobs: [] });
+}
+
+export function reportDownloadEndpoint(exportId: string): string {
+  return `/api/admin/reports/exports/${encodeURIComponent(exportId)}/download`;
+}

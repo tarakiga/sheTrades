@@ -12,6 +12,13 @@ import {
 import { getLearnerDetail } from "../admin/users-detail.js";
 import { prisma } from "../admin/prisma.js";
 import {
+  getReportExportById,
+  listReportExports,
+  listReportSchemas,
+  requestReportExport
+} from "../reports/export-service.js";
+import { randomUUID } from "node:crypto";
+import {
   getRuntimeOptionSet,
   getRuntimePayoutsConfig,
   getRuntimeRewardRules
@@ -482,6 +489,99 @@ adminRouter.get("/reports", async (_req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+// ---- On-demand report generation (CS-6) ----
+// Bridges the dashboard (admin JWT) to the existing export pipeline in
+// reports/export-service.ts, which already renders real DB-backed rows for the
+// three report types. The donor-facing reportsRouter keeps its own token
+// surface; these routes are for operators inside the admin app.
+
+const generateReportSchema = z.object({
+  reportType: z.enum(["donor_summary", "module_completion_detail", "rewards_issuance_log"])
+});
+
+/** Job shape for the UI - never includes the (potentially large) content. */
+function toJobSummary(job: {
+  exportId: string;
+  reportType: string;
+  format: string;
+  requestedBy: string;
+  status: string;
+  fileName?: string;
+  error?: string;
+  createdAt: string;
+}) {
+  return {
+    exportId: job.exportId,
+    reportType: job.reportType,
+    format: job.format,
+    requestedBy: job.requestedBy,
+    status: job.status,
+    fileName: job.fileName ?? null,
+    error: job.error ?? null,
+    createdAt: job.createdAt
+  };
+}
+
+adminRouter.post("/reports/generate", requireWriteAccess, async (req, res, next) => {
+  try {
+    const body = generateReportSchema.parse(req.body);
+    // schemaVersion is a server-side concern - resolve it from the registry so
+    // the admin UI never has to know or hardcode it.
+    const schema = listReportSchemas().find((item) => item.reportType === body.reportType);
+    if (!schema) {
+      res.status(400).json({ message: "Unknown report type." });
+      return;
+    }
+    const result = await requestReportExport({
+      requestId: randomUUID(),
+      reportType: body.reportType,
+      format: "csv",
+      schemaVersion: schema.schemaVersion,
+      requestedBy: req.authUser?.id ?? "unknown"
+    });
+    console.log(
+      JSON.stringify({
+        event: "admin.report.generate",
+        reportType: body.reportType,
+        status: result.job.status,
+        actorId: req.authUser?.id ?? null,
+        updatedAt: new Date().toISOString()
+      })
+    );
+    if (result.status === "failed") {
+      res.status(502).json({ message: result.job.error ?? "Report generation failed.", job: toJobSummary(result.job) });
+      return;
+    }
+    res.status(201).json({ message: "Report generated.", job: toJobSummary(result.job) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ message: error.issues[0]?.message ?? "Invalid request." });
+      return;
+    }
+    next(error);
+  }
+});
+
+adminRouter.get("/reports/exports", (_req, res) => {
+  // NOTE: jobs live in memory (GAP-D1: regenerable artifacts) - history resets
+  // when the instance recycles. Reports can simply be generated again.
+  res.status(200).json({ jobs: listReportExports().map(toJobSummary) });
+});
+
+adminRouter.get("/reports/exports/:id/download", (req, res) => {
+  const job = getReportExportById(String(req.params.id));
+  if (!job || job.status !== "Ready" || !job.content) {
+    res.status(404).json({
+      message:
+        "Export not found. Generated reports are kept in memory only - if the service restarted, generate the report again."
+    });
+    return;
+  }
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${job.fileName ?? "report.csv"}"`);
+  res.status(200).send(job.content);
 });
 
 adminRouter.post("/rewards/:id/retry", requireWriteAccess, async (req, res, next) => {

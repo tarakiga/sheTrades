@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getReportsPageData } from "../../../lib/admin/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  downloadAdminCsv,
+  getReportJobs,
+  getReportsPageData,
+  reportDownloadEndpoint,
+  type ReportJobRow
+} from "../../../lib/admin/api";
 import type { ApiResult, ReportsPageData } from "../../../lib/admin/contracts";
 import { fetchPublicOptionSet } from "../../../lib/config/options";
+import { GenerateReportDrawer } from "../../../components/reports/GenerateReportDrawer";
 import {
   AdminReviewTableShell,
   AdminReviewWorkspace,
@@ -15,13 +22,37 @@ import {
   Tabs
 } from "../../../components/ui";
 
-type ReportPreset = { id: string; label: string; content: string };
+type ReportPreset = { id: string; label: string; content: string; reportType?: string };
+
+// Fallback dataset mapping for the three built-in presets, used when a
+// published preset predates metadata.reportType. New presets should carry
+// metadata.reportType in the option set instead.
+const KNOWN_PRESET_REPORT_TYPES: Record<string, string> = {
+  donor: "donor_summary",
+  ops: "module_completion_detail",
+  finance: "rewards_issuance_log"
+};
 
 // Built-in defaults; overridden by the published `reports.presets` option set.
 const DEFAULT_PRESETS: ReportPreset[] = [
-  { id: "donor", label: "Donor", content: "Impact metrics, completion funnel, reward totals." },
-  { id: "ops", label: "Ops", content: "Daily completion deltas, drop-off list, exceptions." },
-  { id: "finance", label: "Finance", content: "Reward issuance ledger and reconciliations." }
+  {
+    id: "donor",
+    label: "Donor",
+    content: "Impact metrics, completion funnel, reward totals.",
+    reportType: "donor_summary"
+  },
+  {
+    id: "ops",
+    label: "Ops",
+    content: "Daily completion deltas, drop-off list, exceptions.",
+    reportType: "module_completion_detail"
+  },
+  {
+    id: "finance",
+    label: "Finance",
+    content: "Reward issuance ledger and reconciliations.",
+    reportType: "rewards_issuance_log"
+  }
 ];
 
 export default function ReportsPage() {
@@ -41,7 +72,12 @@ export default function ReportsPage() {
             id: item.value,
             label: item.label,
             content:
-              typeof item.metadata.description === "string" ? item.metadata.description : item.label
+              typeof item.metadata.description === "string" ? item.metadata.description : item.label,
+            ...(typeof item.metadata.reportType === "string"
+              ? { reportType: item.metadata.reportType }
+              : KNOWN_PRESET_REPORT_TYPES[item.value]
+                ? { reportType: KNOWN_PRESET_REPORT_TYPES[item.value] }
+                : {})
           }))
         );
       })
@@ -71,11 +107,51 @@ export default function ReportsPage() {
   const data = result?.data ?? { exports: [] };
   const meta = result?.meta ?? { source: "fallback" as const };
 
-  const readyRows = data.exports.filter((row) => row.status === "Ready");
-  const queuedRows = data.exports.filter((row) => row.status === "Queued");
-  const formatCount = new Set(data.exports.map((row) => row.format)).size;
+  // Real generated jobs (CS-6), merged ahead of the provider's export history.
+  const [jobs, setJobs] = useState<ReportJobRow[]>([]);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const loadJobs = useCallback(async () => {
+    const jobsResult = await getReportJobs();
+    setJobs(jobsResult.data.jobs);
+  }, []);
+  useEffect(() => {
+    void loadJobs();
+  }, [loadJobs]);
+
+  const presetLabelByReportType = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const preset of presets) {
+      if (preset.reportType) map[preset.reportType] = preset.label;
+    }
+    return map;
+  }, [presets]);
+
+  const historyRows = useMemo(
+    () => [
+      ...jobs.map((job) => ({
+        report: presetLabelByReportType[job.reportType] ?? job.reportType,
+        format: job.format.toUpperCase(),
+        generatedAt: new Date(job.createdAt).toLocaleString(),
+        owner: job.requestedBy,
+        status: job.status,
+        exportId: job.exportId,
+        fileName: job.fileName ?? ""
+      })),
+      ...data.exports.map((row) => ({ ...row, exportId: "", fileName: "" }))
+    ],
+    [jobs, presetLabelByReportType, data.exports]
+  );
+
+  const readyRows = historyRows.filter((row) => row.status === "Ready");
+  const queuedRows = historyRows.filter((row) => row.status === "Queued");
+  const formatCount = new Set(historyRows.map((row) => row.format)).size;
+
+  const generatablePresets = presets.filter(
+    (preset): preset is ReportPreset & { reportType: string } => Boolean(preset.reportType)
+  );
 
   return (
+    <>
     <AdminReviewWorkspace
       title="Reports"
       description="Generate donor-ready exports and monitor report pipeline health."
@@ -84,7 +160,7 @@ export default function ReportsPage() {
           <Badge variant={meta.source === "live" ? "success" : "warning"}>
             {meta.source === "live" ? "Live Data" : "Fallback Data"}
           </Badge>
-          <Button disabled>Generate Report (coming soon)</Button>
+          <Button onClick={() => setGenerateOpen(true)}>Generate Report</Button>
         </div>
       }
       {...(meta.message ? { feedback: <p className="admin-inline-note">{meta.message}</p> } : {})}
@@ -92,10 +168,10 @@ export default function ReportsPage() {
       metrics={[
         {
           label: "Total Exports",
-          value: String(data.exports.length),
+          value: String(historyRows.length),
           trend: "Visible export history",
           status: (
-            <Badge variant={data.exports.length > 0 ? "success" : "warning"}>Coverage</Badge>
+            <Badge variant={historyRows.length > 0 ? "success" : "warning"}>Coverage</Badge>
           )
         },
         {
@@ -139,11 +215,36 @@ export default function ReportsPage() {
                 key: "status",
                 header: "Status",
                 render: (value) => (
-                  <Badge variant={value === "Ready" ? "success" : "warning"}>{String(value)}</Badge>
+                  <Badge
+                    variant={
+                      value === "Ready" ? "success" : value === "Failed" ? "danger" : "warning"
+                    }
+                  >
+                    {String(value)}
+                  </Badge>
                 )
+              },
+              {
+                key: "exportId",
+                header: "",
+                render: (_value, row) =>
+                  row.exportId && row.status === "Ready" ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        void downloadAdminCsv(
+                          reportDownloadEndpoint(String(row.exportId)),
+                          String(row.fileName || "report.csv")
+                        );
+                      }}
+                    >
+                      Download
+                    </Button>
+                  ) : null
               }
             ]}
-            rows={data.exports}
+            rows={historyRows}
           />
         </AdminReviewTableShell>
       }
@@ -203,5 +304,15 @@ export default function ReportsPage() {
         </div>
       }
     />
+
+    <GenerateReportDrawer
+      open={generateOpen}
+      onClose={() => setGenerateOpen(false)}
+      presets={generatablePresets}
+      onGenerated={() => {
+        void loadJobs();
+      }}
+    />
+    </>
   );
 }

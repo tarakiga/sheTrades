@@ -64,7 +64,11 @@ const SEED_ENTRIES: SeedEntry[] = [
           label: "Donor",
           enabled: true,
           sortOrder: 1,
-          metadata: { description: "Impact metrics, completion funnel, reward totals." }
+          metadata: {
+            description: "Impact metrics, completion funnel, reward totals.",
+            // Which export-service dataset this preset generates (CS-6).
+            reportType: "donor_summary"
+          }
         },
         {
           id: "ops",
@@ -72,7 +76,10 @@ const SEED_ENTRIES: SeedEntry[] = [
           label: "Ops",
           enabled: true,
           sortOrder: 2,
-          metadata: { description: "Daily completion deltas, drop-off list, exceptions." }
+          metadata: {
+            description: "Daily completion deltas, drop-off list, exceptions.",
+            reportType: "module_completion_detail"
+          }
         },
         {
           id: "finance",
@@ -80,7 +87,10 @@ const SEED_ENTRIES: SeedEntry[] = [
           label: "Finance",
           enabled: true,
           sortOrder: 3,
-          metadata: { description: "Reward issuance ledger and reconciliations." }
+          metadata: {
+            description: "Reward issuance ledger and reconciliations.",
+            reportType: "rewards_issuance_log"
+          }
         }
       ]
     }

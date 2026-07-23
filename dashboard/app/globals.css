@@ -2552,6 +2552,41 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* ---- Generate Report drawer ---- */
+
+.generate-report {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.generate-report__feedback {
+  display: flex;
+}
+
+.generate-report__note {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  margin: 0;
+}
+
+.generate-report__result {
+  align-items: center;
+  border: var(--border-hairline);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3);
+}
+
+.generate-report__result-name {
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
 .integration-workspace__table-shell {
   background: rgba(255, 255, 255, 0.98);
   border: 1px solid rgba(51, 78, 88, 0.08);

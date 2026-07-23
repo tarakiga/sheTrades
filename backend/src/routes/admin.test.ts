@@ -440,7 +440,68 @@ test("POST /api/admin/users/:phone/flag returns 404 for unknown learner", async 
     .expect(404);
 });
 
+test("POST /api/admin/reports/generate without a token is 401", async () => {
+  await request(app)
+    .post("/api/admin/reports/generate")
+    .send({ reportType: "donor_summary" })
+    .expect(401);
+});
+
+test("POST /api/admin/reports/generate rejects an unknown report type", async () => {
+  await request(app)
+    .post("/api/admin/reports/generate")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .send({ reportType: "nope" })
+    .expect(400);
+});
+
+test(
+  "generate -> list -> download round-trip produces a CSV with the schema header",
+  { concurrency: false },
+  async () => {
+    const generated = await request(app)
+      .post("/api/admin/reports/generate")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .send({ reportType: "module_completion_detail" })
+      .expect(201);
+    assert.equal(generated.body.job.status, "Ready");
+    assert.match(generated.body.job.fileName ?? "", /^module_completion_detail-.*\.csv$/);
+    // The list endpoint surfaces the job without its content.
+    const listed = await request(app)
+      .get("/api/admin/reports/exports")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .expect(200);
+    const job = listed.body.jobs.find(
+      (item: { exportId: string }) => item.exportId === generated.body.job.exportId
+    );
+    assert.ok(job, "generated job appears in the exports list");
+    assert.equal(job.content, undefined);
+    // Download streams the CSV with the registry's column header.
+    const download = await request(app)
+      .get(`/api/admin/reports/exports/${generated.body.job.exportId}/download`)
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .expect(200);
+    assert.match(download.headers["content-type"] ?? "", /text\/csv/);
+    assert.match(download.text.split("\n")[0] ?? "", /"module","enrolled","completed"/);
+  }
+);
+
+test("GET /api/admin/reports/exports/:id/download returns 404 for unknown job", async () => {
+  await request(app)
+    .get("/api/admin/reports/exports/not-a-job/download")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .expect(404);
+});
+
 const VIEWER_TOKEN = createToken("viewer", process.env.ADMIN_CONFIG_JWT_SECRET as string);
+
+test("POST /api/admin/reports/generate with a viewer token returns 403", async () => {
+  await request(app)
+    .post("/api/admin/reports/generate")
+    .set("Authorization", `Bearer ${VIEWER_TOKEN}`)
+    .send({ reportType: "donor_summary" })
+    .expect(403);
+});
 
 test("POST /api/admin/rewards/manual with a viewer token returns 403", async () => {
   await request(app)
