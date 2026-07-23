@@ -775,3 +775,26 @@ color-mix there is invalid-at-computed-value and would delete the ring at every
 Verified live on she-trades.vercel.app: <html> carries --focus-ring derived from
 the currently-published primary; deployed CSS has the layered shadows, press
 scale, color-mix hover + fallback, and 75%-alpha muted text.
+
+---
+
+## Bundled brand fonts; Asap default (commit 63ca5f6)
+
+The Branding font field was free-text and only rendered if the visitor happened
+to have that font installed - even "Inter" was never loaded, so all installs
+silently used system fonts (typing "Asap" did nothing, which prompted this).
+
+lib/fonts.ts now self-hosts five variable Google fonts via next/font (downloaded
+at build; no runtime Google request): Asap (default), Inter, Nunito Sans,
+Source Sans 3, Work Sans. Their CSS variables ride on <html>;
+brandingStyleVars maps the published fontFamily to the matching bundled var
+(--font-asap etc.), with unknown/legacy values keeping the old raw-name path.
+The Branding tab's font field is a Select over the curated set (legacy values
+show as "<name> (custom)"). Defaults flipped Inter -> Asap across dashboard +
+backend fallbacks and seed-branding. Staging's published branding.identity
+already said "Asap" (operator had typed it), so it began rendering on deploy.
+
+Verified on she-trades.vercel.app: --font-family-sans:var(--font-asap), five
+__variable classes on <html>, five woff2 preloads, fonts served as font/woff2.
+Adding a font later = one entry in lib/fonts.ts + CURATED_FONT_VARS/FONT_CHOICES
+in lib/branding.ts.
