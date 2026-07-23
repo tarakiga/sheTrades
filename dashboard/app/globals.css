@@ -781,10 +781,16 @@ body {
   box-shadow: var(--shadow-lg);
   display: grid;
   gap: var(--space-4);
+  /* Without an explicit row template, the implicit auto rows stretch to share
+     the full 100vh (grid align-content defaults to stretch) - short drawers
+     ballooned their header/content/footer, and footer buttons stretched with
+     them. Same header / scrolling-content / pinned-footer pattern as the
+     reward- and learner-detail drawers. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100vh;
   margin-left: auto;
   max-width: 100%;
-  overflow-y: auto;
+  overflow: hidden;
   padding: var(--space-6);
   position: relative;
   animation: ui-drawer-enter 0.28s cubic-bezier(0.2, 0.9, 0.22, 1) forwards;
@@ -844,11 +850,19 @@ body {
 }
 
 .ui-side-drawer__content {
+  /* Content rows hug their content (no stretch distribution) and the content
+     region - not the whole panel - is what scrolls, keeping the header and
+     footer actions always visible. */
+  align-content: start;
   display: grid;
   gap: var(--space-4);
+  overflow-y: auto;
 }
 
 .ui-side-drawer__footer {
+  /* Center, not the default stretch - buttons keep their natural height even
+     if the footer row is ever taller than its content. */
+  align-items: center;
   border-top: 1px solid var(--color-neutral-100);
   display: flex;
   flex-wrap: wrap;
