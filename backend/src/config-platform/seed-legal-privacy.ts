@@ -11,7 +11,6 @@
  */
 import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 
-const ORG_NAME = "SheTrades Digital";
 const CONTACT_EMAIL = "privacy@shetrades.digital";
 // Effective date as an ISO datetime; the /privacy page formats it for display.
 const EFFECTIVE_FROM = "2026-07-13T00:00:00.000Z";
@@ -23,7 +22,7 @@ const POLICY_SECTIONS: Array<{ heading: string; paragraphs: string[] }> = [
   {
     heading: "1. Introduction",
     paragraphs: [
-      `${ORG_NAME} ("SheTrades", "we", "us") operates a digital literacy and business-skills learning service delivered over WhatsApp, together with an administrative platform used by our team to manage that service. This Privacy Policy explains what personal information we collect, how we use and share it, and the choices you have.`,
+      `{{orgName}} ("{{orgName}}", "we", "us") operates a digital literacy and business-skills learning service delivered over WhatsApp, together with an administrative platform used by our team to manage that service. This Privacy Policy explains what personal information we collect, how we use and share it, and the choices you have.`,
       "By messaging our WhatsApp number or using our service, you agree to the practices described in this policy."
     ]
   },
@@ -95,7 +94,7 @@ const POLICY_SECTIONS: Array<{ heading: string; paragraphs: string[] }> = [
   {
     heading: "11. Contact us",
     paragraphs: [
-      `If you have questions about this policy or your personal information, contact ${ORG_NAME} at ${CONTACT_EMAIL}.`
+      `If you have questions about this policy or your personal information, contact {{orgName}} at {{contactEmail}}.`
     ]
   }
 ];
@@ -125,16 +124,6 @@ const SEED_ENTRIES: SeedEntry[] = [
       title: "Privacy Policy",
       body: { en: POLICY_BODY },
       complianceTag: "privacy-policy",
-      effectiveFrom: EFFECTIVE_FROM
-    }
-  },
-  {
-    key: "legal.privacy.org_name",
-    title: "Privacy policy - organisation name",
-    payload: {
-      title: "Organisation name",
-      body: { en: ORG_NAME },
-      complianceTag: "privacy-identity",
       effectiveFrom: EFFECTIVE_FROM
     }
   },
@@ -255,8 +244,18 @@ async function main() {
   const secret = getEnv("ADMIN_CONFIG_JWT_SECRET");
   const token = buildAuthToken(secret);
 
-  console.log(`Seeding ${SEED_ENTRIES.length} privacy legal blocks to ${baseUrl}`);
-  for (const entry of SEED_ENTRIES) {
+  // SEED_ONLY_KEYS lets a targeted re-publish touch just one document (e.g. the
+  // policy body) without resetting the others to their baseline.
+  const onlyKeys = (process.env.SEED_ONLY_KEYS ?? "")
+    .split(",")
+    .map((key) => key.trim())
+    .filter(Boolean);
+  const entries = onlyKeys.length
+    ? SEED_ENTRIES.filter((entry) => onlyKeys.includes(entry.key))
+    : SEED_ENTRIES;
+
+  console.log(`Seeding ${entries.length} privacy legal blocks to ${baseUrl}`);
+  for (const entry of entries) {
     await updateDraftAndPublish(baseUrl, token, entry);
     console.log(`Published: ${entry.key}`);
   }

@@ -11,21 +11,18 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// Safe fallbacks, used ONLY when the legal config namespace is unpopulated.
-// Every one of these - organisation name, contact email, effective date, and the
-// full policy body - is admin-editable under Settings → Legal as a legal block
-// (keys below). The `seed:legal-privacy` backend script publishes these baselines
-// so they appear in the Legal tab ready to edit.
-const ORG_NAME_FALLBACK = "SheTrades Digital";
+// Safe fallbacks, used ONLY when the legal config is unpopulated. The contact
+// email, effective date, and policy body are admin-editable under Settings →
+// Legal; the organisation name comes from Settings → Branding (the single source
+// of truth). The seed:legal-privacy script publishes the baselines.
 const CONTACT_EMAIL_FALLBACK = "privacy@shetrades.digital";
 const EFFECTIVE_DATE_FALLBACK = "13 July 2026";
 
-// Legal config keys (namespace "legal", type legal_block). Publishing any of
-// these overrides the matching fallback: the org name and contact email come
-// from each block's body text; the effective date comes from the policy block's
-// `effectiveFrom`; the body text comes from the policy block's body.
+// Legal config keys (namespace "legal", type legal_block). The contact email and
+// effective date come from Legal; the organisation name comes from Branding. The
+// body may use {{orgName}} / {{contactEmail}} placeholders, interpolated at
+// render below so editing those variables actually changes the page.
 const KEY_POLICY_BODY = "legal.privacy.policy";
-const KEY_ORG_NAME = "legal.privacy.org_name";
 const KEY_CONTACT_EMAIL = "legal.privacy.contact_email";
 
 type Section = { heading: string; body: string[] };
@@ -137,8 +134,11 @@ function paragraphsFrom(text: string): string[] {
 }
 
 export default async function PrivacyPolicyPage() {
-  // Start from the safe fallbacks, then layer any published legal config on top.
-  let orgName = ORG_NAME_FALLBACK;
+  // Organisation name is a global branding value (Settings → Branding) - the
+  // single source of truth. Contact email, effective date, and body live in
+  // Legal. Start from the safe fallbacks, then layer published config on top.
+  const branding = await getBranding();
+  const orgName = branding.organisationName;
   let contactEmail = CONTACT_EMAIL_FALLBACK;
   let effectiveDate = EFFECTIVE_DATE_FALLBACK;
   let bodyOverride: string | null = null;
@@ -165,7 +165,6 @@ export default async function PrivacyPolicyPage() {
       return en && en.trim().length > 0 ? en.trim() : null;
     };
 
-    orgName = readLocalizedBody(KEY_ORG_NAME) ?? orgName;
     contactEmail = readLocalizedBody(KEY_CONTACT_EMAIL) ?? contactEmail;
     bodyOverride = readLocalizedBody(KEY_POLICY_BODY);
 
@@ -177,6 +176,14 @@ export default async function PrivacyPolicyPage() {
   } catch {
     // Config service unavailable - keep the built-in fallbacks.
   }
+
+  // The published body (and default sections) may reference {{orgName}} and
+  // {{contactEmail}}; interpolate them so the Branding org name and the Legal
+  // Contact Email field actually drive what renders.
+  const applyVars = (text: string): string =>
+    text
+      .replace(/\{\{\s*orgName\s*\}\}/g, orgName)
+      .replace(/\{\{\s*contactEmail\s*\}\}/g, contactEmail);
 
   const sections = buildDefaultSections(orgName, contactEmail);
 
@@ -191,7 +198,7 @@ export default async function PrivacyPolicyPage() {
 
         {bodyOverride ? (
           <section className="legal-page__section">
-            {paragraphsFrom(bodyOverride).map((paragraph, index) => (
+            {paragraphsFrom(applyVars(bodyOverride)).map((paragraph, index) => (
               <p key={index} className="legal-page__paragraph">
                 {paragraph}
               </p>
