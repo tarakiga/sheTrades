@@ -853,3 +853,30 @@ Deployed backend 00094-kgs; routes verified gated (401) on staging; option set
 live on /api/config/public/options. Remaining from the spec: CS-5 learner CSV
 import (L), CS-6 generate report (M), CS-7 report scheduling (L, depends on
 CS-6).
+
+---
+
+## CS-6 Generate Report shipped (commit 0e0a6f6, backend rev 00095-l6g)
+
+The /reports "Generate Report" button is live. Rather than building a new
+pipeline, this bridges the dashboard (admin JWT) to the EXISTING export
+service (reports/export-service.ts - real DB-backed rows, retry, idempotency)
+that was previously only reachable via the donor-API token surface.
+
+- POST /api/admin/reports/generate (editor+) -> synchronous render, job
+  summary returned; GET /api/admin/reports/exports lists jobs; GET
+  .../:id/download streams the CSV. All gated; verified 401 on staging.
+- Preset -> dataset mapping is config: reports.presets items now carry
+  metadata.reportType (donor -> donor_summary, ops -> module_completion_detail,
+  finance -> rewards_issuance_log); seeded to staging via SEED_ONLY_KEYS. The
+  UI keeps a fallback map for presets that predate the field.
+- /reports history table merges real generated jobs ahead of the provider
+  rows; Ready jobs get a Download action; GenerateReportDrawer has a gallery
+  story.
+- Known limits, stated: jobs are in-memory (GAP-D1 stance - regenerable; the
+  download 404 message says to regenerate after a restart); CSV only (the
+  pipeline's "pdf" is a text mock, deliberately not exposed); date-range
+  filtering from the spec is not in v1 - reports cover the full dataset.
+
+Remaining from the coming-soon spec: CS-5 learner CSV import (L), CS-7 report
+scheduling (L - now unblocked by CS-6).
