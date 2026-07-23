@@ -33,8 +33,13 @@ type ExportRequest = {
 
 const reportSchemaRegistry: Record<ReportType, { schemaVersion: string; columns: string[] }> = {
   donor_summary: {
-    schemaVersion: "v1",
-    columns: ["period", "totalDonors", "newDonors", "retainedDonors", "donationTotalNgn"]
+    // v2: renamed the columns to what the data actually is. There is no donor
+    // entity in the system - the report has always summarised reward
+    // disbursements by month - but the v1 headers (totalDonors, newDonors,
+    // retainedDonors, donationTotalNgn) claimed donor semantics the data never
+    // had, which would mislead anyone reading the CSV cold.
+    schemaVersion: "v2",
+    columns: ["period", "recipients", "rewardsIssued", "totalNgnIssued"]
   },
   module_completion_detail: {
     schemaVersion: "v1",
@@ -81,8 +86,8 @@ const renderAttemptsByRequestId = new Map<string, number>();
 function buildMockRows(reportType: ReportType) {
   if (reportType === "donor_summary") {
     return [
-      ["2026-05", "1240", "186", "1054", "943000"],
-      ["2026-04", "1179", "173", "1006", "889000"]
+      ["2026-05", "1240", "1054", "943000"],
+      ["2026-04", "1179", "1006", "889000"]
     ];
   }
   if (reportType === "module_completion_detail") {
@@ -158,7 +163,6 @@ async function buildReportRows(reportType: ReportType): Promise<string[][]> {
         period,
         String(agg.recipients.size),
         String(agg.issued),
-        String(agg.recipients.size),
         String(Math.round(agg.total))
       ]);
   } catch (error) {

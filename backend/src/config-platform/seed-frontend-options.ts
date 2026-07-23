@@ -96,6 +96,30 @@ const SEED_ENTRIES: SeedEntry[] = [
     }
   },
   {
+    key: "bot.states_full",
+    title: "All Nigerian states (full list)",
+    payload: {
+      title: "All Nigerian states (full list)",
+      // Shown page-by-page after the learner taps "Others" on the state
+      // question, so nobody types their state by hand. The handler carries the
+      // same complete list as its built-in fallback.
+      items: [
+        "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue",
+        "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu",
+        "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi",
+        "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo",
+        "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara", "FCT (Abuja)"
+      ].map((label, index) => ({
+        id: label.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+        value: label,
+        label,
+        enabled: true,
+        sortOrder: index + 1,
+        metadata: {}
+      }))
+    }
+  },
+  {
     key: "whatsapp.outreach_templates",
     title: "WhatsApp outreach templates",
     payload: {

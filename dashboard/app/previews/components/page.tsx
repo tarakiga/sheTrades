@@ -32,6 +32,7 @@ import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { BrandingEditorPreview } from "./BrandingEditorPreview";
 import { ContactLearnerPreview } from "./ContactLearnerPreview";
 import { GenerateReportPreview } from "./GenerateReportPreview";
+import { FunnelBarsPreview } from "./FunnelBarsPreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
 import { HelpRequestsPanelPreview } from "./HelpRequestsPanelPreview";
@@ -505,6 +506,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <GenerateReportPreview />
+        </Card>
+
+        <Card
+          title={t("preview.funnelBars.title", "Funnel Bars - analytics stage breakdown")}
+          description={t(
+            "preview.funnelBars.description",
+            "Single-hue stage bars with counts and share-of-registered captions, replacing the plain text funnel line on /analytics."
+          )}
+        >
+          <FunnelBarsPreview />
         </Card>
 
         <Card

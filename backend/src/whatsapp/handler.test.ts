@@ -239,3 +239,42 @@ test("help note: repeated requests across lessons all survive, oldest first", ()
       "[2026-07-21] Asked for help: m3-l2 (Legal Rights, Q3)"
   );
 });
+
+// ---- Full-state pagination ("Others" -> every Nigerian state, paged) ----
+
+import { buildStatesPageReply, getFullStateRows, parseStatesPageId, statesPageId } from "./handler.js";
+
+test("parseStatesPageId round-trips its own ids and rejects noise", () => {
+  assert.equal(parseStatesPageId(statesPageId(2)), 2);
+  assert.equal(parseStatesPageId(statesPageId(5)), 5);
+  assert.equal(parseStatesPageId("kano"), null);
+  assert.equal(parseStatesPageId("__states_page___"), null);
+});
+
+test("the fallback full-state list covers all 36 states + FCT", () => {
+  assert.equal(getFullStateRows().length, 37);
+});
+
+test("page 1 carries 9 states plus a More row, within WhatsApp's 10-row cap", () => {
+  const page = buildStatesPageReply("en", 1);
+  const rows = page.list.sections[0]!.rows;
+  assert.equal(rows.length, 10);
+  assert.equal(rows[0]!.title, "Abia");
+  assert.equal(rows[9]!.id, statesPageId(2));
+});
+
+test("every page respects the 10-row cap and the last page has no More row", () => {
+  const totalPages = Math.ceil(37 / 9); // 5
+  for (let p = 1; p <= totalPages; p += 1) {
+    const rows = buildStatesPageReply("en", p).list.sections[0]!.rows;
+    assert.ok(rows.length <= 10, `page ${p} exceeds the WhatsApp row cap`);
+  }
+  const last = buildStatesPageReply("en", totalPages).list.sections[0]!.rows;
+  assert.ok(last.every((row) => parseStatesPageId(row.id) === null), "last page must not paginate further");
+  assert.equal(last[last.length - 1]!.title, "FCT (Abuja)");
+});
+
+test("an out-of-range page clamps instead of erroring", () => {
+  const page = buildStatesPageReply("en", 99);
+  assert.match(page.reply, /\(5\/5\)$/);
+});

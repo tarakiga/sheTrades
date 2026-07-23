@@ -15,7 +15,9 @@ import {
   Button,
   Card,
   EmptyState,
+  FunnelBars,
   LoadingState,
+  parseFunnelSummary,
   Tabs
 } from "../../../components/ui";
 
@@ -158,12 +160,35 @@ export default function AnalyticsPage() {
                     {
                       id: "overall",
                       label: "Overall",
-                      content: data.funnelOverall
+                      // Structured stage bars when the summary parses; the raw
+                      // text otherwise (e.g. the "No published funnel" note).
+                      content: (() => {
+                        const stages = parseFunnelSummary(data.funnelOverall);
+                        return stages ? (
+                          <FunnelBars stages={stages} ariaLabel="Overall learner funnel" />
+                        ) : (
+                          data.funnelOverall
+                        );
+                      })()
                     },
                     ...data.stateFunnels.map((sf) => ({
                       id: stateTabId(sf.state),
                       label: sf.state,
-                      content: `Completion ${sf.completionRate} | Pass ${sf.passRate} · ${sf.registered} registered, ${sf.completed} completed, ${sf.passed} passed`
+                      content: (
+                        <div className="analytics-funnel-state">
+                          <FunnelBars
+                            stages={[
+                              { label: "Registered", count: sf.registered },
+                              { label: "Completed", count: sf.completed },
+                              { label: "Passed", count: sf.passed }
+                            ]}
+                            ariaLabel={`${sf.state} learner funnel`}
+                          />
+                          <p className="analytics-funnel-state__caption">
+                            Completion {sf.completionRate} · Pass rate {sf.passRate}
+                          </p>
+                        </div>
+                      )
                     }))
                   ]}
                 />

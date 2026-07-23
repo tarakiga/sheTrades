@@ -256,6 +256,68 @@ function getDisplayStateRows(lang: "en" | "pcm" | "ig"): StateRow[] {
   return [...getStateRows(), { id: OTHER_STATE_ID, title: getPrompt("state_other_label", lang, "Others") }];
 }
 
+// Prefix for the "More states" pagination rows: WhatsApp lists carry at most
+// 10 rows total, and Nigeria has 37 states/FCT, so the full list pages 9 at a
+// time with a tenth row that requests the next page.
+const STATES_PAGE_ID_PREFIX = "__states_page_";
+const STATES_PER_PAGE = 9;
+
+export function statesPageId(page: number): string {
+  return `${STATES_PAGE_ID_PREFIX}${page}__`;
+}
+
+export function parseStatesPageId(input: string): number | null {
+  const match = input.trim().match(/^__states_page_(\d+)__$/);
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * Every Nigerian state (+ FCT), shown page by page after the learner taps
+ * "Others" - so nobody has to type their state by hand. Admin-managed via the
+ * bot.states_full option set; the complete built-in list is the resilience
+ * fallback (safe defaults) since the set of states is stable.
+ */
+const ALL_NIGERIAN_STATES = [
+  "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue",
+  "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe",
+  "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara",
+  "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau",
+  "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara", "FCT (Abuja)"
+];
+
+export function getFullStateRows(): StateRow[] {
+  const configured = getRuntimeOptionSet("bot.states_full")
+    .filter((item) => item.enabled)
+    .map((item) => ({ id: item.value.trim().toLowerCase(), title: item.label.trim() }))
+    .filter((r) => r.id.length > 0 && r.title.length > 0);
+  if (configured.length > 0) return configured;
+  return ALL_NIGERIAN_STATES.map((title) => ({
+    id: title.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+    title
+  }));
+}
+
+export function buildStatesPageReply(lang: "en" | "pcm" | "ig", page: number) {
+  const all = getFullStateRows();
+  const totalPages = Math.max(Math.ceil(all.length / STATES_PER_PAGE), 1);
+  const clamped = Math.min(Math.max(page, 1), totalPages);
+  const slice = all.slice((clamped - 1) * STATES_PER_PAGE, clamped * STATES_PER_PAGE);
+  const rows: StateRow[] = [...slice];
+  if (clamped < totalPages) {
+    rows.push({
+      id: statesPageId(clamped + 1),
+      title: getPrompt("state_more_label", lang, "More states ➡️")
+    });
+  }
+  return {
+    reply: `${getPrompt("state_prompt", lang, "Which state are you in?")} (${clamped}/${totalPages})`,
+    list: {
+      button: getPrompt("state_button", lang, "Choose state"),
+      sections: [{ title: "States", rows: rows.map((r) => ({ id: r.id, title: r.title })) }]
+    }
+  };
+}
+
 function resolveState(input: string, rows: StateRow[]): StateRow | null {
   const norm = input.trim().toLowerCase();
   // Always accept the literal "other"/"others" for the escape-hatch row,
@@ -937,8 +999,20 @@ function transition(
   }
 
   if (session.state === "awaiting_state") {
+    // A tapped "More states" pagination row: serve the requested page and stay
+    // in the same step.
+    const requestedPage = parseStatesPageId(normalized);
+    if (requestedPage !== null) {
+      const pageList = buildStatesPageReply(lang, requestedPage);
+      return { state: "awaiting_state", reply: pageList.reply, list: pageList.list };
+    }
+
+    // Resolve against the short managed list AND the full list, so a tap from
+    // any full-list page (or a typed full state name) lands. Note: typed
+    // NUMBERS only address the short list - full-list pages are id/title
+    // matched, which is what list taps send.
     const rows = getDisplayStateRows(lang);
-    const chosen = resolveState(normalized, rows);
+    const chosen = resolveState(normalized, rows) ?? resolveState(normalized, getFullStateRows());
     if (!chosen) {
       const list = buildStateListReply(lang, rows);
       return {
@@ -952,14 +1026,11 @@ function transition(
       };
     }
     if (chosen.id === OTHER_STATE_ID) {
-      // Escape hatch: ask the learner to type their state instead of picking
-      // from the managed list.
-      session.state = "awaiting_custom_state";
-      session.lastUpdatedAt = nowIso();
-      return {
-        state: session.state,
-        reply: getPrompt("custom_state_prompt", lang, "Please type the name of your state.")
-      };
+      // "Others" now opens the FULL paginated state list instead of asking the
+      // learner to type - nobody enters their state by hand. (The typed-entry
+      // awaiting_custom_state step below remains for in-flight sessions.)
+      const pageList = buildStatesPageReply(lang, 1);
+      return { state: "awaiting_state", reply: pageList.reply, list: pageList.list };
     }
     session.location = chosen.title;
     session.state = "main_menu";

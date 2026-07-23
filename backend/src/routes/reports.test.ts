@@ -65,14 +65,14 @@ test("POST /api/reports/exports creates CSV export job with schema governance", 
       requestId: "rep-1",
       reportType: "donor_summary",
       format: "csv",
-      schemaVersion: "v1",
+      schemaVersion: "v2",
       requestedBy: "admin@shetrades.org"
     })
     .expect(201);
 
   assert.equal(response.body.status, "created");
   assert.equal(response.body.job.status, "Ready");
-  assert.match(String(response.body.job.content), /totalDonors/);
+  assert.match(String(response.body.job.content), /"period","recipients","rewardsIssued","totalNgnIssued"/);
 });
 
 test("POST /api/reports/exports is idempotent by requestId", async () => {
@@ -130,7 +130,7 @@ test("POST /api/reports/exports returns 502 when renderer fails repeatedly", asy
           requestId: "rep-4",
           reportType: "donor_summary",
           format: "csv",
-          schemaVersion: "v1",
+          schemaVersion: "v2",
           requestedBy: "admin@shetrades.org"
         })
         .expect(502);
@@ -178,7 +178,7 @@ test("GET /api/reports/exports and /api/reports/exports/:id return export artifa
       requestId: "rep-6",
       reportType: "donor_summary",
       format: "csv",
-      schemaVersion: "v1",
+      schemaVersion: "v2",
       requestedBy: "admin@shetrades.org"
     })
     .expect(201);

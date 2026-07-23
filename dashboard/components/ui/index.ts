@@ -24,6 +24,8 @@ export { ConstraintMeter } from "./ConstraintMeter";
 export type { ConstraintMeterProps, ConstraintMeterState } from "./ConstraintMeter";
 export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
+export { FunnelBars, parseFunnelSummary } from "./FunnelBars";
+export type { FunnelBarsProps, FunnelStage } from "./FunnelBars";
 export { FilterChipGroup } from "./FilterChipGroup";
 export type { FilterChipGroupProps } from "./FilterChipGroup";
 export { GuidedTour } from "./GuidedTour";
