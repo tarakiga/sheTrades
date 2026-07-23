@@ -72,6 +72,14 @@ export function brandingStyleVars(branding: Branding): Record<string, string> {
     "--color-accent-400": secondary,
     "--color-accent-500": accent,
     "--color-accent-600": accent,
-    "--font-family-sans": `"${font}", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif`
+    "--font-family-sans": `"${font}", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif`,
+    // The sidebar and guided-tour accents are DERIVED from the accent tokens in
+    // globals.css :root (--sidebar-accent, --sidebar-mark-gradient, --tour-ring).
+    // A :root-declared derived var resolves against the value at :root, so it
+    // wouldn't pick up the token override on its own - re-declare it from the
+    // branding accent so the active-nav highlight, logo mark, and avatar re-theme.
+    "--sidebar-accent": secondary,
+    "--sidebar-mark-gradient": `linear-gradient(135deg, ${secondary}, ${accent})`,
+    "--tour-ring": secondary
   };
 }

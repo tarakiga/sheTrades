@@ -148,7 +148,9 @@ export function AdminShell({ children, copy = {} }: AdminShellProps) {
   const pathname = usePathname();
   const { status, user } = useAdminSession();
   const branding = useBranding();
-  const brand = resolveCopy(copy, "shell.brand", `${branding.organisationName} Admin`);
+  // Organisation name is driven by Settings → Branding (single source of truth),
+  // not the shell.brand copy key - so renaming in Branding updates the sidebar.
+  const brand = branding.organisationName;
 
   return (
     <div className="admin-shell">

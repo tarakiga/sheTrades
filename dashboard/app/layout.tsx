@@ -31,13 +31,15 @@ type RootLayoutProps = {
 
 export default async function RootLayout({ children }: RootLayoutProps) {
   const branding = await getBranding();
-  // White-label theme: overrides the brand/accent/font tokens from the published
-  // branding config as inherited CSS custom properties on <body>, re-theming the
-  // whole component library. Safe by construction — no injected markup.
+  // White-label theme: override the brand/accent/font tokens from the published
+  // branding config as CSS custom properties. Set on <html> (:root), not <body>:
+  // globals.css derives vars like --sidebar-accent at :root, and those resolve
+  // against the :root values - so the override must sit at the same level to
+  // re-theme them. Safe by construction - no injected markup.
   const themeVars = brandingStyleVars(branding) as CSSProperties;
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning style={themeVars}>
+    <html lang="en" suppressHydrationWarning style={themeVars}>
+      <body suppressHydrationWarning>
         <BrandingProvider value={branding}>{children}</BrandingProvider>
       </body>
     </html>
