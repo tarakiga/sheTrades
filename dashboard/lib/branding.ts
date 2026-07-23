@@ -90,6 +90,12 @@ export function brandingStyleVars(branding: Branding): Record<string, string> {
     // Glow shadows were a hardcoded gold rgba; derive them from the branding
     // accent (with alpha) so the logo-mark glow and tour pulse follow the brand.
     "--sidebar-mark-glow": `0 6px 16px ${withAlpha(secondary, "4d")}`,
-    "--tour-glow": withAlpha(secondary, "59")
+    "--tour-glow": withAlpha(secondary, "59"),
+    // Focus ring follows the brand primary (~24% alpha). Derived HERE, not via
+    // CSS color-mix inside the --focus-ring token: an unsupported color-mix in a
+    // var() is invalid at computed-value time, which would REMOVE the ring at
+    // every :focus-visible call site rather than fall back. The stylesheet keeps
+    // the navy default for unbranded installs.
+    "--focus-ring": `0 0 0 3px ${withAlpha(primary, "3d")}`
   };
 }

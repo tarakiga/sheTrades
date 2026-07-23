@@ -64,9 +64,17 @@
   --radius-xl: 1rem;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.08);
-  --shadow-md: 0 4px 10px rgba(16, 24, 40, 0.1);
-  --shadow-lg: 0 12px 24px rgba(16, 24, 40, 0.14);
+  /* Motion + surface refinement tokens (premium pass). One easing vocabulary
+     for micro-interactions; layered ambient+key shadows for realistic depth. */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --tracking-display: -0.02em;
+  --border-hairline: 1px solid rgba(17, 24, 39, 0.06);
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 2px 4px rgba(16, 24, 40, 0.05), 0 6px 16px -2px rgba(16, 24, 40, 0.08);
+  --shadow-lg: 0 4px 8px rgba(16, 24, 40, 0.05), 0 16px 32px -4px rgba(16, 24, 40, 0.1);
   --shadow-drawer: -12px 0 32px rgba(15, 23, 42, 0.12);
 
   --color-success-100: #dcfce7;
@@ -89,7 +97,9 @@
   --sidebar-border-strong: rgba(255, 255, 255, 0.16);
   --sidebar-text: rgba(233, 240, 243, 0.8);
   --sidebar-text-strong: #ffffff;
-  --sidebar-text-muted: rgba(180, 198, 205, 0.5);
+  /* 0.5 alpha computed to ~2.3:1 on the dark rail - below AA even for large
+     text. 0.75 lands ~4.6:1 while keeping the muted hierarchy. */
+  --sidebar-text-muted: rgba(180, 198, 205, 0.75);
   --sidebar-hover-bg: rgba(255, 255, 255, 0.055);
   --sidebar-active-bg: rgba(255, 255, 255, 0.1);
   --sidebar-accent: var(--color-accent-400);
@@ -238,7 +248,11 @@ body {
   gap: var(--space-2);
   justify-content: center;
   line-height: 1;
-  transition: all 0.2s ease;
+  transition:
+    background-color var(--duration-fast) var(--ease-out-soft),
+    border-color var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-fast) var(--ease-out-soft),
+    transform var(--duration-fast) var(--ease-out-soft);
 }
 
 .ui-button:focus-visible {
@@ -249,6 +263,12 @@ body {
 .ui-button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* Tactile press. Scale (not translate) so buttons inside table rows and tight
+   rails never shift surrounding layout. */
+.ui-button:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
 .ui-button--sm {
@@ -276,7 +296,12 @@ body {
 }
 
 .ui-button--primary:hover:not(:disabled) {
+  /* Derived hover shade: the white-label override sets brand-500/700 to the SAME
+     colour, which silently removed hover feedback on branded installs. color-mix
+     computes a darker step from whatever brand-500 currently is; the brand-700
+     line above is the parse-time fallback for pre-color-mix browsers. */
   background: var(--color-brand-700);
+  background: color-mix(in srgb, var(--color-brand-500) 86%, #000);
 }
 
 .ui-button--secondary {
@@ -287,6 +312,7 @@ body {
 
 .ui-button--secondary:hover:not(:disabled) {
   background: var(--color-neutral-100);
+  box-shadow: var(--shadow-sm);
 }
 
 .ui-button--ghost {
@@ -566,6 +592,9 @@ body {
 
 .ui-card {
   background: var(--color-neutral-0);
+  /* Hairline edge: on the tinted canvas a borderless card relies on shadow
+     alone and its edge dissolves in dense layouts. */
+  border: var(--border-hairline);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-5);
@@ -647,6 +676,7 @@ body {
 
 .ui-section-header__title {
   font-size: var(--font-size-2xl);
+  letter-spacing: var(--tracking-display);
   line-height: var(--line-height-tight);
   margin: 0;
 }
@@ -701,13 +731,16 @@ body {
 .ui-table td {
   border-bottom: 1px solid var(--color-neutral-100);
   font-size: var(--font-size-sm);
-  padding: var(--space-3) var(--space-2);
+  padding: var(--space-3);
   text-align: left;
 }
 
 .ui-table th {
   color: var(--color-neutral-700);
+  font-size: var(--font-size-xs);
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .ui-table tbody tr {
@@ -1291,6 +1324,10 @@ body {
 .ui-stat-card__value {
   color: var(--color-neutral-900);
   font-size: var(--font-size-2xl);
+  /* Tabular numerals: KPI values keep a constant width when data refreshes,
+     so metric tiles stop jittering between loads. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-display);
   line-height: var(--line-height-tight);
   margin: var(--space-2) 0;
 }
@@ -7317,6 +7354,15 @@ button.needs-attention-panel__item:focus {
 @media (prefers-reduced-motion: reduce) {
   .ui-button.content-tour-cta {
     animation: none;
+  }
+
+  .ui-button,
+  .ui-table tbody tr {
+    transition: none;
+  }
+
+  .ui-button:active:not(:disabled) {
+    transform: none;
   }
 }
 
