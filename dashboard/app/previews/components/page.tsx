@@ -29,6 +29,7 @@ import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
 import { TranslationSettingsPreview } from "./TranslationSettingsPreview";
 import { TranslationReviewPreview } from "./TranslationReviewPreview";
 import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
+import { BrandingEditorPreview } from "./BrandingEditorPreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
 import { HelpRequestsPanelPreview } from "./HelpRequestsPanelPreview";
@@ -472,6 +473,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <AdminTeamWorkspacePreview />
+        </Card>
+
+        <Card
+          title={t("preview.brandingEditor.title", "Branding Editor - white-label controls")}
+          description={t(
+            "preview.brandingEditor.description",
+            "Preview the Settings → Branding editor: grouped identity/palette/typography sections, swatch-card colour fields with hex readouts, and a live preview that re-themes as you edit."
+          )}
+        >
+          <BrandingEditorPreview />
         </Card>
 
         <Card

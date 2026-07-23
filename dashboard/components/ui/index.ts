@@ -16,6 +16,8 @@ export { Button } from "./Button";
 export type { ButtonProps } from "./Button";
 export { Card } from "./Card";
 export type { CardProps } from "./Card";
+export { ColorField } from "./ColorField";
+export type { ColorFieldProps } from "./ColorField";
 export { ConfirmationModal } from "./ConfirmationModal";
 export type { ConfirmationModalProps } from "./ConfirmationModal";
 export { ConstraintMeter } from "./ConstraintMeter";

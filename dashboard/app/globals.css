@@ -2208,6 +2208,273 @@ body {
   display: flex;
 }
 
+/* ---- Branding editor (Settings → Branding) ---- */
+
+.branding-editor {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 1100px) {
+  .branding-editor {
+    align-items: start;
+    grid-template-columns: minmax(0, 27rem) minmax(0, 1fr);
+  }
+}
+
+.branding-editor__form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.branding-editor__section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.branding-editor__section + .branding-editor__section {
+  border-top: var(--border-hairline);
+  padding-top: var(--space-5);
+}
+
+.branding-editor__section-label {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.branding-editor__section-hint {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  margin: 0;
+}
+
+.branding-editor__palette {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 560px) {
+  .branding-editor__palette {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Swatch-card colour field (shared ui atom) */
+.ui-color-field {
+  background: var(--color-neutral-0);
+  border: var(--border-hairline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.ui-color-field__swatch {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: var(--border-hairline);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  height: 2.75rem;
+  padding: 0;
+  width: 100%;
+}
+
+.ui-color-field__swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.ui-color-field__swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: var(--radius-sm);
+}
+
+.ui-color-field__swatch::-moz-color-swatch {
+  border: none;
+  border-radius: var(--radius-sm);
+}
+
+.ui-color-field__swatch:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.ui-color-field__meta {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.ui-color-field__label {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.ui-color-field__value {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ui-color-field__hint {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+  margin: 0;
+}
+
+/* Live preview panel - consumes the in-progress form values via --pv-* vars
+   set inline by BrandingEditor, so it re-themes as the admin edits. */
+.branding-editor__preview {
+  align-self: start;
+  background: var(--color-neutral-50);
+  border: var(--border-hairline);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  position: sticky;
+  top: var(--space-6);
+}
+
+.branding-editor__preview-rail {
+  background: var(--sidebar-bg);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.branding-editor__preview-brand {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.branding-editor__preview-mark {
+  align-items: center;
+  background: linear-gradient(135deg, var(--pv-secondary), var(--pv-accent));
+  border-radius: var(--radius-md);
+  color: var(--color-brand-900);
+  display: flex;
+  font-family: var(--pv-font);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  height: 2.25rem;
+  justify-content: center;
+  width: 2.25rem;
+}
+
+.branding-editor__preview-brand-text {
+  display: grid;
+}
+
+.branding-editor__preview-brand-name {
+  color: var(--sidebar-text-strong);
+  font-family: var(--pv-font);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.branding-editor__preview-brand-sub {
+  color: var(--sidebar-text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.branding-editor__preview-nav {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.branding-editor__preview-nav-item {
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--sidebar-text);
+  font-family: var(--pv-font);
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.branding-editor__preview-nav-item--active {
+  background: var(--sidebar-active-bg);
+  border-left-color: var(--pv-secondary);
+  color: var(--sidebar-text-strong);
+  font-weight: 600;
+}
+
+.branding-editor__preview-type {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.branding-editor__preview-specimen {
+  color: var(--color-neutral-900);
+  font-family: var(--pv-font);
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-display);
+  margin: 0;
+}
+
+.branding-editor__preview-body {
+  color: var(--color-neutral-700);
+  font-family: var(--pv-font);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  margin: 0;
+}
+
+.branding-editor__preview-controls {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.branding-editor__preview-button {
+  background: var(--pv-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-0);
+  font-family: var(--pv-font);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+}
+
+.branding-editor__preview-chip {
+  background: var(--color-accent-100);
+  background: color-mix(in srgb, var(--pv-accent) 16%, var(--color-neutral-0));
+  border-radius: var(--radius-full);
+  color: var(--color-neutral-700);
+  color: color-mix(in srgb, var(--pv-accent) 68%, var(--color-neutral-900));
+  font-family: var(--pv-font);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-3);
+}
+
+.branding-editor__actions {
+  border-top: var(--border-hairline);
+  display: flex;
+  gap: var(--space-3);
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  padding-top: var(--space-4);
+}
+
 .integration-workspace__table-shell {
   background: rgba(255, 255, 255, 0.98);
   border: 1px solid rgba(51, 78, 88, 0.08);

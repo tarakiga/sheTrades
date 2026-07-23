@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Badge, Button, EmptyState, Input, Select } from "../ui";
+import { useEffect, useState, type CSSProperties } from "react";
+import { Badge, Button, ColorField, EmptyState, Input, Select } from "../ui";
 import {
   ADMIN_CONFIG_API_BASE_URL,
   ADMIN_CONFIG_TOKEN_UPDATED_EVENT,
   getStoredAdminConfigToken
 } from "../../lib/admin-config-auth";
-import { BRANDING_FALLBACK, FONT_CHOICES } from "../../lib/branding";
+import { BRANDING_FALLBACK, FONT_CHOICES, fontStackFor } from "../../lib/branding";
 import type { IntegrationDocumentDetail } from "../integration/types";
 
 const DOCUMENT_KEY = "branding.identity";
@@ -18,7 +18,7 @@ type FeedbackState = {
   text: string;
 };
 
-type BrandingFormState = {
+export type BrandingFormState = {
   organisationName: string;
   primaryColor: string;
   secondaryColor: string;
@@ -51,9 +51,159 @@ function validate(form: BrandingFormState): Record<string, string> {
     errors.organisationName = "Enter the organisation name shown across the app.";
   }
   if (!form.fontFamily.trim()) {
-    errors.fontFamily = "Enter a font family name (e.g. Inter).";
+    errors.fontFamily = "Choose a font family.";
   }
   return errors;
+}
+
+function brandInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const initials = `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`;
+  return (initials || "??").toUpperCase();
+}
+
+export type BrandingEditorProps = {
+  form: BrandingFormState;
+  errors: Record<string, string>;
+  onChange: (next: BrandingFormState) => void;
+  onReset: () => void;
+  onPublish: () => void;
+  publishing: boolean;
+};
+
+/**
+ * Presentational branding editor: grouped sections (identity / palette /
+ * typography), swatch-card colour fields, and a live preview that renders the
+ * brand mark, nav, type, and controls in the CURRENT form values - so an admin
+ * sees the theme before publishing it. Exported separately so the component
+ * gallery can render it with fixture state, no auth or network needed.
+ */
+export function BrandingEditor({
+  form,
+  errors,
+  onChange,
+  onReset,
+  onPublish,
+  publishing
+}: BrandingEditorProps) {
+  // The preview consumes the in-progress form values as scoped CSS variables -
+  // deliberately NOT the published theme tokens, so it changes as you edit.
+  const previewVars = {
+    "--pv-primary": form.primaryColor,
+    "--pv-secondary": form.secondaryColor,
+    "--pv-accent": form.accentColor,
+    "--pv-font": fontStackFor(form.fontFamily)
+  } as CSSProperties;
+
+  return (
+    <div className="branding-editor">
+      <div className="branding-editor__form">
+        <section className="branding-editor__section">
+          <p className="branding-editor__section-label">Identity</p>
+          <Input
+            id="branding-org-name"
+            label="Organisation Name"
+            value={form.organisationName}
+            onChange={(event) => onChange({ ...form, organisationName: event.target.value })}
+            hint="Shown across the dashboard, the bot's welcome message, and emails."
+            {...(errors.organisationName ? { error: errors.organisationName } : {})}
+          />
+        </section>
+
+        <section className="branding-editor__section">
+          <p className="branding-editor__section-label">Colour Palette</p>
+          <div className="branding-editor__palette">
+            <ColorField
+              id="branding-primary-color"
+              label="Primary"
+              value={form.primaryColor}
+              onChange={(hex) => onChange({ ...form, primaryColor: hex })}
+            />
+            <ColorField
+              id="branding-secondary-color"
+              label="Secondary"
+              value={form.secondaryColor}
+              onChange={(hex) => onChange({ ...form, secondaryColor: hex })}
+            />
+            <ColorField
+              id="branding-accent-color"
+              label="Accent"
+              value={form.accentColor}
+              onChange={(hex) => onChange({ ...form, accentColor: hex })}
+            />
+          </div>
+          <p className="branding-editor__section-hint">
+            Primary drives buttons, links, and active states. Secondary and accent drive the
+            sidebar highlights, gradients, and glows.
+          </p>
+        </section>
+
+        <section className="branding-editor__section">
+          <p className="branding-editor__section-label">Typography</p>
+          <Select
+            id="branding-font-family"
+            label="Font Family"
+            value={form.fontFamily}
+            options={
+              // A legacy free-text value (from before the curated set) still
+              // displays instead of showing an empty control.
+              FONT_CHOICES.some((choice) => choice.value === form.fontFamily)
+                ? FONT_CHOICES
+                : [...FONT_CHOICES, { value: form.fontFamily, label: `${form.fontFamily} (custom)` }]
+            }
+            onChange={(value) => onChange({ ...form, fontFamily: value })}
+            hint="Bundled with the app and self-hosted, so it loads for every visitor."
+          />
+        </section>
+      </div>
+
+      <aside className="branding-editor__preview" style={previewVars} aria-label="Live branding preview">
+        <p className="branding-editor__section-label">Live Preview</p>
+
+        <div className="branding-editor__preview-rail">
+          <div className="branding-editor__preview-brand">
+            <span className="branding-editor__preview-mark" aria-hidden="true">
+              {brandInitials(form.organisationName)}
+            </span>
+            <span className="branding-editor__preview-brand-text">
+              <span className="branding-editor__preview-brand-name">
+                {form.organisationName.trim() || "Organisation"}
+              </span>
+              <span className="branding-editor__preview-brand-sub">Admin Console</span>
+            </span>
+          </div>
+          <div className="branding-editor__preview-nav">
+            <span className="branding-editor__preview-nav-item branding-editor__preview-nav-item--active">
+              Overview
+            </span>
+            <span className="branding-editor__preview-nav-item">Users</span>
+            <span className="branding-editor__preview-nav-item">Rewards</span>
+          </div>
+        </div>
+
+        <div className="branding-editor__preview-type">
+          <p className="branding-editor__preview-specimen">Aa Bb Cc 012345</p>
+          <p className="branding-editor__preview-body">
+            Lessons, rewards, and learner progress - set in {form.fontFamily}.
+          </p>
+        </div>
+
+        <div className="branding-editor__preview-controls">
+          <span className="branding-editor__preview-button">Primary Action</span>
+          <span className="branding-editor__preview-chip">Accent</span>
+        </div>
+      </aside>
+
+      <div className="branding-editor__actions">
+        <Button variant="secondary" onClick={onReset}>
+          Reset
+        </Button>
+        <Button loading={publishing} onClick={onPublish}>
+          Publish Branding
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function BrandingWorkspace() {
@@ -226,72 +376,14 @@ export function BrandingWorkspace() {
           <Badge variant="info">Loading branding...</Badge>
         </div>
       ) : (
-        <section className="integration-workspace__editor">
-          <div className="integration-workspace__editor-body">
-            <Input
-              id="branding-org-name"
-              label="Organisation Name"
-              value={form.organisationName}
-              onChange={(event) => setForm({ ...form, organisationName: event.target.value })}
-              hint="Shown across the dashboard, the bot's welcome message, and emails."
-              {...(errors.organisationName ? { error: errors.organisationName } : {})}
-            />
-
-            <Input
-              id="branding-primary-color"
-              label="Primary Colour"
-              type="color"
-              value={form.primaryColor}
-              onChange={(event) => setForm({ ...form, primaryColor: event.target.value })}
-              hint="Main brand colour: buttons, links, and active states."
-            />
-
-            <Input
-              id="branding-secondary-color"
-              label="Secondary Colour"
-              type="color"
-              value={form.secondaryColor}
-              onChange={(event) => setForm({ ...form, secondaryColor: event.target.value })}
-              hint="Accent used for highlights and secondary emphasis."
-            />
-
-            <Input
-              id="branding-accent-color"
-              label="Accent Colour"
-              type="color"
-              value={form.accentColor}
-              onChange={(event) => setForm({ ...form, accentColor: event.target.value })}
-              hint="Deeper accent used in gradients and emphasis."
-            />
-
-            <Select
-              id="branding-font-family"
-              label="Font Family"
-              value={form.fontFamily}
-              options={
-                // A legacy free-text value (from before the curated set) still
-                // displays instead of showing an empty control.
-                FONT_CHOICES.some((choice) => choice.value === form.fontFamily)
-                  ? FONT_CHOICES
-                  : [
-                      ...FONT_CHOICES,
-                      { value: form.fontFamily, label: `${form.fontFamily} (custom)` }
-                    ]
-              }
-              onChange={(value) => setForm({ ...form, fontFamily: value })}
-              hint="Bundled with the app and self-hosted, so it loads for every visitor. Asap is the default."
-            />
-          </div>
-
-          <div className="integration-workspace__editor-footer">
-            <Button variant="secondary" onClick={() => setForm(toForm(detail))}>
-              Reset
-            </Button>
-            <Button loading={isSubmitting} onClick={() => void saveAndPublish()}>
-              Publish Branding
-            </Button>
-          </div>
-        </section>
+        <BrandingEditor
+          form={form}
+          errors={errors}
+          onChange={setForm}
+          onReset={() => setForm(toForm(detail))}
+          onPublish={() => void saveAndPublish()}
+          publishing={isSubmitting}
+        />
       )}
     </section>
   );

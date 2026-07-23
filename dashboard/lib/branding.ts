@@ -41,6 +41,18 @@ export const FONT_CHOICES: Array<{ value: string; label: string }> = Object.keys
   CURATED_FONT_VARS
 ).map((name) => ({ value: name, label: name }));
 
+/**
+ * Full CSS font stack for a branding fontFamily. A curated font resolves to its
+ * bundled next/font variable (loads for every visitor); an unknown/legacy value
+ * falls back to naming the raw family, which only renders if the visitor has it
+ * installed. Shared by the theme override and the Branding tab's live preview.
+ */
+export function fontStackFor(fontFamily: string): string {
+  const font = cleanFont(fontFamily);
+  const value = CURATED_FONT_VARS[font] ?? `"${font}"`;
+  return `${value}, "Segoe UI", "Helvetica Neue", Arial, sans-serif`;
+}
+
 const str = (value: unknown, fallback: string): string =>
   typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
 
@@ -89,11 +101,6 @@ export function brandingStyleVars(branding: Branding): Record<string, string> {
   const primary = cleanColor(branding.primaryColor);
   const secondary = cleanColor(branding.secondaryColor);
   const accent = cleanColor(branding.accentColor);
-  const font = cleanFont(branding.fontFamily);
-  // A curated font resolves to its bundled next/font variable (loads for every
-  // visitor); an unknown/legacy value falls back to the old behaviour of naming
-  // the raw family, which only renders if the visitor has it installed.
-  const fontValue = CURATED_FONT_VARS[font] ?? `"${font}"`;
   return {
     "--color-brand-500": primary,
     "--color-brand-600": primary,
@@ -101,7 +108,7 @@ export function brandingStyleVars(branding: Branding): Record<string, string> {
     "--color-accent-400": secondary,
     "--color-accent-500": accent,
     "--color-accent-600": accent,
-    "--font-family-sans": `${fontValue}, "Segoe UI", "Helvetica Neue", Arial, sans-serif`,
+    "--font-family-sans": fontStackFor(branding.fontFamily),
     // The sidebar and guided-tour accents are DERIVED from the accent tokens in
     // globals.css :root (--sidebar-accent, --sidebar-mark-gradient, --tour-ring).
     // A :root-declared derived var resolves against the value at :root, so it
