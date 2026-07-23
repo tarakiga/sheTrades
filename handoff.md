@@ -955,3 +955,21 @@ migration) and `npm run db:migrate:deploy -w @shetrades/backend` on release.
 ensurePrismaTables remains in startup as a harmless idempotent safety net; the
 remaining follow-up is wiring `migrate deploy` into startup/CI and then
 retiring the bootstrap.
+
+---
+
+## R3-F5 content-length breach: RESOLVED by operator content fixes (verified 2026-07-23)
+
+Live measurement against staging /api/config/public/content (composed message =
+title header + body + quiz instruction, UTF-16 units): ALL 43 lessons fit the
+1024-char interactive cap - longest 950 (m5_l5_h). The July-21 audit
+(27 over, max 1392) is obsolete; the operator worked through the fix lists.
+Quiz options: 35/387 marginally over the 20-char button cap (21-29 chars) -
+cosmetic clipping only, delivery unaffected. THE TRANSLATION GATE IS CLEARED:
+bulk Pidgin/Igbo runs no longer inherit over-limit English.
+
+Open question from the same check: whatsapp.send.failed log entries (Jul 21,
+16:45) show Meta delivery ATTEMPTS to +2348000111444, which the operator says
+was sandbox-only testing - sandbox-marked requests should never reach Meta.
+Harmless here (allowlist rejection), but worth confirming every sandbox path
+carries X-SheTrades-Source.

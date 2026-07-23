@@ -148,10 +148,7 @@ reviewer to correct it before the report circulates.
 - `[ ]` **R3-F6 (MED): quiz options rendered twice** — numbered list in the message body
   (`handler.ts:915`) *and* as buttons (`handler.ts:922`). Drop the in-text list when
   buttons are present; keep it for non-button/feature-phone delivery.
-- `[ ]` **R3-F5 (MED): lessons arrive as one dense bubble.** Worse than the report states —
-  **27 of 43 lessons exceed WhatsApp's hard 1024-char interactive-body limit** (max 1392,
-  per `docs/lesson_body_audit.csv`). This is an API constraint breach, not just pacing.
-  Blocks translation: fix the English to fit before paying anyone to translate it.
+- `[x]` **R3-F5 CONTENT BREACH RESOLVED (verified live 2026-07-23):** operator shortened the lessons - all 43 composed messages now fit the 1024-char interactive cap (longest 950; was 27 over, max 1392). Quiz options: 35/387 marginally over the 20-char button cap (21-29 chars, cosmetic clipping only - delivery unaffected, clip-tolerant matching handles echoes). TRANSLATION GATE CLEARED. Residual (optional): dense-bubble pacing is now a UX preference, not a breach.
 - `[ ]` **R3-F5/6/9 (MED): Dialogue State stuck at `module_menu` during lessons/quizzes.**
   `ConversationState` (`handler.ts:18`) has 7 values, none for lesson or quiz activity.
   The data already exists on the session (`awaitingQuizAnswer`, `currentQuizIndex`) — this
