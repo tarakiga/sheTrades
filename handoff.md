@@ -1047,3 +1047,26 @@ next-run correctly Mon 08:00 UTC. The test schedule is left PAUSED on /reports.
 Open follow-ups: consider a dedicated reports-worker-token secret (currently reuses
 payouts token, same trust tier); edit-in-place for schedules (v1 = recreate);
 report date-ranges + real PDF remain v2 items from the CS-6 spec.
+
+## Session paused (2026-07-23) - white-label phase specced, not started
+
+Operator asked whether the platform is truly white-label. Audit answer: yes on
+every load-bearing surface (branding.identity drives name/colours/font across
+dashboard/emails/bot; all content + legal + integrations config-driven; model
+is one-org-one-deployment). Residue specced as the NEXT PHASE in
+docs/white-label-readiness-spec.md (WL-1 defect fix -> WL-2 string sweep ->
+WL-3 tenant runbook -> WL-4 logo upload on demand). Nothing implemented yet -
+operator paused before go-ahead.
+
+Also awaiting operator decisions on resume:
+1. WL phase go-ahead (above).
+2. Messaging-cost Option A (auto-advance after lesson-complete): saves
+   ~$0.28/completing learner post-Oct-2026; corrected cost baseline is ~$1.54
+   clean / ~$1.80 realistic per completing learner (~230 msgs x $0.0067 Nigeria
+   utility rate) - NOTE the bot already consolidates verdict+next-question in
+   one message, so earlier ~$2.45 estimates double-counted.
+3. Translations bulk runs (1/43 pcm, 0/43 ig) - still the largest content gap.
+
+Platform state at pause: CS-7 live + verified (test schedule PAUSED on
+/reports, operator to inspect); suite 411/0/42; staging rev 00100-g5f;
+tracker's only open items are the new WL phase entries.

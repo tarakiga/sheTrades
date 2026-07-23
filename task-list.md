@@ -320,3 +320,16 @@ fed from the admin team + the reports.recipient_directory option set).
 - `[x]` CS7-6: Dashboard: `ReportScheduleDrawer` (preset + cadence + two-source recipient picker + validated one-off email), live Scheduled Jobs card (list, pause/resume, run now, delete w/ confirm), gallery story. Verified in browser.
 - `[x]` CS7-7: 9 new backend tests (next-run engine incl. month clamping, cadence metadata contract, input normalisation, email templating, dispatch guard) - suite 411/0 fail/42 skipped.
 - `[x]` CS7-8: Staging e2e: created weekly Partner schedule, run-now returned status "sent" ("Sent donor_summary-2026-07-23.csv to tar112@gmail.com"), dispatch tick {due:0} with token + 403 without, schedule left PAUSED for operator inspection.
+
+## Next phase: White-label readiness (SPECCED 2026-07-23, awaiting go-ahead)
+Spec: docs/white-label-readiness-spec.md. Audit found the load-bearing surfaces
+already config-driven; this phase clears the residue. Do WL-1..3 first, pause
+for review before WL-4.
+- `[ ]` WL-1 (S, defect): privacy fallback renders `("SheTrades","we","us")` for any org + shetrades.digital fallback emails - make fallbacks org-neutral (dashboard/app/privacy/page.tsx:40, backend/src/notifications/help-request-email.ts:60).
+- `[ ]` WL-2 (S/M): operator-visible string sweep - simulator assistant name/default text, config phone mocks, SMTP fromName defaults, payouts placeholders, greeting-trigger list -> `bot.greeting_triggers` option set. Plumbing names (X-SheTrades-Source, package names, tour keys) explicitly KEPT.
+- `[ ]` WL-3 (M): docs/new-tenant-runbook.md - single ordered checklist to stand up a new org (GCP, SQL+secrets, deploy, migrate, Meta, SMTP, Vercel, seed order, admin bootstrap, both Scheduler jobs, smoke tests) + sanitised cloudrun-env.example.yaml.
+- `[ ]` WL-4 (M, on client demand): logo upload in branding.identity (data-URI <=48KB, SVG sanitised, draft/publish preview, initials-mark fallback).
+- WL-5 custom font upload: DEFERRED.
+
+Undecided (not in this phase until operator says go):
+- Messaging-cost Option A auto-advance (~18% per-learner saving, pacing trade-off).
