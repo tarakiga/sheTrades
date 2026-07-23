@@ -14,6 +14,7 @@ import {
   Table
 } from "../../../components/ui";
 import { LearnerDetailDrawer } from "../../../components/users/LearnerDetailDrawer";
+import { ContactLearnerDrawer } from "../../../components/users/ContactLearnerDrawer";
 
 function parsePercent(value: string) {
   const parsed = Number.parseFloat(value.replace("%", ""));
@@ -24,6 +25,7 @@ export default function UsersPage() {
   const [result, setResult] = useState<ApiResult<UsersPageData> | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [openPhone, setOpenPhone] = useState<string | null>(null);
+  const [contact, setContact] = useState<{ phone: string; name: string } | null>(null);
 
   const refetch = useCallback(async () => {
     setLoading(true);
@@ -144,9 +146,10 @@ export default function UsersPage() {
       },
       {
         id: `${row.phone}-message`,
-        label: "Contact learner (coming soon)",
+        label: "Message learner on WhatsApp",
         icon: "message" as const,
-        disabled: true
+        disabled: false,
+        onClick: () => setContact({ phone: row.phone, name: row.name })
       },
       {
         id: `${row.phone}-flag`,
@@ -360,6 +363,13 @@ export default function UsersPage() {
             </Card>
           </div>
         }
+      />
+
+      <ContactLearnerDrawer
+        phone={contact?.phone ?? null}
+        name={contact?.name ?? ""}
+        open={contact !== null}
+        onClose={() => setContact(null)}
       />
 
       <LearnerDetailDrawer

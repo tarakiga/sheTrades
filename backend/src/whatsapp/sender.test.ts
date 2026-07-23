@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sendWhatsAppMessage, type OutboundReply } from "./sender.js";
+import { sendWhatsAppMessage, sendWhatsAppOutreach, type OutboundReply } from "./sender.js";
 import { setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
 
 // getRuntimeWhatsAppConfig() reads integration.whatsapp.primary from the
@@ -104,5 +104,43 @@ test("does not throw on non-2xx", async () => {
   publishConfig(cfg);
   stubFetch(500, { error: "boom" });
   await sendWhatsAppMessage("+234800", { text: "hi" }); // must resolve, not reject
+  publishConfig(null);
+});
+
+// ---- sendWhatsAppOutreach (operator-initiated Contact Learner sends) ----
+
+test("outreach reports failure (not silence) when no config is published", async () => {
+  publishConfig(null);
+  const result = await sendWhatsAppOutreach("+234800", { kind: "text", text: "hi" });
+  assert.equal(result.status, "failed");
+  assert.match((result as { reason: string }).reason, /No WhatsApp integration/);
+});
+
+test("outreach template send builds a Meta template message and returns the id", async () => {
+  publishConfig(cfg);
+  const calls = stubFetch(200, { messages: [{ id: "wamid.777" }] });
+  const result = await sendWhatsAppOutreach("+234800", {
+    kind: "template",
+    templateName: "hello_world",
+    languageCode: "en_US"
+  });
+  const sent = JSON.parse(calls[0]!.init.body as string);
+  assert.equal(sent.type, "template");
+  assert.equal(sent.template.name, "hello_world");
+  assert.equal(sent.template.language.code, "en_US");
+  assert.deepEqual(result, { status: "sent", providerMessageId: "wamid.777" });
+  publishConfig(null);
+});
+
+test("outreach surfaces a Meta rejection as a failed result with the reason", async () => {
+  publishConfig(cfg);
+  stubFetch(400, { error: { message: "template not found" } });
+  const result = await sendWhatsAppOutreach("+234800", {
+    kind: "template",
+    templateName: "nope",
+    languageCode: "en"
+  });
+  assert.equal(result.status, "failed");
+  assert.match((result as { reason: string }).reason, /HTTP 400/);
   publishConfig(null);
 });

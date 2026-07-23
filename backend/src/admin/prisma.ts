@@ -140,6 +140,28 @@ export async function ensurePrismaTables() {
       `CREATE UNIQUE INDEX IF NOT EXISTS translation_drafts_doc_lang_key ON translation_drafts ("contentDocumentId", "targetLanguage");`
     );
 
+    // outbound_messages — audit log of operator-initiated WhatsApp outreach
+    // (Contact Learner). Keep in sync with the OutboundMessage model.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS outbound_messages (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["phone", "TEXT"],
+      ["kind", "TEXT"],
+      ["body", "TEXT NOT NULL DEFAULT ''"],
+      ["status", "TEXT NOT NULL DEFAULT 'failed'"],
+      ["detail", "TEXT"],
+      ["sentBy", "TEXT NOT NULL DEFAULT ''"],
+      ["createdAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE outbound_messages ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS outbound_messages_phone_created_idx ON outbound_messages ("phone", "createdAt");`
+    );
+
     // users
     await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);

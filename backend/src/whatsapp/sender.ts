@@ -66,6 +66,71 @@ function buildMessage(to: string, reply: OutboundReply): Record<string, unknown>
   return { messaging_product: "whatsapp", to, type: "text", text: { body: reply.text } };
 }
 
+export type OutreachPayload =
+  | { kind: "text"; text: string }
+  | { kind: "template"; templateName: string; languageCode: string };
+
+export type OutreachResult =
+  | { status: "sent"; providerMessageId: string | null }
+  | { status: "failed"; reason: string };
+
+/**
+ * Operator-initiated outreach (Contact Learner). Unlike sendWhatsAppMessage -
+ * which swallows failures because a bot reply has no one to report to - this
+ * RETURNS the outcome so the admin UI can show whether the message was
+ * delivered to Meta and why not. Template sends are v1: pre-approved template
+ * name + language, no body variables yet.
+ */
+export async function sendWhatsAppOutreach(
+  to: string,
+  payload: OutreachPayload
+): Promise<OutreachResult> {
+  const cfg = getRuntimeWhatsAppConfig();
+  if (!cfg) {
+    return { status: "failed", reason: "No WhatsApp integration is published." };
+  }
+  const url = `https://graph.facebook.com/${cfg.apiVersion}/${cfg.phoneNumberId}/messages`;
+  const message =
+    payload.kind === "text"
+      ? { messaging_product: "whatsapp", to, type: "text", text: { body: payload.text } }
+      : {
+          messaging_product: "whatsapp",
+          to,
+          type: "template",
+          template: { name: payload.templateName, language: { code: payload.languageCode } }
+        };
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cfg.accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(message)
+    });
+    const text = await response.text().catch(() => "");
+    if (!response.ok) {
+      console.warn(
+        JSON.stringify({ event: "whatsapp.outreach.failed", to, status: response.status, detail: text.slice(0, 300) })
+      );
+      return { status: "failed", reason: `Meta rejected the send (HTTP ${response.status}): ${text.slice(0, 200)}` };
+    }
+    let providerMessageId: string | null = null;
+    try {
+      const parsed = JSON.parse(text) as { messages?: Array<{ id?: string }> };
+      providerMessageId = parsed.messages?.[0]?.id ?? null;
+    } catch {
+      providerMessageId = null;
+    }
+    console.log(JSON.stringify({ event: "whatsapp.outreach.ok", to, kind: payload.kind }));
+    return { status: "sent", providerMessageId };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.warn(JSON.stringify({ event: "whatsapp.outreach.failed", to, reason }));
+    return { status: "failed", reason };
+  }
+}
+
 export async function sendWhatsAppMessage(to: string, reply: OutboundReply): Promise<void> {
   const cfg = getRuntimeWhatsAppConfig();
   if (!cfg) {

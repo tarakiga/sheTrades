@@ -408,6 +408,30 @@ test("GET /api/admin/analytics/export without a token is 401", async () => {
   await request(app).get("/api/admin/analytics/export").expect(401);
 });
 
+test("POST /api/admin/users/:phone/message without a token is 401", async () => {
+  await request(app)
+    .post("/api/admin/users/%2B234800/message")
+    .send({ text: "hi" })
+    .expect(401);
+});
+
+test("POST /api/admin/users/:phone/message rejects text AND templateKey together", async () => {
+  const res = await request(app)
+    .post("/api/admin/users/%2B234800/message")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .send({ text: "hi", templateKey: "hello_world" })
+    .expect(400);
+  assert.match(res.body.message ?? "", /either text or templateKey/i);
+});
+
+test("POST /api/admin/users/:phone/message rejects an empty body", async () => {
+  await request(app)
+    .post("/api/admin/users/%2B234800/message")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .send({})
+    .expect(400);
+});
+
 test("POST /api/admin/users/:phone/flag returns 404 for unknown learner", async () => {
   await request(app)
     .post("/api/admin/users/%2B234000nope/flag")

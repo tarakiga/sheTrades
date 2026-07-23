@@ -11,8 +11,13 @@ import {
 } from "../admin/data.js";
 import { getLearnerDetail } from "../admin/users-detail.js";
 import { prisma } from "../admin/prisma.js";
-import { getRuntimePayoutsConfig, getRuntimeRewardRules } from "../config-platform/runtime-config.js";
+import {
+  getRuntimeOptionSet,
+  getRuntimePayoutsConfig,
+  getRuntimeRewardRules
+} from "../config-platform/runtime-config.js";
 import { authenticateJwt, requireRoles } from "../auth/jwt-rbac.js";
+import { sendWhatsAppOutreach, type OutreachPayload } from "../whatsapp/sender.js";
 
 // Mutating admin actions require at least editor (viewers are read-only).
 const requireWriteAccess = requireRoles(["editor", "admin"]);
@@ -166,6 +171,129 @@ adminRouter.get("/users/export", async (_req, res, next) => {
 const flagBodySchema = z.object({
   flagged: z.boolean(),
   note: z.string().max(500).optional()
+});
+
+// Contact Learner: exactly one of free text or a template key. Free text is
+// only deliverable inside WhatsApp's 24-hour customer-service window; the
+// route enforces that below, this schema only enforces the shape.
+const messageBodySchema = z
+  .object({
+    text: z.string().trim().min(1).max(1024).optional(),
+    templateKey: z.string().trim().min(1).max(200).optional()
+  })
+  .refine((value) => Boolean(value.text) !== Boolean(value.templateKey), {
+    message: "Provide either text or templateKey, not both."
+  });
+
+const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+adminRouter.post("/users/:phone/message", requireWriteAccess, async (req, res, next) => {
+  try {
+    const body = messageBodySchema.parse(req.body);
+    const phone = String(req.params.phone);
+    const user = await prisma.user.findUnique({ where: { phone }, include: { session: true } });
+    if (!user) {
+      res.status(404).json({ message: "Learner not found." });
+      return;
+    }
+
+    // WhatsApp compliance: outside the 24-hour customer-service window Meta
+    // only delivers pre-approved template messages. The learner's last inbound
+    // activity is approximated by their session's lastUpdatedAt (bumped on
+    // every processed inbound message).
+    const lastActivity = user.session?.lastUpdatedAt?.getTime() ?? 0;
+    const withinWindow = Date.now() - lastActivity < SERVICE_WINDOW_MS;
+    if (body.text && !withinWindow) {
+      res.status(409).json({
+        message:
+          "This learner last messaged more than 24 hours ago, so WhatsApp will only deliver an approved template. Choose a template instead."
+      });
+      return;
+    }
+
+    let payload: OutreachPayload;
+    let logBody: string;
+    if (body.text) {
+      payload = { kind: "text", text: body.text };
+      logBody = body.text;
+    } else {
+      // Templates are config-driven (Settings → Options → whatsapp.outreach_templates):
+      // value = the approved Meta template name, metadata.languageCode = its locale.
+      const template = getRuntimeOptionSet("whatsapp.outreach_templates").find(
+        (item) => item.enabled && item.value === body.templateKey
+      );
+      if (!template) {
+        res.status(400).json({
+          message:
+            "Unknown template. Configure approved outreach templates under Settings → Options (whatsapp.outreach_templates)."
+        });
+        return;
+      }
+      const languageCode =
+        typeof template.metadata?.languageCode === "string" ? template.metadata.languageCode : "en";
+      payload = { kind: "template", templateName: template.value, languageCode };
+      logBody = template.value;
+    }
+
+    const result = await sendWhatsAppOutreach(phone, payload);
+    const sentBy = req.authUser?.id ?? "unknown";
+    await prisma.outboundMessage.create({
+      data: {
+        phone,
+        kind: payload.kind,
+        body: logBody,
+        status: result.status,
+        detail: result.status === "sent" ? result.providerMessageId : result.reason,
+        sentBy
+      }
+    });
+    console.log(
+      JSON.stringify({
+        event: "admin.outreach",
+        phone,
+        kind: payload.kind,
+        status: result.status,
+        actorId: sentBy,
+        updatedAt: new Date().toISOString()
+      })
+    );
+
+    if (result.status === "sent") {
+      res.status(200).json({ message: "Message sent.", result });
+    } else {
+      res.status(502).json({ message: result.reason });
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ message: error.issues[0]?.message ?? "Invalid request." });
+      return;
+    }
+    next(error);
+  }
+});
+
+adminRouter.get("/users/:phone/messages", async (req, res, next) => {
+  // Recent outreach history for the Contact Learner drawer.
+  try {
+    const rows = await prisma.outboundMessage.findMany({
+      where: { phone: String(req.params.phone) },
+      orderBy: { createdAt: "desc" },
+      take: 10
+    });
+    res.status(200).json({
+      messages: rows.map((row) => ({
+        id: row.id,
+        kind: row.kind,
+        body: row.body,
+        status: row.status,
+        detail: row.detail,
+        sentBy: row.sentBy,
+        createdAt: row.createdAt.toISOString()
+      }))
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 adminRouter.post("/users/:phone/flag", requireWriteAccess, async (req, res, next) => {

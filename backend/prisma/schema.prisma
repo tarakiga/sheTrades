@@ -163,6 +163,22 @@ model TranslationDraft {
   @@map("translation_drafts")
 }
 
+model OutboundMessage {
+  id        String   @id @default(uuid())
+  phone     String
+  kind      String   // "text" | "template"
+  // The text body for a free-text send, or the template name for a template send.
+  body      String
+  status    String   // "sent" | "failed"
+  // Provider message id on success; failure reason otherwise.
+  detail    String?
+  sentBy    String
+  createdAt DateTime @default(now())
+
+  @@index([phone, createdAt])
+  @@map("outbound_messages")
+}
+
 /// GAP-D1: admin sessions were held in an in-memory Map, so a session minted on
 /// one Cloud Run instance was invalid on another and every session was dropped
 /// when the service scaled to zero — logging admins out unpredictably.

@@ -84,6 +84,27 @@ const SEED_ENTRIES: SeedEntry[] = [
         }
       ]
     }
+  },
+  {
+    key: "whatsapp.outreach_templates",
+    title: "WhatsApp outreach templates",
+    payload: {
+      title: "WhatsApp outreach templates",
+      items: [
+        {
+          id: "hello_world",
+          value: "hello_world",
+          label: "Hello (Meta sample template)",
+          enabled: true,
+          sortOrder: 1,
+          metadata: {
+            languageCode: "en_US",
+            description:
+              "Meta's pre-approved sample template, available on every WhatsApp Business account. Replace with your own approved outreach templates - the value must exactly match the template name in Meta Business Manager."
+          }
+        }
+      ]
+    }
   }
 ];
 
@@ -184,8 +205,18 @@ async function main() {
   const secret = getEnv("ADMIN_CONFIG_JWT_SECRET");
   const token = buildAuthToken(secret);
 
-  console.log(`Seeding ${SEED_ENTRIES.length} frontend option sets to ${baseUrl}`);
-  for (const entry of SEED_ENTRIES) {
+  // SEED_ONLY_KEYS allows a targeted publish of just the named sets, so adding
+  // a new option set later does not reset operator edits to the others.
+  const onlyKeys = (process.env.SEED_ONLY_KEYS ?? "")
+    .split(",")
+    .map((key) => key.trim())
+    .filter(Boolean);
+  const entries = onlyKeys.length
+    ? SEED_ENTRIES.filter((entry) => onlyKeys.includes(entry.key))
+    : SEED_ENTRIES;
+
+  console.log(`Seeding ${entries.length} frontend option sets to ${baseUrl}`);
+  for (const entry of entries) {
     await updateDraftAndPublish(baseUrl, token, entry);
     console.log(`Published: ${entry.key}`);
   }

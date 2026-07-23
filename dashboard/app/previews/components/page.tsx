@@ -30,6 +30,7 @@ import { TranslationSettingsPreview } from "./TranslationSettingsPreview";
 import { TranslationReviewPreview } from "./TranslationReviewPreview";
 import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { BrandingEditorPreview } from "./BrandingEditorPreview";
+import { ContactLearnerPreview } from "./ContactLearnerPreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
 import { HelpRequestsPanelPreview } from "./HelpRequestsPanelPreview";
@@ -483,6 +484,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <BrandingEditorPreview />
+        </Card>
+
+        <Card
+          title={t("preview.contactLearner.title", "Contact Learner - WhatsApp outreach drawer")}
+          description={t(
+            "preview.contactLearner.description",
+            "Preview the operator → learner messaging drawer: approved-template vs free-text modes, 24-hour-window hint, send gating, and the outreach history list (empty states shown here - the gallery has no backend)."
+          )}
+        >
+          <ContactLearnerPreview />
         </Card>
 
         <Card

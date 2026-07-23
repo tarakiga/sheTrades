@@ -278,3 +278,33 @@ export function usersExportEndpoint(): string {
 export function analyticsExportEndpoint(): string {
   return `/api/admin/analytics/export`;
 }
+
+export type OutboundMessageRow = {
+  id: string;
+  kind: string;
+  body: string;
+  status: string;
+  detail: string | null;
+  sentBy: string;
+  createdAt: string;
+};
+
+/** Send a WhatsApp message to a learner (free text or an approved template). */
+export function sendLearnerMessage(phone: string, body: { text?: string; templateKey?: string }) {
+  return rewardsActionFetch<{ message: string }>(
+    `/api/admin/users/${encodeURIComponent(phone)}/message`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    "Send failed"
+  );
+}
+
+export function getLearnerMessages(phone: string) {
+  return fetchWithFallback<{ messages: OutboundMessageRow[] }>(
+    `/api/admin/users/${encodeURIComponent(phone)}/messages`,
+    { messages: [] }
+  );
+}
