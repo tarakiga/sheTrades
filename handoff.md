@@ -973,3 +973,26 @@ Open question from the same check: whatsapp.send.failed log entries (Jul 21,
 was sandbox-only testing - sandbox-marked requests should never reach Meta.
 Harmless here (allowlist rejection), but worth confirming every sandbox path
 carries X-SheTrades-Source.
+
+---
+
+## R3 learner-facing batch shipped (commit 01b8735, backend rev 00098-gdm)
+
+- F8: quizRetryCount column (FIRST real migration applied via prisma migrate
+  deploy over cloud-sql-proxy) - second wrong answer adds a config-editable
+  hint (quiz_retry_hint). Verified LIVE by scripted sandbox conversation:
+  wrong#1 no hint, wrong#2 hint present.
+- F10b (operator call): My Progress = per-started-module lines + overall;
+  {moduleBreakdown} token supported, appended when a published template
+  predates it.
+- F2: Reset Session State clears stored user language (true factory reset).
+- F5/6/9: session endpoint returns derived displayState (lesson_view /
+  quiz_in_progress); sandbox diagnostics shows it.
+- F6 DROPPED per operator: in-body option list is the deliberate fallback for
+  clipped button titles.
+- R3-misc: orphaned bot.module.started archived.
+
+Observed during e2e (operator action, not a bug): lesson check-in questions
+like "Were you able to create your flyer today?" still score as right/wrong -
+they are not yet marked kind:reflection. The reflection worksheet + quiz
+builder controls exist; marking them is a content task in the admin.

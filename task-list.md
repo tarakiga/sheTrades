@@ -138,25 +138,25 @@ reviewer to correct it before the report circulates.
   the percentage in as a literal and omitted `{percentage}`, so the substitution was a
   no-op for every learner, permanently. Fixed in the seed + regression test (`e8be7fd`).
   **Still needs the live config republished — see handoff.md.**
-- `[ ]` **R3-F10b (MED): progress percentage is scoped to all 43 lessons, not the active
+- `[x]` **R3-F10b (DONE 01b8735: per-module + overall, operator product call; {moduleBreakdown} token supported): progress percentage is scoped to all 43 lessons, not the active
   module.** A learner who finishes a full lesson sees "1 out of 43 — 2%". Accurate but
   demoralising. Product call: per-module percentage, or per-module + overall.
-- `[ ]` **R3-F2 (MED): `Selected Language` shows EN before the learner taps one.** Not a
+- `[x]` **R3-F2 (DONE 01b8735: reset clears stored language): `Selected Language` shows EN before the learner taps one.** Not a
   panel bug — the panel renders `n/a` correctly. "Reset Session State" deletes the session
   row but not the user row, and `handler.ts:394/415` rehydrate `language` from the user
   record. Fix: clear the stored language on reset, or skip rehydration during onboarding.
-- `[ ]` **R3-F6 (MED): quiz options rendered twice** — numbered list in the message body
+- `[x]` **R3-F6 (DROPPED by operator design call: the in-body option list is the deliberate full-text fallback for clipped 20-char buttons): quiz options rendered twice** — numbered list in the message body
   (`handler.ts:915`) *and* as buttons (`handler.ts:922`). Drop the in-text list when
   buttons are present; keep it for non-button/feature-phone delivery.
 - `[x]` **R3-F5 CONTENT BREACH RESOLVED (verified live 2026-07-23):** operator shortened the lessons - all 43 composed messages now fit the 1024-char interactive cap (longest 950; was 27 over, max 1392). Quiz options: 35/387 marginally over the 20-char button cap (21-29 chars, cosmetic clipping only - delivery unaffected, clip-tolerant matching handles echoes). TRANSLATION GATE CLEARED. Residual (optional): dense-bubble pacing is now a UX preference, not a breach.
-- `[ ]` **R3-F5/6/9 (MED): Dialogue State stuck at `module_menu` during lessons/quizzes.**
+- `[x]` **R3-F5/6/9 (DONE 01b8735: derived displayState in session endpoint + sandbox panel): Dialogue State stuck at `module_menu` during lessons/quizzes.**
   `ConversationState` (`handler.ts:18`) has 7 values, none for lesson or quiz activity.
   The data already exists on the session (`awaitingQuizAnswer`, `currentQuizIndex`) — this
   is a diagnostics-panel display fix, not a state-machine rewrite.
-- `[ ]` **R3-F8 (LOW): incorrect-answer retry repeats the question verbatim**
+- `[x]` **R3-F8 (DONE 01b8735: quizRetryCount column via first real migration; hint on 2nd miss, verified live): incorrect-answer retry repeats the question verbatim**
   (`handler.ts:1011-1022` rebuilds identical text, options and buttons). Vary the copy and
   add a hint on the second attempt.
-- `[ ]` **R3-misc (LOW): `bot.module.started` is orphaned config** — seeded, hardcodes
+- `[x]` **R3-misc (DONE: bot.module.started archived on staging): `bot.module.started` is orphaned config** — seeded, hardcodes
   "Module 1", read by no code. Either wire it up or remove it so editors aren't editing a
   string that does nothing.
 
