@@ -26,6 +26,9 @@ type Message = {
 type SessionInfo = {
   phone: string;
   state: string;
+  // Derived label from the backend: "lesson_view" / "quiz_in_progress" while
+  // the stored state machine value stays "module_menu" (R3-F5/6/9).
+  displayState?: string;
   name?: string;
   language?: string;
   location?: string;
@@ -426,7 +429,7 @@ export function WhatsAppSandboxSimulator() {
                 <tr>
                   <td>Dialogue State</td>
                   <td>
-                    <code className="state-badge-code">{session?.state || "awaiting_name (Default)"}</code>
+                    <code className="state-badge-code">{session?.displayState || session?.state || "awaiting_name (Default)"}</code>
                   </td>
                 </tr>
                 <tr>

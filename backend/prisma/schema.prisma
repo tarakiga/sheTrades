@@ -41,6 +41,9 @@ model UserSession {
   completedLessons   String[]
   awaitingQuizAnswer Boolean  @default(false)
   currentQuizIndex   Int      @default(0)
+  // R3-F8: consecutive wrong attempts on the CURRENT question; drives the
+  // "hint on second try" retry copy. Reset when the question advances.
+  quizRetryCount     Int      @default(0)
   namePrompted       Boolean  @default(false)
   lastUpdatedAt      DateTime @default(now())
 

@@ -229,6 +229,7 @@ export async function ensurePrismaTables() {
     await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "completedLessons" TEXT[] NOT NULL DEFAULT '{}'::TEXT[];`);
     await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "awaitingQuizAnswer" BOOLEAN NOT NULL DEFAULT false;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "currentQuizIndex" INTEGER NOT NULL DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "quizRetryCount" INTEGER NOT NULL DEFAULT 0;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "namePrompted" BOOLEAN NOT NULL DEFAULT false;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS "lastUpdatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
     await prisma.$executeRawUnsafe(`

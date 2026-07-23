@@ -58,6 +58,8 @@ type UserSession = {
   completedLessons?: string[];
   currentLessonKey?: string | null;
   awaitingQuizAnswer?: boolean;
+  // R3-F8: consecutive wrong attempts on the current question (drives the hint).
+  quizRetryCount?: number;
   currentQuizIndex?: number;
   selectedModuleId?: string | null;
   /**
@@ -465,6 +467,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
       completedLessons: user.session.completedLessons,
       currentLessonKey: user.session.currentLessonKey || null,
       awaitingQuizAnswer: user.session.awaitingQuizAnswer,
+      quizRetryCount: user.session.quizRetryCount ?? 0,
       currentQuizIndex: user.session.currentQuizIndex,
       selectedModuleId: user.session.selectedModuleId || null
     };
@@ -535,6 +538,7 @@ async function saveSession(phone: string, session: UserSession) {
           completedLessons: session.completedLessons || [],
           currentLessonKey: session.currentLessonKey || null,
           awaitingQuizAnswer: session.awaitingQuizAnswer || false,
+          quizRetryCount: session.quizRetryCount ?? 0,
           currentQuizIndex: session.currentQuizIndex || 0,
           selectedModuleId: session.selectedModuleId || null,
           lastUpdatedAt: new Date()
@@ -1137,13 +1141,38 @@ function transition(
         ? `${session.name ?? "Learner"}, ngụkọta nkuzi gị mechara bụ ${percentage}%. I mechara ${completedCount} n'ime nkuzi ${totalCount}. Reply 1 ka ịmalite ma ọ bụ MENU ka ịlaghachi.`
         : `${session.name ?? "Learner"}, your current completion is ${percentage}%. You have completed ${completedCount} out of ${totalCount} lessons. Reply 1 to start learning or MENU to return.`;
 
+      // R3-F10b (product call: per-module + overall): a learner who finishes a
+      // full lesson should see progress that feels like movement ("Module 3:
+      // 4/9 - 44%"), not "1 of 43 - 2%". One line per STARTED module.
+      const moduleLines: string[] = [];
+      const completedKeys = session.completedLessons ?? [];
+      for (const [moduleName, moduleLessons] of modulesMap) {
+        const done = moduleLessons.filter((l) => completedKeys.includes(l.key)).length;
+        if (done > 0) {
+          const shortName = moduleName.split(":")[0] || moduleName;
+          const modulePct = Math.round((done / moduleLessons.length) * 100);
+          moduleLines.push(`• ${shortName}: ${done}/${moduleLessons.length} (${modulePct}%)`);
+        }
+      }
+      const breakdown = moduleLines.length > 0 ? moduleLines.join("\n") : "";
+
+      let progressReply = getRuntimeText("bot.progress.summary", summaryText)
+        .replace("{name}", session.name ?? "Learner")
+        .replace("{percentage}", String(percentage))
+        .replace("{completedCount}", String(completedCount))
+        .replace("{totalCount}", String(totalCount));
+      // Published templates may place {moduleBreakdown} wherever they like;
+      // templates that predate the token get the breakdown appended so the
+      // improvement lands without a republish.
+      if (progressReply.includes("{moduleBreakdown}")) {
+        progressReply = progressReply.replace("{moduleBreakdown}", breakdown);
+      } else if (breakdown) {
+        progressReply += `\n\n${breakdown}`;
+      }
+
       return {
         state: session.state,
-        reply: getRuntimeText("bot.progress.summary", summaryText)
-          .replace("{name}", session.name ?? "Learner")
-          .replace("{percentage}", String(percentage))
-          .replace("{completedCount}", String(completedCount))
-          .replace("{totalCount}", String(totalCount)),
+        reply: progressReply,
         buttons: ["1. Start Learning", "MENU"]
       };
     }
@@ -1367,12 +1396,23 @@ function transition(
         });
 
         if (isCorrect) {
+          session.quizRetryCount = 0;
           return advanceAfterAcceptedAnswer(
             session, activeLesson, moduleLessons, moduleNames, modulesMap, qIndex, lang
           );
         } else {
-          // Incorrect answer retry (reuse `options` resolved above for this lang)
+          // R3-F8: count consecutive misses so the second try gets a nudge
+          // instead of a verbatim replay. The numbered option list stays - it
+          // is the full-text reference for options the 20-char buttons clip.
+          session.quizRetryCount = (session.quizRetryCount ?? 0) + 1;
           let reply = getPrompt("incorrect_retry", lang, "❌ That is incorrect. Let's try again!\n\n");
+          if ((session.quizRetryCount ?? 0) >= 2) {
+            reply += getPrompt(
+              "quiz_retry_hint",
+              lang,
+              "💡 Hint: the answer is in the lesson text above - scroll up and check before you answer.\n\n"
+            );
+          }
           reply += getPrompt("quiz_time_header", lang, "📚 Quiz Time! Question:\n");
           reply += `${pickLocalized(quizItem.question, lang)}\n`;
           options.forEach((opt, idx) => {
@@ -1420,6 +1460,7 @@ function transition(
       }
 
       session.awaitingQuizAnswer = true;
+      session.quizRetryCount = 0;
       session.lastUpdatedAt = nowIso();
 
       const options = quizItem.options.map((o) => pickLocalized(o, lang));
@@ -1706,6 +1747,11 @@ export async function handleWhatsAppWebhook(
 
 export async function resetWhatsAppState() {
   await prisma.userSession.deleteMany({});
+  // R3-F2: a reset must be a true factory reset. The user row survives (it
+  // holds analytics joins), but its stored language must not - otherwise the
+  // next session rehydrates it and the diagnostics panel claims a language
+  // before the learner has picked one this run.
+  await prisma.user.updateMany({ data: { language: null } }).catch(() => {});
   processedMessageIds.clear();
   await prisma
     .$executeRawUnsafe(`DELETE FROM processed_webhook_messages`)
@@ -1725,6 +1771,15 @@ export async function getWhatsAppSession(phone: string) {
     language: (user.language as any) || undefined,
     location: user.location || undefined,
     state: user.session.state as ConversationState,
+    // R3-F5/6/9: the stored state stays "module_menu" while a learner reads a
+    // lesson or answers a quiz (the data lives in currentLessonKey /
+    // awaitingQuizAnswer). Derive an honest label for the diagnostics panel
+    // without touching the state machine.
+    displayState: user.session.awaitingQuizAnswer
+      ? "quiz_in_progress"
+      : user.session.currentLessonKey
+        ? "lesson_view"
+        : (user.session.state as ConversationState),
     namePrompted: user.session.namePrompted,
     lastUpdatedAt: user.session.lastUpdatedAt.toISOString(),
     completedLessons: user.session.completedLessons,
