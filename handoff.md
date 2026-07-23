@@ -996,3 +996,12 @@ Observed during e2e (operator action, not a bug): lesson check-in questions
 like "Were you able to create your flyer today?" still score as right/wrong -
 they are not yet marked kind:reflection. The reflection worksheet + quiz
 builder controls exist; marking them is a content task in the admin.
+
+## Post-audit confirmations (2026-07-23)
+
+- Privacy contact CONFIRMED final by operator: privacy@shetrades.digital is
+  the real address, not a placeholder. No longer a pending item.
+- Reflection backfill verified complete on live config (37/129 questions
+  marked; heuristic sweep found no unmarked check-ins).
+- Remaining feature work: CS-5 (learner CSV import, /users) and CS-7 (report
+  scheduling, /reports) - both specced in docs/coming-soon-features-spec.md.
