@@ -27,7 +27,7 @@ const SEED_ENTRIES: SeedEntry[] = [
       primaryColor: "#334e58",
       secondaryColor: "#ffbe22",
       accentColor: "#f0a90e",
-      fontFamily: "Inter"
+      fontFamily: "Asap"
     }
   },
   {

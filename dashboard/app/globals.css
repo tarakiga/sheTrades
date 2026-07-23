@@ -34,7 +34,10 @@
   /* WhatsApp outbound message bubble — reproduces WhatsApp's own UI in previews */
   --color-whatsapp-bubble: #d9fdd3;
 
-  --font-family-sans: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  /* Asap is the bundled default (next/font defines --font-asap on <html>); the
+     branding theme override replaces this whole token when an org picks another
+     curated font. */
+  --font-family-sans: var(--font-asap, "Asap"), "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1rem;

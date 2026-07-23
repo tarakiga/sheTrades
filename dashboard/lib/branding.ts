@@ -19,8 +19,27 @@ export const BRANDING_FALLBACK: Branding = {
   primaryColor: "#334e58",
   secondaryColor: "#ffbe22",
   accentColor: "#f0a90e",
-  fontFamily: "Inter"
+  fontFamily: "Asap"
 };
+
+/**
+ * Fonts bundled with the app (see lib/fonts.ts). The key is the value stored in
+ * branding.identity's fontFamily; the value is the CSS variable next/font
+ * defines on <html>. Kept as plain strings so client components (the Branding
+ * dropdown) can import the list without pulling in the font loader.
+ */
+const CURATED_FONT_VARS: Record<string, string> = {
+  Asap: "var(--font-asap)",
+  Inter: "var(--font-inter)",
+  "Nunito Sans": "var(--font-nunito-sans)",
+  "Source Sans 3": "var(--font-source-sans-3)",
+  "Work Sans": "var(--font-work-sans)"
+};
+
+/** Options for the Branding tab's font dropdown. Asap first - it is the default. */
+export const FONT_CHOICES: Array<{ value: string; label: string }> = Object.keys(
+  CURATED_FONT_VARS
+).map((name) => ({ value: name, label: name }));
 
 const str = (value: unknown, fallback: string): string =>
   typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
@@ -71,6 +90,10 @@ export function brandingStyleVars(branding: Branding): Record<string, string> {
   const secondary = cleanColor(branding.secondaryColor);
   const accent = cleanColor(branding.accentColor);
   const font = cleanFont(branding.fontFamily);
+  // A curated font resolves to its bundled next/font variable (loads for every
+  // visitor); an unknown/legacy value falls back to the old behaviour of naming
+  // the raw family, which only renders if the visitor has it installed.
+  const fontValue = CURATED_FONT_VARS[font] ?? `"${font}"`;
   return {
     "--color-brand-500": primary,
     "--color-brand-600": primary,
@@ -78,7 +101,7 @@ export function brandingStyleVars(branding: Branding): Record<string, string> {
     "--color-accent-400": secondary,
     "--color-accent-500": accent,
     "--color-accent-600": accent,
-    "--font-family-sans": `"${font}", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif`,
+    "--font-family-sans": `${fontValue}, "Segoe UI", "Helvetica Neue", Arial, sans-serif`,
     // The sidebar and guided-tour accents are DERIVED from the accent tokens in
     // globals.css :root (--sidebar-accent, --sidebar-mark-gradient, --tour-ring).
     // A :root-declared derived var resolves against the value at :root, so it

@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import "./globals.css";
 import { getPublicConfigNamespace } from "../lib/config/api";
 import { getBranding, brandingStyleVars } from "../lib/branding";
+import { brandFontVariables } from "../lib/fonts";
 import { BrandingProvider } from "../components/branding/BrandingProvider";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -38,7 +39,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   // re-theme them. Safe by construction - no injected markup.
   const themeVars = brandingStyleVars(branding) as CSSProperties;
   return (
-    <html lang="en" suppressHydrationWarning style={themeVars}>
+    <html lang="en" suppressHydrationWarning className={brandFontVariables} style={themeVars}>
       <body suppressHydrationWarning>
         <BrandingProvider value={branding}>{children}</BrandingProvider>
       </body>

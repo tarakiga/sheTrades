@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Badge, Button, EmptyState, Input } from "../ui";
+import { Badge, Button, EmptyState, Input, Select } from "../ui";
 import {
   ADMIN_CONFIG_API_BASE_URL,
   ADMIN_CONFIG_TOKEN_UPDATED_EVENT,
   getStoredAdminConfigToken
 } from "../../lib/admin-config-auth";
-import { BRANDING_FALLBACK } from "../../lib/branding";
+import { BRANDING_FALLBACK, FONT_CHOICES } from "../../lib/branding";
 import type { IntegrationDocumentDetail } from "../integration/types";
 
 const DOCUMENT_KEY = "branding.identity";
@@ -264,13 +264,22 @@ export function BrandingWorkspace() {
               hint="Deeper accent used in gradients and emphasis."
             />
 
-            <Input
+            <Select
               id="branding-font-family"
               label="Font Family"
               value={form.fontFamily}
-              onChange={(event) => setForm({ ...form, fontFamily: event.target.value })}
-              hint="A font already available to browsers (e.g. Inter, Roboto, Georgia). Falls back to Inter if unavailable."
-              {...(errors.fontFamily ? { error: errors.fontFamily } : {})}
+              options={
+                // A legacy free-text value (from before the curated set) still
+                // displays instead of showing an empty control.
+                FONT_CHOICES.some((choice) => choice.value === form.fontFamily)
+                  ? FONT_CHOICES
+                  : [
+                      ...FONT_CHOICES,
+                      { value: form.fontFamily, label: `${form.fontFamily} (custom)` }
+                    ]
+              }
+              onChange={(value) => setForm({ ...form, fontFamily: value })}
+              hint="Bundled with the app and self-hosted, so it loads for every visitor. Asap is the default."
             />
           </div>
 
