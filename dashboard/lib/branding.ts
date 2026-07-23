@@ -52,6 +52,12 @@ const cleanColor = (value: string): string =>
 const cleanFont = (value: string): string =>
   value.replace(/[^a-zA-Z0-9\s-]/g, "").slice(0, 64);
 
+// Append an alpha byte to a #rrggbb colour to derive a translucent glow. Falls
+// back to the opaque colour if it is not a 6-digit hex (the Branding colour
+// pickers always emit hex, so the hex path is the normal one).
+const withAlpha = (color: string, alphaHex: string): string =>
+  /^#[0-9a-fA-F]{6}$/.test(color) ? `${color}${alphaHex}` : color;
+
 /**
  * The branding as design-token overrides, returned as a React style object of
  * CSS custom properties. Applied on <body> in the root layout, where custom
@@ -80,6 +86,10 @@ export function brandingStyleVars(branding: Branding): Record<string, string> {
     // branding accent so the active-nav highlight, logo mark, and avatar re-theme.
     "--sidebar-accent": secondary,
     "--sidebar-mark-gradient": `linear-gradient(135deg, ${secondary}, ${accent})`,
-    "--tour-ring": secondary
+    "--tour-ring": secondary,
+    // Glow shadows were a hardcoded gold rgba; derive them from the branding
+    // accent (with alpha) so the logo-mark glow and tour pulse follow the brand.
+    "--sidebar-mark-glow": `0 6px 16px ${withAlpha(secondary, "4d")}`,
+    "--tour-glow": withAlpha(secondary, "59")
   };
 }

@@ -7308,10 +7308,10 @@ button.needs-attention-panel__item:focus {
 @keyframes content-tour-cta-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(255, 190, 34, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(255, 190, 34, 0.25);
+    box-shadow: 0 0 0 5px var(--tour-glow);
   }
 }
 @media (prefers-reduced-motion: reduce) {
