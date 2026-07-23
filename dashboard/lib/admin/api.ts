@@ -274,3 +274,7 @@ export function flagLearner(phone: string, body: { flagged: boolean; note?: stri
 export function usersExportEndpoint(): string {
   return `/api/admin/users/export`;
 }
+
+export function analyticsExportEndpoint(): string {
+  return `/api/admin/analytics/export`;
+}

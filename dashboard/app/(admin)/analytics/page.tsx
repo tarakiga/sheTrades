@@ -1,7 +1,11 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
-import { getAnalyticsPageData } from "../../../lib/admin/api";
+import { useCallback, useEffect, useState } from "react";
+import {
+  analyticsExportEndpoint,
+  downloadAdminCsv,
+  getAnalyticsPageData
+} from "../../../lib/admin/api";
 import type { AnalyticsPageData, ApiResult } from "../../../lib/admin/contracts";
 import {
   AdminInsightPanel,
@@ -36,33 +40,33 @@ export default function AnalyticsPage() {
   const [result, setResult] = useState<ApiResult<AnalyticsPageData> | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    getAnalyticsPageData()
-      .then((r) => {
-        if (!cancelled) setResult(r);
-      })
+  // Reusable so the funnel empty-state's retry action can re-attempt the load
+  // without a full page refresh.
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await getAnalyticsPageData();
+      setResult(r);
+    } catch (error: unknown) {
       // GAP-H1: surface an explicit error instead of silently rendering the
       // zeroed fallback (and raising an unhandled rejection).
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setResult({
-          data: FALLBACK_DATA,
-          meta: {
-            source: "fallback",
-            message: `Unable to load analytics: ${
-              error instanceof Error ? error.message : "unknown error"
-            }`
-          }
-        });
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+      setResult({
+        data: FALLBACK_DATA,
+        meta: {
+          source: "fallback",
+          message: `Unable to load analytics: ${
+            error instanceof Error ? error.message : "unknown error"
+          }`
+        }
       });
-    return () => {
-      cancelled = true;
-    };
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const data = result?.data ?? FALLBACK_DATA;
   const meta = result?.meta ?? { source: "fallback" as const };
@@ -81,7 +85,16 @@ export default function AnalyticsPage() {
           <Badge variant={meta.source === "live" ? "success" : "warning"}>
             {meta.source === "live" ? "Live Data" : "Fallback Data"}
           </Badge>
-          <Button disabled>Download CSV (coming soon)</Button>
+          <Button
+            onClick={() => {
+              void downloadAdminCsv(
+                analyticsExportEndpoint(),
+                `analytics-${new Date().toISOString().slice(0, 10)}.csv`
+              );
+            }}
+          >
+            Download CSV
+          </Button>
         </div>
       }
       {...(meta.message ? { feedback: <p className="admin-inline-note">{meta.message}</p> } : {})}
@@ -238,11 +251,11 @@ export default function AnalyticsPage() {
                 </p>
               ) : (
                 <EmptyState
-                  title="Analytics funnel still needs setup"
-                  description="Publish the funnel configuration to unlock more useful progression analysis here."
+                  title="Analytics funnel has no data yet"
+                  description="The funnel is computed from learner activity events. Cohort and state views appear here once learners start progressing and the analytics source is reachable."
                   action={
-                    <Button variant="secondary" disabled>
-                      Review Analytics Setup (coming soon)
+                    <Button variant="secondary" onClick={() => void load()}>
+                      Retry Loading Analytics
                     </Button>
                   }
                 />

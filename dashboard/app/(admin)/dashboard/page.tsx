@@ -18,6 +18,7 @@ import {
   getRewardsPageData,
   getUsersPageData
 } from "../../../lib/admin/api";
+import { buildCsv, downloadCsvText } from "../../../lib/admin/csv";
 import { HelpRequestsPanel } from "../../../components/users/HelpRequestsPanel";
 import type {
   AnalyticsPageData,
@@ -228,6 +229,29 @@ export default function AdminDashboardOverviewPage() {
     rewardsResult?.meta.message ||
     analyticsResult?.meta.message;
 
+  // Client-side export of what the page has already loaded - headline metrics
+  // plus the operational review rows. No extra endpoint: the snapshot the
+  // operator sees is exactly the snapshot they export.
+  function handleExportSummary() {
+    const csv = buildCsv(
+      ["Section", "Item", "Value", "Status", "Source"],
+      [
+        ["Metric", "Registered Learners", String(usersData.users.length), "", ""],
+        ["Metric", "Module Completion", analyticsData.completionRate, "", ""],
+        ["Metric", "Quiz Pass Rate", analyticsData.passRate, "", ""],
+        ["Metric", "Rewards Automation", automationRate, "", ""],
+        ...operationalRows.map((row) => [
+          "Operational",
+          row.area,
+          row.signal,
+          row.status,
+          row.source
+        ])
+      ]
+    );
+    downloadCsvText(`overview-summary-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  }
+
   if (loading) {
     return (
       <AdminReviewWorkspace
@@ -255,7 +279,7 @@ export default function AdminDashboardOverviewPage() {
           <Badge variant={statsSource === "live" ? "success" : "warning"}>
             {statsSource === "live" ? "Live Data" : "Safe Empty Fallback"}
           </Badge>
-          <Button disabled>Export Summary (coming soon)</Button>
+          <Button onClick={handleExportSummary}>Export Summary</Button>
         </div>
       }
       {...(feedbackMessage

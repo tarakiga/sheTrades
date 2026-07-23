@@ -389,6 +389,25 @@ test("GET /api/admin/users/export returns CSV with the expected header", async (
   assert.equal(firstLine, "Name,Phone,Location,Language,Completion,Status,Flagged,Follow-up Note");
 });
 
+test("GET /api/admin/analytics/export returns CSV with an Overall row", async () => {
+  const res = await request(app)
+    .get("/api/admin/analytics/export")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .expect(200);
+  assert.match(res.headers["content-type"] ?? "", /text\/csv/);
+  assert.match(res.headers["content-disposition"] ?? "", /attachment; filename="analytics-/);
+  const lines = res.text.split("\n");
+  assert.equal(
+    lines[0],
+    "Scope,Registered,Completed,Passed,Completion Rate,Pass Rate,Registration Rate"
+  );
+  assert.match(lines[1] ?? "", /^Overall,/);
+});
+
+test("GET /api/admin/analytics/export without a token is 401", async () => {
+  await request(app).get("/api/admin/analytics/export").expect(401);
+});
+
 test("POST /api/admin/users/:phone/flag returns 404 for unknown learner", async () => {
   await request(app)
     .post("/api/admin/users/%2B234000nope/flag")

@@ -236,6 +236,50 @@ adminRouter.get("/analytics", async (_req, res, next) => {
   }
 });
 
+adminRouter.get("/analytics/export", async (_req, res, next) => {
+  // Same figures the /analytics endpoint computes, as a CSV: one row per state
+  // plus an Overall row. Overall counts are summed from the state funnels when
+  // a per-state breakdown exists (the live events provider); otherwise they are
+  // left blank rather than invented (the snapshot provider has only rates).
+  try {
+    const data = await getAnalyticsData();
+    const escape = (v: unknown) => {
+      if (v === null || v === undefined) return "";
+      const s = String(v).replace(/"/g, '""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+    const header = "Scope,Registered,Completed,Passed,Completion Rate,Pass Rate,Registration Rate";
+    const hasStates = data.stateFunnels.length > 0;
+    const sum = (pick: (f: (typeof data.stateFunnels)[number]) => number) =>
+      hasStates ? data.stateFunnels.reduce((total, f) => total + pick(f), 0) : "";
+    const overall = [
+      "Overall",
+      sum((f) => f.registered),
+      sum((f) => f.completed),
+      sum((f) => f.passed),
+      data.completionRate,
+      data.passRate,
+      data.registrationRate
+    ];
+    const stateRows = data.stateFunnels.map((f) => [
+      f.state,
+      f.registered,
+      f.completed,
+      f.passed,
+      f.completionRate,
+      f.passRate,
+      ""
+    ]);
+    const lines = [overall, ...stateRows].map((row) => row.map(escape).join(","));
+    const filename = `analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.status(200).send([header, ...lines].join("\n"));
+  } catch (error) {
+    next(error);
+  }
+});
+
 adminRouter.get("/content", async (_req, res, next) => {
   try {
     const payload = await getContentData();
