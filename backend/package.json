@@ -20,7 +20,9 @@
     "seed:bot-prompts": "tsx src/config-platform/seed-bot-prompts.ts",
     "seed:frontend-options": "tsx src/config-platform/seed-frontend-options.ts",
     "seed:legal-privacy": "tsx src/config-platform/seed-legal-privacy.ts",
-    "seed:branding": "tsx src/config-platform/seed-branding.ts"
+    "seed:branding": "tsx src/config-platform/seed-branding.ts",
+    "db:migrate:baseline": "prisma migrate resolve --applied 000000000000_baseline",
+    "db:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.5.0",
