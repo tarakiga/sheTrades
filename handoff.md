@@ -815,3 +815,41 @@ presentational BrandingEditor with a network-free story on /previews/components
 (per the component-library rules). Save/publish logic unchanged. Verified
 visually via gallery screenshots + on the deployed previews page (3 swatch
 cards, preview rail, specimen present).
+
+---
+
+## Coming-soon features shipped: CS-1..CS-4 (commits 48af195, f2eef71)
+
+Four of the seven specced "coming soon" features are live (learner-facing R3
+fixes deliberately deferred per operator):
+
+**CS-1 Analytics Download CSV** - GET /api/admin/analytics/export (admin JWT):
+Overall row + one row per state; counts summed from state funnels when a
+breakdown exists, blank (not invented) for the snapshot provider. Button wired
+on /analytics via downloadAdminCsv. Tests: header/Overall + 401.
+
+**CS-2 Overview Export Summary** - client-side CSV (lib/admin/csv.ts) of the
+loaded page state: 4 headline metrics + operational review rows. No endpoint.
+
+**CS-3 Analytics setup CTA** - investigation showed the funnel is computed from
+learner activity events; there is NO funnel config document, so the spec's
+config deep-link would point nowhere. The dead button is now a working "Retry
+Loading Analytics" (page load refactored to a reusable callback) with honest
+empty-state copy.
+
+**CS-4 Contact Learner via WhatsApp** - Users row action opens
+ContactLearnerDrawer (gallery story added): approved-template vs free-text
+modes. Backend POST /api/admin/users/:phone/message (editor+) enforces the
+24-hour window server-side (free text -> 409 outside it; window approximated
+from session.lastUpdatedAt), resolves templates from the config-driven
+whatsapp.outreach_templates option set, sends via new sendWhatsAppOutreach
+(returns Meta outcome incl. rejection reasons), persists every attempt to the
+new outbound_messages table, and exposes GET .../messages history.
+whatsapp.outreach_templates seeded to staging (hello_world sample;
+SEED_ONLY_KEYS added to seed-frontend-options so targeted re-seeds don't reset
+operator edits to other sets). Template sends are v1: no body variables yet.
+
+Deployed backend 00094-kgs; routes verified gated (401) on staging; option set
+live on /api/config/public/options. Remaining from the spec: CS-5 learner CSV
+import (L), CS-6 generate report (M), CS-7 report scheduling (L, depends on
+CS-6).
