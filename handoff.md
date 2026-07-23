@@ -736,3 +736,19 @@ Confirmed on the deployed site with the operator's own test values: /privacy sho
 "contact SheTrades2 at privacy2@shetrades.digital" (branding org name + Legal
 contact email both interpolated, no {{}} leaking), and <body> carries the branding
 accent colour #ff8000. Branding (name + colours) is wired end-to-end.
+
+---
+
+## Sidebar branding fixes (org name + accent-derived golds)
+
+- Sidebar org name was gated by the seeded shell.brand copy key (which won over
+  the branding fallback). Now the sidebar name is branding.organisationName
+  directly, so renaming in Settings → Branding updates it.
+- The active-nav highlight, logo mark, and avatar placeholder derive from
+  --sidebar-accent / --sidebar-mark-gradient, declared at :root from the accent
+  tokens. The theme override was on <body>, so those :root-derived vars kept the
+  original gold. Moved the theme override to <html> (:root) and re-declared the
+  derived sidebar/tour vars from the branding accent. Verified on deployed <html>:
+  --sidebar-accent / --sidebar-mark-gradient / --tour-ring now = the branding
+  accent (#ff8000). Note: hardcoded glow shadows (--sidebar-mark-glow,
+  --tour-glow, rgba gold) are left as-is - subtle shadows, not fills.
