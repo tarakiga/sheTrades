@@ -715,3 +715,24 @@ cross-contaminate (also fixes a latent legal-misserialisation bug).
 Verified: backend + dashboard typecheck + lint clean; branding renders in SSR
 (body theme vars + org name present); pages 200. Interactive check of the legal
 drawer and a live branding change still worth an eyeball on the deployed app.
+
+---
+
+## Privacy wiring fix + org name from Branding (confirmed live)
+
+Root cause of "email not reflecting": NOT caching (Vercel ISR + backend refresh
+propagate in ~30s; the org-name and body edits already showed). The /privacy page
+renders the published policy body verbatim, and the Contact Email field was only
+used in the fallback sections - the email on the page came from text baked into
+the body. Fix: the body now uses {{orgName}} / {{contactEmail}} placeholders,
+interpolated at render, so editing the fields changes the page.
+
+Org name is now sourced from Branding (single source of truth): removed
+legal.privacy.org_name from the seed, archived the staging doc, and /privacy reads
+getBranding().organisationName. Contact email + effective date + body stay in Legal.
+seed-legal-privacy gained SEED_ONLY_KEYS for targeted re-publish.
+
+Confirmed on the deployed site with the operator's own test values: /privacy shows
+"contact SheTrades2 at privacy2@shetrades.digital" (branding org name + Legal
+contact email both interpolated, no {{}} leaking), and <body> carries the branding
+accent colour #ff8000. Branding (name + colours) is wired end-to-end.
