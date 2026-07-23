@@ -1005,3 +1005,9 @@ builder controls exist; marking them is a content task in the admin.
   marked; heuristic sweep found no unmarked check-ins).
 - Remaining feature work: CS-5 (learner CSV import, /users) and CS-7 (report
   scheduling, /reports) - both specced in docs/coming-soon-features-spec.md.
+- CS-5 ON HOLD per operator (2026-07-23): Meta will charge for ALL outbound
+  WhatsApp messages from 2026-10-01, including replies inside the 24-hour
+  service window (previously free). Bulk-importing cohorts to then message
+  them changes the programme's cost model, so import is paused until the
+  pricing impact is understood. Ref:
+  https://merltech.org/meta-just-dropped-a-bomb-on-the-development-humanitarian-sectors-heres-why/
