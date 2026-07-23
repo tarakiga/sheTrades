@@ -2142,46 +2142,46 @@ export function ConfigAdminManager({
         primaryActionLabel={t("configAdmin.manage.updateDraft", "Save Draft")}
         onPrimaryAction={() => void updateDraft()}
         secondaryActions={
-          <div style={{ display: "flex", gap: "16px", marginLeft: "12px", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "var(--space-4)", marginLeft: "var(--space-3)", alignItems: "center" }}>
             <button
               type="button"
               disabled={activeWorkflowAction === "publish"}
               onClick={() => void publish()}
-              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "publish" ? 0.5 : 1, padding: "4px" }}
+              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "publish" ? 0.5 : 1, padding: "var(--space-1)" }}
               title={t("configAdmin.manage.publish", "Publish Live")}
             >
-              <span style={{ fontSize: "18px" }}>🚀</span>
-              <span style={{ fontSize: "10px", marginTop: "4px", color: "var(--color-gray-600)", fontWeight: 500 }}>Publish</span>
+              <span style={{ fontSize: "var(--font-size-lg)" }}>🚀</span>
+              <span style={{ fontSize: "var(--font-size-xs)", marginTop: "var(--space-1)", color: "var(--color-gray-600)", fontWeight: 500 }}>Publish</span>
             </button>
             <button
               type="button"
               disabled={activeWorkflowAction === "history"}
               onClick={() => void loadHistory()}
-              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "history" ? 0.5 : 1, padding: "4px" }}
+              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "history" ? 0.5 : 1, padding: "var(--space-1)" }}
               title={t("configAdmin.manage.loadHistory", "View History")}
             >
-              <span style={{ fontSize: "18px" }}>🕒</span>
-              <span style={{ fontSize: "10px", marginTop: "4px", color: "var(--color-gray-600)", fontWeight: 500 }}>History</span>
+              <span style={{ fontSize: "var(--font-size-lg)" }}>🕒</span>
+              <span style={{ fontSize: "var(--font-size-xs)", marginTop: "var(--space-1)", color: "var(--color-gray-600)", fontWeight: 500 }}>History</span>
             </button>
             <button
               type="button"
               disabled={activeWorkflowAction === "rollback"}
               onClick={() => void rollback()}
-              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "rollback" ? 0.5 : 1, padding: "4px" }}
+              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "rollback" ? 0.5 : 1, padding: "var(--space-1)" }}
               title={t("configAdmin.manage.rollback", "Restore Previous")}
             >
-              <span style={{ fontSize: "18px" }}>⏪</span>
-              <span style={{ fontSize: "10px", marginTop: "4px", color: "var(--color-gray-600)", fontWeight: 500 }}>Restore</span>
+              <span style={{ fontSize: "var(--font-size-lg)" }}>⏪</span>
+              <span style={{ fontSize: "var(--font-size-xs)", marginTop: "var(--space-1)", color: "var(--color-gray-600)", fontWeight: 500 }}>Restore</span>
             </button>
             <button
               type="button"
               disabled={activeWorkflowAction === "archive"}
               onClick={() => requestTrashOrRestore(selectedKey)}
-              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "archive" ? 0.5 : 1, padding: "4px" }}
+              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", opacity: activeWorkflowAction === "archive" ? 0.5 : 1, padding: "var(--space-1)" }}
               title={selectedDocumentRow?.document.isActive === false ? t("configAdmin.manage.restore", "Restore") : t("configAdmin.manage.archive", "Move To Trash")}
             >
-              <span style={{ fontSize: "18px" }}>{selectedDocumentRow?.document.isActive === false ? "♻️" : "🗑️"}</span>
-              <span style={{ fontSize: "10px", marginTop: "4px", color: selectedDocumentRow?.document.isActive === false ? "var(--color-brand-600)" : "var(--color-danger)", fontWeight: 500 }}>
+              <span style={{ fontSize: "var(--font-size-lg)" }}>{selectedDocumentRow?.document.isActive === false ? "♻️" : "🗑️"}</span>
+              <span style={{ fontSize: "var(--font-size-xs)", marginTop: "var(--space-1)", color: selectedDocumentRow?.document.isActive === false ? "var(--color-brand-600)" : "var(--color-danger)", fontWeight: 500 }}>
                 {selectedDocumentRow?.document.isActive === false ? "Restore" : "Trash"}
               </span>
             </button>

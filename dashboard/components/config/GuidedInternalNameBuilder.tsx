@@ -115,10 +115,10 @@ export function GuidedInternalNameBuilder({
                 value={lessonNumberValue || ""}
                 onChange={(e) => onLessonNumberChange && onLessonNumberChange(e.target.value)}
                 min={1}
-                style={{ height: "40px", padding: "0 12px", width: "100%", borderRadius: "var(--radius-md)", border: "1px solid var(--color-gray-300)" }}
+                style={{ height: "var(--control-height-md)", padding: "0 var(--space-3)", width: "100%", borderRadius: "var(--radius-md)", border: "1px solid var(--color-gray-300)" }}
               />
               {automatedSlugPreview && (
-                <div style={{ marginTop: "4px", fontSize: "12px", color: "var(--color-brand-600)", fontWeight: 500 }}>
+                <div style={{ marginTop: "var(--space-1)", fontSize: "var(--font-size-xs)", color: "var(--color-brand-600)", fontWeight: 500 }}>
                   Auto-Slug: {automatedSlugPreview}
                 </div>
               )}
@@ -141,8 +141,8 @@ export function GuidedInternalNameBuilder({
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  minHeight: "40px",
-                  height: "40px",
+                  minHeight: "var(--control-height-md)",
+                  height: "var(--control-height-md)",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   boxSizing: "border-box",

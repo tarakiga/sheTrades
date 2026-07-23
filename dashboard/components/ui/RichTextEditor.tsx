@@ -121,8 +121,8 @@ export function RichTextEditor({ id, value, onChange, placeholder, label }: Rich
           className="ui-rich-text__toolbar"
           style={{
             display: "flex",
-            gap: "4px",
-            padding: "8px",
+            gap: "var(--space-1)",
+            padding: "var(--space-2)",
             borderBottom: "1px solid var(--color-gray-200)",
             backgroundColor: "var(--color-gray-50)",
             flexWrap: "wrap",
@@ -134,7 +134,7 @@ export function RichTextEditor({ id, value, onChange, placeholder, label }: Rich
             size="sm"
             onClick={(e) => handleCommand("bold", e)}
             title="Bold (*text*)"
-            style={{ fontWeight: "bold", padding: "4px 8px", height: "auto" }}
+            style={{ fontWeight: "bold", padding: "var(--space-1) var(--space-2)", height: "auto" }}
           >
             B
           </Button>
@@ -143,7 +143,7 @@ export function RichTextEditor({ id, value, onChange, placeholder, label }: Rich
             size="sm"
             onClick={(e) => handleCommand("italic", e)}
             title="Italic (_text_)"
-            style={{ fontStyle: "italic", padding: "4px 8px", height: "auto", fontFamily: "serif" }}
+            style={{ fontStyle: "italic", padding: "var(--space-1) var(--space-2)", height: "auto", fontFamily: "serif" }}
           >
             I
           </Button>
@@ -152,12 +152,12 @@ export function RichTextEditor({ id, value, onChange, placeholder, label }: Rich
             size="sm"
             onClick={(e) => handleCommand("strikeThrough", e)}
             title="Strikethrough (~text~)"
-            style={{ textDecoration: "line-through", padding: "4px 8px", height: "auto", marginRight: "8px" }}
+            style={{ textDecoration: "line-through", padding: "var(--space-1) var(--space-2)", height: "auto", marginRight: "var(--space-2)" }}
           >
             S
           </Button>
           
-          <div style={{ width: "1px", height: "16px", backgroundColor: "var(--color-gray-300)", margin: "0 4px" }} />
+          <div style={{ width: "1px", height: "var(--space-4)", backgroundColor: "var(--color-gray-300)", margin: "0 var(--space-1)" }} />
           
           {emojis.map(emoji => (
             <button
@@ -165,7 +165,7 @@ export function RichTextEditor({ id, value, onChange, placeholder, label }: Rich
               type="button"
               className="emoji-inserter-bar__btn"
               onClick={(e) => handleCommand("insertText", e, emoji)}
-              style={{ padding: "4px", background: "none", border: "none", cursor: "pointer", fontSize: "16px" }}
+              style={{ padding: "var(--space-1)", background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-md)" }}
               title={`Insert ${emoji}`}
             >
               {emoji}
@@ -184,12 +184,12 @@ export function RichTextEditor({ id, value, onChange, placeholder, label }: Rich
           onBlur={() => setIsFocused(false)}
           data-placeholder={placeholder}
           style={{
-            padding: "12px",
+            padding: "var(--space-3)",
             minHeight: "120px",
             maxHeight: "300px",
             overflowY: "auto",
             outline: "none",
-            fontSize: "15px",
+            fontSize: "var(--font-size-md)",
             lineHeight: "1.6"
           }}
         />

@@ -658,7 +658,7 @@ export function ConfigEditorDrawer({
           </div>
           <div className="config-drawer__footer-group config-drawer__footer-group--primary" style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
             {editorModeState === "wizard" && namespace === "content" && getValidationHint() && (
-              <span className="config-drawer__validation-hint" style={{ fontSize: "11px", color: "var(--color-danger)", marginRight: "var(--space-2)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              <span className="config-drawer__validation-hint" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger)", marginRight: "var(--space-2)", display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
                 <span>⚠️</span> <span>{getValidationHint()}</span>
               </span>
             )}
@@ -806,7 +806,7 @@ export function ConfigEditorDrawer({
                             <select
                               id="module-select"
                               className="ui-input__field"
-                              style={{ width: "100%", height: "40px", padding: "0 12px" }}
+                              style={{ width: "100%", height: "var(--control-height-md)", padding: "0 var(--space-3)" }}
                               value={lessonModule}
                               onChange={(e) => {
                                 if (e.target.value === "ADD_NEW") {
@@ -881,7 +881,7 @@ export function ConfigEditorDrawer({
                             </div>
                             <Button
                               variant="ghost"
-                              style={{ marginTop: "24px", height: "40px", flexShrink: 0 }}
+                              style={{ marginTop: "var(--space-6)", height: "var(--control-height-md)", flexShrink: 0 }}
                               onClick={() => {
                                 setShowCustomModuleInput(false);
                                 setCustomModuleNumber("");
@@ -1159,7 +1159,7 @@ export function ConfigEditorDrawer({
                       <div
                         style={{
                           marginTop: "var(--space-2)",
-                          fontSize: "11px",
+                          fontSize: "var(--font-size-xs)",
                           color: "var(--color-neutral-500)",
                           display: "flex",
                           gap: "var(--space-4)"
@@ -1206,7 +1206,7 @@ export function ConfigEditorDrawer({
                           padding: "var(--space-3)",
                           marginBottom: "var(--space-4)",
                           borderRadius: "var(--radius-sm)",
-                          fontSize: "13px",
+                          fontSize: "var(--font-size-sm)",
                           color: "var(--color-warning-700)"
                         }}
                       >
@@ -1565,7 +1565,7 @@ export function ConfigEditorDrawer({
                                   }}
                                 />
                                 {audioUrls[previewLanguage] && (
-                                  <div className="whatsapp-bubble__audio" style={{ marginTop: "8px" }}>
+                                  <div className="whatsapp-bubble__audio" style={{ marginTop: "var(--space-2)" }}>
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
                                     </svg>
@@ -1596,14 +1596,14 @@ export function ConfigEditorDrawer({
                               const hasSelected = typeof selectedOpt === "number";
 
                               return (
-                                <div key={qIndex} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: qIndex > 0 ? "16px" : "0" }}>
+                                <div key={qIndex} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: qIndex > 0 ? "var(--space-4)" : "0" }}>
                                   {qIndex > 0 && (
                                     <div
                                       className="whatsapp-bubble"
                                       style={{
                                         alignSelf: "flex-end",
                                         background: "var(--color-whatsapp-bubble)",
-                                        borderTopLeftRadius: "8px",
+                                        borderTopLeftRadius: "var(--radius-md)",
                                         borderTopRightRadius: "0"
                                       }}
                                     >
@@ -1657,7 +1657,7 @@ export function ConfigEditorDrawer({
                                         style={{
                                           alignSelf: "flex-end",
                                           background: "var(--color-whatsapp-bubble)", /* WhatsApp outbound bubble color */
-                                          borderTopLeftRadius: "8px",
+                                          borderTopLeftRadius: "var(--radius-md)",
                                           borderTopRightRadius: "0"
                                         }}
                                       >
@@ -1877,7 +1877,7 @@ export function ConfigEditorDrawer({
                       <div
                         style={{
                           marginTop: "var(--space-2)",
-                          fontSize: "11px",
+                          fontSize: "var(--font-size-xs)",
                           color: "var(--color-neutral-500)",
                           display: "flex",
                           gap: "var(--space-4)"
