@@ -1261,10 +1261,15 @@ body {
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.14);
   left: 0;
   margin-top: var(--space-2);
+  /* Size to the longest option, never to a narrow trigger - pinning right: 0
+     made compact triggers ("All Types") force every option label to wrap into
+     a squished multi-line list. Capped so very long labels still wrap. */
+  max-width: min(22rem, 90vw);
+  min-width: 100%;
   overflow: hidden;
   position: absolute;
-  right: 0;
   top: 100%;
+  width: max-content;
   z-index: 40;
 }
 
@@ -2291,34 +2296,39 @@ body {
   padding: var(--space-3);
 }
 
-.ui-color-field__swatch {
-  appearance: none;
-  -webkit-appearance: none;
-  background: none;
+/* The visible swatch is the __swatch-fill div (painted with the value), so
+   all three palette cards render pixel-identically in every browser - native
+   colour inputs draw their internal swatch with browser-specific padding.
+   The real input overlays invisibly to keep the native picker + keyboard. */
+.ui-color-field__swatch-shell {
   border: var(--border-hairline);
   border-radius: var(--radius-sm);
-  cursor: pointer;
+  display: block;
   height: 2.75rem;
-  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.ui-color-field__swatch-shell:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+.ui-color-field__swatch-fill {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.ui-color-field__swatch {
+  cursor: pointer;
+  height: 100%;
+  inset: 0;
+  opacity: 0;
+  position: absolute;
   width: 100%;
 }
 
-.ui-color-field__swatch::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.ui-color-field__swatch::-webkit-color-swatch {
-  border: none;
-  border-radius: var(--radius-sm);
-}
-
-.ui-color-field__swatch::-moz-color-swatch {
-  border: none;
-  border-radius: var(--radius-sm);
-}
-
 .ui-color-field__swatch:focus-visible {
-  box-shadow: var(--focus-ring);
   outline: none;
 }
 

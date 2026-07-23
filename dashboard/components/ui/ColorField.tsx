@@ -16,13 +16,25 @@ export type ColorFieldProps = {
 export function ColorField({ id, label, value, onChange, hint }: ColorFieldProps) {
   return (
     <div className="ui-color-field">
-      <input
-        id={id}
-        type="color"
-        className="ui-color-field__swatch"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
+      {/* The visible swatch is OUR div painted with the value - native color
+          inputs render their internal swatch with browser-specific padding,
+          which made three identical fields look unevenly padded. The real
+          input sits invisibly on top so the picker, keyboard access, and
+          focus behaviour stay native. */}
+      <span className="ui-color-field__swatch-shell">
+        <span
+          className="ui-color-field__swatch-fill"
+          style={{ background: value }}
+          aria-hidden="true"
+        />
+        <input
+          id={id}
+          type="color"
+          className="ui-color-field__swatch"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </span>
       <div className="ui-color-field__meta">
         <label className="ui-color-field__label" htmlFor={id}>
           {label}
