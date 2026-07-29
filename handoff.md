@@ -1070,3 +1070,29 @@ Also awaiting operator decisions on resume:
 Platform state at pause: CS-7 live + verified (test schedule PAUSED on
 /reports, operator to inspect); suite 411/0/42; staging rev 00100-g5f;
 tracker's only open items are the new WL phase entries.
+
+## UX Round 4 response: quiz clip-matching bug found and fixed (2026-07-29)
+
+Client report (SheTrades_Sandbox_UX_Report_Round 2_2.pdf, Round 4, Jul 24)
+triage against LIVE config + code:
+- M1 L7 state selection: confirmed fixed by reviewer.
+- Two platform carry-overs (help resend, MENU): ignored per operator
+  (resolved in another direction).
+- Four "no option accepted" answer-key items (m3_l6, m4_l2, m4_l3, m4_l4):
+  answer keys were ALREADY correct in config (operator fixed Jul 22, v4).
+  Real cause: resolveQuizOptionIndex trailing-space clip bug. When an
+  option's 20th char is a space ("Small fixed amounts |often"), the sent
+  button title ends in whitespace but the inbound echo is trimmed; the
+  clipped comparison kept the space so the tapped CORRECT answer never
+  matched -> graded incorrect. All four flagged questions hit this exact
+  pattern. Sandbox never showed it (simulator sends untruncated titles).
+  FIX: trim both sides of the clipped comparison (handler.ts, + collision
+  check). 9 regression tests with the real live option sets. Suite 420/0.
+  Deployed rev 00101-2qx; staging e2e proof: scripted webhook conversation
+  (+2348000777002, sandbox marker) tapped clipped "Small fixed amounts "
+  (trailing space) -> "Correct! Excellent job."
+- STILL PENDING (content, needs publish in admin): m4_l8_b safety-critical -
+  Q1 answerIndex=0 marks "Drag the harasser" correct; must be 1 ("Report the
+  harasser"). BONUS finding not in the report: same lesson Q3 answerIndex=0
+  marks "Allow free speech" correct; should be 1 ("Set anti-harassment
+  rules"). No draft exists for either - never fixed, not a publish miss.

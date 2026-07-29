@@ -54,6 +54,61 @@ test("very long correct answer (47 chars) matches its clipped title", () => {
   assert.equal(isQuizReplyCorrect("Message the electric", q, 1), true);
 });
 
+// UX Round 4 regression: all four "no option is accepted" questions shared one
+// trait — the correct option's 20th character is a SPACE, so the sent button
+// title ends in whitespace while the inbound echo is trimmed. The clipped
+// comparison must trim both sides or these can never grade correct. These are
+// the real live option sets from the report.
+const ROUND4_TRAILING_SPACE_CASES: Array<{ label: string; options: string[]; answerIndex: number; tapped: string }> = [
+  {
+    label: "m3_l6 savings habit",
+    options: ["Large cash at times", "Save leftover cash", "Small fixed amounts often"],
+    answerIndex: 2,
+    // "Small fixed amounts often".slice(0, 20) === "Small fixed amounts " —
+    // WhatsApp/normalisation trims the trailing space before matching.
+    tapped: "Small fixed amounts"
+  },
+  {
+    label: "m4_l2 harassing message first step",
+    options: ["Delete immediately", "Tell them to stop", "Don’t delete, don’t apologize"],
+    answerIndex: 2,
+    tapped: "Don’t delete, don’t"
+  },
+  {
+    label: "m4_l3 fake investor red flag",
+    options: ["The man is very fine", "The profile has few friends", "The person wants to partner in business"],
+    answerIndex: 1,
+    tapped: "The profile has few"
+  },
+  {
+    label: "m4_l4 child tagged in photo",
+    options: ["Leave it alone", "Ask them to take it down", "Repost it yourself"],
+    answerIndex: 1,
+    tapped: "Ask them to take it"
+  }
+];
+
+for (const c of ROUND4_TRAILING_SPACE_CASES) {
+  test(`Round-4 regression: trimmed trailing-space clip grades correct (${c.label})`, () => {
+    assert.equal(resolveQuizOptionIndex(c.tapped, c.options), c.answerIndex);
+    assert.equal(isQuizReplyCorrect(c.tapped, c.options, c.answerIndex), true);
+  });
+
+  test(`Round-4 regression: untrimmed echo also grades correct (${c.label})`, () => {
+    // If Meta echoes the title exactly as sent (trailing space intact), the
+    // resolver's own input trim must land on the same match.
+    assert.equal(isQuizReplyCorrect(`${c.tapped} `, c.options, c.answerIndex), true);
+  });
+}
+
+test("trailing-space clip does not create false matches for other options", () => {
+  const options = ["Large cash at times", "Save leftover cash", "Small fixed amounts often"];
+  // The other two options fit inside the title limit; tapping them must keep
+  // resolving exactly (and grade incorrect against answerIndex 2).
+  assert.equal(isQuizReplyCorrect("Large cash at times", options, 2), false);
+  assert.equal(isQuizReplyCorrect("Save leftover cash", options, 2), false);
+});
+
 // Real Module 2 Lesson 6 check-in options. Option 1 is 21 chars, so WhatsApp
 // clips its button title to "I need help migratin" — the resolver must still
 // identify it, or the help path silently never fires on real devices.

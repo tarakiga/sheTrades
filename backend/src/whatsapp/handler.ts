@@ -616,8 +616,13 @@ export function resolveQuizOptionIndex(rawInput: string, options: string[]): num
   // tapped option longer than BUTTON_TITLE_MAX is echoed truncated, so the
   // clipped form is all we have — but it can prefix-collide with a shorter
   // sibling option, so an unambiguous full match must always take precedence.
+  // .trim() on the clipped form is load-bearing: when an option's 20th char
+  // is a space (e.g. "Small fixed amounts |often"), the title we SEND ends in
+  // that space but `normalized` above is trimmed - so without trimming both
+  // sides the tapped correct answer can never match and grades incorrect.
+  // Four Round-4 UX-report questions hit exactly this.
   const clippedMatch = options.findIndex((o) => {
-    const clipped = clip(norm(o), BUTTON_TITLE_MAX);
+    const clipped = clip(norm(o), BUTTON_TITLE_MAX).trim();
     return normalized === clipped || strippedInput === clipped;
   });
 
@@ -630,9 +635,9 @@ export function resolveQuizOptionIndex(rawInput: string, options: string[]): num
   // audit in docs/content-quiz-option-length-fixes.csv doesn't cover pcm/ig.
   const matchedOption = clippedMatch >= 0 ? options[clippedMatch] : undefined;
   if (clippedMatch >= 0 && matchedOption !== undefined) {
-    const matchedClipped = clip(norm(matchedOption), BUTTON_TITLE_MAX);
+    const matchedClipped = clip(norm(matchedOption), BUTTON_TITLE_MAX).trim();
     const collidingIndex = options.findIndex(
-      (o, i) => i > clippedMatch && clip(norm(o), BUTTON_TITLE_MAX) === matchedClipped
+      (o, i) => i > clippedMatch && clip(norm(o), BUTTON_TITLE_MAX).trim() === matchedClipped
     );
     if (collidingIndex >= 0) {
       console.warn(JSON.stringify({
