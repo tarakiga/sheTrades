@@ -1096,3 +1096,11 @@ triage against LIVE config + code:
   harasser"). BONUS finding not in the report: same lesson Q3 answerIndex=0
   marks "Allow free speech" correct; should be 1 ("Set anti-harassment
   rules"). No draft exists for either - never fixed, not a publish miss.
+
+Round 4 CLOSED (2026-07-29): operator republished m4_l8_b (v5) fixing both
+answer keys (Q1 Ufuoma -> "Report the harasser", Q3 -> "Set anti-harassment
+rules", the bonus finding). Staging e2e on the live bot: all three m4_l8
+questions grade Correct, including the clipped trailing-space title "Set
+anti-harassment " which exercises the new matcher fix. Every item in the
+client's Round 4 report is now resolved or operator-waived; recommend the
+client re-tests m3_l6/m4_l2/m4_l3/m4_l4/m4_l8 on real WhatsApp.
