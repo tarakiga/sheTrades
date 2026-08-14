@@ -1294,3 +1294,61 @@ wizard/JSON toggle for power users.
   ("29/24 - will be cut off"); save disabled + hint on empty label.
   tsc clean. No backend changes - nothing to deploy on Cloud Run; dashboard
   ships via Vercel on push.
+
+## Live payout test: Termii airtime API DOES NOT EXIST (2026-08-15)
+
+Ran the N100 experiment (operator-authorized, their own number, sandbox OFF,
+wallet topped to N2,820.70). Pre-flight: queue audit showed 0 dispatchable
+rows (11 old Failed all parked at retry ceiling 3; ceiling confirmed = 3 on
+the live service, no env override), so flipping sandbox off was safe.
+
+Result: manual N100 reward -> 3 real dispatch attempts -> ALL "Termii
+returned HTTP 404". N0 spent (wallet unchanged at 2,820.70). Root cause:
+the adapter's POST /api/airtime/send endpoint is FICTIONAL - Termii's
+developer docs (developers.termii.com) list messaging/OTP/insights/eSIM
+products only, no airtime anywhere, and no community SDK implements an
+airtime call either. Same original-implementation smell as the invented
+sandbox.termii.com host. Termii is a messaging company; its wallet funds
+SMS/OTP, not airtime payouts. The get-balance endpoint is real (which is
+why connection tests pass) - a healthy connection test NEVER validated the
+dispatch path.
+
+State: test reward 1356ac79 parked at Failed/retry=3 (N100, operator's own
+number - safe to Retry later once a real provider is configured). Operator
+told to flip sandbox back ON.
+
+Path forward: switch payouts provider to Reloadly or Africa's Talking -
+both adapters already exist in the platform and point at REAL documented
+hosts (auth.reloadly.com + topups.reloadly.com; api.africastalking.com).
+Reloadly even has a genuine sandbox environment (topups-sandbox.reloadly.com).
+Operator should also ask Termii support about repurposing/refunding the
+N2,820 wallet balance (usable only for their messaging products).
+
+## Live payout test: Termii airtime API DOES NOT EXIST (2026-08-15)
+
+Ran the N100 experiment (operator-authorized, their own number, sandbox OFF,
+wallet topped to N2,820.70). Pre-flight: queue audit showed 0 dispatchable
+rows (11 old Failed all parked at retry ceiling 3; ceiling confirmed = 3 on
+the live service, no env override), so flipping sandbox off was safe.
+
+Result: manual N100 reward -> 3 real dispatch attempts -> ALL "Termii
+returned HTTP 404". N0 spent (wallet unchanged at 2,820.70). Root cause:
+the adapter's POST /api/airtime/send endpoint is FICTIONAL - Termii's
+developer docs (developers.termii.com) list messaging/OTP/insights/eSIM
+products only, no airtime anywhere, and no community SDK implements an
+airtime call either. Same original-implementation smell as the invented
+sandbox.termii.com host. Termii is a messaging company; its wallet funds
+SMS/OTP, not airtime payouts. The get-balance endpoint is real (which is
+why connection tests pass) - a healthy connection test NEVER validated the
+dispatch path.
+
+State: test reward 1356ac79 parked at Failed/retry=3 (N100, operator's own
+number - safe to Retry later once a real provider is configured). Operator
+told to flip sandbox back ON.
+
+Path forward: switch payouts provider to Reloadly or Africas Talking -
+both adapters already exist in the platform and point at REAL documented
+hosts (auth.reloadly.com + topups.reloadly.com; api.africastalking.com).
+Reloadly even has a genuine sandbox environment (topups-sandbox.reloadly.com).
+Operator should also ask Termii support about repurposing/refunding the
+N2,820 wallet balance (usable only for their messaging products).
