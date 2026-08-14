@@ -333,3 +333,6 @@ for review before WL-4.
 
 Undecided (not in this phase until operator says go):
 - Messaging-cost Option A auto-advance (~18% per-learner saving, pacing trade-off).
+
+## Pre-launch reminders (operator)
+- `[ ]` N100 Termii experiment before go-live: top up wallet, sandbox OFF, dispatch ONE reward to operator's own number -> confirm Issued + transaction_id + airtime lands + wallet drops; then sandbox back ON. Answers the pre-KYC cap question definitively (account key already passes balance check unverified).
