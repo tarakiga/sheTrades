@@ -86,6 +86,15 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     pcm: "🎉 You correct! Better job.\n\nCongratulations! You don complete all lessons for dis module.\n\nPick your next module below.",
     ig: "🎉 I ziri ezi! Ọrụ dị mma.\n\nEkele! Imechara nkuzi niile dị na modul a.\n\nHọrọ modul ọzọ gị n'okpuru."
   },
+  // Shown when the learner reaches the END of a module's lesson order but
+  // skipped lessons remain: the module is NOT complete (client rule
+  // 2026-08-15: every lesson must be done), so no celebration fires and the
+  // lesson list is re-served with the gaps visible.
+  module_lessons_remaining: {
+    en: "You have finished this lesson, but some lessons in this module are not done yet. Pick one below to complete the module.",
+    pcm: "You don finish dis lesson, but some lessons for dis module never complete. Pick one below make you finish the module.",
+    ig: "Imechara nkuzi a, mana ụfọdụ nkuzi na modul a emechabeghị. Họrọ otu n'okpuru ka imechaa modul ahụ."
+  },
   // Shown when the learner has finished EVERY module: there is nothing left
   // to pick, so this one genuinely does route to the main menu.
   programme_complete: {
@@ -176,6 +185,7 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   reflection_next: "Bot · Reflection answer (next lesson)",
   reflection_module_complete: "Bot · Reflection answer (module complete)",
   programme_complete: "Bot · Programme complete (all modules done)",
+  module_lessons_remaining: "Bot · Module has unfinished lessons",
   incorrect_retry: "Bot · Incorrect answer (retry)",
   bot_did_not_understand: "Bot · Did not understand",
   state_prompt: "Bot · State prompt",

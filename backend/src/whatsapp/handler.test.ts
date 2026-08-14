@@ -473,3 +473,56 @@ test("next-question prompt copy says MENU is TYPED (no invisible button implied)
 
   assert.match(result.reply, /type (the word )?MENU/i);
 });
+
+// ---- Client rule 2026-08-15: module complete ONLY when every lesson is done ----
+
+test("finishing the LAST lesson with earlier lessons skipped does NOT complete the module", () => {
+  const l1 = makeLesson("m1_l1", "Module 1: First");
+  const l2 = makeLesson("m1_l2", "Module 1: First");
+  const l3 = makeLesson("m1_l3", "Module 1: First");
+  const modulesMap = new Map([["Module 1: First", [l1, l2, l3]]]);
+  // Learner skipped l1, completed l2, and is now finishing l3 (the last).
+  const session = makeSession({ completedLessons: ["m1_l2"], currentLessonKey: "m1_l3" });
+  const result = advanceAfterAcceptedAnswer(
+    session, l3, [l1, l2, l3], ["Module 1: First"], modulesMap, 0, "en"
+  );
+
+  assert.equal(result.state, "lesson_menu");
+  assert.equal(session.currentLessonKey, null);
+  assert.match(result.reply, /not done yet/i);
+  assert.doesNotMatch(result.reply, /completed all lessons/i);
+  // The reply carries the LESSON list (gaps visible), not the module picker.
+  assert.ok(result.list);
+  assert.deepEqual(
+    result.list?.sections[0]?.rows.map((r) => r.id),
+    ["m1_l1", "m1_l2", "m1_l3"]
+  );
+  // No module_completed analytics event -> no reward can fire.
+  assert.equal(
+    (session._events ?? []).some((e) => e.type === "module_completed"),
+    false
+  );
+});
+
+test("finishing a skipped MIDDLE lesson last correctly completes the module", () => {
+  const l1 = makeLesson("m1_l1", "Module 1: First");
+  const l2 = makeLesson("m1_l2", "Module 1: First");
+  const l3 = makeLesson("m1_l3", "Module 1: First");
+  const other = makeLesson("m2_l1", "Module 2: Second");
+  const modulesMap = new Map([
+    ["Module 1: First", [l1, l2, l3]],
+    ["Module 2: Second", [other]]
+  ]);
+  // Learner did l1 and l3, went back for l2 — completing it finishes the module.
+  const session = makeSession({ completedLessons: ["m1_l1", "m1_l3"], currentLessonKey: "m1_l2" });
+  const result = advanceAfterAcceptedAnswer(
+    session, l2, [l1, l2, l3], ["Module 1: First", "Module 2: Second"], modulesMap, 0, "en"
+  );
+
+  assert.equal(result.state, "module_menu");
+  assert.match(result.reply, /completed all lessons/i);
+  assert.equal(
+    (session._events ?? []).some((e) => e.type === "module_completed"),
+    true
+  );
+});

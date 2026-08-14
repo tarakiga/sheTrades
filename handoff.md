@@ -1180,3 +1180,27 @@ as follow-ups, NOT blocking:
 2. Sandbox learner ...777002's session was reset at some point (name became
    "1", completedLessons lost module 3/4 history). Sandbox-only learner, no
    production impact, cause not yet traced.
+
+## Incentive follow-ups per operator (2026-08-15, second pass)
+
+Operator confirmed: (a) milestone thresholds count ANY two modules (order-free,
+e.g. modules 4+5 count as the "first two") - matches what was built; (b) all
+current dashboard data is dev/test and will be dropped before go-live, so no
+retroactivity concern; (c) NEW RULE: a module counts as complete ONLY when
+every lesson in it is complete.
+
+(c) implemented - completion gate in advanceAfterAcceptedAnswer:
+- all-lessons-complete check replaces the old "reached last lesson in order"
+  trigger. Fixes BOTH directions: finishing the last lesson with skipped
+  lessons behind no longer celebrates or emits module_completed (no reward,
+  no analytics inflation); finishing a skipped MIDDLE lesson last now
+  correctly completes the module (previously never fired).
+- Gap case serves the lesson list with gaps visible (new
+  bot.prompt.module_lessons_remaining copy, en/pcm/ig, published) and sets
+  state=lesson_menu so the list is actionable - first e2e caught that leaving
+  the session in the lesson-view state made numbers/rows dead.
+- Suite 436/0/42 (2 new gate tests). Deployed rev shetrades-backend-staging-00106-zcv.
+- E2E (fresh learner ...777006): skipped lesson 1, walked 2-9 -> "not done
+  yet" + list showing the gap, NO celebration; completed lesson 1 -> module
+  complete + picker. Second learner ...777003 (clean 2-module run) remains
+  the milestone-reward proof: exactly one "Milestone: 2 modules" N500 row.

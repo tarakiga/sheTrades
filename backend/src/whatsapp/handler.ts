@@ -875,28 +875,66 @@ export function advanceAfterAcceptedAnswer(
       completionPercentage
     });
 
-    // Find next lesson inside this module
-    const currentIdx = moduleLessons.findIndex(l => l.key === activeLesson.key);
-    const nextLesson = moduleLessons[currentIdx + 1];
+    // Client rule (2026-08-15): a module is complete ONLY when every lesson
+    // in it is complete — not merely when the learner reaches the last lesson
+    // in order. Checking the full set (rather than list position) also fixes
+    // the inverse case: a learner who skipped a middle lesson and returns to
+    // finish it last now correctly completes the module.
+    const allLessonsComplete =
+      moduleLessons.length > 0 &&
+      moduleLessons.every((l) => session.completedLessons!.includes(l.key));
 
-    if (nextLesson) {
-      session.currentLessonKey = nextLesson.key;
+    if (!allLessonsComplete) {
+      const currentIdx = moduleLessons.findIndex(l => l.key === activeLesson.key);
+      const nextLesson = moduleLessons[currentIdx + 1];
 
-      // Build list of remaining lessons
-      const remainingLessons = moduleLessons.slice(currentIdx + 1);
-      let remainingText = "\n\nRemaining lessons in this module:\n";
-      remainingLessons.forEach((l) => {
-        remainingText += `- ${pickLocalized(l.title, lang)}\n`;
-      });
+      if (nextLesson) {
+        session.currentLessonKey = nextLesson.key;
 
-      const replyBase = getPrompt(copy.nextLesson.key, lang, copy.nextLesson.fallback);
+        // Build list of remaining lessons
+        const remainingLessons = moduleLessons.slice(currentIdx + 1);
+        let remainingText = "\n\nRemaining lessons in this module:\n";
+        remainingLessons.forEach((l) => {
+          remainingText += `- ${pickLocalized(l.title, lang)}\n`;
+        });
 
+        const replyBase = getPrompt(copy.nextLesson.key, lang, copy.nextLesson.fallback);
+
+        return {
+          state: session.state,
+          reply: prefix + replyBase + remainingText,
+          buttons: ["NEXT", "MENU"]
+        };
+      }
+
+      // Reached the end of the module order with earlier lessons still
+      // unfinished: no celebration, no module_completed event — show exactly
+      // what is left so the learner can close the gaps. State must be
+      // lesson_menu (the state whose handler resolves numbers and tapped
+      // rows to lessons) or the served list would not be actionable.
+      session.state = "lesson_menu";
+      session.currentLessonKey = null;
+      const moduleName = session.selectedModuleId ?? activeLesson.module ?? "Unknown";
+      const lessonMenu = buildLessonListReply(
+        moduleName,
+        moduleLessons,
+        session.completedLessons!,
+        lang
+      );
+      const headline = getPrompt(copy.headline.key, lang, copy.headline.fallback);
+      const remainingPrompt = getPrompt(
+        "module_lessons_remaining",
+        lang,
+        "You have finished this lesson, but some lessons in this module are not done yet. Pick one below to complete the module."
+      );
       return {
         state: session.state,
-        reply: prefix + replyBase + remainingText,
-        buttons: ["NEXT", "MENU"]
+        reply: `${prefix}${headline}\n\n${remainingPrompt}\n\n${lessonMenu.reply}`,
+        list: lessonMenu.list
       };
-    } else {
+    }
+
+    {
       // Completed entire module — capture the name before mutating
       // session state, then emit the analytics event so a reward
       // record can be inserted by recordAnalytics() after the user
