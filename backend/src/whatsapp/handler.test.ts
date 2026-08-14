@@ -373,3 +373,103 @@ test("a tapped state row extracts the state id from any page", () => {
   const inbound = extractInboundMessage(listReplyPayload("akwa_ibom", "Akwa Ibom"));
   assert.equal(inbound?.text, "akwa_ibom");
 });
+
+// ---- UX Round 3: module-completion routing (O-2) + typed-MENU copy (O-1) ----
+
+import { advanceAfterAcceptedAnswer } from "./handler.js";
+import type { RuntimeLesson } from "../config-platform/runtime-config.js";
+
+type AdvanceSession = Parameters<typeof advanceAfterAcceptedAnswer>[0];
+
+function makeLesson(key: string, module: string, quizCount = 1): RuntimeLesson {
+  return {
+    key,
+    module,
+    title: `Lesson ${key}`,
+    languages: { en: "body text" },
+    audioUrls: {},
+    quiz: Array.from({ length: quizCount }, (_, i) => ({
+      question: `Question ${i + 1}?`,
+      options: ["Option A", "Option B", "Option C"],
+      answerIndex: 0
+    }))
+  } as RuntimeLesson;
+}
+
+function makeSession(overrides: Record<string, unknown> = {}): AdvanceSession {
+  return {
+    state: "lesson_menu",
+    selectedModuleId: "Module 1: First",
+    currentLessonKey: "m1_l1",
+    completedLessons: [],
+    awaitingQuizAnswer: true,
+    currentQuizIndex: 0,
+    quizRetryCount: 0,
+    namePrompted: true,
+    lastUpdatedAt: new Date().toISOString(),
+    _events: [],
+    ...overrides
+  } as unknown as AdvanceSession;
+}
+
+test("module completion serves the module picker directly (state -> module_menu)", () => {
+  const lessonA = makeLesson("m1_l1", "Module 1: First");
+  const lessonB = makeLesson("m2_l1", "Module 2: Second");
+  const modulesMap = new Map([
+    ["Module 1: First", [lessonA]],
+    ["Module 2: Second", [lessonB]]
+  ]);
+  const session = makeSession();
+  const result = advanceAfterAcceptedAnswer(
+    session, lessonA, [lessonA], ["Module 1: First", "Module 2: Second"], modulesMap, 0, "en"
+  );
+
+  assert.equal(result.state, "module_menu");
+  assert.equal(session.state, "module_menu");
+  assert.ok(result.list, "completion reply must carry the module list");
+  assert.deepEqual(
+    result.list?.sections[0]?.rows.map((r) => r.id),
+    ["module-1", "module-2"]
+  );
+  assert.match(result.reply, /next module below/i);
+  assert.doesNotMatch(result.reply, /Reply MENU to choose another module/);
+  assert.equal(result.buttons, undefined);
+});
+
+test("finishing the LAST module says programme complete and offers MENU", () => {
+  const lessonA = makeLesson("m1_l1", "Module 1: Only");
+  const modulesMap = new Map([["Module 1: Only", [lessonA]]]);
+  const session = makeSession({ selectedModuleId: "Module 1: Only" });
+  const result = advanceAfterAcceptedAnswer(
+    session, lessonA, [lessonA], ["Module 1: Only"], modulesMap, 0, "en"
+  );
+
+  assert.notEqual(result.state, "module_menu");
+  assert.deepEqual(result.buttons, ["MENU"]);
+  assert.match(result.reply, /completed every module/i);
+  assert.equal(result.list, undefined);
+});
+
+test("mid-module lesson completion still offers NEXT/MENU buttons", () => {
+  const lessonA = makeLesson("m1_l1", "Module 1: First");
+  const lessonA2 = makeLesson("m1_l2", "Module 1: First");
+  const modulesMap = new Map([["Module 1: First", [lessonA, lessonA2]]]);
+  const session = makeSession();
+  const result = advanceAfterAcceptedAnswer(
+    session, lessonA, [lessonA, lessonA2], ["Module 1: First"], modulesMap, 0, "en"
+  );
+
+  assert.deepEqual(result.buttons, ["NEXT", "MENU"]);
+  assert.equal(session.currentLessonKey, "m1_l2");
+});
+
+test("next-question prompt copy says MENU is TYPED (no invisible button implied)", () => {
+  const lesson = makeLesson("m1_l1", "Module 1: First", 2);
+  const modulesMap = new Map([["Module 1: First", [lesson]]]);
+  const session = makeSession();
+  const result = advanceAfterAcceptedAnswer(
+    session, lesson, [lesson], ["Module 1: First"], modulesMap, 0, "en"
+  );
+
+  assert.match(result.reply, /type (the word )?MENU/i);
+});

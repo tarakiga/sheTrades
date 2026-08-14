@@ -773,7 +773,7 @@ const SCORED_ADVANCE_COPY: AdvanceCopy = {
   moduleComplete: {
     key: "correct_module_complete",
     fallback:
-      "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nReply MENU to choose another module."
+      "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nChoose your next module below."
   }
 };
 
@@ -788,7 +788,7 @@ const REFLECTION_ADVANCE_COPY: AdvanceCopy = {
   moduleComplete: {
     key: "reflection_module_complete",
     fallback:
-      "✅ Thanks for sharing.\n\nYou have completed all lessons in this module.\n\nReply MENU to choose another module."
+      "✅ Thanks for sharing.\n\nYou have completed all lessons in this module.\n\nChoose your next module below."
   }
 };
 
@@ -802,7 +802,7 @@ const REFLECTION_ADVANCE_COPY: AdvanceCopy = {
  * acknowledgement). `copy` selects the wording — see AdvanceCopy: the side
  * effects are shared, the affirmation is not.
  */
-function advanceAfterAcceptedAnswer(
+export function advanceAfterAcceptedAnswer(
   session: UserSession,
   activeLesson: RuntimeLesson,
   moduleLessons: RuntimeLesson[],
@@ -841,7 +841,7 @@ function advanceAfterAcceptedAnswer(
     nextOptions.forEach((opt, idx) => {
       nextReply += `${idx + 1}. ${opt}\n`;
     });
-    nextReply += getPrompt("quiz_answer_prompt", lang, "Reply with your answer (1, 2, or 3) or MENU to return.");
+    nextReply += getPrompt("quiz_answer_prompt", lang, "Reply with your answer (1, 2, or 3), or type MENU to return.");
 
     return {
       state: session.state,
@@ -916,19 +916,38 @@ function advanceAfterAcceptedAnswer(
         return !lessons.every(l => session.completedLessons!.includes(l.key));
       });
 
-      let incompleteText = "";
+      // UX Round 3 O-2: this used to say "Reply MENU to choose another module"
+      // while MENU routed to the top-level main menu — the promised picker
+      // never appeared. Serve the module picker ON the completion message
+      // instead: the session lands in module_menu so every module row (and a
+      // typed number) works immediately, with no extra hop through the main
+      // menu — which also saves one billable message per module transition.
       if (incompleteModules.length > 0) {
-        incompleteText = "\n\nOther incomplete modules:\n";
-        incompleteModules.forEach(m => {
-          incompleteText += `- ${m}\n`;
-        });
+        session.state = "module_menu";
+        const replyBase = getPrompt(copy.moduleComplete.key, lang, copy.moduleComplete.fallback);
+        const moduleMenu = buildModuleListReply(
+          moduleNames,
+          lang,
+          "modules_menu_header",
+          "Choose a Module to begin:"
+        );
+        return {
+          state: session.state,
+          reply: prefix + replyBase + "\n\n" + moduleMenu.reply,
+          list: moduleMenu.list
+        };
       }
 
-      const replyBase = getPrompt(copy.moduleComplete.key, lang, copy.moduleComplete.fallback);
-
+      // Nothing left to pick — the whole programme is complete.
       return {
         state: session.state,
-        reply: prefix + replyBase + incompleteText,
+        reply:
+          prefix +
+          getPrompt(
+            "programme_complete",
+            lang,
+            "🎓 Amazing! You have completed every module in the programme. Reply MENU to return to the main menu."
+          ),
         buttons: ["MENU"]
       };
     }
@@ -1356,7 +1375,7 @@ function transition(
                 getPrompt("quiz_time_header", lang, "📚 Quiz Time! Question:\n") +
                 `${pickLocalized(quizItem.question, lang)}\n` +
                 reflectionOptions.map((opt, idx) => `${idx + 1}. ${opt}\n`).join("") +
-                getPrompt("quiz_answer_prompt", lang, "\nReply with your answer (1, 2, or 3) or MENU to return."),
+                getPrompt("quiz_answer_prompt", lang, "\nReply with your answer (1, 2, or 3), or type MENU to return."),
               buttons: quizAnswerButtons(reflectionOptions)
             };
           }
@@ -1423,7 +1442,7 @@ function transition(
           options.forEach((opt, idx) => {
             reply += `${idx + 1}. ${opt}\n`;
           });
-          reply += getPrompt("quiz_answer_prompt", lang, "\nReply with your answer (1, 2, or 3) or MENU to return.");
+          reply += getPrompt("quiz_answer_prompt", lang, "\nReply with your answer (1, 2, or 3), or type MENU to return.");
 
           return {
             state: session.state,
@@ -1474,7 +1493,7 @@ function transition(
       options.forEach((opt, idx) => {
         reply += `${idx + 1}. ${opt}\n`;
       });
-      reply += getPrompt("quiz_answer_prompt", lang, "\nReply with your answer (1, 2, or 3) or MENU to return.");
+      reply += getPrompt("quiz_answer_prompt", lang, "\nReply with your answer (1, 2, or 3), or type MENU to return.");
 
       return {
         state: session.state,

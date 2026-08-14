@@ -1121,3 +1121,22 @@ Completed the backend/config side:
 - Unchanged on purpose: Meta webhook (points at Cloud Run), Vercel
   NEXT_PUBLIC_API_BASE_URL (points at Cloud Run), old vercel.app origins kept
   in CORS as fallback.
+
+## UX Round 3 (Aug 10 report): both open findings fixed (2026-08-15)
+
+O-1 (MENU invisible during quizzes): root cause is WhatsApp's 3-button cap -
+3-option questions cannot carry a 4th MENU button. Typed MENU always worked
+(global handler). Fix = honest copy: quiz_answer_prompt now says "type the
+word MENU" (en/pcm/ig, code fallbacks + republished bot.prompt docs).
+O-2 (MENU after module completion routed to main menu): completion message now
+IS the module picker - state -> module_menu, congrats copy + tappable module
+list in one message (also saves one billable message per module transition).
+All-modules-done case gets new bot.prompt.programme_complete copy instead.
+Republished via targeted API script (never the full prompt seed - operator
+edits to other prompts untouched): quiz_answer_prompt, correct_module_complete,
+reflection_module_complete, programme_complete.
+Tests: 4 new (picker routing, programme-complete, mid-module unchanged, typed-
+MENU copy); suite 424/0/42. Deployed rev 00103-w25. E2E: scripted learner
+completed all 9 Module 3 lessons; completion reply carried the module list
+(state module_menu, rows module-1..5); tapping module-2 from it opened Module
+2's lesson list directly; first quiz message shows typed-MENU wording.

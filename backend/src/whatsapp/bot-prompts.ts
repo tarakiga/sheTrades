@@ -40,10 +40,14 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     pcm: "📚 Time for small quiz! Question:\n",
     ig: "📚 Oge Ule! Ajụjụ:\n"
   },
+  // UX Round 3 O-1: three-option questions fill all three WhatsApp reply-button
+  // slots, so no MENU button can render there. The copy must be explicit that
+  // MENU is TYPED (it works from anywhere via the global handler) rather than
+  // implying a button the learner will never see.
   quiz_answer_prompt: {
-    en: "\n\nSelect your answer below or reply MENU to return.",
-    pcm: "\n\nSelect your answer below or reply MENU to go back.",
-    ig: "\n\nHọrọ azịza gị n'okpuru ma ọ bụ pịnye MENU ka ịlaghachi."
+    en: "\n\nSelect your answer below, or type the word MENU to return.",
+    pcm: "\n\nSelect your answer below, or type the word MENU to go back.",
+    ig: "\n\nHọrọ azịza gị n'okpuru, ma ọ bụ dee okwu MENU ka ịlaghachi."
   },
   correct_headline: {
     en: "🎉 Correct!",
@@ -64,10 +68,13 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     pcm: "✅ Thank you for tell us.\n\nYou don finish dis lesson.\n\nReply NEXT to go to the next lesson or MENU to go back.",
     ig: "✅ Daalụ maka ịkọrọ anyị.\n\nImechara nkuzi a.\n\nZaghachi NEXT ka ịga na nkuzi na-esote ma ọ bụ MENU ka ịlaghachi."
   },
+  // UX Round 3 O-2: module-complete replies now carry the module picker
+  // directly, so the copy invites a pick below instead of promising a MENU
+  // hop that used to land on the top-level main menu.
   reflection_module_complete: {
-    en: "✅ Thanks for sharing.\n\nYou have completed all lessons in this module.\n\nReply MENU to choose another module.",
-    pcm: "✅ Thank you for tell us.\n\nYou don finish all the lessons for dis module.\n\nReply MENU to select another module.",
-    ig: "✅ Daalụ maka ịkọrọ anyị.\n\nImechara nkuzi niile dị na modul a.\n\nZaghachi MENU ka ịhọrọ modul ọzọ."
+    en: "✅ Thanks for sharing.\n\nYou have completed all lessons in this module.\n\nChoose your next module below.",
+    pcm: "✅ Thank you for tell us.\n\nYou don finish all the lessons for dis module.\n\nPick your next module below.",
+    ig: "✅ Daalụ maka ịkọrọ anyị.\n\nImechara nkuzi niile dị na modul a.\n\nHọrọ modul ọzọ gị n'okpuru."
   },
   correct_next: {
     en: "🎉 Correct! Excellent job. You have completed this lesson.\n\nReply NEXT to continue to the next lesson or MENU to return.",
@@ -75,9 +82,16 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     ig: "🎉 I ziri ezi! Ọrụ dị mma. Imechara nkuzi a.\n\nReply NEXT ka ịga n'ihu na nkuzi na-abịa ma ọ bụ MENU ka ịlaghachi."
   },
   correct_module_complete: {
-    en: "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nReply MENU to choose another module.",
-    pcm: "🎉 You correct! Better job.\n\nCongratulations! You don complete all lessons for dis module.\n\nReply MENU to select another module.",
-    ig: "🎉 I ziri ezi! Ọrụ dị mma.\n\nEkele! Imechara nkuzi niile dị na modul a.\n\nReply MENU ka ịhọrọ modul ọzọ."
+    en: "🎉 Correct! Excellent job.\n\nCongratulations! You have completed all lessons in this module.\n\nChoose your next module below.",
+    pcm: "🎉 You correct! Better job.\n\nCongratulations! You don complete all lessons for dis module.\n\nPick your next module below.",
+    ig: "🎉 I ziri ezi! Ọrụ dị mma.\n\nEkele! Imechara nkuzi niile dị na modul a.\n\nHọrọ modul ọzọ gị n'okpuru."
+  },
+  // Shown when the learner has finished EVERY module: there is nothing left
+  // to pick, so this one genuinely does route to the main menu.
+  programme_complete: {
+    en: "🎓 Amazing! You have completed every module in the programme. Reply MENU to return to the main menu.",
+    pcm: "🎓 Correct! You don finish every module for the programme. Reply MENU to go back to main menu.",
+    ig: "🎓 Ịdị mma! Imechara modul niile n'ime mmemme a. Zaghachi MENU ka ịlaghachi na isi menu."
   },
   incorrect_retry: {
     en: "❌ That is incorrect. Let's try again!\n\n",
@@ -161,6 +175,7 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   reflection_headline: "Bot · Reflection answer headline",
   reflection_next: "Bot · Reflection answer (next lesson)",
   reflection_module_complete: "Bot · Reflection answer (module complete)",
+  programme_complete: "Bot · Programme complete (all modules done)",
   incorrect_retry: "Bot · Incorrect answer (retry)",
   bot_did_not_understand: "Bot · Did not understand",
   state_prompt: "Bot · State prompt",
