@@ -5,7 +5,9 @@ manage admin users and permissions, publish/roll back changes, and troubleshoot
 caching. No code changes are required for any task here — everything is done
 from the dashboard.
 
-- **Dashboard:** https://she-trades.vercel.app
+- **Dashboard:** https://www.shetrades.digital (the old
+  https://she-trades.vercel.app address still works and redirects nowhere -
+  both serve the same deployment; bookmarks should move to the new domain)
 - **Sign in:** use the email + password for your admin account. Press **Enter**
   or click **Sign in**. Sessions are role-aware and expire after the configured
   TTL (you'll be returned to the login screen when a session ends — just sign in

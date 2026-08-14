@@ -1104,3 +1104,20 @@ questions grade Correct, including the clipped trailing-space title "Set
 anti-harassment " which exercises the new matcher fix. Every item in the
 client's Round 4 report is now resolved or operator-waived; recommend the
 client re-tests m3_l6/m4_l2/m4_l3/m4_l4/m4_l8 on real WhatsApp.
+
+## Domain cutover: www.shetrades.digital (2026-08-03)
+
+Operator added shetrades.digital to Vercel (www serves 200; apex 308s to www).
+Completed the backend/config side:
+- BACKEND_CORS_ALLOWED_ORIGINS: new domains prepended (www first - it is the
+  invite-email fallback origin) in cloudrun-staging-env.yaml; applied via
+  `gcloud run services update --env-vars-file` (rev 00102-88n). Verified:
+  PAYOUTS_WORKER_TOKEN secret mapping intact; OPTIONS preflight from
+  https://www.shetrades.digital returns 204 + matching allow-origin header.
+- admin.invite.login_url republished -> https://www.shetrades.digital/login
+  (invite emails now link to the new domain).
+- seed-branding.ts default login URL updated to the new domain.
+- docs/admin-how-to-guide.md dashboard URL updated.
+- Unchanged on purpose: Meta webhook (points at Cloud Run), Vercel
+  NEXT_PUBLIC_API_BASE_URL (points at Cloud Run), old vercel.app origins kept
+  in CORS as fallback.

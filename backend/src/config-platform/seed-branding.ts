@@ -34,7 +34,7 @@ const SEED_ENTRIES: SeedEntry[] = [
     key: "admin.invite.login_url",
     title: "Admin invite login URL",
     payload: {
-      en: process.env.BRANDING_SEED_LOGIN_URL ?? "https://she-trades.vercel.app/login"
+      en: process.env.BRANDING_SEED_LOGIN_URL ?? "https://www.shetrades.digital/login"
     }
   }
 ];
