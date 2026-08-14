@@ -1140,3 +1140,43 @@ MENU copy); suite 424/0/42. Deployed rev 00103-w25. E2E: scripted learner
 completed all 9 Module 3 lessons; completion reply carried the module list
 (state module_menu, rows module-1..5); tapping module-2 from it opened Module
 2's lesson list directly; first quiz message shows typed-MENU wording.
+
+## Client incentive revision: milestone payouts (2026-08-15)
+
+Client moved from N200/module to milestones: N500 at TWO modules completed +
+N500 at ALL modules completed (same N1,000/learner, 2 payouts not 5).
+Interpretation (stated to operator): thresholds count ANY modules completed,
+since learners pick modules in any order.
+
+- Contract: rewardRulesPayloadSchema gains optional milestones[]
+  ({modulesCompleted: n|"all", amount, label?}); legacy flat amount kept and
+  used only when milestones absent. "all" resolves to the live published
+  module count at award time.
+- Engine: backend/src/rewards/milestones.ts - pure resolveMilestoneAwards +
+  countCompletedModules (module counts as complete only when EVERY lesson
+  done). Award = catch-up >= semantics; reward dedup key derived from the
+  THRESHOLD ONLY (never the admin-editable label - a rename must not re-pay
+  every learner). 10 unit tests.
+- Handler: module_completed event -> milestone mode when configured (per-
+  module upsert otherwise, unchanged). Milestone reward rows use
+  module="Milestone: N modules"/"all modules" against the existing
+  (userId,module) uniqueness.
+- Admin UI: RewardRulesWorkspace gains milestone rows (threshold|"all",
+  amount, label, add/remove) + active-rule summary shows milestones.
+- Published reward.rules.primary: milestones [{2,500},{all,500}], enabled.
+  Deployed rev 00104-9xp. Suite 434/0/42.
+- E2E (fresh learner +2348000777003): onboard -> complete Module 1 (9
+  lessons) -> complete Module 2 (10 lessons) -> EXACTLY ONE reward row
+  "Milestone: 2 modules" N500 Pending, zero per-module rows.
+
+Two observations from a corrupted first fixture (learner ...777002), logged
+as follow-ups, NOT blocking:
+1. module_completed (and the completion message) fires on finishing the LAST
+   lesson in module order even if earlier lessons were skipped via the lesson
+   list (progress showed 80%). The milestone engine is immune (it counts full
+   completion itself), but the analytics event and any legacy flat-mode
+   deployment are not. Candidate fix: gate module_completed on all-lessons-
+   complete.
+2. Sandbox learner ...777002's session was reset at some point (name became
+   "1", completedLessons lost module 3/4 history). Sandbox-only learner, no
+   production impact, cause not yet traced.

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getRuntimeOptionSet, getRuntimeText, getRuntimeBranding, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson, pickLocalized } from "../config-platform/runtime-config.js";
+import { countCompletedModules, resolveMilestoneAwards } from "../rewards/milestones.js";
 import { sendHelpRequestEmail } from "../notifications/help-request-email.js";
 import { BOT_PROMPT_DEFAULTS, BOT_PROMPT_CONFIG_PREFIX } from "./bot-prompts.js";
 import { prisma } from "../admin/prisma.js";
@@ -1623,10 +1624,42 @@ async function recordAnalytics(session: UserSession): Promise<void> {
           // Rewards disabled by the admin reward rule — skip creating a reward.
           continue;
         }
+        const channel = rule?.channel ?? ((process.env.REWARD_DEFAULT_CHANNEL ?? "airtime").trim() || "airtime");
+
+        if (rule?.milestones && rule.milestones.length > 0) {
+          // Client incentive plan (2026-08): milestone payouts replace
+          // per-module payouts. Count fully-completed modules and award every
+          // milestone the learner has reached; the (userId, key) uniqueness
+          // makes catch-ups and replays idempotent, so a learner never earns
+          // the same milestone twice.
+          const { completedModules, totalModules } = countCompletedModules(
+            session.completedLessons ?? [],
+            getRuntimeLessons()
+          );
+          const awards = resolveMilestoneAwards(rule.milestones, completedModules, totalModules);
+          for (const award of awards) {
+            await prisma.reward.upsert({
+              where: {
+                userId_module: { userId: session.userId, module: award.key }
+              },
+              update: {}, // an already-earned milestone is never re-issued or repriced
+              create: {
+                userId: session.userId,
+                module: award.key,
+                amount: award.amount,
+                channel,
+                status: "Pending",
+                learnerPhone: session.phone
+              }
+            });
+          }
+          continue;
+        }
+
+        // Legacy flat mode: one reward per completed module.
         const envAmount = Number(process.env.REWARD_DEFAULT_AMOUNT);
         const fallbackAmount = Number.isFinite(envAmount) && envAmount > 0 ? envAmount : 500;
         const amount = rule?.amount ?? fallbackAmount;
-        const channel = rule?.channel ?? ((process.env.REWARD_DEFAULT_CHANNEL ?? "airtime").trim() || "airtime");
         // Guard against an empty or whitespace-only module name, which would
         // otherwise collapse the (userId, module) dedup key for the user.
         const moduleKey = (event.module ?? "").trim() || "Unknown";

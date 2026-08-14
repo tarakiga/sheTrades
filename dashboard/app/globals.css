@@ -2813,6 +2813,49 @@ body {
   outline: none;
 }
 
+/* ---- Reward milestone editor (Settings → Rewards) ---- */
+
+.reward-milestones {
+  border-top: var(--border-hairline);
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+}
+
+.reward-milestones__header {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.reward-milestone-row {
+  align-items: start;
+  border: var(--border-hairline);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 10rem) minmax(0, 9rem) minmax(0, 1fr) auto;
+  padding: var(--space-3);
+}
+
+/* Sit the Remove button on the inputs' field line, below their labels. */
+.reward-milestone-row > .ui-button {
+  justify-self: end;
+  margin-top: 1.4rem;
+}
+
+@media (max-width: 720px) {
+  .reward-milestone-row {
+    grid-template-columns: 1fr;
+  }
+
+  .reward-milestone-row > .ui-button {
+    justify-self: start;
+    margin-top: 0;
+  }
+}
+
 .schedule-list {
   display: grid;
   gap: var(--space-3);

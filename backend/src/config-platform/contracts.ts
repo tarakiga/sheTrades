@@ -221,11 +221,26 @@ export type NotificationIntegrationPayload = z.infer<typeof notificationIntegrat
 // against THIS union in validatePayloadForDocumentType (service.ts /
 // postgres-service.ts), not just against configPayloadSchema at the route layer.
 // Defined here (above the integration union) so it can be included below.
+// Client incentive plan (2026-08): payouts moved from flat per-module amounts
+// to completion-count milestones. `modulesCompleted: "all"` resolves to the
+// number of PUBLISHED modules at award time, so adding a sixth module later
+// moves the finish line instead of paying the final milestone early.
+export const rewardMilestoneSchema = z.object({
+  modulesCompleted: z.union([z.number().int().min(1).max(50), z.literal("all")]),
+  amount: z.number().positive(),
+  label: z.string().trim().min(1).max(60).optional()
+});
+export type RewardMilestone = z.infer<typeof rewardMilestoneSchema>;
+
 export const rewardRulesPayloadSchema = z.object({
   kind: z.literal("reward_rules"),
+  // Legacy flat per-module amount. Still required so every published rule
+  // has a usable fallback; IGNORED whenever `milestones` is non-empty.
   amount: z.number().positive(),
   channel: z.literal("airtime"),
-  enabled: z.boolean()
+  enabled: z.boolean(),
+  // Milestone mode: when present and non-empty, replaces per-module payouts.
+  milestones: z.array(rewardMilestoneSchema).max(10).optional()
 });
 export type RewardRulesPayload = z.infer<typeof rewardRulesPayloadSchema>;
 

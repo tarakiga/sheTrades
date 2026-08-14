@@ -24,11 +24,25 @@ type FeedbackState = {
   text: string;
 };
 
+type MilestoneFormRow = {
+  /** "2", "5", … or the literal "all" (= every published module). */
+  modulesCompleted: string;
+  amount: string;
+  label: string;
+};
+
 type RewardRulesFormState = {
   title: string;
   amount: string;
   channel: "airtime";
   enabled: boolean;
+  milestones: MilestoneFormRow[];
+};
+
+type RewardMilestonePayload = {
+  modulesCompleted: number | "all";
+  amount: number;
+  label?: string;
 };
 
 type RewardRulesPayload = {
@@ -36,6 +50,8 @@ type RewardRulesPayload = {
   amount: number;
   channel: "airtime";
   enabled: boolean;
+  /** When non-empty, milestone payouts replace the flat per-module amount. */
+  milestones?: RewardMilestonePayload[];
 };
 
 function isRewardRulesPayload(value: unknown): value is RewardRulesPayload {
@@ -49,7 +65,8 @@ function createEmptyForm(): RewardRulesFormState {
     title: DEFAULT_TITLE,
     amount: "500",
     channel: "airtime",
-    enabled: true
+    enabled: true,
+    milestones: []
   };
 }
 
@@ -66,8 +83,20 @@ function detailToForm(detail: IntegrationDocumentDetail | null): RewardRulesForm
     title: docTitle,
     amount: String(candidatePayload.amount),
     channel: candidatePayload.channel,
-    enabled: candidatePayload.enabled
+    enabled: candidatePayload.enabled,
+    milestones: (candidatePayload.milestones ?? []).map((milestone) => ({
+      modulesCompleted: String(milestone.modulesCompleted),
+      amount: String(milestone.amount),
+      label: milestone.label ?? ""
+    }))
   };
+}
+
+function parseThreshold(raw: string): number | "all" | null {
+  const value = raw.trim().toLowerCase();
+  if (value === "all") return "all";
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric >= 1 ? numeric : null;
 }
 
 function validateForm(form: RewardRulesFormState): Record<string, string> {
@@ -78,16 +107,47 @@ function validateForm(form: RewardRulesFormState): Record<string, string> {
   if (!(Number(form.amount) > 0)) {
     errors.amount = "Enter a reward amount greater than zero.";
   }
+  form.milestones.forEach((milestone, index) => {
+    if (parseThreshold(milestone.modulesCompleted) === null) {
+      errors[`milestone-${index}-threshold`] = 'Enter a whole number of modules, or "all".';
+    }
+    if (!(Number(milestone.amount) > 0)) {
+      errors[`milestone-${index}-amount`] = "Enter an amount greater than zero.";
+    }
+  });
   return errors;
 }
 
 function serializePayload(form: RewardRulesFormState): RewardRulesPayload {
-  return {
+  const payload: RewardRulesPayload = {
     kind: "reward_rules",
     amount: Number(form.amount),
     channel: form.channel,
     enabled: form.enabled
   };
+  if (form.milestones.length > 0) {
+    payload.milestones = form.milestones.map((milestone) => {
+      const threshold = parseThreshold(milestone.modulesCompleted) ?? 1;
+      const entry: RewardMilestonePayload = {
+        modulesCompleted: threshold,
+        amount: Number(milestone.amount)
+      };
+      if (milestone.label.trim()) entry.label = milestone.label.trim();
+      return entry;
+    });
+  }
+  return payload;
+}
+
+function describeMilestones(milestones: RewardMilestonePayload[]): string {
+  return milestones
+    .map(
+      (milestone) =>
+        `₦${milestone.amount.toLocaleString()} @ ${
+          milestone.modulesCompleted === "all" ? "all modules" : `${milestone.modulesCompleted} modules`
+        }`
+    )
+    .join(", ");
 }
 
 function formatTimestamp(value?: string) {
@@ -370,7 +430,9 @@ export function RewardRulesWorkspace() {
                     <h4 className="integration-workspace__table-title">Active Rule</h4>
                     <p className="integration-workspace__table-description">
                       {activePayload
-                        ? `Amount: ₦${activePayload.amount.toLocaleString()} · Channel: ${activePayload.channel} · ${activePayload.enabled ? "Enabled" : "Disabled"}`
+                        ? activePayload.milestones && activePayload.milestones.length > 0
+                          ? `Milestones: ${describeMilestones(activePayload.milestones)} · Channel: ${activePayload.channel} · ${activePayload.enabled ? "Enabled" : "Disabled"}`
+                          : `Per module: ₦${activePayload.amount.toLocaleString()} · Channel: ${activePayload.channel} · ${activePayload.enabled ? "Enabled" : "Disabled"}`
                         : "No rule published - using the system default."}
                     </p>
                   </div>
@@ -441,13 +503,96 @@ export function RewardRulesWorkspace() {
 
                 <Input
                   id="reward-rule-amount"
-                  label="Reward Amount (NGN)"
+                  label="Per-Module Amount (NGN)"
                   value={form.amount}
                   type="number"
                   onChange={(event) => setForm({ ...form, amount: event.target.value })}
-                  hint="The airtime value (in naira) awarded to the learner when the rule fires."
+                  hint="Flat airtime value per completed module. IGNORED while any milestone rows exist below."
                   {...(errors.amount ? { error: errors.amount } : {})}
                 />
+
+                <div className="reward-milestones">
+                  <div className="reward-milestones__header">
+                    <span className="integration-workspace__toggle-label">Milestone Payouts</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          milestones: [
+                            ...form.milestones,
+                            { modulesCompleted: "", amount: "", label: "" }
+                          ]
+                        })
+                      }
+                    >
+                      Add Milestone
+                    </Button>
+                  </div>
+                  <p className="integration-workspace__toggle-hint">
+                    With milestones, learners are paid when their COMPLETED MODULE COUNT reaches
+                    each threshold (in any module order) instead of per module. Use a number
+                    (e.g. 2) or &quot;all&quot; for every published module. Leave the list empty
+                    to keep flat per-module payouts.
+                  </p>
+                  {form.milestones.map((milestone, index) => (
+                    <div className="reward-milestone-row" key={index}>
+                      <Input
+                        id={`reward-milestone-${index}-threshold`}
+                        label="Modules Completed"
+                        value={milestone.modulesCompleted}
+                        placeholder='e.g. 2 or "all"'
+                        onChange={(event) => {
+                          const next = [...form.milestones];
+                          next[index] = { ...milestone, modulesCompleted: event.target.value };
+                          setForm({ ...form, milestones: next });
+                        }}
+                        {...(errors[`milestone-${index}-threshold`]
+                          ? { error: errors[`milestone-${index}-threshold`] }
+                          : {})}
+                      />
+                      <Input
+                        id={`reward-milestone-${index}-amount`}
+                        label="Amount (NGN)"
+                        type="number"
+                        value={milestone.amount}
+                        onChange={(event) => {
+                          const next = [...form.milestones];
+                          next[index] = { ...milestone, amount: event.target.value };
+                          setForm({ ...form, milestones: next });
+                        }}
+                        {...(errors[`milestone-${index}-amount`]
+                          ? { error: errors[`milestone-${index}-amount`] }
+                          : {})}
+                      />
+                      <Input
+                        id={`reward-milestone-${index}-label`}
+                        label="Label (optional)"
+                        value={milestone.label}
+                        placeholder="e.g. First two modules"
+                        onChange={(event) => {
+                          const next = [...form.milestones];
+                          next[index] = { ...milestone, label: event.target.value };
+                          setForm({ ...form, milestones: next });
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Remove milestone ${index + 1}`}
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            milestones: form.milestones.filter((_, i) => i !== index)
+                          })
+                        }
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
 
                 <Select
                   id="reward-rule-channel"
