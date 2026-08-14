@@ -37,6 +37,7 @@ import { FunnelBarsPreview } from "./FunnelBarsPreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
 import { HelpRequestsPanelPreview } from "./HelpRequestsPanelPreview";
+import { OptionSetBuilderPreview } from "./OptionSetBuilderPreview";
 import { QuizBuilderPreview } from "./QuizBuilderPreview";
 import { PreviewSelectTabsDemo } from "./PreviewSelectTabsDemo";
 import { AdminRouteLoading } from "../../../components/layout/AdminRouteLoading";
@@ -235,6 +236,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <QuizBuilderPreview />
+        </Card>
+
+        <Card
+          title={t("preview.optionSetBuilder.title", "Option Set Builder - visual choices editor")}
+          description={t(
+            "preview.optionSetBuilder.description",
+            "Form-based editor for option_set config documents (FAQs, cadences, recipient lists) - replaces raw JSON in the settings drawer. Shows the WhatsApp 24-char row-title meter, per-option detail fields, and the live stored JSON."
+          )}
+        >
+          <OptionSetBuilderPreview />
         </Card>
 
         <Card

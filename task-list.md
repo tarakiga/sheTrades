@@ -336,3 +336,10 @@ Undecided (not in this phase until operator says go):
 
 ## Pre-launch reminders (operator)
 - `[ ]` N100 Termii experiment before go-live: top up wallet, sandbox OFF, dispatch ONE reward to operator's own number -> confirm Issued + transaction_id + airtime lands + wallet drops; then sandbox back ON. Answers the pre-KYC cap question definitively (account key already passes balance check unverified).
+
+## OPT: Visual option-set editor (COMPLETED 2026-08-15)
+Operator request: friendlier UI than raw JSON for config option sets (FAQs etc.).
+- `[x]` OPT-1: dashboard/lib/option-set-builder.ts (pure parse/serialize, metadata field classifier, verbatim round-trip of unknown shapes) + components/config/OptionSetBuilder.tsx (card-per-option editor, auto-slug, reorder, 24-char row-title meter + >10 rows warning for bot.* sets, "Add detail" field types).
+- `[x]` OPT-2: ConfigEditorDrawer documentType prop; option_set docs open in the visual wizard by default with Raw JSON behind the existing toggle; wizard-only serialize (no textarea rewrites mid-typing); save gated on validation. Fixes latent en-corruption when opening items-shaped payloads in the generic parser.
+- `[x]` OPT-3: ConfigAdminManager passes documentType (edit + create); buildCategoryPayload preserves item metadata (was hardcoded to {} - would have wiped FAQ answers on a category-drawer save).
+- `[x]` OPT-4: Preview gallery card (standalone builder + real drawer instance on a bot.faqs fixture); browser-verified round trips both directions; tsc + production build clean; no backend changes.

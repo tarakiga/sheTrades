@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Badge, Button, ConstraintMeter, Input, SideDrawer, Textarea, RichTextEditor } from "../ui";
 import { ContentFormWalkthrough } from "../content/ContentFormWalkthrough";
+import { OptionSetBuilder } from "./OptionSetBuilder";
+import {
+  parseOptionSetDraft,
+  serializeOptionSetDraft,
+  validateOptionSetDraft,
+  type OptionSetDraft
+} from "../../lib/option-set-builder";
 import {
   WHATSAPP_LIMITS,
   waLen,
@@ -109,6 +116,12 @@ export type ConfigEditorDrawerProps = {
   // Custom non-technical extensions
   namespace?: string;
   existingModules?: string[];
+  /**
+   * Backend document type of the item being edited/created. When it is
+   * "option_set" the drawer opens in the visual option builder instead of the
+   * raw JSON editor (JSON stays available via the mode toggle).
+   */
+  documentType?: string | undefined;
 };
 
 export function ConfigEditorDrawer({
@@ -142,7 +155,8 @@ export function ConfigEditorDrawer({
   secondaryActions,
   onClose,
   namespace,
-  existingModules = []
+  existingModules = [],
+  documentType
 }: ConfigEditorDrawerProps) {
   // Mode selection: "wizard" for non-tech friendly, "json" for power users
   const [editorModeState, setEditorModeState] = useState<"wizard" | "json">("json");
@@ -192,6 +206,10 @@ export function ConfigEditorDrawer({
   const [translationCopy, setTranslationCopy] = useState({ en: "", pcm: "", ig: "" });
   const [extraPayloadFields, setExtraPayloadFields] = useState<Record<string, unknown>>({});
 
+  // Option-set builder state (documentType === "option_set"). Null while the
+  // raw JSON is unparseable, in which case only the JSON editor can run.
+  const [optionDraft, setOptionDraft] = useState<OptionSetDraft | null>(null);
+
   // Expanded quiz question index
   const [expandedQuizIndex, setExpandedQuizIndex] = useState<number | null>(0);
 
@@ -204,6 +222,11 @@ export function ConfigEditorDrawer({
       setActiveStep(1);
       setSimulatorSelectedAnswer({});
       if (namespace === "content" || namespace === "legal") {
+        setEditorModeState("wizard");
+      } else if (
+        documentType === "option_set" ||
+        (!documentType && parseOptionSetDraft(payloadValue) !== null)
+      ) {
         setEditorModeState("wizard");
       } else {
         setEditorModeState("json");
@@ -281,6 +304,18 @@ export function ConfigEditorDrawer({
       setLocalSerialized(value);
       return;
     }
+
+    // Option sets get their own builder model. Never fall through to the
+    // generic translation parser for them: that parser stuffs the whole JSON
+    // string into `en` when no `en` key exists, which would corrupt the
+    // payload on the next serialize pass.
+    const parsedOptionDraft = parseOptionSetDraft(value);
+    if (documentType === "option_set" || (!documentType && parsedOptionDraft !== null)) {
+      setOptionDraft(parsedOptionDraft);
+      setLocalSerialized(value);
+      return;
+    }
+    setOptionDraft(null);
 
     const segments = keyValue.split(".");
     const isLessonKey = segments[0] === "content" && segments[1] === "lesson";
@@ -366,6 +401,9 @@ export function ConfigEditorDrawer({
     if (!open) return;
     // Legal documents serialise through their own effect below.
     if (namespace === "legal") return;
+    // Option sets serialise through their own effect below - running the
+    // translation serialiser against them would emit a mangled `en` payload.
+    if (documentType === "option_set" || optionDraft !== null) return;
 
     // If the parent payloadValue is different from our localSerialized,
     // it means a parent-initiated change (like applying a template or loading)
@@ -436,8 +474,27 @@ export function ConfigEditorDrawer({
     translationCopy,
     extraPayloadFields,
     payloadValue,
-    localSerialized
+    localSerialized,
+    documentType,
+    optionDraft
   ]);
+
+  // Serialise the option-set builder back to the payload. Only while the
+  // wizard is the active mode - when the admin types raw JSON we must not
+  // rewrite the textarea under their cursor with a normalized round-trip.
+  useEffect(() => {
+    if (!open || !optionDraft || editorModeState !== "wizard") return;
+    if (payloadValue !== localSerialized) return;
+    try {
+      const str = serializeOptionSetDraft(optionDraft);
+      if (str !== payloadValue && str !== localSerialized) {
+        setLocalSerialized(str);
+        onPayloadChange(str);
+      }
+    } catch {
+      // ignore serialisation errors
+    }
+  }, [open, optionDraft, editorModeState, payloadValue, localSerialized, onPayloadChange]);
 
   // Serialise the legal form back to the payload. Its own effect so it can never
   // run the content/lesson serialiser against a legal document (whose shape is
@@ -641,6 +698,15 @@ export function ConfigEditorDrawer({
     return null;
   };
 
+  const isOptionSetDoc = documentType === "option_set" || optionDraft !== null;
+  const isBotOptionSet = isOptionSetDoc && keyValue.startsWith("bot.");
+  const optionDraftError =
+    isOptionSetDoc && editorModeState === "wizard"
+      ? optionDraft
+        ? validateOptionSetDraft(optionDraft)
+        : "The stored JSON is invalid - open the Raw JSON editor to fix it."
+      : null;
+
   return (
     <SideDrawer
       open={open}
@@ -688,9 +754,30 @@ export function ConfigEditorDrawer({
               </div>
             ) : (
               /* If JSON mode, or not in "content" namespace, show the normal save button directly */
-              <Button disabled={primaryActionDisabled} loading={saving} onClick={onPrimaryAction}>
-                {primaryActionLabel}
-              </Button>
+              <>
+                {optionDraftError ? (
+                  <span
+                    className="config-drawer__validation-hint"
+                    style={{
+                      fontSize: "var(--font-size-xs)",
+                      color: "var(--color-danger)",
+                      marginRight: "var(--space-2)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "var(--space-1)"
+                    }}
+                  >
+                    <span>⚠️</span> <span>{optionDraftError}</span>
+                  </span>
+                ) : null}
+                <Button
+                  disabled={primaryActionDisabled || Boolean(optionDraftError)}
+                  loading={saving}
+                  onClick={onPrimaryAction}
+                >
+                  {primaryActionLabel}
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -708,7 +795,7 @@ export function ConfigEditorDrawer({
         </div>
 
         {/* 1. Mode Selector Toggle */}
-        {namespace === "content" || namespace === "legal" ? (
+        {namespace === "content" || namespace === "legal" || isOptionSetDoc ? (
           <div className="wizard-mode-toggle" role="group" aria-label="Editor mode">
             <button
               type="button"
@@ -1982,6 +2069,44 @@ export function ConfigEditorDrawer({
           </div>
         ) : null}
 
+        {/* 3c. Option-set visual builder */}
+        {editorModeState === "wizard" && isOptionSetDoc ? (
+          <div className="wizard-container">
+            {mode === "create" && keyField ? (
+              <div className="wizard-panel__section">{keyField}</div>
+            ) : null}
+            {mode === "create" && titleLabel && onTitleChange ? (
+              <Input
+                id="option-set-doc-title"
+                label={titleLabel}
+                value={titleValue}
+                autoComplete="off"
+                onChange={(event) => onTitleChange(event.target.value)}
+                placeholder={titlePlaceholder}
+              />
+            ) : null}
+            {optionDraft ? (
+              <OptionSetBuilder
+                draft={optionDraft}
+                onChange={setOptionDraft}
+                labelLimit={isBotOptionSet ? WHATSAPP_LIMITS.listRowTitle : undefined}
+                maxOptions={isBotOptionSet ? WHATSAPP_LIMITS.maxListRows : undefined}
+                helperText={
+                  isBotOptionSet
+                    ? "Each card is one row people can tap in the WhatsApp chat. The label is the row title; the details below hold what the bot sends when it is picked."
+                    : undefined
+                }
+              />
+            ) : (
+              <div className="preview-row">
+                <Badge variant="warning">
+                  The stored JSON could not be read. Switch to the Raw JSON editor to repair it.
+                </Badge>
+              </div>
+            )}
+          </div>
+        ) : null}
+
         {/* 3b. Legal block form (rich text beside the JSON) */}
         {editorModeState === "wizard" && namespace === "legal" ? (
           <div className="wizard-container">
@@ -2063,7 +2188,8 @@ export function ConfigEditorDrawer({
         ) : null}
 
         {/* 4. Backward-Compatible Raw JSON Block */}
-        {editorModeState === "json" || (namespace !== "content" && namespace !== "legal") ? (
+        {editorModeState === "json" ||
+        (namespace !== "content" && namespace !== "legal" && !isOptionSetDoc) ? (
           <>
             {keyField ?? (
               <Input

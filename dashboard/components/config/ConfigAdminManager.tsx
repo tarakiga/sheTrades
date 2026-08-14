@@ -273,7 +273,20 @@ function toCategoryManagerItems(payload: OptionSetPayload | null): Array<Categor
     .sort((left, right) => left.sortOrder - right.sortOrder);
 }
 
-function buildCategoryPayload(title: string, items: Array<CategoryManagerItem>) {
+function buildCategoryPayload(
+  title: string,
+  items: Array<CategoryManagerItem>,
+  source?: OptionSetPayload | null
+) {
+  // The category manager edits label/value/order only - metadata carried by
+  // the stored items (FAQ answers, cadence configs, ...) must survive a save.
+  const metadataById = new Map<string, Record<string, unknown>>();
+  source?.items?.forEach((item) => {
+    if (typeof item.id === "string" && item.metadata && typeof item.metadata === "object") {
+      metadataById.set(item.id, item.metadata);
+    }
+  });
+
   return {
     title,
     items: items.map((item, index) => ({
@@ -282,7 +295,7 @@ function buildCategoryPayload(title: string, items: Array<CategoryManagerItem>) 
       label: item.label.trim(),
       enabled: item.enabled,
       sortOrder: index + 1,
-      metadata: {}
+      metadata: metadataById.get(item.id) ?? {}
     }))
   };
 }
@@ -1229,7 +1242,13 @@ export function ConfigAdminManager({
       return;
     }
 
-    const nextPayload = buildCategoryPayload(getCategoryDocumentTitle(), categoryItems);
+    const categorySourcePayload =
+      categoryDocumentRow?.draft?.payload ?? categoryDocumentRow?.published?.payload;
+    const nextPayload = buildCategoryPayload(
+      getCategoryDocumentTitle(),
+      categoryItems,
+      isOptionSetPayload(categorySourcePayload) ? categorySourcePayload : null
+    );
 
     try {
       beginCategoryAction(
@@ -1280,7 +1299,13 @@ export function ConfigAdminManager({
       return;
     }
 
-    const nextPayload = buildCategoryPayload(getCategoryDocumentTitle(), categoryItems);
+    const categorySourcePayload =
+      categoryDocumentRow?.draft?.payload ?? categoryDocumentRow?.published?.payload;
+    const nextPayload = buildCategoryPayload(
+      getCategoryDocumentTitle(),
+      categoryItems,
+      isOptionSetPayload(categorySourcePayload) ? categorySourcePayload : null
+    );
 
     try {
       beginCategoryAction(
@@ -2041,6 +2066,7 @@ export function ConfigAdminManager({
         open={editorMode === "create"}
         mode="create"
         namespace={namespace}
+        documentType={resolvedCreateType}
         existingModules={existingModules}
         namespaceLabel={t(profile.guideTitleKey, profile.guideTitleFallback)}
         title={t(profile.createTitleKey, profile.createTitleFallback)}
@@ -2112,6 +2138,7 @@ export function ConfigAdminManager({
         open={editorMode === "edit"}
         mode="edit"
         namespace={namespace}
+        documentType={selectedDocumentRow?.document.type}
         existingModules={existingModules}
         namespaceLabel={t(profile.guideTitleKey, profile.guideTitleFallback)}
         title={t("configAdmin.drawer.edit.title", "Edit Draft")}

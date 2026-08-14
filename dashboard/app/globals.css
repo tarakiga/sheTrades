@@ -4229,6 +4229,154 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.option-builder {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.option-builder__intro {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.option-builder__helper {
+  color: var(--color-neutral-700);
+  flex: 1 1 320px;
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.option-builder__list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.option-builder__item {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.option-builder__item--expanded {
+  border-color: var(--color-brand-300, var(--color-neutral-300));
+}
+
+.option-builder__item-toggle {
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  width: 100%;
+}
+
+.option-builder__item-title {
+  color: var(--color-neutral-900);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  min-width: 0;
+}
+
+.option-builder__item-index {
+  color: var(--color-neutral-500);
+  font-weight: 500;
+}
+
+.option-builder__item-badges {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.option-builder__chevron {
+  color: var(--color-neutral-500);
+}
+
+.option-builder__item-body {
+  border-top: 1px solid var(--color-neutral-200);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.option-builder__item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.option-builder__identity {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.option-builder__fields {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.option-builder__field {
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.option-builder__field-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.option-builder__field-label {
+  color: var(--color-neutral-800);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.option-builder__localized {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.option-builder__boolean {
+  align-items: center;
+  color: var(--color-neutral-800);
+  display: inline-flex;
+  font-size: var(--font-size-sm);
+  gap: var(--space-2);
+}
+
+.option-builder__json {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-xs);
+}
+
+.option-builder__json-error {
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+}
+
+.option-builder__add-field {
+  max-width: 320px;
+}
+
 .guided-key-builder__examples {
   display: grid;
   gap: var(--space-2);

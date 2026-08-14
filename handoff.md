@@ -1250,3 +1250,47 @@ My Progress / Change Language / FAQs; typed 1-4 + old aliases still work).
   selection answer correctly; FAQ button loops back; MENU escapes; menu-learn
   row still opens modules. Cost note: menu list = same 1 message as before;
   each FAQ read = 2 messages (~$0.013 post-Oct).
+
+## Visual option-set editor - config JSON no longer required (2026-08-15)
+
+Operator request: editing FAQs (and option sets generally) in Settings ->
+Configuration required hand-editing raw JSON. Now option_set documents open
+in a visual builder; Raw JSON stays available behind the existing
+wizard/JSON toggle for power users.
+
+- NEW dashboard/lib/option-set-builder.ts: pure parse/serialize model.
+  Metadata fields are classified (text / localized {en,pcm,ig} / number /
+  yes-no / JSON fallback) and EVERYTHING unrecognized - unknown metadata
+  shapes, unknown item keys, unknown payload keys - round-trips verbatim.
+  Serializer emits id/value/label/enabled/sortOrder(index+1)/metadata.
+- NEW dashboard/components/config/OptionSetBuilder.tsx: collapsible card per
+  option (label + auto-slugged internal value + enable/hide + reorder +
+  remove), per-field editors from the classifier, "Add another detail"
+  (text/translated/number/yes-no), Add Option copies the metadata SHAPE of
+  the first row (FAQ set -> new rows get empty Question/Answer boxes, no
+  FAQ-specific code). bot.* sets get the 24-char WhatsApp row-title
+  ConstraintMeter + >10 rows warning (WHATSAPP_LIMITS).
+- ConfigEditorDrawer: new documentType prop; option_set docs default to the
+  wizard; option-set serialize effect only runs in wizard mode so raw-JSON
+  typing is never reformatted mid-keystroke; save disabled with an inline
+  hint while the draft is invalid (missing label/value, duplicate values,
+  bad JSON detail). ALSO FIXES a latent bug: the generic translation parser
+  used to stuff the whole JSON string into `en` for any payload without an
+  `en` key - opening an option set in the edit drawer would have mangled it
+  into {"en":"<entire json>",...} on the next keystroke. Option sets now
+  branch before that path.
+- ConfigAdminManager: passes documentType (edit: row type; create:
+  resolvedCreateType - settings options tab creates get the wizard too);
+  buildCategoryPayload no longer hardcodes metadata:{} (was a data-loss
+  landmine: saving via the category drawer would have wiped FAQ
+  question/answer metadata) - it now preserves stored metadata by item id.
+- Preview gallery: "Option Set Builder" card = standalone builder with live
+  stored-JSON view + a button that opens the REAL ConfigEditorDrawer in
+  option_set mode (bot.faqs fixture, save stubbed).
+- Verified in browser against the dev server: default mode wizard; wizard
+  edit -> JSON updated (metadata intact); raw JSON edit -> wizard reflects
+  it; Add Option pre-creates Question/Answer; auto-slug ("What if I don't
+  get a reward?" -> what_if_i_dont_get_a_reward); over-limit label flagged
+  ("29/24 - will be cut off"); save disabled + hint on empty label.
+  tsc clean. No backend changes - nothing to deploy on Cloud Run; dashboard
+  ships via Vercel on push.
