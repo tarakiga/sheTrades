@@ -1227,3 +1227,26 @@ Verified with the operator's real published config (sandbox:true intact):
 "Payouts connection test succeeded" - healthy, 359ms, Balance: 30.
 NOTE for operator: Termii balance is N30 - insufficient for even one N500
 milestone payout; top up before disabling sandbox for live dispatch testing.
+
+## FAQ menu feature shipped (2026-08-15)
+
+Client request: FAQ button under Change Language. WhatsApp caps reply buttons
+at 3, so the main menu became a LIST message (4 rows: Start Learning /
+My Progress / Change Language / FAQs; typed 1-4 + old aliases still work).
+- New faq_menu conversation state (numbers there resolve to FAQ entries, not
+  menu options); FAQ answer replies carry [FAQ, MENU] buttons; global MENU
+  escape unaffected.
+- Content fully config-driven: bot.faqs option set (10 client-authored FAQs
+  published; label = row title <=24 chars, metadata.question/.answer; answers
+  accept {en,pcm,ig} objects for future translation). Empty set degrades to a
+  graceful "FAQs are not available" reply.
+- Chrome copy in bot-prompts (faq_header/button/empty/answer_hint/
+  missing_answer + main_menu_button/section) with EN/PCM/IG.
+- bot.main_menu content doc republished to greeting-only ("Welcome {name}.
+  Main Menu:") - it previously embedded its own outdated option lines
+  ("Start Module 1"), which double-printed under the list builder.
+- Suite 440/0/42 (3 new tests). Deployed rev 00108-znw. E2E on staging:
+  menu list rows render; menu-faq opens 10-question list; tapped + numeric
+  selection answer correctly; FAQ button loops back; MENU escapes; menu-learn
+  row still opens modules. Cost note: menu list = same 1 message as before;
+  each FAQ read = 2 messages (~$0.013 post-Oct).

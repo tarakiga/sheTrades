@@ -17,7 +17,7 @@ function quizAnswerButtons(options: string[]): string[] {
   return options.length < WHATSAPP_LIMITS.maxButtons ? [...options, "MENU"] : options;
 }
 
-export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu";
+export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu" | "faq_menu";
 
 type AnalyticsEvent =
   | { type: "quiz_answered"; lessonKey: string; correct: boolean }
@@ -422,6 +422,97 @@ function buildModuleListReply(
 function mainMenuText(name: string): string {
   let text = getRuntimeText("bot.main_menu", `Hello {name}! Main Menu:`);
   return text.replace("{name}", name);
+}
+
+/**
+ * Main menu as a LIST message. WhatsApp caps reply buttons at 3 and the menu
+ * now has 4 entries (FAQs added 2026-08-15), so the menu ships as a list —
+ * one "Choose option" tap opens the sheet, and the numbered body text stays
+ * as the typed-reply fallback reference (house pattern).
+ */
+export function buildMainMenuReply(
+  name: string,
+  lang: "en" | "pcm" | "ig"
+): { reply: string; list: WhatsAppListSpec } {
+  const options = [
+    { id: "menu-learn", title: "Start Learning", description: "Modules, lessons and quizzes" },
+    { id: "menu-progress", title: "My Progress", description: "How far you have come" },
+    { id: "menu-language", title: "Change Language", description: "English, Pidgin, Igbo" },
+    { id: "menu-faq", title: "FAQs", description: "Common questions, quick answers" }
+  ];
+  let reply = mainMenuText(name);
+  if (!reply.endsWith("\n")) reply += "\n";
+  options.forEach((option, index) => {
+    reply += `${index + 1}. ${option.title}\n`;
+  });
+  return {
+    reply,
+    list: {
+      button: getPrompt("main_menu_button", lang, "Choose option"),
+      sections: [
+        {
+          title: getPrompt("main_menu_section", lang, "Main Menu").slice(0, 24),
+          rows: options.map((option) => ({
+            id: option.id,
+            title: option.title.slice(0, 24),
+            description: option.description
+          }))
+        }
+      ]
+    }
+  };
+}
+
+type FaqItem = { id: string; value: string; label: string; metadata?: Record<string, unknown> };
+
+function faqText(value: unknown, lang: "en" | "pcm" | "ig", fallback: string): string {
+  if (typeof value === "string" && value.trim()) return value;
+  if (value && typeof value === "object" && typeof (value as { en?: unknown }).en === "string") {
+    const localized = pickLocalized(value as { en: string; pcm?: string; ig?: string }, lang);
+    if (localized && localized.trim()) return localized;
+  }
+  return fallback;
+}
+
+/** FAQ question list (config option set bot.faqs; max 10 rows per WhatsApp). */
+export function buildFaqListReply(
+  items: FaqItem[],
+  lang: "en" | "pcm" | "ig"
+): { reply: string; list: WhatsAppListSpec } {
+  const header = getPrompt("faq_header", lang, "❓ FAQs — tap a question below, or type MENU to return.");
+  let reply = header;
+  if (!reply.endsWith("\n")) reply += "\n";
+  items.slice(0, 10).forEach((item, index) => {
+    reply += `${index + 1}. ${faqText(item.metadata?.question, lang, item.label)}\n`;
+  });
+  return {
+    reply,
+    list: {
+      button: getPrompt("faq_button", lang, "See questions"),
+      sections: [
+        {
+          title: "FAQs",
+          rows: items.slice(0, 10).map((item) => ({
+            id: item.id,
+            title: item.label.slice(0, 24),
+            description: faqText(item.metadata?.question, lang, "").slice(0, 72)
+          }))
+        }
+      ]
+    }
+  };
+}
+
+/** Resolve a learner reply (tapped row id, number, or question text) to an FAQ. */
+export function findFaqItem(items: FaqItem[], normalized: string): FaqItem | null {
+  const byId = items.find((item) => item.id.toLowerCase() === normalized || item.value.toLowerCase() === normalized);
+  if (byId) return byId;
+  const numeric = normalized.match(/^(\d+)$/);
+  if (numeric) {
+    const index = parseInt(numeric[1]!, 10) - 1;
+    if (index >= 0 && index < Math.min(items.length, 10)) return items[index] ?? null;
+  }
+  return null;
 }
 
 export function extractInboundMessage(payload: unknown): InboundMessage | null {
@@ -1102,11 +1193,10 @@ function transition(
     session.location = chosen.title;
     session.state = "main_menu";
     session.lastUpdatedAt = nowIso();
-    return {
-      state: session.state,
-      reply: mainMenuText(session.name ?? "Learner"),
-      buttons: ["1. Start Learning", "2. My Progress", "3. Change Language"]
-    };
+    {
+      const mainMenu = buildMainMenuReply(session.name ?? "Learner", lang);
+      return { state: session.state, reply: mainMenu.reply, list: mainMenu.list };
+    }
   }
 
   if (session.state === "awaiting_custom_state") {
@@ -1123,11 +1213,10 @@ function transition(
     session.location = custom.slice(0, 60);
     session.state = "main_menu";
     session.lastUpdatedAt = nowIso();
-    return {
-      state: session.state,
-      reply: mainMenuText(session.name ?? "Learner"),
-      buttons: ["1. Start Learning", "2. My Progress", "3. Change Language"]
-    };
+    {
+      const mainMenu = buildMainMenuReply(session.name ?? "Learner", lang);
+      return { state: session.state, reply: mainMenu.reply, list: mainMenu.list };
+    }
   }
 
   // Handle global MENU command to return to Main Menu from anywhere
@@ -1138,11 +1227,10 @@ function transition(
     session.awaitingQuizAnswer = false;
     session.currentQuizIndex = 0;
     session.lastUpdatedAt = nowIso();
-    return {
-      state: session.state,
-      reply: mainMenuText(session.name ?? "Learner"),
-      buttons: ["1. Start Learning", "2. My Progress", "3. Change Language"]
-    };
+    {
+      const mainMenu = buildMainMenuReply(session.name ?? "Learner", lang);
+      return { state: session.state, reply: mainMenu.reply, list: mainMenu.list };
+    }
   }
 
   // Load active dynamic lessons from config-platform database seeds
@@ -1164,9 +1252,64 @@ function transition(
   }
   const moduleNames = Array.from(modulesMap.keys()).sort();
 
+  // FAQ browsing (entered from the main menu). Numbers here resolve to FAQ
+  // entries — that ambiguity with menu options 1-4 is exactly why FAQs get
+  // their own state instead of piggybacking on main_menu.
+  if (session.state === "faq_menu") {
+    const faqItems = getRuntimeOptionSet("bot.faqs")
+      .filter((item) => item.enabled)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
+    if (["faq", "faqs", "menu-faq"].includes(normalized)) {
+      const faqMenu = buildFaqListReply(faqItems, lang);
+      return { state: session.state, reply: faqMenu.reply, list: faqMenu.list };
+    }
+
+    const chosenFaq = findFaqItem(faqItems, normalized);
+    if (chosenFaq) {
+      const question = faqText(chosenFaq.metadata?.question, lang, chosenFaq.label);
+      const answer = faqText(
+        chosenFaq.metadata?.answer,
+        lang,
+        getPrompt("faq_missing_answer", lang, "This answer has not been published yet. Reply MENU to return.")
+      );
+      return {
+        state: session.state,
+        reply: `❓ ${question}\n\n${answer}\n\n${getPrompt("faq_answer_hint", lang, "Reply FAQ for more questions, or MENU to return.")}`,
+        buttons: ["FAQ", "MENU"]
+      };
+    }
+
+    // Unrecognised input: re-serve the question list.
+    const faqMenu = buildFaqListReply(faqItems, lang);
+    return { state: session.state, reply: faqMenu.reply, list: faqMenu.list };
+  }
+
   if (session.state === "main_menu") {
+    // Option 4: FAQs (config option set bot.faqs; graceful when unpublished).
+    if (["4", "faq", "faqs", "menu-faq", "4. faqs"].includes(normalized)) {
+      const faqItems = getRuntimeOptionSet("bot.faqs")
+        .filter((item) => item.enabled)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+      if (faqItems.length === 0) {
+        return {
+          state: session.state,
+          reply: getPrompt(
+            "faq_empty",
+            lang,
+            "FAQs are not available right now. Reply MENU to return to the main menu."
+          ),
+          buttons: ["MENU"]
+        };
+      }
+      session.state = "faq_menu";
+      session.lastUpdatedAt = nowIso();
+      const faqMenu = buildFaqListReply(faqItems, lang);
+      return { state: session.state, reply: faqMenu.reply, list: faqMenu.list };
+    }
+
     // Option 1: Start Learning / Modules Menu
-    if (["1", "start", "module 1", "modules", "learn", "start learning", "1. start learning"].includes(normalized)) {
+    if (["1", "start", "module 1", "modules", "learn", "start learning", "1. start learning", "menu-learn"].includes(normalized)) {
       session.state = "module_menu";
       session.selectedModuleId = null;
       session.currentLessonKey = null;
@@ -1191,7 +1334,7 @@ function transition(
     }
 
     // Option 2: My Progress summary
-    if (["2", "progress", "my progress", "2. my progress"].includes(normalized)) {
+    if (["2", "progress", "my progress", "2. my progress", "menu-progress"].includes(normalized)) {
       // GAP-C5: use the real total lesson count (no `|| 6` magic) and guard
       // against divide-by-zero when no lessons are published.
       const totalCount = lessons.length;
@@ -1241,7 +1384,7 @@ function transition(
     }
 
     // Option 3: Change Language
-    if (["3", "language", "change language", "3. change language"].includes(normalized)) {
+    if (["3", "language", "change language", "3. change language", "menu-language"].includes(normalized)) {
       session.state = "awaiting_language";
       session.lastUpdatedAt = nowIso();
       return {
@@ -1254,14 +1397,17 @@ function transition(
       };
     }
 
-    return {
-      state: session.state,
-      reply: getRuntimeText(
-        "bot.main_menu.invalid",
-        `I did not understand that.\n${mainMenuText(session.name ?? "Learner")}`
-      ).replace("{menu}", mainMenuText(session.name ?? "Learner")),
-      buttons: ["1. Start Learning", "2. My Progress", "3. Change Language"]
-    };
+    {
+      const mainMenu = buildMainMenuReply(session.name ?? "Learner", lang);
+      return {
+        state: session.state,
+        reply: getRuntimeText(
+          "bot.main_menu.invalid",
+          `I did not understand that.\n${mainMenu.reply}`
+        ).replace("{menu}", mainMenu.reply),
+        list: mainMenu.list
+      };
+    }
   }
 
   if (session.state === "lesson_menu") {

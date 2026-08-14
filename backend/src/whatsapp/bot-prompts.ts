@@ -95,6 +95,45 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     pcm: "You don finish dis lesson, but some lessons for dis module never complete. Pick one below make you finish the module.",
     ig: "Imechara nkuzi a, mana ụfọdụ nkuzi na modul a emechabeghị. Họrọ otu n'okpuru ka imechaa modul ahụ."
   },
+  // Main-menu list chrome (menu became a list when FAQs pushed it past
+  // WhatsApp's 3-button cap, 2026-08-15).
+  main_menu_button: {
+    en: "Choose option",
+    pcm: "Pick option",
+    ig: "Họrọ nhọrọ"
+  },
+  main_menu_section: {
+    en: "Main Menu",
+    pcm: "Main Menu",
+    ig: "Isi Menu"
+  },
+  // FAQ browser copy. FAQ CONTENT lives in the bot.faqs option set; these are
+  // only the chrome strings around it.
+  faq_header: {
+    en: "❓ FAQs — tap a question below, or type MENU to return.",
+    pcm: "❓ FAQs — tap one question below, or type MENU to go back.",
+    ig: "❓ FAQs — pịa ajụjụ n'okpuru, ma ọ bụ dee MENU ka ịlaghachi."
+  },
+  faq_button: {
+    en: "See questions",
+    pcm: "See questions",
+    ig: "Lee ajụjụ"
+  },
+  faq_empty: {
+    en: "FAQs are not available right now. Reply MENU to return to the main menu.",
+    pcm: "FAQs no dey available now. Reply MENU to go back to main menu.",
+    ig: "FAQs adịghị ugbu a. Zaghachi MENU ka ịlaghachi na isi menu."
+  },
+  faq_answer_hint: {
+    en: "Reply FAQ for more questions, or MENU to return.",
+    pcm: "Reply FAQ for more questions, or MENU to go back.",
+    ig: "Zaghachi FAQ maka ajụjụ ndị ọzọ, ma ọ bụ MENU ka ịlaghachi."
+  },
+  faq_missing_answer: {
+    en: "This answer has not been published yet. Reply MENU to return.",
+    pcm: "This answer never publish yet. Reply MENU to go back.",
+    ig: "Edebeghị azịza a. Zaghachi MENU ka ịlaghachi."
+  },
   // Shown when the learner has finished EVERY module: there is nothing left
   // to pick, so this one genuinely does route to the main menu.
   programme_complete: {
@@ -186,6 +225,13 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   reflection_module_complete: "Bot · Reflection answer (module complete)",
   programme_complete: "Bot · Programme complete (all modules done)",
   module_lessons_remaining: "Bot · Module has unfinished lessons",
+  main_menu_button: "Bot · Main menu list button",
+  main_menu_section: "Bot · Main menu section title",
+  faq_header: "Bot · FAQ list header",
+  faq_button: "Bot · FAQ list button",
+  faq_empty: "Bot · FAQ empty state",
+  faq_answer_hint: "Bot · FAQ answer hint",
+  faq_missing_answer: "Bot · FAQ missing answer",
   incorrect_retry: "Bot · Incorrect answer (retry)",
   bot_did_not_understand: "Bot · Did not understand",
   state_prompt: "Bot · State prompt",

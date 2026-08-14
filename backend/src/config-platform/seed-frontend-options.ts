@@ -144,6 +144,135 @@ const SEED_ENTRIES: SeedEntry[] = [
     }
   },
   {
+    key: "bot.faqs",
+    title: "Bot FAQs",
+    payload: {
+      title: "Bot FAQs",
+      // Learner-facing FAQ content (client copy, 2026-08-15). label = short
+      // row title (max 24 chars, WhatsApp list row cap); metadata.question =
+      // full question; metadata.answer = full answer (supports {en,pcm,ig}
+      // objects for translations later). Max 10 enabled entries render.
+      items: [
+        {
+          id: "faq_what_is",
+          value: "faq_what_is",
+          label: "What is this bot?",
+          enabled: true,
+          sortOrder: 1,
+          metadata: {
+            question: "What is the SheTrades Learning Chatbot?",
+            answer:
+              "The SheTrades Learning Chatbot is your learning companion on WhatsApp. You can use it to learn practical digital and business skills through short lessons, activities, and quizzes."
+          }
+        },
+        {
+          id: "faq_what_learn",
+          value: "faq_what_learn",
+          label: "What can I learn?",
+          enabled: true,
+          sortOrder: 2,
+          metadata: {
+            question: "What can I learn here?",
+            answer:
+              "You can learn practical skills to help you use digital tools, grow your business, and find new opportunities. You'll learn through short lessons and activities that you can complete easily."
+          }
+        },
+        {
+          id: "faq_how_start",
+          value: "faq_how_start",
+          label: "How do I start?",
+          enabled: true,
+          sortOrder: 3,
+          metadata: {
+            question: "How do I start?",
+            answer: "It's easy. Say \"Hi\" to begin. The chatbot will guide you step by step."
+          }
+        },
+        {
+          id: "faq_need_data",
+          value: "faq_need_data",
+          label: "Do I need data?",
+          enabled: true,
+          sortOrder: 4,
+          metadata: {
+            question: "Do I need mobile data?",
+            answer: "Yes. You need an internet connection or mobile data to use the chatbot on WhatsApp."
+          }
+        },
+        {
+          id: "faq_is_free",
+          value: "faq_is_free",
+          label: "Is it free?",
+          enabled: true,
+          sortOrder: 5,
+          metadata: {
+            question: "Is it free?",
+            answer:
+              "Yes. There is no fee to use the SheTrades Learning Chatbot. You may still need mobile data to use WhatsApp."
+          }
+        },
+        {
+          id: "faq_stop_continue",
+          value: "faq_stop_continue",
+          label: "Stop and continue?",
+          enabled: true,
+          sortOrder: 6,
+          metadata: {
+            question: "Can I stop and continue later?",
+            answer: "Yes. You can stop at any time and come back later to continue your learning."
+          }
+        },
+        {
+          id: "faq_progress_saved",
+          value: "faq_progress_saved",
+          label: "Is progress saved?",
+          enabled: true,
+          sortOrder: 7,
+          metadata: {
+            question: "Will my progress be saved?",
+            answer:
+              "Yes. Your learning progress can be saved, so you can return and continue your journey."
+          }
+        },
+        {
+          id: "faq_dont_understand",
+          value: "faq_dont_understand",
+          label: "If I don't understand?",
+          enabled: true,
+          sortOrder: 8,
+          metadata: {
+            question: "What if I don't understand something?",
+            answer: "That's okay. You can try again, ask for help, or review the lesson."
+          }
+        },
+        {
+          id: "faq_not_responding",
+          value: "faq_not_responding",
+          label: "Bot not responding?",
+          enabled: true,
+          sortOrder: 9,
+          metadata: {
+            question: "What if the chatbot stops responding?",
+            answer:
+              "First, check that your internet connection is working. Then try again. If the chatbot still does not respond, select \"Get Help\" for support."
+          }
+        },
+        {
+          id: "faq_info_safe",
+          value: "faq_info_safe",
+          label: "Is my info safe?",
+          enabled: true,
+          sortOrder: 10,
+          metadata: {
+            question: "Is my information safe?",
+            answer:
+              "We take your privacy seriously. We will handle your information responsibly and use it to support your learning and the SheTrades Digital Project."
+          }
+        }
+      ]
+    }
+  },
+  {
     key: "reports.cadence_options",
     title: "Report schedule cadences",
     payload: {

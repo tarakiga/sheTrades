@@ -526,3 +526,43 @@ test("finishing a skipped MIDDLE lesson last correctly completes the module", ()
     true
   );
 });
+
+// ---- FAQ feature (client request 2026-08-15) + main menu list conversion ----
+
+import { buildMainMenuReply, buildFaqListReply, findFaqItem } from "./handler.js";
+
+const FAQ_FIXTURES = [
+  { id: "faq_what_is", value: "faq_what_is", label: "What is this bot?", metadata: { question: "What is the SheTrades Learning Chatbot?", answer: "Your learning companion on WhatsApp." } },
+  { id: "faq_is_free", value: "faq_is_free", label: "Is it free?", metadata: { question: "Is it free?", answer: "Yes. There is no fee." } }
+];
+
+test("main menu is a list with four rows including FAQs", () => {
+  const menu = buildMainMenuReply("Ada", "en");
+  const rows = menu.list.sections[0]?.rows ?? [];
+  assert.deepEqual(
+    rows.map((r) => r.id),
+    ["menu-learn", "menu-progress", "menu-language", "menu-faq"]
+  );
+  // Numbered body text stays as the typed-reply fallback reference.
+  assert.match(menu.reply, /1\. Start Learning/);
+  assert.match(menu.reply, /4\. FAQs/);
+  // Row titles respect the WhatsApp 24-char cap.
+  for (const row of rows) assert.ok(row.title.length <= 24, `row title too long: ${row.title}`);
+});
+
+test("FAQ list renders question rows with full questions as descriptions", () => {
+  const faq = buildFaqListReply(FAQ_FIXTURES, "en");
+  const rows = faq.list.sections[0]?.rows ?? [];
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]?.id, "faq_what_is");
+  assert.match(rows[0]?.description ?? "", /SheTrades Learning Chatbot/);
+  assert.match(faq.reply, /1\. What is the SheTrades Learning Chatbot\?/);
+});
+
+test("findFaqItem resolves tapped row ids, numbers, and rejects nonsense", () => {
+  assert.equal(findFaqItem(FAQ_FIXTURES, "faq_is_free")?.id, "faq_is_free");
+  assert.equal(findFaqItem(FAQ_FIXTURES, "2")?.id, "faq_is_free");
+  assert.equal(findFaqItem(FAQ_FIXTURES, "1")?.id, "faq_what_is");
+  assert.equal(findFaqItem(FAQ_FIXTURES, "9"), null);
+  assert.equal(findFaqItem(FAQ_FIXTURES, "how do i fly"), null);
+});
