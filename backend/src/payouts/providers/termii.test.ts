@@ -29,6 +29,8 @@ const baseConfig: PayoutsIntegrationPayload = {
   defaults: { currency: "NGN", channel: "airtime" }
 };
 
+const nonSandboxConfig: PayoutsIntegrationPayload = { ...baseConfig, sandbox: false };
+
 const baseReward: RewardDispatchInput = {
   id: "rwd_t1",
   amount: 500,
@@ -37,11 +39,16 @@ const baseReward: RewardDispatchInput = {
   retryCount: 0
 };
 
-test("Termii dispatch hits the sandbox URL when config.sandbox is true", async (t) => {
+test("Termii dispatch in sandbox mode is BLOCKED with no network call (no sandbox host exists)", async (t) => {
   const { calls, restore } = stubFetch([{ status: 200, body: { code: "ok", transaction_id: "TR-tx-1" } }]);
   t.after(restore);
-  await termiiAdapter.dispatch(baseReward, baseConfig);
-  assert.match(firstCall(calls).url, /sandbox\.termii\.com/);
+  const result = await termiiAdapter.dispatch(baseReward, baseConfig);
+  assert.equal(calls.length, 0, "sandbox dispatch must never reach the network");
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.retryable, false);
+    assert.match(result.reason, /sandbox/i);
+  }
 });
 
 test("Termii dispatch hits the production URL when sandbox is false", async (t) => {
@@ -55,7 +62,7 @@ test("Termii dispatch hits the production URL when sandbox is false", async (t) 
 test("Termii dispatch POSTs JSON with the expected body shape including purchase_code", async (t) => {
   const { calls, restore } = stubFetch([{ status: 200, body: { code: "ok", transaction_id: "TR-tx-3" } }]);
   t.after(restore);
-  await termiiAdapter.dispatch({ ...baseReward, retryCount: 2 }, baseConfig);
+  await termiiAdapter.dispatch({ ...baseReward, retryCount: 2 }, { ...baseConfig, sandbox: false });
   const call = firstCall(calls);
   assert.equal(call.init.method, "POST");
   const headers = new Headers(call.init.headers);
@@ -71,7 +78,7 @@ test("Termii dispatch POSTs JSON with the expected body shape including purchase
 test("Termii dispatch returns ok=true with transaction_id when code=ok", async (t) => {
   const { restore } = stubFetch([{ status: 200, body: { code: "ok", transaction_id: "TR-tx-4" } }]);
   t.after(restore);
-  const result = await termiiAdapter.dispatch(baseReward, baseConfig);
+  const result = await termiiAdapter.dispatch(baseReward, nonSandboxConfig);
   assert.equal(result.ok, true);
   if (result.ok) {
     assert.equal(result.providerTxnId, "TR-tx-4");
@@ -82,7 +89,7 @@ test("Termii dispatch returns ok=true with transaction_id when code=ok", async (
 test("Termii dispatch returns retryable=true on HTTP 503", async (t) => {
   const { restore } = stubFetch([{ status: 503, body: { message: "upstream timeout" } }]);
   t.after(restore);
-  const result = await termiiAdapter.dispatch(baseReward, baseConfig);
+  const result = await termiiAdapter.dispatch(baseReward, nonSandboxConfig);
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.equal(result.retryable, true);
@@ -93,7 +100,7 @@ test("Termii dispatch returns retryable=true on HTTP 503", async (t) => {
 test("Termii dispatch returns retryable=false on code=invalid_phone", async (t) => {
   const { restore } = stubFetch([{ status: 200, body: { code: "invalid_phone", message: "bad phone" } }]);
   t.after(restore);
-  const result = await termiiAdapter.dispatch(baseReward, baseConfig);
+  const result = await termiiAdapter.dispatch(baseReward, nonSandboxConfig);
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.equal(result.retryable, false);
@@ -104,7 +111,7 @@ test("Termii dispatch returns retryable=false on code=invalid_phone", async (t) 
 test("Termii dispatch returns retryable=true on code=service_unavailable", async (t) => {
   const { restore } = stubFetch([{ status: 200, body: { code: "service_unavailable", message: "down" } }]);
   t.after(restore);
-  const result = await termiiAdapter.dispatch(baseReward, baseConfig);
+  const result = await termiiAdapter.dispatch(baseReward, nonSandboxConfig);
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.equal(result.retryable, true);
@@ -116,6 +123,19 @@ test("Termii verifyCredentials returns healthy when get-balance returns numeric 
   t.after(restore);
   const result = await termiiAdapter.verifyCredentials(baseConfig);
   assert.equal(result.status, "healthy");
+});
+
+test("Termii verifyCredentials in sandbox mode checks the LIVE host (no sandbox host exists)", async (t) => {
+  // Root cause of 'test always fails': the old adapter pointed sandbox at the
+  // fictional sandbox.termii.com, which never resolves. Verification is a
+  // read-only balance check, so sandbox mode must still use the real API.
+  const { calls, restore } = stubFetch([{ status: 200, body: { balance: 900 } }]);
+  t.after(restore);
+  const result = await termiiAdapter.verifyCredentials(baseConfig);
+  assert.match(firstCall(calls).url, /api\.ng\.termii\.com/);
+  assert.doesNotMatch(firstCall(calls).url, /sandbox\.termii\.com/);
+  assert.equal(result.status, "healthy");
+  assert.match(result.message ?? "", /sandbox mode/i);
 });
 
 test("Termii verifyCredentials returns failed on 401", async (t) => {

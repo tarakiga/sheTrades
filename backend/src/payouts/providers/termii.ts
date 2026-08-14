@@ -7,7 +7,16 @@ import type {
 } from "./contracts.js";
 import { isRetryableStatus } from "./contracts.js";
 
-const SANDBOX_BASE = "https://sandbox.termii.com/api";
+// Termii has NO sandbox environment. The previous adapter pointed sandbox
+// mode at a fictional host (sandbox.termii.com — does not resolve), so every
+// connection test with sandbox enabled failed on DNS before the API key was
+// ever checked. Real semantics now:
+//   - verifyCredentials always talks to the live API. GET /get-balance is
+//     read-only, so it is safe in sandbox mode and actually validates the key.
+//   - dispatch in sandbox mode is BLOCKED (non-retryable) — no real airtime
+//     can leave the account while the integration is marked sandbox.
+// (Termii also serves v3.api.termii.com; api.ng.termii.com remains live and
+// both answer the same endpoints, verified 2026-08-15.)
 const PROD_BASE = "https://api.ng.termii.com/api";
 
 const RETRYABLE_PROVIDER_CODES = new Set(["service_unavailable", "rate_limited"]);
@@ -22,20 +31,25 @@ export const termiiAdapter: PayoutProvider = {
 
   async verifyCredentials(config) {
     const creds = requireTermiiConfig(config);
-    const base = config.sandbox ? SANDBOX_BASE : PROD_BASE;
     const started = Date.now();
     try {
-      const response = await fetch(`${base}/get-balance?api_key=${encodeURIComponent(creds.apiKey)}`, {
-        method: "GET",
-        headers: { Accept: "application/json" }
-      });
+      const response = await fetch(
+        `${PROD_BASE}/get-balance?api_key=${encodeURIComponent(creds.apiKey)}`,
+        {
+          method: "GET",
+          headers: { Accept: "application/json" }
+        }
+      );
       const latencyMs = Date.now() - started;
       if (!response.ok) {
         return { status: "failed", message: `Termii returned HTTP ${response.status}` };
       }
       const data = (await response.json()) as { balance?: number };
       if (typeof data.balance === "number") {
-        return { status: "healthy", latencyMs, message: `Balance: ${data.balance}` };
+        const sandboxNote = config.sandbox
+          ? " (sandbox mode: credentials verified against the live API; airtime dispatches stay blocked)"
+          : "";
+        return { status: "healthy", latencyMs, message: `Balance: ${data.balance}${sandboxNote}` };
       }
       return { status: "failed", message: "Termii response missing balance" };
     } catch (error) {
@@ -45,9 +59,19 @@ export const termiiAdapter: PayoutProvider = {
 
   async dispatch(reward, config) {
     const creds = requireTermiiConfig(config);
-    const base = config.sandbox ? SANDBOX_BASE : PROD_BASE;
+    if (config.sandbox) {
+      // Never send real airtime while the integration is marked sandbox; a
+      // non-retryable failure keeps the reward visible as Failed instead of
+      // spinning in the payout worker's retry loop.
+      return {
+        ok: false,
+        reason:
+          "Sandbox mode: Termii has no sandbox environment, so airtime dispatch is blocked. Disable sandbox on the payouts integration to send real airtime.",
+        retryable: false
+      } satisfies DispatchResult;
+    }
     try {
-      const response = await fetch(`${base}/airtime/send`, {
+      const response = await fetch(`${PROD_BASE}/airtime/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({

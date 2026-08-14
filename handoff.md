@@ -1204,3 +1204,26 @@ every lesson in it is complete.
   yet" + list showing the gap, NO celebration; completed lesson 1 -> module
   complete + picker. Second learner ...777003 (clean 2-module run) remains
   the milestone-reward proof: exactly one "Milestone: 2 modules" N500 row.
+
+## Termii integration test failures: root cause + fix (2026-08-15)
+
+Operator report: payouts connection test always fails. Root cause: the Termii
+adapter pointed sandbox mode at a FICTIONAL host (sandbox.termii.com - does
+not resolve, HTTP 000). Termii has no sandbox environment; with the config's
+sandbox:true every test died on DNS before the API key was checked. Both real
+hosts (api.ng.termii.com, v3.api.termii.com) verified live.
+
+Fix (backend/src/payouts/providers/termii.ts):
+- verifyCredentials always uses the live host - GET /get-balance is read-only,
+  so it is safe in sandbox mode and actually validates the key. Healthy
+  message carries a sandbox note.
+- dispatch in sandbox mode is BLOCKED (non-retryable, no network call): no
+  real airtime can leave the account while sandbox is on, and rewards land as
+  Failed instead of spinning in the worker retry loop.
+- Tests rewritten to encode the real semantics (sandbox-block, live-host
+  verify). Suite 437/0/42. Deployed rev 00107-52j.
+
+Verified with the operator's real published config (sandbox:true intact):
+"Payouts connection test succeeded" - healthy, 359ms, Balance: 30.
+NOTE for operator: Termii balance is N30 - insufficient for even one N500
+milestone payout; top up before disabling sandbox for live dispatch testing.
