@@ -806,10 +806,14 @@ adminRouter.post("/rewards/manual", requireWriteAccess, async (req, res, next) =
       res.status(404).json({ message: "Learner not found" });
       return;
     }
+    // The reward table is unique on (userId, module) for milestone
+    // idempotency; manual grants must not collide with each other, so each
+    // one gets a timestamped module label ("Manual 2026-08-15 09:41:03").
+    const manualLabel = `Manual ${new Date().toISOString().slice(0, 19).replace("T", " ")}`;
     const created = await prisma.reward.create({
       data: {
         userId: user.id,
-        module: "Manual",
+        module: manualLabel,
         amount: body.amount,
         channel: body.channel ?? "airtime",
         status: "Pending",

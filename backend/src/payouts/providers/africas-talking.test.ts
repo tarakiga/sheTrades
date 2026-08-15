@@ -170,7 +170,7 @@ test("dispatch returns retryable=true when fetch itself throws (network/parse er
   }
 });
 
-test("dispatch returns retryable=true when responses[] is empty", async (t) => {
+test("dispatch returns retryable=true when responses[] is empty with no request error", async (t) => {
   const { restore } = stubFetch([{ status: 201, body: { responses: [] } }]);
   t.after(restore);
   const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
@@ -178,5 +178,23 @@ test("dispatch returns retryable=true when responses[] is empty", async (t) => {
   if (!result.ok) {
     assert.equal(result.retryable, true);
     assert.match(result.reason, /Empty/);
+  }
+});
+
+test("dispatch surfaces the top-level errorMessage as non-retryable when responses[] is empty", async (t) => {
+  // Real live response when the airtime product is not yet enabled:
+  // {"errorMessage":"Airtime is not enabled for this account","numSent":0,"responses":[]}
+  const { restore } = stubFetch([
+    {
+      status: 201,
+      body: { errorMessage: "Airtime is not enabled for this account", numSent: 0, responses: [] }
+    }
+  ]);
+  t.after(restore);
+  const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.retryable, false);
+    assert.match(result.reason, /Airtime is not enabled/);
   }
 });

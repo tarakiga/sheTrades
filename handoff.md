@@ -1386,3 +1386,28 @@ Go-live checklist for payouts (operator):
    drops (repeat of this test, but real).
 Note: AT sandbox responses showed a 2% airtime discount (N100 send cost
 N98) - real margin data for incentive budgeting.
+
+## Live AT payout blocked on product enablement + two more fixes (2026-08-15)
+
+Operator connected the LIVE app (username "shetrades" - the earlier 401 was
+a wrong app-username, fixed by them; wallet N105.18 readable). The real
+N100 test then surfaced two things:
+
+1. FIXED - manual rewards could only ever be created ONCE per learner:
+   the endpoint hardcoded module:"Manual" into the (userId,module)-unique
+   reward table. Manual grants now get a timestamped module label
+   ("Manual 2026-08-15 01:18:03"). Rev 00110-m4j.
+2. FIXED - AT request-level rejections were reported as the meaningless
+   "Empty responses[] from provider" and retried forever: AT answers
+   HTTP 201 with responses:[] and the reason in a top-level errorMessage.
+   Adapter now surfaces it non-retryably. Rev 00111 (deploying).
+
+CURRENT BLOCKER (operator action, not code): live dispatch returns
+"Airtime is not enabled for this account". The airtime product must be
+enabled by AT for the live app - email airtime@africastalking.com (per AT
+help center) with the account/app name and use case. Sandbox has it by
+default; live needs approval.
+
+Waiting state: reward 71439012 (N100, operator's number) sits Pending/
+Failed with the clear reason; once AT enables airtime, hit Retry on it
+(or ask the agent) - everything else in the pipeline is proven.

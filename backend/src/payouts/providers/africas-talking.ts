@@ -82,6 +82,7 @@ export const africasTalkingAdapter: PayoutProvider = {
         } satisfies DispatchResult;
       }
       const data = (await response.json()) as {
+        errorMessage?: string;
         responses?: Array<{
           status?: string;
           requestId?: string;
@@ -91,6 +92,15 @@ export const africasTalkingAdapter: PayoutProvider = {
       };
       const first = data.responses?.[0];
       if (!first) {
+        // Request-level rejection: AT answers 201 with responses:[] and the
+        // reason in the top-level errorMessage (e.g. "Airtime is not enabled
+        // for this account"). That is an account/product problem retrying
+        // cannot fix, so park the reward with the real reason.
+        const requestError =
+          data.errorMessage && data.errorMessage !== "None" ? data.errorMessage : null;
+        if (requestError) {
+          return { ok: false, reason: requestError, retryable: false };
+        }
         return { ok: false, reason: "Empty responses[] from provider", retryable: true };
       }
       // Successful sends carry `requestId` (ATQid_...); older docs called it
