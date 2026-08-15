@@ -13,6 +13,9 @@ import { Badge, Button } from "../../../components/ui";
 
 const FIXTURE_PAYLOAD = JSON.stringify({
   title: "Chatbot FAQs",
+  // Editor hint contract: fields listed here render with the rich text
+  // editor (WhatsApp markdown) instead of a plain textarea.
+  fieldHints: { answer: "richtext" },
   items: [
     {
       id: "faq_is_free",

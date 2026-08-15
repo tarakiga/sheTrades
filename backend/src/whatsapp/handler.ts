@@ -17,7 +17,7 @@ function quizAnswerButtons(options: string[]): string[] {
   return options.length < WHATSAPP_LIMITS.maxButtons ? [...options, "MENU"] : options;
 }
 
-export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu" | "faq_menu";
+export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu" | "faq_menu" | "resources_menu";
 
 type AnalyticsEvent =
   | { type: "quiz_answered"; lessonKey: string; correct: boolean }
@@ -438,7 +438,8 @@ export function buildMainMenuReply(
     { id: "menu-learn", title: "Start Learning", description: "Modules, lessons and quizzes" },
     { id: "menu-progress", title: "My Progress", description: "How far you have come" },
     { id: "menu-language", title: "Change Language", description: "English, Pidgin, Igbo" },
-    { id: "menu-faq", title: "FAQs", description: "Common questions, quick answers" }
+    { id: "menu-faq", title: "FAQs", description: "Common questions, quick answers" },
+    { id: "menu-resources", title: "Resources", description: "Helpful links and contacts" }
   ];
   let reply = mainMenuText(name);
   if (!reply.endsWith("\n")) reply += "\n";
@@ -496,6 +497,43 @@ export function buildFaqListReply(
             id: item.id,
             title: item.label.slice(0, 24),
             description: faqText(item.metadata?.question, lang, "").slice(0, 72)
+          }))
+        }
+      ]
+    }
+  };
+}
+
+/**
+ * Resource topic list (config option set bot.resources; max 10 rows). Same
+ * shape as FAQs: label = short row title, metadata.title = full topic name,
+ * metadata.content = the rich-text body sent when the topic is picked.
+ */
+export function buildResourceListReply(
+  items: FaqItem[],
+  lang: "en" | "pcm" | "ig"
+): { reply: string; list: WhatsAppListSpec } {
+  const header = getPrompt(
+    "resources_header",
+    lang,
+    "📌 Resources — tap a topic below, or type MENU to return."
+  );
+  let reply = header;
+  if (!reply.endsWith("\n")) reply += "\n";
+  items.slice(0, 10).forEach((item, index) => {
+    reply += `${index + 1}. ${faqText(item.metadata?.title, lang, item.label)}\n`;
+  });
+  return {
+    reply,
+    list: {
+      button: getPrompt("resources_button", lang, "See resources"),
+      sections: [
+        {
+          title: "Resources",
+          rows: items.slice(0, 10).map((item) => ({
+            id: item.id,
+            title: item.label.slice(0, 24),
+            description: faqText(item.metadata?.title, lang, "").slice(0, 72)
           }))
         }
       ]
@@ -1285,7 +1323,67 @@ function transition(
     return { state: session.state, reply: faqMenu.reply, list: faqMenu.list };
   }
 
+  // Resources browsing (entered from the main menu). Mirrors faq_menu: numbers
+  // resolve to resource topics, RESOURCES re-lists, MENU (handled globally
+  // above) escapes.
+  if (session.state === "resources_menu") {
+    const resourceItems = getRuntimeOptionSet("bot.resources")
+      .filter((item) => item.enabled)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
+    if (["resources", "resource", "menu-resources"].includes(normalized)) {
+      const resourceMenu = buildResourceListReply(resourceItems, lang);
+      return { state: session.state, reply: resourceMenu.reply, list: resourceMenu.list };
+    }
+
+    const chosenResource = findFaqItem(resourceItems, normalized);
+    if (chosenResource) {
+      const title = faqText(chosenResource.metadata?.title, lang, chosenResource.label);
+      const content = faqText(
+        chosenResource.metadata?.content,
+        lang,
+        getPrompt(
+          "resources_missing_content",
+          lang,
+          "This resource has not been published yet. Reply MENU to return."
+        )
+      );
+      return {
+        state: session.state,
+        reply: `📌 ${title}\n\n${content}\n\n${getPrompt("resources_answer_hint", lang, "Reply RESOURCES for more, or MENU to return.")}`,
+        buttons: ["RESOURCES", "MENU"]
+      };
+    }
+
+    // Unrecognised input: re-serve the topic list.
+    const resourceMenu = buildResourceListReply(resourceItems, lang);
+    return { state: session.state, reply: resourceMenu.reply, list: resourceMenu.list };
+  }
+
   if (session.state === "main_menu") {
+    // Option 5: Resources (config option set bot.resources; graceful when
+    // unpublished/empty).
+    if (["5", "resources", "resource", "menu-resources", "5. resources"].includes(normalized)) {
+      const resourceItems = getRuntimeOptionSet("bot.resources")
+        .filter((item) => item.enabled)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+      if (resourceItems.length === 0) {
+        return {
+          state: session.state,
+          reply: getPrompt(
+            "resources_empty",
+            lang,
+            "Resources are not available right now. Reply MENU to return to the main menu."
+          ),
+          buttons: ["MENU"]
+        };
+      }
+      session.state = "resources_menu";
+      session.lastUpdatedAt = nowIso();
+      const resourceMenu = buildResourceListReply(resourceItems, lang);
+      return { state: session.state, reply: resourceMenu.reply, list: resourceMenu.list };
+    }
+
     // Option 4: FAQs (config option set bot.faqs; graceful when unpublished).
     if (["4", "faq", "faqs", "menu-faq", "4. faqs"].includes(normalized)) {
       const faqItems = getRuntimeOptionSet("bot.faqs")

@@ -148,6 +148,9 @@ const SEED_ENTRIES: SeedEntry[] = [
     title: "Bot FAQs",
     payload: {
       title: "Bot FAQs",
+      // Editor hint: answers render with the rich text editor (WhatsApp
+      // markdown) in the dashboard option builder.
+      fieldHints: { answer: "richtext" },
       // Learner-facing FAQ content (client copy, 2026-08-15). label = short
       // row title (max 24 chars, WhatsApp list row cap); metadata.question =
       // full question; metadata.answer = full answer (supports {en,pcm,ig}
@@ -267,6 +270,48 @@ const SEED_ENTRIES: SeedEntry[] = [
             question: "Is my information safe?",
             answer:
               "We take your privacy seriously. We will handle your information responsibly and use it to support your learning and the SheTrades Digital Project."
+          }
+        }
+      ]
+    }
+  },
+  {
+    key: "bot.resources",
+    title: "Bot Resources",
+    payload: {
+      title: "Bot Resources",
+      // Learner-facing resource directory (client request, 2026-08-15).
+      // label = short row title (max 24 chars); metadata.title = full topic
+      // name; metadata.content = the body sent when the topic is picked -
+      // vetted providers, contacts, links. Supports WhatsApp formatting
+      // (*bold*, _italics_) and {en,pcm,ig} objects for translations.
+      // fieldHints tells the dashboard option editor to render `content`
+      // with the rich text editor. Samples ship DISABLED - the client
+      // enables/replaces them with vetted entries.
+      fieldHints: { content: "richtext" },
+      items: [
+        {
+          id: "res_loans",
+          value: "res_loans",
+          label: "Business loans",
+          enabled: false,
+          sortOrder: 1,
+          metadata: {
+            title: "Where to get business loans",
+            content:
+              "*Sample entry - replace with vetted providers before enabling.*\n\n1. Bank of Industry - boi.ng\n2. Development Bank of Nigeria - devbankng.com\n\nAlways confirm terms directly with the provider."
+          }
+        },
+        {
+          id: "res_design",
+          value: "res_design",
+          label: "Design & branding",
+          enabled: false,
+          sortOrder: 2,
+          metadata: {
+            title: "Where to design banners and logos",
+            content:
+              "*Sample entry - replace with vetted providers before enabling.*\n\n1. Canva (free templates) - canva.com\n2. Local print shops in your market area\n\nTip: keep your business name and phone number on every banner."
           }
         }
       ]

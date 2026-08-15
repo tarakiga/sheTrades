@@ -1,11 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, Button, ConstraintMeter, EmptyState, Input, Select, Textarea } from "../ui";
+import {
+  Badge,
+  Button,
+  ConstraintMeter,
+  EmptyState,
+  Input,
+  RichTextEditor,
+  Select,
+  Textarea
+} from "../ui";
 import { waLen } from "../../lib/whatsapp-constraints";
 import {
   createOptionFromTemplate,
   humanizeMetaKey,
+  metaFieldHint,
   slugifyOptionValue,
   type BuilderOption,
   type MetaField,
@@ -281,19 +291,33 @@ export function OptionSetBuilder({
                             </div>
 
                             {field.kind === "text" ? (
-                              <Textarea
-                                id={`option-${option.uid}-field-${fieldIndex}`}
-                                label=""
-                                aria-label={humanizeMetaKey(field.key) || "Detail value"}
-                                rows={field.text.length > 80 || field.text.includes("\n") ? 4 : 2}
-                                value={field.text}
-                                onChange={(event) =>
-                                  updateField(option.uid, fieldIndex, (current) => ({
-                                    ...current,
-                                    text: event.target.value
-                                  }))
-                                }
-                              />
+                              metaFieldHint(draft, field.key) === "richtext" ? (
+                                <RichTextEditor
+                                  id={`option-${option.uid}-field-${fieldIndex}`}
+                                  value={field.text}
+                                  placeholder="Write the content people will receive - bold, italics and links are supported."
+                                  onChange={(value) =>
+                                    updateField(option.uid, fieldIndex, (current) => ({
+                                      ...current,
+                                      text: value
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                <Textarea
+                                  id={`option-${option.uid}-field-${fieldIndex}`}
+                                  label=""
+                                  aria-label={humanizeMetaKey(field.key) || "Detail value"}
+                                  rows={field.text.length > 80 || field.text.includes("\n") ? 4 : 2}
+                                  value={field.text}
+                                  onChange={(event) =>
+                                    updateField(option.uid, fieldIndex, (current) => ({
+                                      ...current,
+                                      text: event.target.value
+                                    }))
+                                  }
+                                />
+                              )
                             ) : null}
 
                             {field.kind === "localized" ? (

@@ -45,7 +45,14 @@ export const legalBlockPayloadSchema = z.object({
 
 export const optionSetPayloadSchema = z.object({
   title: z.string().min(1),
-  items: z.array(optionItemSchema).min(1)
+  items: z.array(optionItemSchema).min(1),
+  // Dashboard editor hints: which metadata fields render with which control,
+  // e.g. { content: "richtext" } makes the option editor show a rich text
+  // editor (WhatsApp markdown) for each item's `content` field. Purely
+  // presentational - the bot runtime ignores it. Declared here because the
+  // publish validator REPLACES payloads with the parsed result, so unknown
+  // top-level keys would otherwise be silently stripped.
+  fieldHints: z.record(z.string(), z.string()).optional()
 });
 
 // NOTE: this schema describes a `{title, body, audioUrls}` shape that real

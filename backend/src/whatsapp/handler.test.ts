@@ -529,25 +529,49 @@ test("finishing a skipped MIDDLE lesson last correctly completes the module", ()
 
 // ---- FAQ feature (client request 2026-08-15) + main menu list conversion ----
 
-import { buildMainMenuReply, buildFaqListReply, findFaqItem } from "./handler.js";
+import { buildMainMenuReply, buildFaqListReply, buildResourceListReply, findFaqItem } from "./handler.js";
 
 const FAQ_FIXTURES = [
   { id: "faq_what_is", value: "faq_what_is", label: "What is this bot?", metadata: { question: "What is the SheTrades Learning Chatbot?", answer: "Your learning companion on WhatsApp." } },
   { id: "faq_is_free", value: "faq_is_free", label: "Is it free?", metadata: { question: "Is it free?", answer: "Yes. There is no fee." } }
 ];
 
-test("main menu is a list with four rows including FAQs", () => {
+test("main menu is a list with five rows including FAQs and Resources", () => {
   const menu = buildMainMenuReply("Ada", "en");
   const rows = menu.list.sections[0]?.rows ?? [];
   assert.deepEqual(
     rows.map((r) => r.id),
-    ["menu-learn", "menu-progress", "menu-language", "menu-faq"]
+    ["menu-learn", "menu-progress", "menu-language", "menu-faq", "menu-resources"]
   );
   // Numbered body text stays as the typed-reply fallback reference.
   assert.match(menu.reply, /1\. Start Learning/);
   assert.match(menu.reply, /4\. FAQs/);
+  assert.match(menu.reply, /5\. Resources/);
   // Row titles respect the WhatsApp 24-char cap.
   for (const row of rows) assert.ok(row.title.length <= 24, `row title too long: ${row.title}`);
+});
+
+// ---- Resources feature (client request 2026-08-15): same shape as FAQs ----
+
+const RESOURCE_FIXTURES = [
+  { id: "res_loans", value: "res_loans", label: "Business loans", metadata: { title: "Where to get business loans", content: "1. Bank of Industry - boi.ng" } },
+  { id: "res_design", value: "res_design", label: "Design & branding", metadata: { title: "Where to design banners", content: "1. Canva - canva.com" } }
+];
+
+test("Resource list renders topic rows with full titles as descriptions", () => {
+  const resources = buildResourceListReply(RESOURCE_FIXTURES, "en");
+  const rows = resources.list.sections[0]?.rows ?? [];
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]?.id, "res_loans");
+  assert.match(rows[0]?.description ?? "", /business loans/);
+  assert.match(resources.reply, /1\. Where to get business loans/);
+  for (const row of rows) assert.ok(row.title.length <= 24, `row title too long: ${row.title}`);
+});
+
+test("findFaqItem doubles as the resource resolver (ids and numbers)", () => {
+  assert.equal(findFaqItem(RESOURCE_FIXTURES, "res_design")?.id, "res_design");
+  assert.equal(findFaqItem(RESOURCE_FIXTURES, "1")?.id, "res_loans");
+  assert.equal(findFaqItem(RESOURCE_FIXTURES, "7"), null);
 });
 
 test("FAQ list renders question rows with full questions as descriptions", () => {

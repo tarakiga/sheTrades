@@ -282,6 +282,20 @@ export function validateOptionSetDraft(draft: OptionSetDraft): string | null {
   return null;
 }
 
+/**
+ * Editor hint for a metadata field, read from the payload-level `fieldHints`
+ * object (e.g. { content: "richtext" }). fieldHints is part of the stored
+ * option_set contract and rides through parse/serialize via draft.extras.
+ */
+export function metaFieldHint(draft: OptionSetDraft, key: string): string | null {
+  const hints = draft.extras.fieldHints;
+  if (hints && typeof hints === "object" && !Array.isArray(hints)) {
+    const hint = (hints as Record<string, unknown>)[key];
+    if (typeof hint === "string") return hint;
+  }
+  return null;
+}
+
 /** Humanize a metadata key for its field label ("hourUtc" -> "Hour Utc"). */
 export function humanizeMetaKey(key: string): string {
   const spaced = key

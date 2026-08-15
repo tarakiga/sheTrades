@@ -345,3 +345,11 @@ Operator request: friendlier UI than raw JSON for config option sets (FAQs etc.)
 - `[x]` OPT-2: ConfigEditorDrawer documentType prop; option_set docs open in the visual wizard by default with Raw JSON behind the existing toggle; wizard-only serialize (no textarea rewrites mid-typing); save gated on validation. Fixes latent en-corruption when opening items-shaped payloads in the generic parser.
 - `[x]` OPT-3: ConfigAdminManager passes documentType (edit + create); buildCategoryPayload preserves item metadata (was hardcoded to {} - would have wiped FAQ answers on a category-drawer save).
 - `[x]` OPT-4: Preview gallery card (standalone builder + real drawer instance on a bot.faqs fixture); browser-verified round trips both directions; tsc + production build clean; no backend changes.
+
+## RS: Resources menu (COMPLETED 2026-08-15)
+Client request: vetted-resources directory in the bot menu, rich-text managed.
+- `[x]` RS-1: resources_menu bot flow mirroring faq_menu; main menu row 5; prompts EN/PCM/IG. Rev 00112.
+- `[x]` RS-2: bot.resources option set published (2 samples DISABLED for the client to replace); fieldHints added to the option_set contract (would otherwise be stripped by the publish validator).
+- `[x]` RS-3: OptionSetBuilder renders fieldHints:"richtext" text fields with RichTextEditor (WhatsApp markdown); bot.faqs answers hinted too. Browser-verified markdown round-trip.
+- `[x]` RS-4: 3 new handler tests (suite 444/0); staging e2e of every leg incl. empty state; docs.
+- `[ ]` CLIENT: replace the two disabled sample entries with vetted providers (Settings -> Configuration -> Options -> Bot Resources) and enable them.

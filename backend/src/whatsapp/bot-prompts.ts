@@ -134,6 +134,31 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     pcm: "This answer never publish yet. Reply MENU to go back.",
     ig: "Edebeghị azịza a. Zaghachi MENU ka ịlaghachi."
   },
+  resources_header: {
+    en: "📌 Resources — tap a topic below, or type MENU to return.",
+    pcm: "📌 Resources — tap one topic below, or type MENU to go back.",
+    ig: "📌 Resources — pịa isiokwu n'okpuru, ma ọ bụ dee MENU ka ịlaghachi."
+  },
+  resources_button: {
+    en: "See resources",
+    pcm: "See resources",
+    ig: "Lee resources"
+  },
+  resources_empty: {
+    en: "Resources are not available right now. Reply MENU to return to the main menu.",
+    pcm: "Resources no dey available now. Reply MENU to go back to main menu.",
+    ig: "Resources adịghị ugbu a. Zaghachi MENU ka ịlaghachi na isi menu."
+  },
+  resources_answer_hint: {
+    en: "Reply RESOURCES for more, or MENU to return.",
+    pcm: "Reply RESOURCES for more, or MENU to go back.",
+    ig: "Zaghachi RESOURCES maka ndị ọzọ, ma ọ bụ MENU ka ịlaghachi."
+  },
+  resources_missing_content: {
+    en: "This resource has not been published yet. Reply MENU to return.",
+    pcm: "This resource never publish yet. Reply MENU to go back.",
+    ig: "Edebeghị ihe a. Zaghachi MENU ka ịlaghachi."
+  },
   // Shown when the learner has finished EVERY module: there is nothing left
   // to pick, so this one genuinely does route to the main menu.
   programme_complete: {
@@ -232,6 +257,11 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   faq_empty: "Bot · FAQ empty state",
   faq_answer_hint: "Bot · FAQ answer hint",
   faq_missing_answer: "Bot · FAQ missing answer",
+  resources_header: "Bot · Resources list header",
+  resources_button: "Bot · Resources list button",
+  resources_empty: "Bot · Resources empty state",
+  resources_answer_hint: "Bot · Resource content hint",
+  resources_missing_content: "Bot · Resource missing content",
   incorrect_retry: "Bot · Incorrect answer (retry)",
   bot_did_not_understand: "Bot · Did not understand",
   state_prompt: "Bot · State prompt",

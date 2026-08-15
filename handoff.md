@@ -1411,3 +1411,36 @@ default; live needs approval.
 Waiting state: reward 71439012 (N100, operator's number) sits Pending/
 Failed with the clear reason; once AT enables airtime, hit Retry on it
 (or ask the agent) - everything else in the pipeline is proven.
+
+## Resources menu feature shipped (2026-08-15)
+
+Client request: a "Resources" menu entry holding useful, vetted referrals
+(where to get loans, banner design, ...). Mirrors the FAQ feature exactly.
+
+Bot (deployed rev 00112): main menu now 5 list rows (menu-resources added);
+new resources_menu state (numbers resolve topics, RESOURCES re-lists, MENU
+escapes); content reply "📌 {title}\n\n{content}" + [RESOURCES, MENU]
+buttons; graceful resources_empty when nothing enabled. Prompts
+resources_header/button/empty/answer_hint/missing_content (EN/PCM/IG).
+
+Config: bot.resources option set published - label = row title (<=24),
+metadata.title = full topic, metadata.content = body (WhatsApp markdown +
+{en,pcm,ig} capable). TWO SAMPLE ENTRIES SHIP DISABLED (loans, design) -
+the client replaces/enables them with vetted content via the visual editor.
+
+Rich text editing (the actual new capability): option_set payloads now
+carry an explicit `fieldHints` contract key ({ content: "richtext" }) -
+added to optionSetPayloadSchema because the publish validator REPLACES
+payloads with the zod-parsed result and would have silently stripped it.
+The dashboard OptionSetBuilder renders hinted text fields with the
+existing RichTextEditor (B/I/S toolbar -> WhatsApp markdown). bot.faqs
+republished with { answer: "richtext" } so FAQ answers get it too.
+Browser-verified: bold/italic typed in the editor stores as
+"*completely free*" / "_shetrades.digital_" markdown; fieldHints
+round-trips.
+
+E2E on staging: 5-row menu; option 5 empty-state when all disabled;
+res_loans temporarily enabled -> topic list -> content with provider list
+-> RESOURCES loops -> MENU escapes; sample re-disabled after. Suite
+444/0/42. Cost note: same as FAQs - each resource read ~2 messages
+(~$0.013 post-Oct), menu unchanged at 1.
