@@ -336,7 +336,8 @@ Undecided (not in this phase until operator says go):
 
 ## Pre-launch reminders (operator)
 - `[x]` N100 Termii experiment RUN 2026-08-15 - VERDICT: **Termii has NO airtime API.** The adapter's dispatch endpoint was fictional; 3 real attempts all returned HTTP 404, N0 spent (wallet intact at N2,820.70). Termii docs list messaging/OTP products only. ACTION: switch payouts provider to Reloadly or Africas Talking (both adapters already built, real hosts; Reloadly has a true sandbox), and ask Termii about the N2,820 wallet balance (only usable for their messaging products).
-- `[ ]` Configure + verify a REAL airtime provider (Reloadly or Africas Talking) before go-live; then Retry test reward 1356ac79 (N100, operator's own number) to prove end-to-end delivery.
+- `[x]` Africas Talking configured + adapter FIXED 2026-08-15 (AT contract wants combined amount "NGN 100" string, txn id = requestId; rev 00109-cbd). Sandbox e2e PROVEN: reward 1356ac79 -> Issued, ATQid_473087d9... Zero cost.
+- `[ ]` Payouts go-live (operator): AT live app - airtime product approval + KYC, fund NGN wallet, switch platform config to real username + live key + sandbox OFF, then one real N100 manual reward to own number as final proof.
 
 ## OPT: Visual option-set editor (COMPLETED 2026-08-15)
 Operator request: friendlier UI than raw JSON for config option sets (FAQs etc.).

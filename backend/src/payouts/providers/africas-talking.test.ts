@@ -61,31 +61,42 @@ test("dispatch sets the apiKey header and uses POST", async (t) => {
   assert.equal(headers.get("apiKey"), "test-key");
 });
 
-test("dispatch passes the reward id as the idempotency-ish reference", async (t) => {
-  const { calls, restore } = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-4" }] } }]);
+test("dispatch sends the AT contract shape: combined 'NGN 500' amount string, no currencyCode field", async (t) => {
+  // Verified against the real sandbox 2026-08-15: separate currencyCode/amount
+  // fields are rejected with a misleading HTTP 415; the combined string sends.
+  const { calls, restore } = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", requestId: "ATQid_4" }] } }]);
   t.after(restore);
   await africasTalkingAdapter.dispatch({ ...baseReward, retryCount: 2 }, baseConfig);
   const body = new URLSearchParams(firstCall(calls).init.body as string);
-  const recipients = JSON.parse(body.get("recipients") ?? "[]") as Array<{
-    phoneNumber: string;
-    currencyCode: string;
-    amount: number;
-  }>;
+  const recipients = JSON.parse(body.get("recipients") ?? "[]") as Array<Record<string, unknown>>;
   const recipient = recipients[0];
   assert.ok(recipient, "expected at least one recipient");
   assert.equal(recipient.phoneNumber, "+2348031234567");
-  assert.equal(recipient.currencyCode, "NGN");
-  assert.equal(recipient.amount, 500);
+  assert.equal(recipient.amount, "NGN 500");
+  assert.equal("currencyCode" in recipient, false);
 });
 
-test("dispatch returns ok=true with the provider transaction id on Sent", async (t) => {
+test("dispatch returns ok=true with requestId as the provider transaction id on Sent", async (t) => {
+  // Real sandbox response shape: {status:"Sent", requestId:"ATQid_...", ...}
+  const { restore } = stubFetch([
+    { status: 201, body: { responses: [{ status: "Sent", requestId: "ATQid_5", errorMessage: "None" }] } }
+  ]);
+  t.after(restore);
+  const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.providerTxnId, "ATQid_5");
+    assert.ok(result.issuedAt instanceof Date);
+  }
+});
+
+test("dispatch still accepts legacy transactionId as the provider transaction id", async (t) => {
   const { restore } = stubFetch([{ status: 201, body: { responses: [{ status: "Sent", transactionId: "AT-tx-5" }] } }]);
   t.after(restore);
   const result = await africasTalkingAdapter.dispatch(baseReward, baseConfig);
   assert.equal(result.ok, true);
   if (result.ok) {
     assert.equal(result.providerTxnId, "AT-tx-5");
-    assert.ok(result.issuedAt instanceof Date);
   }
 });
 

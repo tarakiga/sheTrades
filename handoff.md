@@ -1352,3 +1352,37 @@ hosts (auth.reloadly.com + topups.reloadly.com; api.africastalking.com).
 Reloadly even has a genuine sandbox environment (topups-sandbox.reloadly.com).
 Operator should also ask Termii support about repurposing/refunding the
 N2,820 wallet balance (usable only for their messaging products).
+
+## Africas Talking adapter fixed + sandbox e2e ISSUED (2026-08-15)
+
+Operator configured the AT sandbox (username "sandbox" + sandbox-app API
+key; first 401 was just key-activation delay). Dispatch then failed HTTP
+415. Probed the real sandbox endpoint with candidate shapes: AT's gateway
+rejects recipients entries carrying separate currencyCode/amount fields
+(misleading 415 "expected application/json") but accepts the SDK shape -
+form-urlencoded with recipients=[{phoneNumber, amount: "NGN 100"}]
+(combined currency+value string). Success responses carry requestId
+(ATQid_...), not transactionId.
+
+Adapter fixes (backend/src/payouts/providers/africas-talking.ts):
+1. recipients now send amount: "<CUR> <value>" combined, no currencyCode.
+2. providerTxnId = requestId ?? transactionId.
+Tests updated (contract-shape + requestId + legacy-transactionId fallback).
+Suite 441/0/42. Deployed rev 00109-cbd.
+
+E2E PROOF on staging: retried parked reward 1356ac79 (N100, operator's
+number) -> first tick dispatched=1 -> status Issued, providerTxnId
+ATQid_473087d9fdf20e7490b8ccf06546db76, issuedAt 2026-08-15T00:15:33Z.
+Zero cost (AT sandbox). Full pipeline proven: reward row -> worker ->
+AT sandbox -> Sent -> Issued.
+
+Go-live checklist for payouts (operator):
+1. AT dashboard: switch to LIVE app; request/confirm airtime product
+   enablement (requires approval + KYC).
+2. Fund the AT live wallet (NGN).
+3. Platform payouts settings: username = real AT username, apiKey = live
+   app key, sandbox OFF, publish.
+4. Manual N100 reward to own number -> confirm airtime lands + wallet
+   drops (repeat of this test, but real).
+Note: AT sandbox responses showed a 2% airtime discount (N100 send cost
+N98) - real margin data for incentive budgeting.

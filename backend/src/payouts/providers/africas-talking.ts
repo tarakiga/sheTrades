@@ -51,13 +51,16 @@ export const africasTalkingAdapter: PayoutProvider = {
   async dispatch(reward, config) {
     const creds = requireAfricasTalkingConfig(config);
     const bases = pickBases(config.sandbox);
+    // AT's airtime contract (verified live against the sandbox 2026-08-15):
+    // recipients entries carry ONE combined `amount` string ("NGN 100"), the
+    // format the official SDKs compose. Separate currencyCode/amount fields
+    // make the gateway reject the request with a misleading HTTP 415.
     const body = new URLSearchParams({
       username: creds.username,
       recipients: JSON.stringify([
         {
           phoneNumber: reward.learnerPhone,
-          currencyCode: config.defaults.currency,
-          amount: reward.amount
+          amount: `${config.defaults.currency} ${reward.amount}`
         }
       ])
     });
@@ -79,14 +82,22 @@ export const africasTalkingAdapter: PayoutProvider = {
         } satisfies DispatchResult;
       }
       const data = (await response.json()) as {
-        responses?: Array<{ status?: string; transactionId?: string; errorMessage?: string }>;
+        responses?: Array<{
+          status?: string;
+          requestId?: string;
+          transactionId?: string;
+          errorMessage?: string;
+        }>;
       };
       const first = data.responses?.[0];
       if (!first) {
         return { ok: false, reason: "Empty responses[] from provider", retryable: true };
       }
-      if (first.status === "Sent" && first.transactionId) {
-        return { ok: true, providerTxnId: first.transactionId, issuedAt: new Date() };
+      // Successful sends carry `requestId` (ATQid_...); older docs called it
+      // transactionId, so accept either.
+      const providerTxnId = first.requestId ?? first.transactionId;
+      if (first.status === "Sent" && providerTxnId) {
+        return { ok: true, providerTxnId, issuedAt: new Date() };
       }
       return {
         ok: false,
