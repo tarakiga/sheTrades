@@ -86,23 +86,53 @@ Get this confirmed **in writing** before Phase 1.
 
 ---
 
-## Phase 1 — Free the number from the WhatsApp Business App
+## Phase 1 — ONLY IF Phase 2 is blocked
 
-*Skip entirely if the number has never been used on WhatsApp.*
+> ⚠️ **Try Phase 2 first.** Attempting registration is non-destructive — the worst
+> outcome is an error message. Do **not** delete anything until Meta actually
+> blocks you, because account deletion permanently destroys chat history.
+>
+> ⚠️ **"Delete the account" means the account inside the WhatsApp Business App on
+> the physical handset.** It does **NOT** mean deleting anything on the Meta
+> portfolio / Business Manager page. Never delete the Techherng WABA
+> (`1105900442606502`) — that is the account we are migrating *into*; deleting it
+> would throw away an APPROVED account, the number's registration and any
+> message templates.
 
-1. **Back up chat history** (archive only — it will not appear in the new setup):
-   WhatsApp Business App → **Settings → Chats → Chat backup → Back up**.
-   Also export individual chats if any are important:
+**Prerequisite for Phase 2 regardless of this phase:** someone must have the SIM
+in a handset to read the verification code. That person can also just tell you
+whether the Business App is installed with this number — more reliable than
+inferring it from an error.
+
+If Phase 2 reports the number is already registered:
+
+1. **Back up chat history** on the handset (archive only — it will not appear in
+   the new setup): WhatsApp Business App → **Settings → Chats → Chat backup →
+   Back up**. Export individual important chats via
    open chat → **⋮ → More → Export chat**.
 2. **Disable two-step verification** (blocks re-registration if left on):
    **Settings → Account → Two-step verification → Turn off**.
+   *Note the 6-digit PIN before turning it off — the on-premise→Cloud API
+   migration flow may ask for it.*
 3. **Delete the account from the app:**
    **Settings → Account → Delete my account** → enter the number → confirm.
-4. **Wait ~3 minutes** for Meta to release the number.
+4. **Wait ~3 minutes** for Meta to release the number, then retry Phase 2.
+
+### If the block is the ON_PREMISE record, not the Business App
+
+The number already exists in the Techherng WABA as `ON_PREMISE / DISCONNECTED`
+with id `1092983957237129`. Meta may therefore offer a **migrate to Cloud API**
+path rather than a fresh "add number" — that flow asks for the number's
+**two-step verification PIN**, not an SMS code. If nobody knows the PIN it can be
+reset from the WhatsApp Manager for that number. Read the console's error text
+before assuming the handset app is the obstacle.
 
 ---
 
-## Phase 2 — Register the number on the Cloud API
+## Phase 2 — Register the number on the Cloud API ← **START HERE**
+
+**Have the SIM in a handset before you begin** — Meta sends a verification code
+to it.
 
 1. Go to [developers.facebook.com](https://developers.facebook.com) → **My Apps**
    → **SheTrades Bot** → **WhatsApp → API Setup**.
