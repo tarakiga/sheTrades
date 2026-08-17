@@ -195,34 +195,87 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function toLanguage(raw: string): "en" | "pcm" | "ig" | null {
-  const normalized = raw.trim().toLowerCase();
+export type LanguageChoice = {
+  value: "en" | "pcm" | "ig";
+  label: string;
+  /**
+   * Shown-but-not-selectable: the button renders with a 🔜 suffix and picking
+   * it gets a polite "coming soon" reply instead of switching. Managed via
+   * bot.language_options metadata.comingSoon (a Yes/No toggle in the admin
+   * option editor) - flipping it needs no deploy. `enabled: false` on an item
+   * hides the language entirely instead.
+   */
+  comingSoon: boolean;
+  aliases: string[];
+};
+
+function getLanguageChoices(): LanguageChoice[] {
   const configured = getRuntimeOptionSet("bot.language_options")
     .filter((item) => item.enabled)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((item) => {
-      const aliases =
-        item.metadata &&
-        typeof item.metadata === "object" &&
-        Array.isArray((item.metadata as Record<string, unknown>).aliases)
-          ? ((item.metadata as Record<string, unknown>).aliases as unknown[])
-              .filter((row): row is string => typeof row === "string")
-              .map((row) => row.trim().toLowerCase())
-          : [];
+      const metadata =
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
+          : {};
+      const aliases = Array.isArray(metadata.aliases)
+        ? (metadata.aliases as unknown[])
+            .filter((row): row is string => typeof row === "string")
+            .map((row) => row.trim().toLowerCase())
+        : [];
       return {
-        value: item.value.trim().toLowerCase(),
+        value: item.value.trim().toLowerCase() as "en" | "pcm" | "ig",
+        label: item.label.trim(),
+        comingSoon: metadata.comingSoon === true || metadata.comingSoon === "true",
         aliases
       };
-    });
-  for (const option of configured) {
-    if (option.value === "en" || option.value === "pcm" || option.value === "ig") {
-      if (normalized === option.value || option.aliases.includes(normalized)) {
-        return option.value;
-      }
+    })
+    .filter((choice) => ["en", "pcm", "ig"].includes(choice.value));
+  if (configured.length > 0) return configured;
+  // Resilience fallback so onboarding works before bot.language_options is
+  // seeded - all three selectable, matching the historic hardcoded behavior.
+  return [
+    { value: "en", label: languageLabel("en"), comingSoon: false, aliases: ["english"] },
+    { value: "pcm", label: languageLabel("pcm"), comingSoon: false, aliases: ["pidgin"] },
+    { value: "ig", label: languageLabel("ig"), comingSoon: false, aliases: ["igbo"] }
+  ];
+}
+
+/** Reply buttons for the language step (WhatsApp caps buttons at 3 / 20 chars). */
+export function buildLanguageButtons(choices: LanguageChoice[]): string[] {
+  return choices
+    .slice(0, 3)
+    .map((choice) => (choice.comingSoon ? `${choice.label} 🔜` : choice.label).slice(0, 20));
+}
+
+/**
+ * Resolve a learner reply (tapped button title incl. the 🔜 suffix, typed
+ * name/alias, or list-position number) to a language choice. Callers must
+ * check `comingSoon` before switching.
+ */
+export function resolveLanguageChoice(
+  raw: string,
+  choices: LanguageChoice[] = getLanguageChoices()
+): LanguageChoice | null {
+  const normalized = raw
+    .trim()
+    .toLowerCase()
+    .replace(/\s*🔜\s*$/u, "")
+    .trim();
+  const numeric = normalized.match(/^(\d+)$/);
+  if (numeric) {
+    const index = parseInt(numeric[1]!, 10) - 1;
+    return choices[index] ?? null;
+  }
+  for (const choice of choices) {
+    if (
+      normalized === choice.value ||
+      normalized === choice.label.toLowerCase() ||
+      choice.aliases.includes(normalized)
+    ) {
+      return choice;
     }
   }
-  if (["en", "english", "1"].includes(normalized)) return "en";
-  if (["pcm", "pidgin", "2"].includes(normalized)) return "pcm";
-  if (["ig", "igbo", "3"].includes(normalized)) return "ig";
   return null;
 }
 
@@ -1165,23 +1218,36 @@ function transition(
         "bot.awaiting_language.prompt",
         `Thanks {name}. Choose your language:`
       ).replace("{name}", safeText),
-      buttons: ["English", "Pidgin", "Igbo"]
+      buttons: buildLanguageButtons(getLanguageChoices())
     };
   }
 
   if (session.state === "awaiting_language") {
-    const language = toLanguage(normalized);
-    if (!language) {
+    const choice = resolveLanguageChoice(normalized);
+    if (!choice) {
       return {
         state: "awaiting_language",
         reply: getRuntimeText(
           "bot.awaiting_language.invalid",
           "Invalid language option. Please select your language:"
         ),
-        buttons: ["English", "Pidgin", "Igbo"]
+        buttons: buildLanguageButtons(getLanguageChoices())
       };
     }
 
+    if (choice.comingSoon) {
+      return {
+        state: "awaiting_language",
+        reply: getPrompt(
+          "language_coming_soon",
+          session.language ?? "en",
+          "🔜 {language} is coming soon — we are working on it! Please continue in English for now."
+        ).replace("{language}", choice.label),
+        buttons: buildLanguageButtons(getLanguageChoices())
+      };
+    }
+
+    const language = choice.value;
     session.language = language;
     session.state = "awaiting_state";
     session.lastUpdatedAt = nowIso();
@@ -1491,7 +1557,7 @@ function transition(
           "bot.awaiting_language.prompt_short",
           "Choose your language:"
         ),
-        buttons: ["English", "Pidgin", "Igbo"]
+        buttons: buildLanguageButtons(getLanguageChoices())
       };
     }
 

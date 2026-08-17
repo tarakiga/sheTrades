@@ -144,6 +144,44 @@ const SEED_ENTRIES: SeedEntry[] = [
     }
   },
   {
+    key: "bot.language_options",
+    title: "Bot language choices",
+    payload: {
+      title: "Bot language choices",
+      // Learner language picker. `enabled: false` HIDES a language;
+      // metadata.comingSoon shows it with a 🔜 suffix and a polite "coming
+      // soon" reply when picked - the client request (2026-08-15) while the
+      // Pidgin/Igbo translations await human review. Untick comingSoon in the
+      // dashboard once translations land; no deploy needed.
+      items: [
+        {
+          id: "en",
+          value: "en",
+          label: "English",
+          enabled: true,
+          sortOrder: 1,
+          metadata: { aliases: ["english"] }
+        },
+        {
+          id: "pcm",
+          value: "pcm",
+          label: "Pidgin",
+          enabled: true,
+          sortOrder: 2,
+          metadata: { aliases: ["pidgin"], comingSoon: true }
+        },
+        {
+          id: "ig",
+          value: "ig",
+          label: "Igbo",
+          enabled: true,
+          sortOrder: 3,
+          metadata: { aliases: ["igbo"], comingSoon: true }
+        }
+      ]
+    }
+  },
+  {
     key: "bot.faqs",
     title: "Bot FAQs",
     payload: {

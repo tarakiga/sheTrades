@@ -353,3 +353,7 @@ Client request: vetted-resources directory in the bot menu, rich-text managed.
 - `[x]` RS-3: OptionSetBuilder renders fieldHints:"richtext" text fields with RichTextEditor (WhatsApp markdown); bot.faqs answers hinted too. Browser-verified markdown round-trip.
 - `[x]` RS-4: 3 new handler tests (suite 444/0); staging e2e of every leg incl. empty state; docs.
 - `[ ]` CLIENT: replace the two disabled sample entries with vetted providers (Settings -> Configuration -> Options -> Bot Resources) and enable them.
+
+## LANG: Coming-soon languages (COMPLETED 2026-08-15)
+- `[x]` bot.language_options config-driven language step: comingSoon metadata flag -> 🔜 button suffix + polite decline on all selection paths; enabled flag hides. Seeded pcm/ig comingSoon:true, published. Rev 00113, suite 446/0, e2e both entry paths.
+- `[ ]` WHEN TRANSLATIONS LAND: untick Coming Soon on Pidgin/Igbo in dashboard -> Options -> "Bot language choices" -> publish. No deploy.

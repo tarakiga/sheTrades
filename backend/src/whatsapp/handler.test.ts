@@ -529,7 +529,15 @@ test("finishing a skipped MIDDLE lesson last correctly completes the module", ()
 
 // ---- FAQ feature (client request 2026-08-15) + main menu list conversion ----
 
-import { buildMainMenuReply, buildFaqListReply, buildResourceListReply, findFaqItem } from "./handler.js";
+import {
+  buildMainMenuReply,
+  buildFaqListReply,
+  buildResourceListReply,
+  findFaqItem,
+  buildLanguageButtons,
+  resolveLanguageChoice,
+  type LanguageChoice
+} from "./handler.js";
 
 const FAQ_FIXTURES = [
   { id: "faq_what_is", value: "faq_what_is", label: "What is this bot?", metadata: { question: "What is the SheTrades Learning Chatbot?", answer: "Your learning companion on WhatsApp." } },
@@ -572,6 +580,30 @@ test("findFaqItem doubles as the resource resolver (ids and numbers)", () => {
   assert.equal(findFaqItem(RESOURCE_FIXTURES, "res_design")?.id, "res_design");
   assert.equal(findFaqItem(RESOURCE_FIXTURES, "1")?.id, "res_loans");
   assert.equal(findFaqItem(RESOURCE_FIXTURES, "7"), null);
+});
+
+// ---- Coming-soon languages (client request 2026-08-15) ----
+
+const LANGUAGE_FIXTURES: LanguageChoice[] = [
+  { value: "en", label: "English", comingSoon: false, aliases: ["english"] },
+  { value: "pcm", label: "Pidgin", comingSoon: true, aliases: ["pidgin"] },
+  { value: "ig", label: "Igbo", comingSoon: true, aliases: ["igbo"] }
+];
+
+test("coming-soon languages get the 🔜 suffix on their button", () => {
+  const buttons = buildLanguageButtons(LANGUAGE_FIXTURES);
+  assert.deepEqual(buttons, ["English", "Pidgin 🔜", "Igbo 🔜"]);
+  for (const b of buttons) assert.ok(b.length <= 20, `button too long: ${b}`);
+});
+
+test("resolveLanguageChoice matches tapped suffixed titles, names, aliases, and numbers", () => {
+  assert.equal(resolveLanguageChoice("Pidgin 🔜", LANGUAGE_FIXTURES)?.value, "pcm");
+  assert.equal(resolveLanguageChoice("pidgin", LANGUAGE_FIXTURES)?.comingSoon, true);
+  assert.equal(resolveLanguageChoice("english", LANGUAGE_FIXTURES)?.value, "en");
+  assert.equal(resolveLanguageChoice("2", LANGUAGE_FIXTURES)?.value, "pcm");
+  assert.equal(resolveLanguageChoice("ig", LANGUAGE_FIXTURES)?.value, "ig");
+  assert.equal(resolveLanguageChoice("french", LANGUAGE_FIXTURES), null);
+  assert.equal(resolveLanguageChoice("9", LANGUAGE_FIXTURES), null);
 });
 
 test("FAQ list renders question rows with full questions as descriptions", () => {

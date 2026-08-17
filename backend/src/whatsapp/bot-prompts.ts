@@ -159,6 +159,11 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     pcm: "This resource never publish yet. Reply MENU to go back.",
     ig: "Edebeghị ihe a. Zaghachi MENU ka ịlaghachi."
   },
+  language_coming_soon: {
+    en: "🔜 {language} is coming soon — we are working on it! Please continue in English for now.",
+    pcm: "🔜 {language} dey come soon — we dey work on am! Abeg continue with English for now.",
+    ig: "🔜 {language} na-abịa n'oge na-adịghị anya — anyị na-arụ ya! Biko jiri Bekee gaa n'ihu ugbu a."
+  },
   // Shown when the learner has finished EVERY module: there is nothing left
   // to pick, so this one genuinely does route to the main menu.
   programme_complete: {
@@ -262,6 +267,7 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   resources_empty: "Bot · Resources empty state",
   resources_answer_hint: "Bot · Resource content hint",
   resources_missing_content: "Bot · Resource missing content",
+  language_coming_soon: "Bot · Language coming soon",
   incorrect_retry: "Bot · Incorrect answer (retry)",
   bot_did_not_understand: "Bot · Did not understand",
   state_prompt: "Bot · State prompt",

@@ -1444,3 +1444,28 @@ res_loans temporarily enabled -> topic list -> content with provider list
 -> RESOURCES loops -> MENU escapes; sample re-disabled after. Suite
 444/0/42. Cost note: same as FAQs - each resource read ~2 messages
 (~$0.013 post-Oct), menu unchanged at 1.
+
+## Coming-soon languages shipped (2026-08-15)
+
+Client decision: Pidgin/Igbo stall on translation review, so the language
+buttons stay VISIBLE but politely decline (operator preferred this over
+hiding). WhatsApp has no disabled-button concept, so:
+
+- bot.language_options option set now drives the whole language step
+  (was hardcoded buttons + always-on typed fallbacks). Semantics:
+  enabled:false HIDES a language; metadata.comingSoon shows it with a 🔜
+  button suffix and a polite "coming soon" reply on any selection path
+  (tapped suffixed title, typed name/alias, or number). The old hardcoded
+  toLanguage fallbacks only apply when the set is unseeded.
+- Seeded + published: en selectable, pcm/ig comingSoon:true. REVERSAL IS
+  ZERO-CODE: dashboard -> Options -> "Bot language choices" -> untick the
+  Coming Soon checkbox on an item -> publish (the visual editor renders
+  comingSoon as a Yes/No toggle automatically).
+- New prompt language_coming_soon (EN/PCM/IG). Suite 446/0. Deployed
+  rev 00113. E2E: onboarding + change-language both show suffixed
+  buttons; tap "Pidgin 🔜", typed "igbo", and typed "2" all politely
+  declined; English proceeds normally.
+- Cosmetic note for operator: the published bot.awaiting_language.prompt
+  body copy still lists "2. Pidgin (PCM) / 3. Igbo (IG)" without a
+  coming-soon marker (buttons carry the 🔜). Editable via dashboard
+  content workspace if they want the body text to match.
