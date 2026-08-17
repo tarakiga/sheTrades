@@ -382,7 +382,7 @@ Finding: the portfolio has TWO WABAs. The real number +234 803 512 5590 lives in
 "Techherng" WABA (1105900442606502) as ON_PREMISE/DISCONNECTED; our app is connected to
 the auto-created "Test WhatsApp Business Account" (991712293855596). Plan is to move to
 the Techherng WABA, not to move the number into the test one.
-- `[ ]` BLOCKING DECISION: confirm in writing whether anyone messages people from +234 803 512 5590 today. Number shows DISCONNECTED so no API integration is at risk, but the WhatsApp Business App is not an API connection - it could still be on a handset. If staff use it, get a separate number for the bot.
+- `[x]` CONFIRMED 2026-08-17: the WhatsApp Business App IS installed on a handset with +234 803 512 5590, so Phase 1 (handset account deletion) IS required. WAITING on the client to back up chats, note the two-step PIN, disable two-step verification, and delete the account from the app. STILL WORTH CONFIRMING whether it is an ACTIVE support line - if staff reply to people on it by hand, migrating removes that channel permanently and a separate number for the bot is the better call.
 - `[ ]` Confirm the display name: the number's verified name is already "Techherng" - does that match the CAC doc? If so the naming decision is already made.
 - `[ ]` Phase 1-2: free the number from the Business App if needed, then register it on Cloud API under WABA 1105900442606502.
 - `[ ]` Phase 3 (EASY TO MISS): subscribe the SheTrades Bot app to WABA 1105900442606502. Webhook subscriptions are per-WABA and that account currently has NO subscribed apps - without this the bot is silently deaf.
