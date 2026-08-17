@@ -367,3 +367,11 @@ Client request: vetted-resources directory in the bot menu, rich-text managed.
 - `[x]` Signature verification now FAILS CLOSED (503) when no appSecret is configured instead of trusting the request; operator set the app secret.
 - `[x]` 6 new webhook auth tests (there were none for signature verification before). Suite 450/0. Rev 00115-jm7, verified live.
 - `[ ]` FOLLOW-UP: the dashboard's WhatsApp simulator sends only X-SheTrades-Source and will now be rejected against staging - wire the sandbox token in (or point it at a local backend) before relying on it.
+
+## GO-LIVE: WhatsApp number migration (runbook ready, awaiting client decision)
+Runbook: docs/whatsapp-number-golive-runbook.md
+- `[ ]` BLOCKING DECISION: confirm in writing whether the business number is currently used for HUMAN conversations. A number cannot be on the WhatsApp Business App and the Cloud API at once - migrating means nobody can use the app with it again and chat history is lost. If staff chat on it, use a separate number for the bot instead.
+- `[ ]` Phase 1-2: free the number from the Business App (backup chats, disable 2SV, delete account) and register it on the Cloud API under WABA 991712293855596 with the CAC-matching display name.
+- `[ ]` Phase 3: swap Phone Number ID in Settings -> Integrations -> WhatsApp (token/WABA/verify token/app secret all unchanged), Test Connection, Publish.
+- `[ ]` Phase 4: prove end-to-end from a real handset before opening the doors.
+- `[ ]` Phase 5: add a payment method to the WABA (sends fail without it), clear test data, share the number/QR.
