@@ -21,6 +21,7 @@
     "seed:frontend-options": "tsx src/config-platform/seed-frontend-options.ts",
     "seed:legal-privacy": "tsx src/config-platform/seed-legal-privacy.ts",
     "seed:branding": "tsx src/config-platform/seed-branding.ts",
+    "ops:reset-learner-data": "tsx src/ops/reset-learner-data.ts",
     "db:migrate:baseline": "prisma migrate resolve --applied 000000000000_baseline",
     "db:migrate:deploy": "prisma migrate deploy"
   },

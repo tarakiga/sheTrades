@@ -1469,3 +1469,38 @@ hiding). WhatsApp has no disabled-button concept, so:
   body copy still lists "2. Pidgin (PCM) / 3. Igbo (IG)" without a
   coming-soon marker (buttons carry the 🔜). Editable via dashboard
   content workspace if they want the body text to match.
+
+## Production-prep: learner-data reset tool (2026-08-17)
+
+Operator is REUSING the staging environment as production, so test data has
+to be cleared without touching content/config. New tool:
+
+  npm run ops:reset-learner-data -w @shetrades/backend            # dry run
+  npm run ops:reset-learner-data -w @shetrades/backend -- --confirm  # executes
+
+(needs POSTGRES_URL through the Cloud SQL proxy:
+ cloud-sql-proxy shetrades-staging-12345:us-central1:shetrades-pg-staging --port 5433)
+
+CLEARS: quiz_attempts, user_progress, rewards, user_sessions, users,
+outbound_messages, processed_webhook_messages.
+PRESERVES (asserted after execution, throws if any count changed):
+config_documents/versions/audit_log, admin_accounts, admin_sessions,
+report_schedules, translation_requests, translation_drafts.
+
+Delete order is load-bearing: learner relations are REQUIRED with no cascade
+rule, so Postgres refuses to delete a users row while progress/quiz/reward/
+session rows still reference it. Children first, all in one transaction.
+
+Dry run on staging 2026-08-17: 672 rows would go (53 learners, 153 quiz
+attempts, 32 progress, 15 rewards, 10 sessions, 409 webhook keys); preserved
+side reads 208 config documents / 397 versions / 1165 audit rows / 3 admins /
+2 report schedules / 2 translation drafts.
+
+!! FINDING: Cloud SQL automated backups were DISABLED with zero backups on
+record. Took an on-demand backup (id 1786961045198, SUCCESSFUL) as the
+rollback point. ENABLING SCHEDULED BACKUPS + PITR IS A PRODUCTION BLOCKER -
+recommend before go-live.
+
+Also confirmed: operator completed the admin email migration; admin_accounts
+now = compliance@techherng.com, dev@shetrades.digital, admin@shetrades.digital
+(old admin@shetrades.com deleted).
