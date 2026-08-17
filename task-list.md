@@ -337,7 +337,7 @@ Undecided (not in this phase until operator says go):
 ## Pre-launch reminders (operator)
 - `[x]` N100 Termii experiment RUN 2026-08-15 - VERDICT: **Termii has NO airtime API.** The adapter's dispatch endpoint was fictional; 3 real attempts all returned HTTP 404, N0 spent (wallet intact at N2,820.70). Termii docs list messaging/OTP products only. ACTION: switch payouts provider to Reloadly or Africas Talking (both adapters already built, real hosts; Reloadly has a true sandbox), and ask Termii about the N2,820 wallet balance (only usable for their messaging products).
 - `[x]` Africas Talking configured + adapter FIXED 2026-08-15 (AT contract wants combined amount "NGN 100" string, txn id = requestId; rev 00109-cbd). Sandbox e2e PROVEN: reward 1356ac79 -> Issued, ATQid_473087d9... Zero cost.
-- `[ ]` Payouts go-live (operator): AT live app - airtime product approval + KYC, fund NGN wallet, switch platform config to real username + live key + sandbox OFF, then one real N100 manual reward to own number as final proof.
+- `[ ]` Payouts go-live (operator) [NOTE: the parked N100 test reward was cleared by the 2026-08-17 production cleanup - create a fresh manual reward for the final live proof]: AT live app - airtime product approval + KYC, fund NGN wallet, switch platform config to real username + live key + sandbox OFF, then one real N100 manual reward to own number as final proof.
 
 ## OPT: Visual option-set editor (COMPLETED 2026-08-15)
 Operator request: friendlier UI than raw JSON for config option sets (FAQs etc.).
@@ -357,3 +357,7 @@ Client request: vetted-resources directory in the bot menu, rich-text managed.
 ## LANG: Coming-soon languages (COMPLETED 2026-08-15)
 - `[x]` bot.language_options config-driven language step: comingSoon metadata flag -> 🔜 button suffix + polite decline on all selection paths; enabled flag hides. Seeded pcm/ig comingSoon:true, published. Rev 00113, suite 446/0, e2e both entry paths.
 - `[ ]` WHEN TRANSLATIONS LAND: untick Coming Soon on Pidgin/Igbo in dashboard -> Options -> "Bot language choices" -> publish. No deploy.
+
+## PROD-PREP (COMPLETED 2026-08-17)
+- `[x]` Cloud SQL daily backups + PITR enabled (7-day retention); were OFF with zero backups - a production blocker. Pre-cleanup on-demand backup 1786961045198 retained permanently.
+- `[x]` Learner/test data cleared via `npm run ops:reset-learner-data -- --confirm`: 672 rows removed, all content/config/admin/translation tables verified unchanged, post-cleanup bot smoke test green, learner tables at 0.

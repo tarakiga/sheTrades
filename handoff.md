@@ -1504,3 +1504,36 @@ recommend before go-live.
 Also confirmed: operator completed the admin email migration; admin_accounts
 now = compliance@techherng.com, dev@shetrades.digital, admin@shetrades.digital
 (old admin@shetrades.com deleted).
+
+## Learner-data cleanup EXECUTED + backups enabled (2026-08-17)
+
+Operator authorized; staging is being reused as production.
+
+1. Cloud SQL backups turned ON (were disabled, zero backups existed):
+   daily 04:00 UTC (05:00 Lagos), 7 retained, PITR enabled with 7 days of
+   transaction logs. Instance stayed RUNNABLE - no downtime.
+   Pre-cleanup on-demand backup id 1786961045198 (SUCCESSFUL). NOTE:
+   on-demand backups are NOT subject to the retention count, so that one
+   persists as a permanent pre-launch restore point.
+
+2. Cleanup run: 672 rows deleted (53 learners, 153 quiz attempts, 32
+   progress, 15 rewards, 10 sessions, 409 webhook keys). Preserved tables
+   verified byte-identical before/after: 208 config documents, 397
+   versions, 1165 audit rows, 3 admin accounts, 2 report schedules, 2
+   translation drafts.
+
+3. Post-cleanup smoke test on staging proved config survived: onboarding
+   (name -> language -> state) works, main menu renders all 5 rows,
+   Start Learning lists the real modules (Digital Safety, Digital
+   Marketing, Financial Tools and E-commerce, Women's Rights...), FAQs
+   list the 10 published questions. The smoke-test learner was then
+   cleared, so all learner tables read 0.
+
+RECOVERY NOTE for future incidents: Cloud SQL restores are whole-database,
+not row/table level. To recover selectively, restore the backup into a NEW
+temporary instance, extract the needed rows, copy them into production,
+then delete the temp instance - do NOT restore over production, which
+would also roll back everything since the backup.
+
+Platform is now clean for production. Remaining pre-launch items unchanged:
+Meta verification (TechHer), AT airtime enablement, translation review.
