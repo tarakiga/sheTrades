@@ -375,3 +375,17 @@ Runbook: docs/whatsapp-number-golive-runbook.md
 - `[ ]` Phase 3: swap Phone Number ID in Settings -> Integrations -> WhatsApp (token/WABA/verify token/app secret all unchanged), Test Connection, Publish.
 - `[ ]` Phase 4: prove end-to-end from a real handset before opening the doors.
 - `[ ]` Phase 5: add a payment method to the WABA (sends fail without it), clear test data, share the number/QR.
+
+## GO-LIVE: WhatsApp number migration (runbook ready, awaiting client decision)
+Runbook: docs/whatsapp-number-golive-runbook.md (verified against Meta's Graph API 2026-08-17)
+Finding: the portfolio has TWO WABAs. The real number +234 803 512 5590 lives in the
+"Techherng" WABA (1105900442606502) as ON_PREMISE/DISCONNECTED; our app is connected to
+the auto-created "Test WhatsApp Business Account" (991712293855596). Plan is to move to
+the Techherng WABA, not to move the number into the test one.
+- `[ ]` BLOCKING DECISION: confirm in writing whether anyone messages people from +234 803 512 5590 today. Number shows DISCONNECTED so no API integration is at risk, but the WhatsApp Business App is not an API connection - it could still be on a handset. If staff use it, get a separate number for the bot.
+- `[ ]` Confirm the display name: the number's verified name is already "Techherng" - does that match the CAC doc? If so the naming decision is already made.
+- `[ ]` Phase 1-2: free the number from the Business App if needed, then register it on Cloud API under WABA 1105900442606502.
+- `[ ]` Phase 3 (EASY TO MISS): subscribe the SheTrades Bot app to WABA 1105900442606502. Webhook subscriptions are per-WABA and that account currently has NO subscribed apps - without this the bot is silently deaf.
+- `[ ]` Phase 4: update BOTH phoneNumberId AND businessAccountId in Settings -> Integrations -> WhatsApp; Test Connection; Publish.
+- `[ ]` Phase 5: prove end-to-end from a real handset while the allowlist still protects you.
+- `[ ]` Phase 6: payment method on the Techherng WABA, clear test data, regenerate the QR poster with the real number.
