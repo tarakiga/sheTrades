@@ -7,33 +7,89 @@ import { authenticateJwt } from "../auth/jwt-rbac.js";
 
 export const webhookRouter = Router();
 
-/**
- * Verify Meta's `X-Hub-Signature-256` HMAC over the raw request body (GAP-A8).
- * The app secret comes from the published WhatsApp config (or WHATSAPP_APP_SECRET).
- * When no secret is configured the check is SKIPPED (fail-open with a warning) so
- * an unconfigured environment still functions; once a secret is set, a missing or
- * mismatched signature is rejected.
- */
-function verifyMetaSignature(req: Request): { ok: boolean; skipped: boolean } {
-  const appSecret =
-    getRuntimeWhatsAppConfig()?.appSecret || process.env.WHATSAPP_APP_SECRET || "";
-  if (!appSecret) return { ok: true, skipped: true };
+/** Length-safe constant-time compare (timingSafeEqual throws on length mismatch). */
+function secretsMatch(supplied: string, expected: string): boolean {
+  if (supplied.length !== expected.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
 
+/** Verify Meta's `X-Hub-Signature-256` HMAC over the raw request body (GAP-A8). */
+function verifyMetaSignature(req: Request, appSecret: string): boolean {
   const header = req.header("x-hub-signature-256") ?? "";
   const raw = (req as Request & { rawBody?: Buffer }).rawBody;
-  if (!raw || !header.startsWith("sha256=")) return { ok: false, skipped: false };
-
+  if (!raw || !header.startsWith("sha256=")) return false;
   const expected = "sha256=" + crypto.createHmac("sha256", appSecret).update(raw).digest("hex");
-  try {
-    const received = Buffer.from(header);
-    const computed = Buffer.from(expected);
-    return {
-      ok: received.length === computed.length && crypto.timingSafeEqual(received, computed),
-      skipped: false
-    };
-  } catch {
-    return { ok: false, skipped: false };
+  return secretsMatch(header, expected);
+}
+
+type WebhookAuth =
+  | { ok: true; sandbox: boolean }
+  | { ok: false; status: number; reason: string; message: string };
+
+/**
+ * Authenticate an inbound webhook. Every accepted request is either
+ * (a) signed by Meta, or (b) an authenticated sandbox simulator call.
+ *
+ * The sandbox path exists so the dashboard simulator and e2e scripts can drive
+ * the bot without Meta's signing key. It USED to be claimed by the
+ * `X-SheTrades-Source: sandbox` header alone, which any caller could set — and
+ * although sandbox requests never deliver WhatsApp messages, they DO write to
+ * the database, so an anonymous caller could mint learners and reward rows
+ * pointed at their own phone number (real airtime, once payouts are live).
+ * It now additionally requires `X-SheTrades-Sandbox-Token` to match
+ * WHATSAPP_SANDBOX_TOKEN; when that env var is unset the sandbox path is
+ * disabled outright, so production has no bypass at all.
+ *
+ * Both paths FAIL CLOSED: an unverifiable request never reaches the handler.
+ */
+function authenticateWebhook(req: Request): WebhookAuth {
+  if (req.header("X-SheTrades-Source") === "sandbox") {
+    const expected = process.env.WHATSAPP_SANDBOX_TOKEN ?? "";
+    if (!expected) {
+      return {
+        ok: false,
+        status: 403,
+        reason: "sandbox_disabled",
+        message: "Sandbox webhook access is disabled."
+      };
+    }
+    if (!secretsMatch(req.header("X-SheTrades-Sandbox-Token") ?? "", expected)) {
+      return {
+        ok: false,
+        status: 401,
+        reason: "sandbox_token_invalid",
+        message: "Invalid sandbox token."
+      };
+    }
+    return { ok: true, sandbox: true };
   }
+
+  const appSecret =
+    getRuntimeWhatsAppConfig()?.appSecret || process.env.WHATSAPP_APP_SECRET || "";
+  if (!appSecret) {
+    // Refuse rather than trust: without the secret we cannot prove the caller
+    // is Meta. Set it on the WhatsApp integration config (or
+    // WHATSAPP_APP_SECRET) to restore service.
+    return {
+      ok: false,
+      status: 503,
+      reason: "no_app_secret_configured",
+      message: "Webhook signature verification is not configured."
+    };
+  }
+  if (!verifyMetaSignature(req, appSecret)) {
+    return {
+      ok: false,
+      status: 401,
+      reason: "signature_invalid",
+      message: "Invalid webhook signature."
+    };
+  }
+  return { ok: true, sandbox: false };
 }
 
 webhookRouter.get("/whatsapp", (req, res) => {
@@ -59,28 +115,16 @@ webhookRouter.get("/whatsapp", (req, res) => {
 
 webhookRouter.post("/whatsapp", async (req, res, next) => {
   try {
-    const isSandbox = req.header("X-SheTrades-Source") === "sandbox";
-
-    // GAP-A8: verify real (non-sandbox) inbound webhooks came from Meta. The
-    // dashboard sandbox simulator can't sign requests, so it is exempt (it never
-    // delivers real messages).
-    if (!isSandbox) {
-      const sig = verifyMetaSignature(req);
-      if (sig.skipped) {
-        console.warn(
-          JSON.stringify({
-            event: "whatsapp.webhook.signature.skipped",
-            reason: "no_app_secret_configured"
-          })
-        );
-      } else if (!sig.ok) {
-        console.warn(JSON.stringify({ event: "whatsapp.webhook.signature.invalid" }));
-        res.status(401).json({ message: "Invalid webhook signature." });
-        return;
-      }
+    const auth = authenticateWebhook(req);
+    if (!auth.ok) {
+      console.warn(
+        JSON.stringify({ event: "whatsapp.webhook.rejected", reason: auth.reason })
+      );
+      res.status(auth.status).json({ message: auth.message });
+      return;
     }
 
-    const result = await handleWhatsAppWebhook(req.body, { deliver: !isSandbox });
+    const result = await handleWhatsAppWebhook(req.body, { deliver: !auth.sandbox });
     res.status(200).json(result);
   } catch (err) {
     next(err);

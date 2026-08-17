@@ -361,3 +361,9 @@ Client request: vetted-resources directory in the bot menu, rich-text managed.
 ## PROD-PREP (COMPLETED 2026-08-17)
 - `[x]` Cloud SQL daily backups + PITR enabled (7-day retention); were OFF with zero backups - a production blocker. Pre-cleanup on-demand backup 1786961045198 retained permanently.
 - `[x]` Learner/test data cleared via `npm run ops:reset-learner-data -- --confirm`: 672 rows removed, all content/config/admin/translation tables verified unchanged, post-cleanup bot smoke test green, learner tables at 0.
+
+## SEC: Webhook auth hardening (COMPLETED 2026-08-17)
+- `[x]` Closed the anonymous sandbox bypass on POST /webhook/whatsapp (header alone used to skip signature checks and could mint reward rows). Now requires X-SheTrades-Sandbox-Token vs WHATSAPP_SANDBOX_TOKEN; sandbox disabled entirely when the env var is unset.
+- `[x]` Signature verification now FAILS CLOSED (503) when no appSecret is configured instead of trusting the request; operator set the app secret.
+- `[x]` 6 new webhook auth tests (there were none for signature verification before). Suite 450/0. Rev 00115-jm7, verified live.
+- `[ ]` FOLLOW-UP: the dashboard's WhatsApp simulator sends only X-SheTrades-Source and will now be rejected against staging - wire the sandbox token in (or point it at a local backend) before relying on it.

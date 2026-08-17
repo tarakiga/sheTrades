@@ -1537,3 +1537,48 @@ would also roll back everything since the backup.
 
 Platform is now clean for production. Remaining pre-launch items unchanged:
 Meta verification (TechHer), AT airtime enablement, translation review.
+
+## SECURITY: webhook sandbox bypass closed (2026-08-17)
+
+Found during the Meta go-live audit. Two holes in POST /webhook/whatsapp:
+
+1. `appSecret` was unset, and verifyMetaSignature FAILED OPEN (returned
+   ok:true, skipped:true) - so nothing proved an inbound webhook came from
+   Meta. Operator has now set the app secret on the WhatsApp integration
+   config.
+2. WORSE: the `X-SheTrades-Source: sandbox` header alone claimed the
+   sandbox path and skipped signature checks entirely. Anyone who knew the
+   URL could inject messages. Sandbox requests don't DELIVER to WhatsApp,
+   but they DO write the database - creating learners and, on module
+   completion, REWARD ROWS. With airtime about to go live that was an
+   anonymous route to minting real payouts to an attacker's own number.
+
+Fix (rev 00115-jm7): single authenticateWebhook() gate, both paths FAIL
+CLOSED.
+ - sandbox path now also requires `X-SheTrades-Sandbox-Token` matching the
+   WHATSAPP_SANDBOX_TOKEN env var (Secret Manager secret
+   whatsapp-sandbox-token, mounted on the service; secretAccessor granted
+   to 214511840103-compute@developer.gserviceaccount.com). If that env var
+   is UNSET the sandbox path is disabled outright - production has no
+   bypass at all.
+ - real path: missing appSecret now returns 503 instead of trusting the
+   request; bad/absent signature returns 401.
+ - constant-time compares for both secrets.
+
+Tests: 6 new webhook auth tests (valid signature delivers, bad + absent
+signature 401, no-app-secret 503, sandbox with token accepted and never
+delivers, sandbox without/with-wrong token 401, sandbox disabled when the
+env var is unset). NOTE: before this there was NO test of signature
+verification at all. Suite 450/0/43.
+
+Verified against the live service: old bypass 401, wrong token 401,
+unsigned 401, forged signature 401, valid sandbox token 200. (The unsigned
+case returning 401 rather than 503 also confirms the operator's appSecret
+is being read correctly.) The probe learner was cleared afterwards -
+learner tables back to 0.
+
+!! OPERATIONAL NOTE: any script or tool that drives the bot via the sandbox
+header MUST now send X-SheTrades-Sandbox-Token too:
+  TOK=$(gcloud secrets versions access latest --secret=whatsapp-sandbox-token)
+The dashboard simulator will need the same token wired in if/when it is
+used against staging - it currently sends only the Source header.

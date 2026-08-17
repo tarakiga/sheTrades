@@ -1,5 +1,6 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import request from "supertest";
 import { createApp } from "../app.js";
 import { getConfigPlatformService } from "../config-platform/service.js";
@@ -194,44 +195,123 @@ test("POST /webhook/whatsapp returns ignored for unsupported payload", { skip: s
   assert.equal(response.body.status, "ignored");
 });
 
-test("POST /webhook/whatsapp delivers via Meta when NOT sandbox-marked", { skip: skipWithoutDb }, async () => {
-  setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0" });
-  const graphCalls: string[] = [];
+// --- Inbound webhook authentication (GAP-A8 hardening 2026-08-17) -----------
+// Every accepted request must be either Meta-signed or an AUTHENTICATED
+// sandbox call. The sandbox path used to be claimed by a header any caller
+// could set; because sandbox requests still write learners and reward rows,
+// that was an anonymous route to minting real airtime payouts.
+
+const TEST_APP_SECRET = "test-app-secret";
+const TEST_SANDBOX_TOKEN = "test-sandbox-token";
+
+/** Send a body with an explicit signature over the exact bytes transmitted. */
+function postSigned(payload: unknown, secret: string | null) {
+  const raw = JSON.stringify(payload);
+  const req = request(app)
+    .post("/webhook/whatsapp")
+    .set("Content-Type", "application/json");
+  if (secret) {
+    const sig =
+      "sha256=" + crypto.createHmac("sha256", secret).update(Buffer.from(raw)).digest("hex");
+    req.set("X-Hub-Signature-256", sig);
+  }
+  return req.send(raw);
+}
+
+function stubGraph(calls: string[]) {
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (url: unknown, init: RequestInit) => {
     if (String(url).includes("graph.facebook.com")) {
-      graphCalls.push(String(url));
+      calls.push(String(url));
       return new Response(JSON.stringify({ messages: [{ id: "x" }] }), { status: 200 });
     }
     return realFetch(url as string, init);
   }) as typeof fetch;
+  return () => {
+    globalThis.fetch = realFetch;
+  };
+}
+
+test("POST /webhook/whatsapp delivers via Meta when the signature is valid", { skip: skipWithoutDb }, async () => {
+  setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0", appSecret: TEST_APP_SECRET });
+  const graphCalls: string[] = [];
+  const restore = stubGraph(graphCalls);
   try {
-    await request(app).post("/webhook/whatsapp").send(makeWebhookPayload("m-real-1", "+234999000222", "hi"));
+    await postSigned(makeWebhookPayload("m-real-1", "+234999000222", "hi"), TEST_APP_SECRET).expect(200);
     assert.ok(graphCalls.length >= 1);
   } finally {
-    globalThis.fetch = realFetch;
+    restore();
     setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", null);
   }
 });
 
-test("POST /webhook/whatsapp does NOT deliver when sandbox-marked", async () => {
-  setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0" });
+test("POST /webhook/whatsapp rejects a bad signature with 401 and never reaches the handler", async () => {
+  setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0", appSecret: TEST_APP_SECRET });
   const graphCalls: string[] = [];
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = (async (url: unknown, init: RequestInit) => {
-    if (String(url).includes("graph.facebook.com")) {
-      graphCalls.push(String(url));
-      return new Response("{}", { status: 200 });
-    }
-    return realFetch(url as string, init);
-  }) as typeof fetch;
+  const restore = stubGraph(graphCalls);
   try {
-    await request(app).post("/webhook/whatsapp").set("X-SheTrades-Source", "sandbox").send(makeWebhookPayload("m-sb-1", "+234999000333", "hi"));
+    await postSigned(makeWebhookPayload("m-badsig-1", "+234999000444", "hi"), "wrong-secret").expect(401);
+    await postSigned(makeWebhookPayload("m-nosig-1", "+234999000445", "hi"), null).expect(401);
     assert.equal(graphCalls.length, 0);
   } finally {
-    globalThis.fetch = realFetch;
+    restore();
     setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", null);
   }
+});
+
+test("POST /webhook/whatsapp FAILS CLOSED with 503 when no app secret is configured", async () => {
+  setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0" });
+  await withEnv({ WHATSAPP_APP_SECRET: undefined }, async () => {
+    await postSigned(makeWebhookPayload("m-nosecret-1", "+234999000446", "hi"), null).expect(503);
+  });
+  setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", null);
+});
+
+test("POST /webhook/whatsapp sandbox call is accepted with the token and does NOT deliver", { skip: skipWithoutDb }, async () => {
+  setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", { accessToken: "tok", phoneNumberId: "pn1", apiVersion: "v23.0" });
+  const graphCalls: string[] = [];
+  const restore = stubGraph(graphCalls);
+  try {
+    await withEnv({ WHATSAPP_SANDBOX_TOKEN: TEST_SANDBOX_TOKEN }, async () => {
+      await request(app)
+        .post("/webhook/whatsapp")
+        .set("X-SheTrades-Source", "sandbox")
+        .set("X-SheTrades-Sandbox-Token", TEST_SANDBOX_TOKEN)
+        .send(makeWebhookPayload("m-sb-1", "+234999000333", "hi"))
+        .expect(200);
+    });
+    assert.equal(graphCalls.length, 0, "sandbox must never deliver to Meta");
+  } finally {
+    restore();
+    setRuntimeIntegrationConfigForTests("integration.whatsapp.primary", null);
+  }
+});
+
+test("POST /webhook/whatsapp sandbox call WITHOUT the token is rejected (the closed bypass)", async () => {
+  await withEnv({ WHATSAPP_SANDBOX_TOKEN: TEST_SANDBOX_TOKEN }, async () => {
+    await request(app)
+      .post("/webhook/whatsapp")
+      .set("X-SheTrades-Source", "sandbox")
+      .send(makeWebhookPayload("m-sb-notoken", "+234999000334", "hi"))
+      .expect(401);
+    await request(app)
+      .post("/webhook/whatsapp")
+      .set("X-SheTrades-Source", "sandbox")
+      .set("X-SheTrades-Sandbox-Token", "wrong-token")
+      .send(makeWebhookPayload("m-sb-wrongtoken", "+234999000335", "hi"))
+      .expect(401);
+  });
+});
+
+test("POST /webhook/whatsapp sandbox path is DISABLED when WHATSAPP_SANDBOX_TOKEN is unset", async () => {
+  await withEnv({ WHATSAPP_SANDBOX_TOKEN: undefined }, async () => {
+    await request(app)
+      .post("/webhook/whatsapp")
+      .set("X-SheTrades-Source", "sandbox")
+      .set("X-SheTrades-Sandbox-Token", "anything")
+      .send(makeWebhookPayload("m-sb-disabled", "+234999000336", "hi"))
+      .expect(403);
+  });
 });
 
 test("POST /webhook/whatsapp/reset without a token returns 401", async () => {
