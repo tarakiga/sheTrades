@@ -8,6 +8,38 @@ number** learners will message.
 to a couple of days).
 **Reversible:** yes — see [Rollback](#rollback).
 
+---
+
+## 🛑 PHASE 0 — BUSINESS VERIFICATION (hard blocker, 2026-08-17)
+
+**Nothing below this line can proceed until the SheTrades Digital Project
+business portfolio is verified with Meta.** The WhatsApp account is currently
+**restricted**:
+
+> Duration: Permanent
+> - You can't start conversations with customers
+> - You can't respond to messages from customers
+> - **You can't have phone numbers added to it** ← blocks Phase 2
+
+This is **not** a policy violation and there is **nothing to appeal**. It is
+Meta's standard restriction on *unverified* portfolios, and "Permanent" means
+"until you verify", not "forever". The API confirms the account itself is
+healthy (`status: ACTIVE`, `account_review_status: APPROVED`,
+`business_verification_status: not_verified`).
+
+**Fix:** Business portfolio → WhatsApp account → **Start Verification**.
+Needs the CAC certificate, proof of address, and usually a utility bill or
+bank statement in the exact registered business name. Owned by TechHer.
+
+**Meanwhile the test number keeps working.** Verified 2026-08-17: real
+inbound messages from allowlisted testers still reach the platform and the bot
+still replies. So client UAT can continue on the test number — only *launch*
+is blocked.
+
+> Verification also resolves two other pending items: the display name only
+> shows to learners after it completes, and messaging limits tier up from 250
+> business-initiated conversations/24h.
+
 > Meta redesigns its console regularly. Menu labels below may shift slightly;
 > the sequence and the concepts do not.
 
