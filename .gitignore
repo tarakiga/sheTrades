@@ -19,3 +19,6 @@ errorlog.txt
 .claude/
 
 .superpowers/
+
+# throwaway certificate render/measure scratch
+backend/.certtmp/

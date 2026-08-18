@@ -23,7 +23,8 @@
     "seed:branding": "tsx src/config-platform/seed-branding.ts",
     "ops:reset-learner-data": "tsx src/ops/reset-learner-data.ts",
     "db:migrate:baseline": "prisma migrate resolve --applied 000000000000_baseline",
-    "db:migrate:deploy": "prisma migrate deploy"
+    "db:migrate:deploy": "prisma migrate deploy",
+    "seed:certificate-template": "tsx src/config-platform/seed-certificate-template.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.5.0",
