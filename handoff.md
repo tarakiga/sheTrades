@@ -1869,10 +1869,64 @@ table is back to 0 rows.
 - The png route renders on demand, so it is cached in-process (32 MiB, FIFO)
   and rate limited per IP (60/60s, fails open). Both are in routes-public.ts.
 
-### Phase 2 (not started)
+### Phase 2 (shipped 2026-08-19, staging rev 00121-d2w)
 
-The `/certificates` canvas editor: upload a background, drag the fields onto
-it. It authors the same config document the renderer already reads, so it adds
-no new storage concepts. Its one trap is written up in the spec - the preview
-must be the SERVER's render, not the browser's, or what gets signed off is not
-what learners receive.
+`/certificates/template`. Upload artwork, drag the fields, preview, publish,
+roll back. It authors the same `certificate.template` document, so it adds no
+storage concepts and keeps the config platform's version history, audit trail
+and rollback.
+
+**Backend** (`certificates/`):
+
+- `asset-upload.ts` — pure validation. MIME allowlist, 5 MiB cap, per-kind
+  minimum dimensions, key format.
+- `routes-assets.ts` — `GET`/`POST /api/admin/certificate-assets`, and
+  `GET :key/raw` for the editor's canvas.
+- `routes-template.ts` — the template document's own router: status, the
+  enabled toggle (moved here from `routes-admin.ts`), draft read/write,
+  publish, history, rollback, create-from-starter, samples, preview.
+- `template-starter.ts`, `preview-samples.ts` — pure.
+
+**Dashboard**: `lib/certificates/geometry.ts` and `asset-key.ts` (pure, tested),
+`lib/admin/certificate-template.ts`, five components under
+`components/certificates/`, the page, and a workshop entry.
+
+Three properties worth not breaking:
+
+1. **Uploads never replace.** A key that already exists is refused (409) with
+   the next free version suggested. An issued certificate freezes its template,
+   and that frozen copy names artwork by KEY, not by bytes — overwriting them
+   would redraw credentials already in learners' hands, with no record.
+
+2. **The declared content type is not believed.** It is checked against the
+   allowlist and then corroborated against what sharp actually decodes; the
+   stored `mimeType` comes from what survived both, and the raw route serves it
+   with `nosniff`.
+
+3. **The preview is the server's render.** `POST .../preview` runs the real
+   `renderCertificatePng` on the UNSAVED payload and returns it resized to
+   1400px wide. Resizing a finished raster cannot move anything relative to
+   anything else, so it is still exactly what a learner would receive. A
+   browser-drawn preview would use the browser's font metrics and wrapping
+   where sharp uses its own — the two disagree by a few pixels and the browser
+   version is the one that would get approved. The canvas draws dashed HANDLES
+   for this reason, and is styled so it cannot be mistaken for the artefact.
+
+Notes for whoever picks this up:
+
+- A preview round trip is ~2–2.7s against Cloud Run (a real 2048px sharp
+  render plus network). It fires when an edit FINISHES — pointer-up, blur, a
+  select changing — never mid-drag. If it ever needs to feel faster, render the
+  preview at a smaller canvas rather than moving layout into the browser.
+- Arrow-key nudging passes a DIRECTION to the parent, not a computed anchor, so
+  the parent applies it inside a functional state update. Passing coordinates
+  meant two presses in one React tick both read the same starting position and
+  the second undid the first — found in the browser, fixed, and re-verified.
+- The dashboard's template types MIRROR the backend zod contract rather than
+  sharing it; there is no build-time link between the packages today. The
+  server re-validates on save and on preview, so drift shows up as a 400 naming
+  the field, never as a corrupt template. `shared/` is where they would go if
+  that stops being good enough.
+- Text fields anchor on the BASELINE. `geometry.ts` handles the offset in both
+  directions; get it wrong and fields creep up the page a little on every drag.
+- `dashboard` now has an `npm test` script (node:test via the hoisted tsx).
