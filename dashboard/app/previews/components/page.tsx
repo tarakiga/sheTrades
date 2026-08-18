@@ -38,6 +38,7 @@ import { GuidedTourPreview } from "./GuidedTourPreview";
 import { PreviewEditorsDemo } from "./PreviewEditorsDemo";
 import { HelpRequestsPanelPreview } from "./HelpRequestsPanelPreview";
 import { OptionSetBuilderPreview } from "./OptionSetBuilderPreview";
+import { CertificateTemplateEditorPreview } from "./CertificateTemplateEditorPreview";
 import { QuizBuilderPreview } from "./QuizBuilderPreview";
 import { PreviewSelectTabsDemo } from "./PreviewSelectTabsDemo";
 import { AdminRouteLoading } from "../../../components/layout/AdminRouteLoading";
@@ -246,6 +247,16 @@ export default async function ComponentsPreviewPage() {
           )}
         >
           <OptionSetBuilderPreview />
+        </Card>
+
+        <Card
+          title={t("preview.certificateTemplate.title", "Certificate Template Editor")}
+          description={t(
+            "preview.certificateTemplate.description",
+            "The drag surface, the field inspector, and the preview panel. The boxes on the canvas are handles - they say where a field is anchored and how much width it may use. The certificate itself is drawn by the server, which is why the preview panel here is empty: nothing rendered it."
+          )}
+        >
+          <CertificateTemplateEditorPreview />
         </Card>
 
         <Card
