@@ -21,6 +21,16 @@ export type LearnerDetail = {
   progress: Array<{ module: string; completionPercentage: number; updatedAt: string }>;
   quizAttempts: Array<{ lessonKey: string; passed: boolean; attemptCount: number; lastAttemptAt: string }>;
   rewards: Array<{ id: string; module: string; amount: number; channel: string; status: string; issuedAt: string | null; createdAt: string }>;
+  /** Absent when she has not earned one. Deliberately carries no phone
+   * number and no template snapshot: the drawer needs her status and a link
+   * to the public page, nothing more. */
+  certificate?: {
+    id: string;
+    publicId: string;
+    learnerName: string;
+    issuedAt: string;
+    revokedAt: string | null;
+  };
 };
 
 function iso(value: Date | null | undefined): string | null {
@@ -30,7 +40,7 @@ function iso(value: Date | null | undefined): string | null {
 export async function getLearnerDetail(phone: string): Promise<LearnerDetail | null> {
   const user = await prisma.user.findUnique({
     where: { phone },
-    include: { session: true, progress: true, quizAttempts: true, rewards: true }
+    include: { session: true, progress: true, quizAttempts: true, rewards: true, certificate: true }
   });
   if (!user) return null;
 
@@ -73,6 +83,20 @@ export async function getLearnerDetail(phone: string): Promise<LearnerDetail | n
       status: r.status,
       issuedAt: iso(r.issuedAt),
       createdAt: r.createdAt.toISOString()
-    }))
+    })),
+    // Conditional spread rather than a null field: the drawer renders this
+    // row only when the key is present, and exactOptionalPropertyTypes
+    // rejects an explicit undefined here.
+    ...(user.certificate
+      ? {
+          certificate: {
+            id: user.certificate.id,
+            publicId: user.certificate.publicId,
+            learnerName: user.certificate.learnerName,
+            issuedAt: user.certificate.issuedAt.toISOString(),
+            revokedAt: iso(user.certificate.revokedAt)
+          }
+        }
+      : {})
   };
 }

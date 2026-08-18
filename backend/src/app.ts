@@ -15,6 +15,7 @@ import { integrationsAdminRouter } from "./routes/integrations-admin.js";
 import { translationRequestsRouter } from "./routes/translation-requests.js";
 import { payoutsRouter } from "./payouts/routes.js";
 import { certificatePublicRouter } from "./certificates/routes-public.js";
+import { certificateAdminRouter } from "./certificates/routes-admin.js";
 import { reportSchedulesWorkerRouter } from "./reports/schedule-routes.js";
 
 const DEFAULT_LOCAL_CORS_ORIGINS = [
@@ -107,6 +108,9 @@ export function createApp() {
   // by its own JWT + editor/admin gating rather than falling through
   // adminRouter's authenticateJwt middleware first.
   app.use("/api/admin/translation", translationRouter);
+  // Before the general adminRouter so these paths are matched here rather
+  // than falling through to it.
+  app.use("/api/admin", certificateAdminRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/config/admin", configAdminRouter);
   app.use("/api/config/public", configPublicRouter);
