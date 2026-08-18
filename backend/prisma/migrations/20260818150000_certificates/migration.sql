@@ -16,6 +16,11 @@ CREATE TABLE IF NOT EXISTS "certificates" (
     "revokedBy" TEXT,
     "templateKey" TEXT NOT NULL,
     "templateVersion" INTEGER NOT NULL,
+    -- The template payload as it stood at issue time. Rendering reads THIS, not
+    -- the live config document, so republishing a redesign cannot rewrite a
+    -- certificate already delivered. Nullable: a row predating this column must
+    -- still read, and the render path falls back to the live template for it.
+    "templateSnapshot" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

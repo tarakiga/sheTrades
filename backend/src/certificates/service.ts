@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../admin/prisma.js";
 import { whatsappLength } from "../whatsapp/constraints.js";
 import { sendWhatsAppOutreach } from "../whatsapp/sender.js";
@@ -17,8 +18,10 @@ import { generatePublicId, isEligible, sanitiseLearnerName, type Completion } fr
 
 /**
  * The config document key that carries the certificate template. Recorded on
- * every issued row alongside its version so a reissue can reproduce the
- * original artwork even after the template has been redesigned.
+ * every issued row alongside its version as an audit trail of WHICH document
+ * and revision produced this certificate. What actually reproduces the artwork
+ * is templateSnapshot, below -- the key and version are not enough, because the
+ * document behind them is mutable.
  */
 export const CERTIFICATE_TEMPLATE_KEY = "certificate.template";
 
@@ -30,6 +33,13 @@ export type IssuePlan = {
   totalModules: number;
   templateKey: string;
   templateVersion: number;
+  /**
+   * The whole template payload, frozen. Carried on the plan and written to the
+   * row so the rendered artwork stops depending on the live config document:
+   * republishing a redesign would otherwise change the background, the logos,
+   * the layout and the fonts of every certificate already in a learner's hands.
+   */
+  templateSnapshot: CertificateTemplatePayload;
 };
 
 /**
@@ -75,7 +85,12 @@ export function buildIssuePlan(input: {
     modulesCompleted: input.completion.completedModules,
     totalModules: input.completion.totalModules,
     templateKey: CERTIFICATE_TEMPLATE_KEY,
-    templateVersion: input.templateVersion
+    templateVersion: input.templateVersion,
+    // The published payload verbatim -- not a subset, and not re-derived later.
+    // Re-validated on the way back OUT (routes-public.ts parses it before
+    // rendering), because between here and there it is a JSON column and its
+    // shape is not something TypeScript can vouch for.
+    templateSnapshot: input.template
   };
 }
 
@@ -191,11 +206,18 @@ const prismaCertificateStore: CertificateStore = {
         modulesCompleted: plan.modulesCompleted,
         totalModules: plan.totalModules,
         templateKey: plan.templateKey,
-        templateVersion: plan.templateVersion
+        templateVersion: plan.templateVersion,
+        // Cast because Prisma's Json input type is a structural
+        // InputJsonValue, and a nominal zod-inferred object type does not
+        // satisfy it without one. The value is a plain JSON-safe object --
+        // strings, numbers, booleans and arrays only, per the schema in
+        // contracts.ts.
+        templateSnapshot: plan.templateSnapshot as unknown as Prisma.InputJsonValue
       },
       // Empty ON PURPOSE. An already-issued certificate is never silently
-      // replaced: its name, counts and template version are the historical
-      // record of what a learner earned, not a cache to be refreshed.
+      // replaced: its name, counts, template version and frozen template are
+      // the historical record of what a learner earned, not a cache to be
+      // refreshed.
       update: {},
       select: { publicId: true }
     }),

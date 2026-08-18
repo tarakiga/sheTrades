@@ -1,8 +1,12 @@
-import { Router, type Response } from "express";
+import { createHash } from "node:crypto";
+import { Router, type Request, type Response } from "express";
 import { prisma } from "../admin/prisma.js";
 import { getRuntimeCertificateTemplate } from "../config-platform/runtime-config.js";
 import { loadAssetFromDb } from "./assets.js";
-import type { CertificateTemplatePayload } from "./contracts.js";
+import {
+  certificateTemplatePayloadSchema,
+  type CertificateTemplatePayload
+} from "./contracts.js";
 import { escapeXml } from "./layout.js";
 import { renderCertificatePng } from "./render.js";
 import { certificateUrls } from "./service.js";
@@ -17,7 +21,7 @@ import { certificateUrls } from "./service.js";
  *                    so it must answer an anonymous GET with image bytes.
  *   GET /c/<id>      the verification page an employer opens.
  *
- * Two rules govern everything below and are worth stating once:
+ * Three rules govern everything below and are worth stating once:
  *
  * 1. NOTHING about the learner beyond her name, her programme, the issue date
  *    and the issuing organisation may leave this module. Not her phone number,
@@ -29,6 +33,12 @@ import { certificateUrls } from "./service.js";
  * 2. Every refusal looks the same. An id that does not exist and a certificate
  *    we decline to show return byte-identical responses, so these URLs cannot
  *    be used as an oracle for "does this certificate id exist".
+ *
+ * 3. The artwork is rendered from the template FROZEN ON THE ROW, never from
+ *    the live config document. Publishing a redesign must not reach back and
+ *    restyle a credential a learner already holds and has already shared. The
+ *    single exception -- issuerName on the verification page -- is marked at
+ *    its call site with the reason it is one.
  */
 
 /**
@@ -43,6 +53,16 @@ export type PublicCertificateRow = {
   programmeName: string;
   issuedAt: Date;
   revokedAt: Date | null;
+  /**
+   * The template frozen at issue time, and the reason this route no longer
+   * renders from the live config document.
+   *
+   * Typed `unknown`, not CertificateTemplatePayload, ON PURPOSE. It arrives out
+   * of a JSONB column: Prisma will hand back whatever bytes are in the row, and
+   * a static type here would be a claim nobody checked. It is parsed before
+   * use -- see resolveRenderTemplate.
+   */
+  templateSnapshot: unknown;
 };
 
 export type CertificatePublicDeps = {
@@ -63,7 +83,8 @@ const defaultDeps: CertificatePublicDeps = {
         learnerName: true,
         programmeName: true,
         issuedAt: true,
-        revokedAt: true
+        revokedAt: true,
+        templateSnapshot: true
       }
     }),
   getTemplate: getRuntimeCertificateTemplate,
@@ -269,6 +290,24 @@ function sendHtml(res: Response, status: number, html: string, cacheControl: str
   res.send(html);
 }
 
+/** One place the artwork response is built, so a cache hit and a fresh render
+ * are byte-for-byte the same response rather than two that agree today. */
+function sendPng(res: Response, png: Buffer): void {
+  res.status(200);
+  res.setHeader("Content-Type", "image/png");
+  // A day. The artwork for an issued certificate never changes -- it is
+  // rendered from the template frozen on the row -- and this URL is fetched by
+  // Meta on every send and by every reader of the verification page. Only ever
+  // a hint, though: Cloud Run puts no cache in front of this service, which is
+  // why the in-process cache above exists at all.
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  // Without this a caller that mistrusts our Content-Type could sniff the
+  // bytes into something executable.
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Robots-Tag", "noindex");
+  res.send(png);
+}
+
 /** Never varied per reason, never cached. A cached 404 would outlive the
  * unpublished template that caused it. */
 function sendNotFound(res: Response): void {
@@ -284,20 +323,247 @@ function errorMessage(error: unknown): string {
  * diagnose.
  *
  * certificateUrls() THROWS when PUBLIC_BASE_URL is unset, and renderCertificatePng()
- * throws on a missing asset or a malformed template. On an anonymous route
- * either would otherwise surface as an unhandled rejection, so both are caught
- * and logged HERE: the message names the real fault (an unset env var, a
- * missing asset key) and must never reach the visitor, who would learn about
- * this deployment's configuration from it.
+ * throws on a missing asset or a malformed template.
+ *
+ * Uncaught, these do NOT become unhandled rejections -- express 5 awaits an
+ * async handler and forwards a rejection to the app error handler. The risk is
+ * the opposite one: that handler (src/app.ts) answers with
+ * `res.json({ message: error.message })`, so the raw message would be served to
+ * an anonymous caller -- which asset key is missing, which env var is unset,
+ * the wording of this deployment's base-URL config. Catching HERE is what keeps
+ * the operator-facing detail in the log and out of the response.
  */
 function sendServerError(res: Response, event: string, publicId: string, error: unknown): void {
   console.error(JSON.stringify({ event, publicId, reason: errorMessage(error) }));
   sendHtml(res, 500, UNAVAILABLE_HTML, "no-store");
 }
 
+/**
+ * Which template this certificate's artwork is drawn from: the one frozen onto
+ * the row, NOT whatever is published today.
+ *
+ * This is the whole point of Certificate.templateSnapshot. A certificate is a
+ * credential the learner keeps, shares and is judged on; publishing a redesign
+ * -- new background, new partner logos, new layout, new fonts -- must not reach
+ * back and restyle it. Reading the live document here is what made that happen,
+ * and it is silent: nobody sees the old artwork disappear.
+ *
+ * PARSED, not cast. The snapshot is a JSONB column, so its shape is whatever
+ * was written -- by this code, by a seed script, or by an older release. A
+ * malformed one throws, and the caller turns that into a logged 500; rendering
+ * from a half-valid template would produce a plausible-looking certificate that
+ * is quietly wrong, which is worse (see render.ts).
+ */
+function resolveRenderTemplate(
+  snapshot: unknown,
+  liveTemplate: CertificateTemplatePayload
+): CertificateTemplatePayload {
+  // FALLBACK FOR PRE-SNAPSHOT ROWS ONLY -- not the normal path. The column is
+  // nullable purely because rows written before it existed have to keep
+  // rendering; every certificate issued since carries its own template, and a
+  // NULL here means this row predates the freeze rather than that live lookup
+  // is an acceptable default.
+  if (snapshot === null || snapshot === undefined) return liveTemplate;
+
+  const parsed = certificateTemplatePayloadSchema.safeParse(snapshot);
+  if (parsed.success) return parsed.data;
+
+  const detail = parsed.error.issues
+    .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+    .join("; ");
+  throw new Error(`certificate template snapshot is malformed: ${detail}`);
+}
+
+// -- Serving the artwork without re-rendering it -------------------------------
+//
+// GET /c/<id>.png is unauthenticated, about to be handed to Meta, and shared
+// publicly by learners. Every uncached hit costs a row lookup, an asset read per
+// image field, a QR rasterisation and several sharp composites -- on the same
+// instance that serves the WhatsApp webhook and the admin login. The two guards
+// below (cache the bytes, cap the renders per caller) exist so a few hundred
+// concurrent viewers cannot take the rest of the service down with them.
+
+/** Same shape as src/payouts/worker.ts: tunable per deployment, never zero, and
+ * a junk value falls back rather than disabling the guard. */
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+/**
+ * Cache budget in BYTES, not entries.
+ *
+ * A certificate PNG is a full-bleed composite -- hundreds of KB, occasionally a
+ * couple of MB -- so "keep N entries" is a memory limit nobody can predict.
+ *
+ * 32 MiB is ~6% of 512 MiB, which is what this service actually gets: no deploy
+ * command in this repo passes `--memory`, so Cloud Run's default applies. The
+ * budget has to stay small next to sharp's own working set during a render,
+ * which is the real memory pressure on that instance and is what an OOM would
+ * be attributed to. It still holds roughly 60 certificates at 500 KB each, and
+ * the traffic here is bursty around individual certificates -- Meta fetches
+ * one, then the learner shares that one link -- so a small cache catches nearly
+ * every repeat a large one would. Raise CERTIFICATE_PNG_CACHE_MAX_BYTES with
+ * the instance size, not on its own.
+ */
+const DEFAULT_CACHE_MAX_BYTES = 32 * 1024 * 1024;
+
+type RenderCache = {
+  get(key: string): Buffer | undefined;
+  set(key: string, bytes: Buffer): void;
+};
+
+/**
+ * Bytes already rendered, evicted oldest-first.
+ *
+ * Deliberately NOT an LRU: a hit does not reorder anything. The workload is a
+ * burst of reads of the same few certificates, and FIFO is enough for that
+ * while staying trivial to reason about under concurrency.
+ */
+function createRenderCache(maxBytes: number): RenderCache {
+  // Map iterates in insertion order, which IS the eviction order here.
+  const entries = new Map<string, Buffer>();
+  let heldBytes = 0;
+
+  return {
+    get: (key) => entries.get(key),
+    set: (key, bytes) => {
+      if (entries.has(key)) return;
+      // An artefact bigger than the whole budget would evict everything else in
+      // order to store itself and then be evicted by the next write.
+      if (bytes.byteLength > maxBytes) return;
+
+      entries.set(key, bytes);
+      heldBytes += bytes.byteLength;
+      while (heldBytes > maxBytes) {
+        const oldest = entries.keys().next();
+        if (oldest.done) break;
+        heldBytes -= entries.get(oldest.value)?.byteLength ?? 0;
+        entries.delete(oldest.value);
+      }
+    }
+  };
+}
+
+/**
+ * Cache key: the certificate id plus a fingerprint of the template it is being
+ * rendered from.
+ *
+ * The fingerprint is a hash of the resolved template rather than the row's
+ * templateVersion, because the version does not cover the fallback path: a
+ * pre-snapshot row renders from the LIVE template, and that document can be
+ * republished under a version this row never recorded. Hashing what is actually
+ * about to be drawn means a changed template can never serve bytes drawn from
+ * the old one. Truncated to 16 hex characters -- this is a cache key, not a
+ * security boundary, and a collision would have to be between two templates for
+ * the same certificate id.
+ */
+function renderCacheKey(publicId: string, template: CertificateTemplatePayload): string {
+  const fingerprint = createHash("sha256").update(JSON.stringify(template)).digest("hex").slice(0, 16);
+  return `${publicId}:${fingerprint}`;
+}
+
+/** Requests per IP per window before the route starts refusing. Generous: this
+ * is a fairness guard against one caller monopolising the render path, not an
+ * access control. */
+const DEFAULT_RATE_LIMIT = 60;
+const DEFAULT_RATE_WINDOW_SECONDS = 60;
+
+/**
+ * Distinct callers tracked inside one window. At a few tens of bytes per entry
+ * this is well under a megabyte, and hitting it means the traffic is broad
+ * rather than concentrated -- which is not what this guard is for, so it stops
+ * counting and lets everyone through (see below).
+ */
+const MAX_TRACKED_CALLERS = 10_000;
+
+/**
+ * A fixed-window counter per IP, in process.
+ *
+ * Deliberately NOT src/auth/throttle-store.ts. That machinery is keyed on an
+ * account, persisted in Postgres, and escalates lockouts -- it is a security
+ * control for a login, and every one of those properties is wrong here: this
+ * endpoint has no account, a database write per image request would defeat the
+ * purpose, and a caller who trips it is far more likely to be an over-eager
+ * cache than an attacker.
+ *
+ * FAILS OPEN, everywhere. An unidentifiable caller, a full table, an unexpected
+ * throw -- all return "allowed". Blocking Meta from fetching a certificate
+ * image means the certificate is never delivered at all; serving a few extra
+ * renders means a slower minute. The asymmetry is not close.
+ *
+ * Exported for tests: the fail-open branches are the ones that matter and none
+ * of them is reachable through an HTTP request.
+ */
+export function createFixedWindowLimiter(
+  limit: number,
+  windowMs: number
+): (key: string | undefined) => boolean {
+  let windowStartedAt = Date.now();
+  let counts = new Map<string, number>();
+
+  return (key) => {
+    try {
+      // No usable client address (no proxy header, unusual transport). Bucketing
+      // these together would let one such caller throttle all of them.
+      if (!key) return true;
+
+      const now = Date.now();
+      if (now - windowStartedAt >= windowMs) {
+        // Whole-window reset rather than per-entry expiry: it reclaims the map
+        // in one step and keeps the counter free of timestamps.
+        windowStartedAt = now;
+        counts = new Map();
+      }
+
+      const used = counts.get(key) ?? 0;
+      if (used === 0 && counts.size >= MAX_TRACKED_CALLERS) return true;
+      if (used >= limit) return false;
+      counts.set(key, used + 1);
+      return true;
+    } catch {
+      return true;
+    }
+  };
+}
+
+/**
+ * The caller this request is charged to. `trust proxy` is set to 1 in app.ts,
+ * so on Cloud Run this is the client address from X-Forwarded-For.
+ *
+ * Undefined is a real outcome and is handled as "do not count", not as a shared
+ * bucket -- see the limiter.
+ */
+function callerKey(req: Request): string | undefined {
+  const ip = req.ip;
+  return typeof ip === "string" && ip.length > 0 ? ip : undefined;
+}
+
+function sendTooManyRequests(res: Response, retryAfterSeconds: number): void {
+  res.status(429);
+  res.setHeader("Retry-After", String(retryAfterSeconds));
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("X-Robots-Tag", "noindex");
+  res.send("Too many requests. Please try again shortly.");
+}
+
 export function createCertificatePublicRouter(overrides: Partial<CertificatePublicDeps> = {}): Router {
   const deps: CertificatePublicDeps = { ...defaultDeps, ...overrides };
   const router = Router();
+
+  // Per-router rather than per-module, so the process-wide state belongs to the
+  // one router the app mounts and a test can build an isolated one.
+  const renderCache = createRenderCache(
+    envInt("CERTIFICATE_PNG_CACHE_MAX_BYTES", DEFAULT_CACHE_MAX_BYTES)
+  );
+  const rateWindowSeconds = envInt("CERTIFICATE_PNG_RATE_WINDOW_SECONDS", DEFAULT_RATE_WINDOW_SECONDS);
+  const allowRender = createFixedWindowLimiter(
+    envInt("CERTIFICATE_PNG_RATE_LIMIT", DEFAULT_RATE_LIMIT),
+    rateWindowSeconds * 1000
+  );
 
   /**
    * REGISTRATION ORDER IS LOAD-BEARING. The .png route MUST stay above the
@@ -317,13 +583,28 @@ export function createCertificatePublicRouter(overrides: Partial<CertificatePubl
   router.get("/c/:publicId.png", async (req, res) => {
     const publicId = req.params.publicId;
     try {
-      const template = deps.getTemplate();
+      // Charged BEFORE the database is touched, which is the point: the guard
+      // exists to keep a flood off Postgres and sharp, so it cannot sit behind
+      // either of them. The consequence is that a cache HIT still consumes
+      // budget -- the cache key is derived from the row, so there is no way to
+      // know a request is a hit without the lookup this check is protecting.
+      if (!allowRender(callerKey(req))) {
+        sendTooManyRequests(res, rateWindowSeconds);
+        return;
+      }
+
+      const liveTemplate = deps.getTemplate();
       // NOT `template.enabled`, deliberately. That flag gates ISSUING new
       // certificates; a certificate that was legitimately issued must stay
       // verifiable even after an admin turns issuance off, or every credential
-      // already in learners' hands breaks at once. Only the absence of a
-      // template -- with nothing to render from -- is a refusal.
-      if (!template) {
+      // already in learners' hands breaks at once.
+      //
+      // The absence of a template is still a refusal, now as a deliberate kill
+      // switch rather than for want of anything to draw: a snapshotted row
+      // could render perfectly well without a published document. Unpublishing
+      // withholds every certificate at once, which is a thing an admin may
+      // legitimately need and must be able to undo by republishing.
+      if (!liveTemplate) {
         sendNotFound(res);
         return;
       }
@@ -331,6 +612,16 @@ export function createCertificatePublicRouter(overrides: Partial<CertificatePubl
       const row = await deps.findByPublicId(publicId);
       if (!row) {
         sendNotFound(res);
+        return;
+      }
+
+      // The frozen template, not the live one. See resolveRenderTemplate.
+      const template = resolveRenderTemplate(row.templateSnapshot, liveTemplate);
+
+      const cacheKey = renderCacheKey(row.publicId, template);
+      const cached = renderCache.get(cacheKey);
+      if (cached) {
+        sendPng(res, cached);
         return;
       }
 
@@ -351,21 +642,16 @@ export function createCertificatePublicRouter(overrides: Partial<CertificatePubl
           certificateId: row.publicId
         },
         verifyUrl: urls.verify,
+        // Resolves the asset KEYS carried by the snapshot to bytes. Those keys
+        // must be treated as immutable -- see the note in assets.ts, which is
+        // what keeps the snapshot meaningful.
         loadAsset: loadAssetFromDb
       });
 
-      res.status(200);
-      res.setHeader("Content-Type", "image/png");
-      // A day. The artwork for an issued certificate never changes, and this
-      // URL is fetched by Meta on every send and by every reader of the
-      // verification page -- each miss costs a template parse, an asset read
-      // and a full sharp composite.
-      res.setHeader("Cache-Control", "public, max-age=86400");
-      // Without this a caller that mistrusts our Content-Type could sniff the
-      // bytes into something executable.
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("X-Robots-Tag", "noindex");
-      res.send(png);
+      // Stored only after a successful render: a throw above must not be
+      // cached, and there is nothing to cache from one anyway.
+      renderCache.set(cacheKey, png);
+      sendPng(res, png);
     } catch (error) {
       sendServerError(res, "certificate.public.png.failed", publicId, error);
     }
@@ -376,8 +662,15 @@ export function createCertificatePublicRouter(overrides: Partial<CertificatePubl
   router.get("/c/:publicId", async (req, res) => {
     const publicId = req.params.publicId;
     try {
+      // The LIVE template, and the whole reason this route needs one: the only
+      // template-derived value on this page is issuerName, which is
+      // deliberately not snapshotted (see below). Everything else the page
+      // states comes from the row, and the artwork it embeds is rendered by the
+      // png route from that row's frozen template.
       const template = deps.getTemplate();
-      // Same reasoning as the png route: `enabled` is not consulted here.
+      // Same reasoning as the png route: `enabled` is not consulted here, and
+      // the absence of a document is a kill switch rather than a lack of
+      // material.
       if (!template) {
         sendNotFound(res);
         return;
@@ -393,9 +686,14 @@ export function createCertificatePublicRouter(overrides: Partial<CertificatePubl
       const html = buildVerifyPageHtml({
         learnerName: row.learnerName,
         programmeName: row.programmeName,
-        // issuerName is the only field taken from the live template rather
-        // than the frozen row: it names who is vouching TODAY, which is a
-        // statement about the organisation, not about what was awarded.
+        // THE ONE INTENTIONAL EXCEPTION to the snapshot rule, and the only
+        // value on this page that does not come from the row: issuerName names
+        // who is vouching for this credential TODAY. That is a statement about
+        // the organisation, not part of what was awarded -- a rename or a
+        // transfer of the programme should show up on every verification page
+        // at once. Everything the ARTWORK says is frozen (see the png route);
+        // this line is not an oversight, and reading it from
+        // row.templateSnapshot instead would be a behaviour change, not a fix.
         issuerName: template.issuerName,
         issuedAt: row.issuedAt,
         revokedAt: row.revokedAt,

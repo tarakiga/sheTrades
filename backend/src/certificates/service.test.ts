@@ -58,6 +58,18 @@ test("buildIssuePlan freezes what the certificate will say and mints a public id
   assert.match(result.publicId, PUBLIC_ID);
 });
 
+test("buildIssuePlan freezes the TEMPLATE ITSELF, not just its version number", () => {
+  const result = plan();
+  assert.ok(result);
+  // The version number records WHICH template produced this certificate; it
+  // cannot REPRODUCE it, because the document behind it is mutable. Without the
+  // payload on the row, republishing a redesign rewrites the background, the
+  // logos, the layout and the fonts of every certificate already delivered --
+  // silently, on credentials learners have already shared.
+  assert.deepEqual(result.templateSnapshot, TEMPLATE);
+  assert.equal(result.templateSnapshot.assetKey, "cert-bg");
+});
+
 test("buildIssuePlan mints a fresh public id per call", () => {
   // Reusing an id would let one learner's verification page resolve to
   // another's certificate.
@@ -333,6 +345,25 @@ test("a send failure still reports the certificate as issued", async () => {
     storeForTests: storeStub()
   });
   assert.deepEqual(outcome, { status: "issued", publicId: "persisted-id", sent: false });
+});
+
+test("the frozen template is what reaches the row", async () => {
+  noWhatsApp();
+  // The plan is only half the fix -- the payload has to be written. The public
+  // png route renders from this column, so a plan that carries the snapshot but
+  // an upsert that drops it leaves the artwork tracking the live template.
+  let written: unknown;
+  await issueCertificate({
+    ...ISSUE_INPUT,
+    plan: freshPlan(),
+    storeForTests: storeStub({
+      upsert: async ({ plan: p }) => {
+        written = p.templateSnapshot;
+        return { publicId: "persisted-id" };
+      }
+    })
+  });
+  assert.deepEqual(written, TEMPLATE);
 });
 
 test("an unconfigured base URL costs the send, never the certificate", async () => {

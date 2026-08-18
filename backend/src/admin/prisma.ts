@@ -173,6 +173,10 @@ export async function ensurePrismaTables() {
       ["revokedBy", "TEXT"],
       ["templateKey", "TEXT"],
       ["templateVersion", "INTEGER NOT NULL DEFAULT 1"],
+      // The frozen template payload. No NOT NULL and no default: rows written
+      // before this column existed keep a NULL here, and the render path treats
+      // that as "fall back to the live template" rather than as a broken row.
+      ["templateSnapshot", "JSONB"],
       ["createdAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"],
       ["updatedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
     ] as const) {
