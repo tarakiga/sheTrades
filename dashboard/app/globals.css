@@ -8699,3 +8699,48 @@ button.needs-attention-panel__item:focus {
   font-size: var(--font-size-xs);
   text-decoration: underline;
 }
+
+.issuing-switch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.issuing-switch__state {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.issuing-switch__meta {
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-sm);
+}
+
+.issuing-switch__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.issuing-switch__hint {
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-sm);
+  margin: 0;
+  max-width: 64ch;
+}
+
+.issuing-switch__error {
+  background: var(--color-danger-50);
+  border: 1px solid var(--color-danger-200);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-700);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.issuing-switch__placeholder {
+  background: var(--color-neutral-100);
+  border-radius: var(--radius-md);
+  height: var(--space-10);
+}

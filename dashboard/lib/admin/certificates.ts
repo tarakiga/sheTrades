@@ -86,3 +86,32 @@ export function resendCertificate(id: string): Promise<{ message: string }> {
     { method: "POST", body: "{}" }
   );
 }
+
+export type TemplateStatus =
+  | { published: false }
+  | { published: true; valid: false }
+  | {
+      published: true;
+      valid: true;
+      enabled: boolean;
+      programmeName: string;
+      issuerName: string;
+      version: number;
+    };
+
+/** Whether certificates are currently being issued, and what they would say. */
+export function getTemplateStatus(): Promise<TemplateStatus> {
+  return fetchAdminAuthJson<TemplateStatus>("/api/admin/certificates-template");
+}
+
+/**
+ * Flips issuing on or off. The backend drafts and publishes through the config
+ * platform, so this keeps its version history and audit entry - it is not a
+ * side-door write.
+ */
+export function setTemplateEnabled(enabled: boolean): Promise<{ enabled: boolean }> {
+  return fetchAdminAuthJson<{ enabled: boolean }>("/api/admin/certificates-template/enabled", {
+    method: "POST",
+    body: JSON.stringify({ enabled })
+  });
+}

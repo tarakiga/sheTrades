@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CertificatesTable } from "../../../components/certificates/CertificatesTable";
+import { IssuingSwitchCard } from "../../../components/certificates/IssuingSwitchCard";
 import { Button, ConfirmationModal, Input, SectionHeader } from "../../../components/ui";
 import {
   listCertificates,
@@ -70,6 +71,8 @@ export default function CertificatesPage() {
         title="Certificates"
         description={`${total} issued. A certificate is created automatically when a learner completes every module.`}
       />
+
+      <IssuingSwitchCard onChange={() => void load()} />
 
       <div className="certificates-page__toolbar">
         <Input

@@ -20,7 +20,13 @@ import {
   getRuntimeCertificateTemplateVersion
 } from "../config-platform/runtime-config.js";
 import { sanitiseLearnerName } from "./core.js";
-import { buildCertificateCaption, buildIssuePlan, certificateUrls, issueCertificate } from "./service.js";
+import {
+  CERTIFICATE_TEMPLATE_KEY,
+  buildCertificateCaption,
+  buildIssuePlan,
+  certificateUrls,
+  issueCertificate
+} from "./service.js";
 
 const requireWriteAccess = requireRoles(["editor", "admin"]);
 
@@ -345,3 +351,113 @@ export function createCertificateAdminRouter(
 }
 
 export const certificateAdminRouter = createCertificateAdminRouter();
+
+/**
+ * The certificate template's on/off switch, as two small endpoints rather than
+ * a raw config edit.
+ *
+ * Flipping this flag is the single act that starts issuing permanent
+ * credentials, and the generic config editor does not cover the `integration`
+ * namespace - which left curl as the only way to do it. That is precisely the
+ * "zero-code updates" rule this project sets for itself, so the switch gets a
+ * real surface.
+ *
+ * It still goes through the config platform's draft-then-publish path, so the
+ * change keeps its version history, its audit entry and its rollback. Nothing
+ * here writes to config_versions directly.
+ */
+import type { Request } from "express";
+import { getConfigPlatformService } from "../config-platform/service.js";
+import { refreshRuntimeConfigCache } from "../config-platform/runtime-config.js";
+import { certificateTemplatePayloadSchema } from "./contracts.js";
+
+const enabledBodySchema = z.object({ enabled: z.boolean() });
+
+const configService = getConfigPlatformService();
+
+function configActor(req: Request) {
+  return { id: req.auth?.sub ?? "unknown", role: req.auth?.role ?? "viewer" };
+}
+
+/** The template document, found by key rather than by an id the UI would have to know. */
+async function findTemplateDocument() {
+  const result = await configService.listDocuments({
+    namespace: "integration",
+    page: 1,
+    pageSize: 100
+  });
+  return result.items.find((item) => item.document.key === CERTIFICATE_TEMPLATE_KEY) ?? null;
+}
+
+certificateAdminRouter.get("/certificates-template", async (_req, res, next) => {
+  try {
+    const found = await findTemplateDocument();
+    if (!found?.published) {
+      res.status(200).json({ published: false });
+      return;
+    }
+    const parsed = certificateTemplatePayloadSchema.safeParse(found.published.payload);
+    if (!parsed.success) {
+      res.status(200).json({ published: true, valid: false });
+      return;
+    }
+    res.status(200).json({
+      published: true,
+      valid: true,
+      enabled: parsed.data.enabled,
+      programmeName: parsed.data.programmeName,
+      issuerName: parsed.data.issuerName,
+      version: found.published.versionNumber
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+certificateAdminRouter.post("/certificates-template/enabled", requireRoles(["admin"]), async (req, res, next) => {
+  try {
+    const body = enabledBodySchema.parse(req.body);
+    const found = await findTemplateDocument();
+    if (!found?.published) {
+      res.status(409).json({ message: "No certificate template is published yet." });
+      return;
+    }
+    const parsed = certificateTemplatePayloadSchema.safeParse(found.published.payload);
+    if (!parsed.success) {
+      res.status(409).json({
+        message: "The published template does not match the expected shape, so it cannot be switched safely."
+      });
+      return;
+    }
+    if (parsed.data.enabled === body.enabled) {
+      res.status(200).json({ enabled: parsed.data.enabled, message: "Already set." });
+      return;
+    }
+
+    const actor = configActor(req);
+    const note = body.enabled
+      ? "Switched certificate issuing ON"
+      : "Switched certificate issuing OFF";
+    const { draft } = await configService.updateDraft(actor, found.document.id, {
+      payload: { ...parsed.data, enabled: body.enabled },
+      changeSummary: note
+    });
+    await configService.publishDocument(actor, found.document.id, {
+      expectedDraftVersionId: draft.id,
+      publishNote: note
+    });
+    // Publish through the service does not refresh this process's cache, and
+    // the flag has to take effect on the next module completion, not in a
+    // minute - so refresh explicitly, exactly as the config routes do.
+    await refreshRuntimeConfigCache();
+
+    logAction(body.enabled ? "template_enabled" : "template_disabled", found.document.id, actor);
+    res.status(200).json({ enabled: body.enabled });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ message: error.issues[0]?.message ?? "Invalid request" });
+      return;
+    }
+    next(error);
+  }
+});
