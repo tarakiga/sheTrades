@@ -14,6 +14,7 @@ import { configPublicRouter } from "./routes/config-public.js";
 import { integrationsAdminRouter } from "./routes/integrations-admin.js";
 import { translationRequestsRouter } from "./routes/translation-requests.js";
 import { payoutsRouter } from "./payouts/routes.js";
+import { certificatePublicRouter } from "./certificates/routes-public.js";
 import { reportSchedulesWorkerRouter } from "./reports/schedule-routes.js";
 
 const DEFAULT_LOCAL_CORS_ORIGINS = [
@@ -117,6 +118,10 @@ export function createApp() {
   app.use("/api", translationRequestsRouter);
   app.use("/webhook", webhookRouter);
   app.use("/", payoutsRouter);
+  // Public, unauthenticated: /c/<id>.png is the URL Meta fetches to attach a
+  // certificate to a WhatsApp message, and /c/<id> is the page an employer
+  // opens. Route order INSIDE this router is load-bearing; see routes-public.ts.
+  app.use("/", certificatePublicRouter);
   app.use("/", reportSchedulesWorkerRouter);
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
