@@ -176,6 +176,18 @@ that needs it. In Phase 1 the background and logo assets are loaded by a seed
 script from files in the repo, matching how lessons, prompts and branding are
 already seeded — so Phase 1 has no dependency on the upload UI existing.
 
+**Phase 1 ships placeholder artwork.** A plainly-marked placeholder background and
+logo are committed to the repo so the whole pipeline can be built and tested end
+to end before the real design exists. Swapping in the finished artwork is a seed
+re-run plus a template republish — no code change, no deploy.
+
+The placeholder must never reach a learner. `enabled: false` is the shipped
+default, so certificates are not issued until someone deliberately turns them on;
+turn it on to test, and treat "real artwork seeded" as a launch-checklist item
+alongside Meta verification. The risk is currently theoretical — there are no live
+learners while verification is outstanding — but the flag is what keeps it that
+way.
+
 ### Learner detail (existing endpoint, extended)
 
 The `/users` drawer payload gains a `certificate` block — `publicId`, `issuedAt`,
