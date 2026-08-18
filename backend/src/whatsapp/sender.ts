@@ -68,7 +68,34 @@ function buildMessage(to: string, reply: OutboundReply): Record<string, unknown>
 
 export type OutreachPayload =
   | { kind: "text"; text: string }
-  | { kind: "template"; templateName: string; languageCode: string };
+  | { kind: "template"; templateName: string; languageCode: string }
+  // Meta FETCHES this URL itself, so there is no media-upload step: the same
+  // public route serves browsers and the Cloud API.
+  | { kind: "image"; link: string; caption?: string | undefined };
+
+function buildOutreachMessage(to: string, payload: OutreachPayload): Record<string, unknown> {
+  switch (payload.kind) {
+    case "text":
+      return { messaging_product: "whatsapp", to, type: "text", text: { body: payload.text } };
+    case "template":
+      return {
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: { name: payload.templateName, language: { code: payload.languageCode } }
+      };
+    case "image":
+      return {
+        messaging_product: "whatsapp",
+        to,
+        type: "image",
+        // Conditional spread rather than `caption: payload.caption`: Meta
+        // rejects an empty caption, and an absent key is the only shape that
+        // reliably means "no caption" once this crosses JSON.
+        image: { link: payload.link, ...(payload.caption ? { caption: payload.caption } : {}) }
+      };
+  }
+}
 
 export type OutreachResult =
   | { status: "sent"; providerMessageId: string | null }
@@ -90,15 +117,7 @@ export async function sendWhatsAppOutreach(
     return { status: "failed", reason: "No WhatsApp integration is published." };
   }
   const url = `https://graph.facebook.com/${cfg.apiVersion}/${cfg.phoneNumberId}/messages`;
-  const message =
-    payload.kind === "text"
-      ? { messaging_product: "whatsapp", to, type: "text", text: { body: payload.text } }
-      : {
-          messaging_product: "whatsapp",
-          to,
-          type: "template",
-          template: { name: payload.templateName, language: { code: payload.languageCode } }
-        };
+  const message = buildOutreachMessage(to, payload);
   try {
     const response = await fetch(url, {
       method: "POST",

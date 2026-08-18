@@ -144,3 +144,35 @@ test("outreach surfaces a Meta rejection as a failed result with the reason", as
   assert.match((result as { reason: string }).reason, /HTTP 400/);
   publishConfig(null);
 });
+
+test("outreach image send links the media and carries the caption", async () => {
+  publishConfig(cfg);
+  const calls = stubFetch(200, { messages: [{ id: "wamid.888" }] });
+  const result = await sendWhatsAppOutreach("+234800", {
+    kind: "image",
+    link: "https://example.test/c/abc.png",
+    caption: "Congratulations!"
+  });
+  const sent = JSON.parse(calls[0]!.init.body as string);
+  assert.equal(sent.type, "image");
+  // A `link` (not an uploaded media id) is what makes the certificate route
+  // the single delivery mechanism: Meta fetches the same public URL a browser
+  // would, so there is no upload step to keep in sync.
+  assert.equal(sent.image.link, "https://example.test/c/abc.png");
+  assert.equal(sent.image.caption, "Congratulations!");
+  assert.deepEqual(result, { status: "sent", providerMessageId: "wamid.888" });
+  publishConfig(null);
+});
+
+test("outreach image send omits the caption KEY entirely when there is no caption", async () => {
+  publishConfig(cfg);
+  const calls = stubFetch();
+  await sendWhatsAppOutreach("+234800", { kind: "image", link: "https://example.test/c/abc.png" });
+  const sent = JSON.parse(calls[0]!.init.body as string);
+  assert.equal(sent.type, "image");
+  // Not merely undefined: Meta rejects an explicit null/empty caption, and
+  // JSON.stringify drops an undefined value but NOT a key set to "". Asserting
+  // on the key list is the only version of this check that can fail.
+  assert.deepEqual(Object.keys(sent.image), ["link"]);
+  publishConfig(null);
+});
