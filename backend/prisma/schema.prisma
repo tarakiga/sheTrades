@@ -88,6 +88,19 @@ model AdminAccount {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  /// TOTP two-factor. The secret is a BEARER credential - anyone holding it can
+  /// mint valid codes forever - so it is stored AES-256-GCM sealed under a key
+  /// from Secret Manager, never as plaintext beside the account it protects.
+  totpSecret        String?
+  /// Null until enrolment is confirmed with a working code, so a half-finished
+  /// setup can never lock anyone out.
+  totpEnabledAt     DateTime?
+  /// Hashed single-use recovery codes - same treatment as passwords.
+  totpRecoveryCodes Json?
+  /// Last accepted 30-second step, so an observed code cannot be replayed
+  /// inside its own validity window.
+  totpLastUsedStep  Int?
+
   @@map("admin_accounts")
 }
 

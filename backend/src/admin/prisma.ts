@@ -116,6 +116,19 @@ export async function ensurePrismaTables() {
       );
     }
 
+    // admin_accounts TOTP columns - two-factor auth. All nullable so existing
+    // admins keep signing in with a password alone until they enrol.
+    for (const [column, type] of [
+      ["totpSecret", "TEXT"],
+      ["totpEnabledAt", "TIMESTAMP(3)"],
+      ["totpRecoveryCodes", "JSONB"],
+      ["totpLastUsedStep", "INTEGER"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+
     // auth_throttle — login rate limiting. Persisted so guesses cannot be
     // spread across replicas or reset by a scale-to-zero. Keep in sync with
     // schema.prisma.

@@ -16,7 +16,28 @@ import {
   clearLoginFailures,
   recordLoginFailure
 } from "./throttle-store.js";
+import { TWO_FACTOR_CHALLENGE_TYP } from "./jwt-rbac.js";
+import { verifyTwoFactorCode } from "./two-factor.js";
+import {
+  issueTwoFactorChallenge,
+  readTwoFactorChallenge
+} from "./two-factor-login.js";
 import { createHash } from "node:crypto";
+
+/**
+ * Thrown when the password was correct but a second factor is still owed.
+ * Carries the short-lived challenge token the client exchanges for a session.
+ */
+export class TwoFactorRequiredError extends Error {
+  readonly challengeToken: string;
+  readonly expiresAt: string;
+  constructor(challengeToken: string, expiresAt: string) {
+    super("Two-factor verification required.");
+    this.name = "TwoFactorRequiredError";
+    this.challengeToken = challengeToken;
+    this.expiresAt = expiresAt;
+  }
+}
 
 /**
  * Thrown when login is refused by the throttle rather than by bad credentials,
@@ -47,6 +68,8 @@ type AdminUserRecord = {
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /// Set once TOTP enrolment is confirmed; drives the two-step login branch.
+  totpEnabledAt: Date | null;
 };
 
 type SessionContext = {
@@ -76,6 +99,7 @@ type AdminAccountRow = {
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  totpEnabledAt: Date | null;
 };
 
 function nowIso() {
@@ -105,7 +129,8 @@ function accountRowToRecord(row: AdminAccountRow): AdminUserRecord {
     avatarUrl: row.avatarUrl ?? "",
     lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString()
+    updatedAt: row.updatedAt.toISOString(),
+    totpEnabledAt: row.totpEnabledAt ?? null
   };
 }
 
@@ -349,6 +374,54 @@ export class AdminAuthService {
     return { token, session };
   }
 
+  /**
+   * Step two of login: exchange a challenge token plus a code for a real
+   * session. Throttled on the same per-account key as the password step, so
+   * the six-digit code cannot be brute forced either - a million combinations
+   * falls quickly to an unthrottled attacker.
+   */
+  async completeTwoFactorLogin(input: { challengeToken: string; code: string }) {
+    await this.ensureBootstrapped();
+    const { userId } = readTwoFactorChallenge(input.challengeToken);
+    const user = await this.getRecordByIdOrThrow(userId);
+    if (user.status !== "active") {
+      throw new Error("This admin account is disabled.");
+    }
+
+    const decision = await checkLoginAllowed("email", user.email);
+    if (!decision.allowed) {
+      throw new LoginThrottledError(decision.retryAfterSeconds);
+    }
+
+    const verified = await verifyTwoFactorCode(userId, input.code);
+    if (!verified.ok) {
+      await this.registerLoginFailure(user.email);
+      throw new Error("That code is not valid.");
+    }
+    await clearLoginFailures("email", user.email);
+
+    const loginAt = new Date();
+    await prisma.adminAccount.update({
+      where: { id: user.id },
+      data: { lastLoginAt: loginAt }
+    });
+    const nextUser: AdminUserRecord = {
+      ...user,
+      lastLoginAt: loginAt.toISOString(),
+      updatedAt: loginAt.toISOString()
+    };
+    const { token, session } = await this.createSessionForUser(nextUser);
+    if (verified.usedRecoveryCode) {
+      logger.warn("auth.login.recovery_code_used", { adminUserId: user.id });
+    }
+    return {
+      token,
+      expiresAt: session.expiresAt,
+      user: toSafeUser(nextUser),
+      usedRecoveryCode: verified.usedRecoveryCode
+    };
+  }
+
   async login(input: LoginRequest) {
     await this.ensureBootstrapped();
 
@@ -376,6 +449,14 @@ export class AdminAuthService {
     // Correct credentials: wipe the slate so a legitimate admin who fumbled a
     // few times is not still carrying a near-lockout.
     await clearLoginFailures("email", input.email);
+
+    // Password is correct. If this account carries a second factor, stop here
+    // and hand back a CHALLENGE - not a session. Minting the session first and
+    // checking the code afterwards would make the second factor advisory.
+    if (user.totpEnabledAt) {
+      const challenge = issueTwoFactorChallenge(user.id, user.role);
+      throw new TwoFactorRequiredError(challenge.token, challenge.expiresAt);
+    }
 
     const loginAt = new Date();
     await prisma.adminAccount.update({

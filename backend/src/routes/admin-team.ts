@@ -9,6 +9,7 @@ import {
   updateAdminRoleRequestSchema
 } from "../auth/contracts.js";
 import { sendAdminInviteEmail } from "../notifications/admin-invite-email.js";
+import { clearTwoFactor } from "../auth/two-factor.js";
 
 /**
  * Admin team management — create admins, change roles, suspend/reactivate,
@@ -131,6 +132,31 @@ adminTeamRouter.post("/:id/reactivate", async (req, res, next) => {
     const admin = await authService.setStatus(String(req.params.id), "active", actorId);
     logAction(actorId, "reactivate", admin.id);
     res.status(200).json({ message: "Admin reactivated.", admin });
+  } catch (error) {
+    respondError(error, res, next);
+  }
+});
+
+/**
+ * Admin-assisted 2FA reset: the escape hatch for someone who lost both their
+ * authenticator device and their recovery codes. Mirrors reset-password -
+ * admin-only (the router already enforces it), never on yourself, audited.
+ */
+adminTeamRouter.post("/:id/reset-2fa", async (req, res, next) => {
+  try {
+    const actorId = req.authUser?.id ?? "";
+    const targetId = String(req.params.id);
+    if (actorId === targetId) {
+      res.status(400).json({
+        message: "Use your own profile page to manage your two-factor settings."
+      });
+      return;
+    }
+    await clearTwoFactor(targetId);
+    logAction(actorId, "reset_2fa", targetId);
+    res.status(200).json({
+      message: "Two-factor removed. Ask them to sign in and enrol again immediately."
+    });
   } catch (error) {
     respondError(error, res, next);
   }

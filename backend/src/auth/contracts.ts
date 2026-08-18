@@ -114,3 +114,14 @@ export const adminAuthErrorResponseSchema = z.object({
   message: z.string().min(1)
 });
 export type AdminAuthErrorResponse = z.infer<typeof adminAuthErrorResponseSchema>;
+
+/** Step two of login: the challenge token plus a TOTP or recovery code. */
+export const twoFactorVerifyRequestSchema = z.object({
+  challengeToken: z.string().min(10),
+  // Wide enough for a 6-digit TOTP code or a formatted recovery code.
+  code: z.string().trim().min(6).max(32)
+});
+
+export const twoFactorCodeRequestSchema = z.object({
+  code: z.string().trim().min(6).max(32)
+});
