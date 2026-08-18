@@ -6,6 +6,7 @@ import type {
 } from "./contracts.js";
 import type { PayoutsIntegrationPayload } from "../payouts/providers/contracts.js";
 import type { TranslationIntegrationPayload } from "../translation/providers/contracts.js";
+import type { CertificateTemplatePayload } from "../certificates/contracts.js";
 
 type LocalizedText = {
   en: string;
@@ -25,6 +26,10 @@ type OptionItem = {
 // Write-through in-memory cache
 const cachedPublicConfigs = new Map<string, { versionTag: string; documents: any[] }>();
 const cachedIntegrationConfigs = new Map<string, any>();
+// Published version number per integration document, kept in a SEPARATE map so
+// getRuntimeIntegrationConfig's cached value stays the bare payload — several
+// callers destructure it directly and would break if it were wrapped.
+const cachedIntegrationVersions = new Map<string, number>();
 let isInitialized = false;
 
 export async function refreshRuntimeConfigCache() {
@@ -45,9 +50,11 @@ export async function refreshRuntimeConfigCache() {
   });
 
   cachedIntegrationConfigs.clear();
+  cachedIntegrationVersions.clear();
   for (const item of result.items) {
     if (item.published && item.document.isActive) {
       cachedIntegrationConfigs.set(item.document.key, item.published.payload);
+      cachedIntegrationVersions.set(item.document.key, item.published.versionNumber);
     }
   }
 }
@@ -222,18 +229,40 @@ export function getRuntimeRewardRules() {
   return getRuntimeIntegrationConfig<RewardRulesPayload>("reward.rules.primary");
 }
 
+export function getRuntimeCertificateTemplate() {
+  return getRuntimeIntegrationConfig<CertificateTemplatePayload>("certificate.template");
+}
+
+/**
+ * Version of the published certificate template, or 0 when none is published.
+ *
+ * Every issued certificate records the template version that produced it, so
+ * republishing a redesign cannot retroactively change what an already-issued
+ * certificate is supposed to look like. Without this, the verification page for
+ * a certificate issued last year would describe this year's layout.
+ */
+export function getRuntimeCertificateTemplateVersion(): number {
+  return cachedIntegrationVersions.get("certificate.template") ?? 0;
+}
+
 export function getRuntimeTranslationConfig() {
   return getRuntimeIntegrationConfig<TranslationIntegrationPayload & { kind: "translation" }>(
     "integration.translation.primary"
   );
 }
 
-/** Test-only: inject an integration config without exercising the publish path. */
-export function setRuntimeIntegrationConfigForTests(key: string, value: unknown) {
+/**
+ * Test-only: inject an integration config without exercising the publish path.
+ * `versionNumber` defaults to 1 so the many existing two-argument callers keep
+ * working and still look like a normally published document.
+ */
+export function setRuntimeIntegrationConfigForTests(key: string, value: unknown, versionNumber = 1) {
   if (value === null || value === undefined) {
     cachedIntegrationConfigs.delete(key);
+    cachedIntegrationVersions.delete(key);
   } else {
     cachedIntegrationConfigs.set(key, value);
+    cachedIntegrationVersions.set(key, versionNumber);
   }
 }
 

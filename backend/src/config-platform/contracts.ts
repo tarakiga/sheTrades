@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { payoutsIntegrationPayloadSchema } from "../payouts/providers/contracts.js";
 import { translationIntegrationPayloadSchema } from "../translation/providers/contracts.js";
+import { certificateTemplatePayloadSchema } from "../certificates/contracts.js";
 
 export const configNamespaceSchema = z.enum(["content", "options", "legal", "integration"]);
 export type ConfigNamespace = z.infer<typeof configNamespaceSchema>;
@@ -264,7 +265,14 @@ export const integrationConfigPayloadSchema = z.union([
   notificationIntegrationPayloadSchema,
   payoutsIntegrationPayloadSchema,
   rewardRulesPayloadSchema,
-  translationConfigPayloadSchema
+  translationConfigPayloadSchema,
+  // Certificate layout. Deliberately an integration_config in the `integration`
+  // namespace rather than its own document type: refreshRuntimeConfigCache
+  // populates the runtime cache by listing the `integration` namespace, so the
+  // namespace is what makes a document readable at runtime. Same reason
+  // reward.rules.primary lives here despite its key not starting with
+  // `integration.`. Discriminated by kind: "certificate_template".
+  certificateTemplatePayloadSchema
 ]);
 export type IntegrationConfigPayload = z.infer<typeof integrationConfigPayloadSchema>;
 
