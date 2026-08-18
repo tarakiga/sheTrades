@@ -84,8 +84,15 @@ export function fitFontSize(args: { text: string; startPx: number; maxWidthPx: n
   const estimatedWidth = text.length * startPx * AVG_GLYPH_RATIO;
   if (estimatedWidth <= maxWidthPx) return startPx;
 
+  // Floored to a whole pixel, not left fractional: AVG_GLYPH_RATIO is
+  // pessimistic specifically so the estimate lands INSIDE the box, and a
+  // fractional size sitting exactly on the computed boundary spends that
+  // margin. Flooring keeps the result on the conservative side of the
+  // boundary instead of exactly on it. Also clamped to startPx so the
+  // floor-then-max below can never push a fractional-but-still-too-big
+  // value back up past where the designer started it.
   const fitted = maxWidthPx / (text.length * AVG_GLYPH_RATIO);
-  return Math.max(floorPx, fitted);
+  return Math.max(floorPx, Math.min(startPx, Math.floor(fitted)));
 }
 
 export function placeImage(canvas: Canvas, field: ImageFieldSpec, asset: { width: number; height: number }): PlacedBox {

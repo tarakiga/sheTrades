@@ -69,6 +69,19 @@ test("a deliberately small field is never ENLARGED to the floor", () => {
   assert.equal(fitFontSize({ text: "a".repeat(200), startPx: 10, maxWidthPx: 40 }), 10);
 });
 
+test("a shrunk size is a whole number, on the conservative side of the box", () => {
+  // 20 chars at ratio 0.55 in a 400px box solves to 400 / (20 * 0.55) = 36.3636px,
+  // above the 24px floor for a 100px field, so this exercises the fractional
+  // mid-range rather than the floor clamp. Rounding UP or keeping the
+  // fraction would put the text on the box edge, spending the margin the
+  // pessimistic ratio exists to provide.
+  assert.equal(fitFontSize({ text: "a".repeat(20), startPx: 100, maxWidthPx: 400 }), 36);
+});
+
+test("an empty value keeps its configured size", () => {
+  assert.equal(fitFontSize({ text: "", startPx: 48, maxWidthPx: 400 }), 48);
+});
+
 test("an image is placed with its aspect ratio preserved", () => {
   const box = placeImage(CANVAS, { x: 0.1, y: 0.2, width: 0.2, align: "left" }, { width: 400, height: 200 });
   assert.equal(box.width, 400);
