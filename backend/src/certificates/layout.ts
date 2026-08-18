@@ -49,12 +49,39 @@ export type ImageFieldSpec = {
 export type PlacedBox = { left: number; top: number; width: number; height: number };
 
 /**
+ * XML 1.0 permits only #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] |
+ * [#x10000-#x10FFFF]. Everything else -- stray control bytes, the two BMP
+ * noncharacters, and a lone (unpaired) surrogate half -- is illegal at the
+ * XML layer, escaped or not. A NUL byte here would make sharp's SVG
+ * parser throw on render (breaking every certificate for that programme,
+ * not just one field); a lone surrogate silently becomes U+FFFD when the
+ * SVG is encoded to UTF-8. Struck BEFORE the entity escaping below, not
+ * after: escaping only protects characters that were legal to begin with.
+ *
+ * A well-formed surrogate PAIR (a high surrogate immediately followed by
+ * its low half -- an astral emoji in a programme name, say) is a
+ * legitimate character and must survive; only an unpaired half is struck.
+ *
+ * Reachable from admin-authored config, not just learner input:
+ * programmeName, issuerName, font and color come from an admin-editable
+ * document and never pass through sanitiseLearnerName -- font in
+ * particular has no length cap or character restriction at all.
+ */
+// eslint-disable-next-line no-control-regex -- the control range IS the point of this regex, not a mistake.
+const ILLEGAL_XML_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\uFFFE\uFFFF]/g;
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+function stripIllegalXmlChars(value: string): string {
+  return value.replace(ILLEGAL_XML_CHARS, "").replace(LONE_SURROGATE, "");
+}
+
+/**
  * Escape order matters: `&` must go first. Escaping it last would turn the
  * `&lt;` this function just produced for a literal `<` into `&amp;lt;`,
  * double-encoding every character this function is supposed to neutralise.
  */
 export function escapeXml(value: string): string {
-  return value
+  return stripIllegalXmlChars(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -92,10 +119,37 @@ export function fitFontSize(args: { text: string; startPx: number; maxWidthPx: n
   // floor-then-max below can never push a fractional-but-still-too-big
   // value back up past where the designer started it.
   const fitted = maxWidthPx / (text.length * AVG_GLYPH_RATIO);
-  return Math.max(floorPx, Math.min(startPx, Math.floor(fitted)));
+  let candidate = Math.floor(fitted);
+
+  // Division and multiplication are not exact inverses in IEEE-754: for a
+  // measurable slice of inputs, the floored candidate still multiplies back
+  // (via the SAME formula the "already fits" guard above uses) to a hair
+  // over maxWidthPx -- a floating-point epsilon, not a real overflow, but
+  // enough to make the "conservative side of the boundary" comment above a
+  // lie for those inputs. Re-check with that identical multiplicative
+  // formula and step down once more if it still overflows, so the check
+  // that decides "does this fit" is always the same check, not a division
+  // assumed to invert it exactly.
+  if (candidate * text.length * AVG_GLYPH_RATIO > maxWidthPx) {
+    candidate -= 1;
+  }
+
+  return Math.max(floorPx, Math.min(startPx, candidate));
 }
 
 export function placeImage(canvas: Canvas, field: ImageFieldSpec, asset: { width: number; height: number }): PlacedBox {
+  // asset.width/height come from probing an uploaded file, not from a
+  // schema-bounded field like the canvas dimensions -- nothing upstream
+  // guarantees they are positive. A zero width would divide-by-zero into
+  // Infinity below (0x0 into NaN), and both would flow straight into
+  // sharp.resize() in the compositing step. Throwing here, loud and named,
+  // beats the alternative for the same reason a missing background image
+  // throws rather than rendering blank: a certificate that fails visibly is
+  // recoverable; one that silently renders wrong is not.
+  if (!(asset.width > 0) || !(asset.height > 0)) {
+    throw new Error(`placeImage: asset has invalid dimensions ${asset.width}x${asset.height}`);
+  }
+
   const width = Math.round(field.width * canvas.width);
   // Derived from the asset's own aspect ratio, not an independent height
   // field: a stretched partner logo on a public credential is worse than no

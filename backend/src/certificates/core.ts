@@ -40,7 +40,17 @@ export type SanitiseResult =
 //
 // Kept as a literal escape-sequence regex (never literal invisible
 // characters) so the source stays legible in any editor or diff tool.
+// eslint-disable-next-line no-control-regex -- the control range IS the point of this regex, not a mistake.
 const INVISIBLE_CHARS = /[\u0000-\u001F\u007F-\u009F\u061C\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
+
+// Unpaired surrogates only -- a well-formed pair (an astral emoji) is a
+// legitimate character. Not folded into INVISIBLE_CHARS above because a
+// character class cannot express the lookaround needed to tell a paired
+// half from a lone one; kept as a second pass instead. On a name that
+// reaches a UTF-8-encoding boundary unnoticed, a lone surrogate silently
+// becomes U+FFFD -- the same failure this function already treats as
+// worth stripping, not silently mangling.
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
 
 export function sanitiseLearnerName(raw: string): SanitiseResult {
   // NFC before trim/collapse: a combining-mark spelling ("e" + U+0301) and
@@ -48,7 +58,7 @@ export function sanitiseLearnerName(raw: string): SanitiseResult {
   // value, or the length cap measures an arbitrary encoding rather than the
   // name, and two learners who typed "the same" name would later compare
   // unequal.
-  const stripped = raw.replace(INVISIBLE_CHARS, "").normalize("NFC");
+  const stripped = raw.replace(INVISIBLE_CHARS, "").replace(LONE_SURROGATE, "").normalize("NFC");
   const value = stripped.trim().replace(/\s+/g, " ");
 
   if (value.length === 0) return { ok: false, reason: "empty" };

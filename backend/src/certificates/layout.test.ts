@@ -48,6 +48,41 @@ test("quotes in a name cannot break out of an attribute", () => {
   assert.equal(svg.includes(`onload="`), false);
 });
 
+// Built with String.fromCharCode/fromCodePoint rather than typed as literal
+// escapes: keeps the actual control/surrogate code units out of this
+// source file (the thing under test is runtime stripping, not the file's
+// own bytes) and sidesteps the exact failure mode that has twice put a raw
+// invisible byte into a commit in this repo when typed directly.
+test("a NUL byte is stripped, not merely escaped", () => {
+  // Unescaped/unstripped, this reaches sharp's SVG parser and throws --
+  // breaking every certificate for the programme, not just one field.
+  const withNul = "Ada" + String.fromCharCode(0) + "Sons";
+  assert.equal(escapeXml(withNul), "AdaSons");
+});
+
+test("a lone high surrogate is stripped", () => {
+  const loneHigh = "Ada" + String.fromCharCode(0xd800) + "Sons";
+  assert.equal(escapeXml(loneHigh), "AdaSons");
+});
+
+test("a lone low surrogate is stripped", () => {
+  const loneLow = "Ada" + String.fromCharCode(0xdc00) + "Sons";
+  assert.equal(escapeXml(loneLow), "AdaSons");
+});
+
+test("a well-formed astral surrogate pair survives intact", () => {
+  // A high surrogate immediately followed by its low half is a legitimate
+  // character (an emoji, here) -- only an UNPAIRED half is illegal XML.
+  const emoji = String.fromCodePoint(0x1f600);
+  const withEmoji = "Ada " + emoji + " Sons";
+  assert.equal(escapeXml(withEmoji), withEmoji);
+});
+
+test("a tab or newline survives untouched", () => {
+  const withWhitespace = "Ada" + String.fromCharCode(9) + "Sons" + String.fromCharCode(10) + "!";
+  assert.equal(escapeXml(withWhitespace), withWhitespace);
+});
+
 test("text that already fits is never shrunk", () => {
   assert.equal(fitFontSize({ text: "Ada", startPx: 100, maxWidthPx: 400 }), 100);
 });
@@ -106,6 +141,17 @@ test("a tall image keeps its ratio", () => {
   assert.equal(box.height, 600);
 });
 
+test("placeImage throws rather than dividing by zero on an invalid asset", () => {
+  // asset dimensions come from probing an uploaded file -- nothing bounds
+  // them the way the canvas dimensions are schema-bounded. A 0-width asset
+  // would otherwise produce height: Infinity (0x0 gives NaN), which flows
+  // straight into sharp.resize() in the compositing step. Fail loud here,
+  // same reasoning as a missing background image: wrong-and-invisible is
+  // worse than a render that fails outright.
+  assert.throws(() => placeImage(CANVAS, { x: 0.1, y: 0.1, width: 0.2, align: "left" }, { width: 0, height: 200 }));
+  assert.throws(() => placeImage(CANVAS, { x: 0.1, y: 0.1, width: 0.2, align: "left" }, { width: 400, height: 0 }));
+});
+
 test("every text field appears in the layer", () => {
   const svg = buildTextLayerSvg(
     CANVAS,
@@ -116,4 +162,54 @@ test("every text field appears in the layer", () => {
   assert.ok(svg.includes("18 August 2026"));
   assert.ok(svg.startsWith("<svg"));
   assert.ok(svg.includes(`width="2000"`));
+});
+
+// Mirrors AVG_GLYPH_RATIO/MIN_FONT_PX from layout.ts. Duplicated, not
+// imported: this loop IS the specification fitFontSize is checked against,
+// so importing the constants it is meant to validate would let a future
+// change to those constants silently drag the spec along with the code
+// under test, instead of catching the disagreement.
+const REFERENCE_AVG_GLYPH_RATIO = 0.55;
+const REFERENCE_MIN_FONT_PX = 24;
+
+// The specification, not the optimisation: shrink one pixel at a time,
+// using the exact same multiplicative "does it fit" check as fitFontSize's
+// own early-return guard, until it fits or the legibility floor is hit.
+// fitFontSize's closed-form solve exists purely so this loop doesn't have
+// to run on every render; any input where the two disagree is a bug in the
+// closed form, not a fact about what "fits" means. This is the loop a spec
+// review brute-forced fitFontSize against and found ~10% disagreement in,
+// before the epsilon re-check above was added.
+function referenceFitFontSize(text: string, startPx: number, maxWidthPx: number): number {
+  const floorPx = Math.min(REFERENCE_MIN_FONT_PX, startPx);
+  let size = startPx;
+  while (size > floorPx && text.length * size * REFERENCE_AVG_GLYPH_RATIO > maxWidthPx) {
+    size -= 1;
+  }
+  return size;
+}
+
+const SAMPLE_TEXT_LENGTHS = [
+  0, 1, 2, 3, 5, 7, 10, 13, 17, 20, 25, 30, 40, 50, 60, 75, 90, 110, 130, 160, 200, 250, 300
+];
+const SAMPLE_START_PX = [8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 60, 72, 90, 100, 120, 150, 180, 200];
+const SAMPLE_MAX_WIDTH_PX = [20, 30, 50, 80, 100, 150, 200, 300, 400, 600, 800, 1200];
+
+test("fitFontSize agrees with a naive 1px-decrement reference loop across a sampled grid", () => {
+  const mismatches: string[] = [];
+  let checked = 0;
+  for (const len of SAMPLE_TEXT_LENGTHS) {
+    const text = "a".repeat(len);
+    for (const startPx of SAMPLE_START_PX) {
+      for (const maxWidthPx of SAMPLE_MAX_WIDTH_PX) {
+        checked += 1;
+        const actual = fitFontSize({ text, startPx, maxWidthPx });
+        const expected = referenceFitFontSize(text, startPx, maxWidthPx);
+        if (actual !== expected) {
+          mismatches.push(`len=${len} startPx=${startPx} maxWidthPx=${maxWidthPx} actual=${actual} expected=${expected}`);
+        }
+      }
+    }
+  }
+  assert.equal(mismatches.length, 0, `${mismatches.length}/${checked} disagreements:\n${mismatches.slice(0, 10).join("\n")}`);
 });
