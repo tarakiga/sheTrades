@@ -8742,3 +8742,512 @@ button.needs-attention-panel__item:focus {
   border-radius: var(--radius-md);
   height: var(--space-10);
 }
+
+/* ---------------------------------------------------------------------------
+   Certificate template editor (Phase 2)
+
+   Two panels: a canvas of draggable handles, and the server's own render. They
+   are styled to look different on purpose. The handles are dashed instruments;
+   the preview is a photograph of the artefact. Anything that made the left
+   panel look like a certificate would invite someone to sign off the browser's
+   approximation of sharp's text layout, which is exactly the mistake the
+   server-render preview exists to prevent.
+--------------------------------------------------------------------------- */
+
+.certificates-page__design-link,
+.certificate-template-page__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-brand-500);
+  text-decoration: none;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--border-hairline);
+  background: var(--color-neutral-0);
+  transition: background var(--duration-fast) var(--ease-out-soft);
+}
+
+.certificates-page__design-link:hover,
+.certificate-template-page__back:hover {
+  background: var(--color-neutral-50);
+}
+
+.certificates-page__design-link:focus-visible,
+.certificate-template-page__back:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.certificate-template-page__back {
+  justify-self: start;
+}
+
+.template-editor__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+}
+
+.template-editor__workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .template-editor__workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.template-editor__grid,
+.template-editor__create-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.template-editor__create {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.template-editor__publish {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.template-editor__publish-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.template-editor__hint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+  line-height: var(--line-height-normal);
+}
+
+.template-editor__error {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-700);
+  background: var(--color-danger-50);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.template-editor__notice {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-success-700);
+  background: var(--color-success-50);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.template-editor__placeholder {
+  height: 180px;
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-100);
+}
+
+.template-editor__history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.template-editor__history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-hairline);
+  font-size: var(--font-size-sm);
+}
+
+.template-editor__history-row > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.template-editor__history-version {
+  font-weight: 700;
+  color: var(--color-neutral-900);
+}
+
+.template-editor__history-state {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+}
+
+.template-editor__history-summary {
+  color: var(--color-neutral-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-editor__history-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.template-editor__history-when {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-xs);
+}
+
+/* -- canvas ---------------------------------------------------------------- */
+
+.certificate-canvas {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.certificate-canvas__stage {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-neutral-100);
+  box-shadow: var(--shadow-sm);
+  /* Handles are positioned against this box, so the browser must not treat a
+     drag on one as a scroll gesture and move it out from under them. */
+  touch-action: none;
+}
+
+.certificate-canvas__background,
+.certificate-canvas__background-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.certificate-canvas__background-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+}
+
+.certificate-canvas__handle {
+  position: absolute;
+  display: block;
+  padding: 0;
+  margin: 0;
+  cursor: grab;
+  background: rgba(51, 78, 88, 0.08);
+  border: 1px dashed var(--color-brand-500);
+  border-radius: var(--radius-sm);
+  min-width: 6px;
+  min-height: 6px;
+}
+
+.certificate-canvas__handle--image {
+  border-style: solid;
+  border-color: var(--color-info);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.certificate-canvas__handle:hover {
+  background: rgba(51, 78, 88, 0.16);
+}
+
+.certificate-canvas__handle.is-selected {
+  border-width: 2px;
+  border-color: var(--color-accent-400);
+  background: rgba(255, 190, 34, 0.18);
+  z-index: 2;
+}
+
+.certificate-canvas__handle.is-dragging {
+  cursor: grabbing;
+}
+
+.certificate-canvas__handle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  z-index: 3;
+}
+
+.certificate-canvas__handle-label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  transform: translateY(-2px);
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-brand-800);
+  color: var(--sidebar-text-strong);
+  pointer-events: none;
+}
+
+/* Where the renderer will actually sit the type. Without it the box reads as
+   containing the text, and a field nudged to "look centred" ends up a line
+   out. */
+.certificate-canvas__baseline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 18%;
+  height: 0;
+  border-top: 1px solid var(--color-brand-500);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.certificate-canvas__hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  line-height: var(--line-height-normal);
+}
+
+/* -- preview --------------------------------------------------------------- */
+
+.template-preview {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.template-preview__controls {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.template-preview__controls > *:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.template-preview__frame {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-neutral-100);
+  box-shadow: var(--shadow-sm);
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+}
+
+.template-preview__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.template-preview__placeholder {
+  color: var(--color-neutral-500);
+  font-size: var(--font-size-sm);
+  padding: var(--space-8);
+}
+
+.template-preview__error {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-700);
+  background: var(--color-danger-50);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.template-preview__note {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  line-height: var(--line-height-normal);
+}
+
+/* -- inspector ------------------------------------------------------------- */
+
+.field-inspector {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.field-inspector--empty {
+  padding: var(--space-6);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-50);
+  text-align: center;
+}
+
+.field-inspector__empty-title {
+  margin: 0 0 var(--space-1);
+  font-weight: 600;
+  color: var(--color-neutral-700);
+}
+
+.field-inspector__empty-body {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+}
+
+.field-inspector__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.field-inspector__title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-neutral-900);
+}
+
+.field-inspector__id {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+}
+
+.field-inspector__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.field-inspector__stack {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.field-inspector__checkbox {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-700);
+}
+
+.field-inspector__checkbox span {
+  display: grid;
+  gap: var(--space-1);
+  font-weight: 600;
+}
+
+.field-inspector__checkbox em {
+  font-style: normal;
+  font-weight: 400;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  line-height: var(--line-height-normal);
+}
+
+/* -- artwork --------------------------------------------------------------- */
+
+.asset-picker {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.asset-picker__upload {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.asset-picker__file {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.asset-picker__file-label {
+  font-weight: 600;
+  color: var(--color-neutral-700);
+}
+
+.asset-picker__file input {
+  font-size: var(--font-size-sm);
+}
+
+.asset-picker__error {
+  margin: 0;
+  grid-column: 1 / -1;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-700);
+  background: var(--color-danger-50);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  line-height: var(--line-height-normal);
+}
+
+.asset-picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.asset-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-hairline);
+}
+
+.asset-picker__item-meta {
+  display: grid;
+  min-width: 0;
+}
+
+.asset-picker__item-key {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-neutral-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.asset-picker__item-size {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+}
+
+.asset-picker__item-actions {
+  flex-shrink: 0;
+}
+
+.asset-picker__empty {
+  padding: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+  text-align: center;
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-50);
+}

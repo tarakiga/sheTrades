@@ -16,6 +16,8 @@ import { translationRequestsRouter } from "./routes/translation-requests.js";
 import { payoutsRouter } from "./payouts/routes.js";
 import { certificatePublicRouter } from "./certificates/routes-public.js";
 import { certificateAdminRouter } from "./certificates/routes-admin.js";
+import { certificateAssetRouter } from "./certificates/routes-assets.js";
+import { certificateTemplateRouter } from "./certificates/routes-template.js";
 import { reportSchedulesWorkerRouter } from "./reports/schedule-routes.js";
 
 const DEFAULT_LOCAL_CORS_ORIGINS = [
@@ -111,6 +113,13 @@ export function createApp() {
   // Before the general adminRouter so these paths are matched here rather
   // than falling through to it.
   app.use("/api/admin", certificateAdminRouter);
+  // The template document's own router: authoring, preview and publish. Kept
+  // apart from the router above because that one administers ISSUED
+  // certificates, and these two are edited for entirely different reasons.
+  app.use("/api/admin", certificateTemplateRouter);
+  // Separate again because its upload route parses a RAW body rather than
+  // JSON, and that parser is mounted per-route inside it.
+  app.use("/api/admin", certificateAssetRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/config/admin", configAdminRouter);
   app.use("/api/config/public", configPublicRouter);

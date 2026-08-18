@@ -192,3 +192,77 @@ placeholders {{orgName}}, {{reportLabel}}, {{period}}, {{fileName}},
 {{cadenceLabel}}. Sending uses the same SMTP integration as team invites
 (Settings → Integration); if SMTP is disabled, runs record "skipped" instead
 of failing silently.
+
+## 8. Certificates and the certificate design (Certificates)
+
+A certificate is created automatically when a learner completes every module.
+She is asked to confirm the name that will be printed, then sent the image in
+WhatsApp along with a public verification link.
+
+### Switching issuing on and off
+
+Certificates → the **Issuing** card at the top. Turning it ON is confirmed,
+because the next learner to finish receives a permanent, publicly shareable
+credential and a WhatsApp message cannot be recalled. Turning it OFF stops new
+certificates; ones already issued stay valid and their links keep working.
+
+### Editing the design (Certificates → Edit the design)
+
+The editor has two panels, and the difference between them matters:
+
+- **Layout** (left) shows dashed boxes over the artwork. Each box is a
+  **handle** — it says where a field is anchored and how much width it may use.
+  It is not the certificate. Drag a box, or select it and use the arrow keys
+  (hold Shift for bigger steps).
+- **Preview** (right) is the certificate, drawn by the same code that draws a
+  real one. It refreshes when you finish a change, not while you are dragging.
+  **Approve what is in the preview, never what is on the canvas** — the two are
+  not the same thing, and only the preview is what a learner receives.
+
+Use the **Preview for** selector to check the design against different learners
+before publishing — especially "A very long name" and "All capitals", which are
+how a layout that looked fine ends up with somebody's name running off the page.
+
+**Selected field** shows only the properties that field actually has. Positions
+and sizes are percentages of the certificate, not pixels, so the design stays
+correct whatever resolution it is rendered at. "Shrink to fit" steps a long
+name down in size rather than letting it overflow; leave it off for the
+certificate number, which has to stay readable at a fixed size.
+
+### Uploading artwork
+
+Certificates → Edit the design → **Artwork**. PNG, JPEG or SVG, up to 5 MB. A
+background must be at least 800×600.
+
+**Artwork is never replaced.** If you upload a new version of a logo, it gets a
+new name — the editor suggests a free one for you. This is not a limitation to
+work around: every certificate already issued still points at the artwork it was
+issued with, and overwriting those bytes would silently redraw credentials that
+are already in learners' hands, months later.
+
+Once uploaded, a background offers "Use as background" and a logo offers "Place
+on certificate", which drops it in the top-left corner for you to drag.
+
+### Saving, publishing and rolling back
+
+**Save draft** stores your work and changes nothing for learners. **Publish**
+makes it the design the next certificate is issued with. The note you type is
+kept in the version history, so write what changed.
+
+**History** lists every version. "Roll back to this" publishes an older design
+as a new version. Certificates already issued do not change — each one keeps a
+frozen copy of the design it was issued under, which is why an old verification
+link still shows the certificate somebody was actually given.
+
+### If something goes wrong
+
+- **"This layout uses artwork that has not been uploaded"** — a logo field
+  points at a name that is not in the artwork list. Select the field and pick a
+  logo, or remove the field.
+- **The preview shows an error instead of an image** — it names the field or the
+  missing artwork. The saved design is untouched; fix the field and it re-renders.
+- **A learner's name is wrong on an issued certificate** — Certificates → Edit
+  name. The verification link does not change, so a link she has already shared
+  keeps working.
+- **A certificate should not have been issued** — Revoke it, with a reason. The
+  public page then says plainly that it is no longer valid. This can be undone.

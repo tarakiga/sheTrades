@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { CertificatesTable } from "../../../components/certificates/CertificatesTable";
 import { IssuingSwitchCard } from "../../../components/certificates/IssuingSwitchCard";
@@ -70,6 +71,11 @@ export default function CertificatesPage() {
       <SectionHeader
         title="Certificates"
         description={`${total} issued. A certificate is created automatically when a learner completes every module.`}
+        actions={
+          <Link className="certificates-page__design-link" href="/certificates/template">
+            Edit the design
+          </Link>
+        }
       />
 
       <IssuingSwitchCard onChange={() => void load()} />
