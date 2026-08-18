@@ -116,6 +116,30 @@ export async function ensurePrismaTables() {
       );
     }
 
+    // auth_throttle — login rate limiting. Persisted so guesses cannot be
+    // spread across replicas or reset by a scale-to-zero. Keep in sync with
+    // schema.prisma.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS auth_throttle (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["scope", "TEXT"],
+      ["key", "TEXT"],
+      ["failures", "INTEGER NOT NULL DEFAULT 0"],
+      ["firstFailureAt", "TIMESTAMP(3)"],
+      ["lockedUntil", "TIMESTAMP(3)"],
+      ["lockoutCount", "INTEGER NOT NULL DEFAULT 0"],
+      ["updatedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE auth_throttle ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+    // The upsert path depends on this uniqueness holding.
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS auth_throttle_scope_key_key ON auth_throttle ("scope", "key");`
+    );
+
     // translation_requests — GAP-D1: the /content translation queue used to
     // live in an in-memory Map, so requests vanished whenever Cloud Run scaled
     // to zero. Keep in sync with the TranslationRequest model in schema.prisma.

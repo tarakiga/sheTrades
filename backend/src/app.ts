@@ -61,6 +61,17 @@ export function createApp() {
     next();
   });
 
+  // Behind Cloud Run every request arrives from Google's front end, so without
+  // this `req.ip` is that proxy for EVERY caller. Trusting exactly one hop makes
+  // Express skip the nearest proxy and read the address it appended, rather than
+  // the leftmost X-Forwarded-For entry — which a client can forge freely.
+  //
+  // Login throttling is keyed on the EMAIL, not on this, precisely because a
+  // mis-derived address would let one attacker lock out every admin at once.
+  // The address is recorded on auth logs for forensics only; treat it as a hint,
+  // not as an authenticated identity.
+  app.set("trust proxy", 1);
+
   // Capture the raw request bytes so the WhatsApp webhook can verify Meta's
   // X-Hub-Signature-256 HMAC (GAP-A8) — the parsed JSON can't be re-serialized
   // byte-for-byte.

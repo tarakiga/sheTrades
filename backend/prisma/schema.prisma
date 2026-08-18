@@ -211,6 +211,30 @@ model ReportSchedule {
   @@map("report_schedules")
 }
 
+/// Login throttling state. Persisted (not in-memory) for the same reason as
+/// AdminSession: Cloud Run runs several replicas, and an in-memory counter
+/// would let an attacker spread guesses across instances and reset on every
+/// scale-to-zero. One row per (scope, key) — scope is "email" today, leaving
+/// room for "ip" once the Cloud Run X-Forwarded-For shape is confirmed.
+model AuthThrottle {
+  id             String    @id @default(uuid())
+  scope          String
+  key            String
+  /// Failures inside the CURRENT window; reset when the window lapses.
+  failures       Int       @default(0)
+  firstFailureAt DateTime?
+  /// Set when the threshold trips; requests are refused until it passes.
+  lockedUntil    DateTime?
+  /// How many times this key has been locked out — drives progressive backoff
+  /// so repeat offenders wait longer while a fat-fingered admin waits minutes.
+  lockoutCount   Int       @default(0)
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([scope, key])
+  @@index([lockedUntil])
+  @@map("auth_throttle")
+}
+
 /// GAP-D1: admin sessions were held in an in-memory Map, so a session minted on
 /// one Cloud Run instance was invalid on another and every session was dropped
 /// when the service scaled to zero — logging admins out unpredictably.

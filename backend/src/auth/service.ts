@@ -10,6 +10,31 @@ import type {
 import { adminSessionSchema, adminUserStatusSchema } from "./contracts.js";
 import { getJwtConfig, signJwtHs256, type AuthRole, type JwtClaims } from "./token.js";
 import { prisma } from "../admin/prisma.js";
+import { logger } from "../lib/logging.js";
+import {
+  checkLoginAllowed,
+  clearLoginFailures,
+  recordLoginFailure
+} from "./throttle-store.js";
+import { createHash } from "node:crypto";
+
+/**
+ * Thrown when login is refused by the throttle rather than by bad credentials,
+ * so the route can answer 429 + Retry-After instead of a generic 401.
+ */
+export class LoginThrottledError extends Error {
+  readonly retryAfterSeconds: number;
+  constructor(retryAfterSeconds: number) {
+    super("Too many sign-in attempts. Please try again later.");
+    this.name = "LoginThrottledError";
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+/** Log a stable, non-reversible reference to an address — never the address. */
+function hashEmailForLog(email: string): string {
+  return createHash("sha256").update(email.trim().toLowerCase()).digest("hex").slice(0, 12);
+}
 
 type AdminUserRecord = {
   id: string;
@@ -265,6 +290,21 @@ export class AdminAuthService {
     });
   }
 
+  /**
+   * Record a failed attempt. Deliberately called for BOTH "no such account"
+   * and "wrong password" so the two are indistinguishable from outside —
+   * otherwise the throttle itself becomes an account-enumeration oracle.
+   */
+  private async registerLoginFailure(email: string): Promise<void> {
+    const { lockedOut, retryAfterSeconds } = await recordLoginFailure("email", email);
+    if (lockedOut) {
+      logger.warn("auth.login.locked_out", {
+        emailHash: hashEmailForLog(email),
+        retryAfterSeconds
+      });
+    }
+  }
+
   private async createSessionForUser(user: AdminUserRecord) {
     const issuedAt = Math.floor(Date.now() / 1000);
     const expiresAtSeconds = issuedAt + getSessionTtlSeconds();
@@ -311,16 +351,31 @@ export class AdminAuthService {
 
   async login(input: LoginRequest) {
     await this.ensureBootstrapped();
+
+    // Throttle BEFORE touching the account so a locked-out key costs an
+    // attacker one cheap lookup, and so the response cannot be timed to infer
+    // whether the address exists.
+    const decision = await checkLoginAllowed("email", input.email);
+    if (!decision.allowed) {
+      throw new LoginThrottledError(decision.retryAfterSeconds);
+    }
+
     const user = await this.findRecordByEmail(input.email);
     if (!user) {
+      await this.registerLoginFailure(input.email);
       throw new Error("Invalid email or password.");
     }
     if (user.status !== "active") {
       throw new Error("This admin account is disabled.");
     }
     if (!verifyPassword(input.password, user.passwordHash)) {
+      await this.registerLoginFailure(input.email);
       throw new Error("Invalid email or password.");
     }
+
+    // Correct credentials: wipe the slate so a legitimate admin who fumbled a
+    // few times is not still carrying a near-lockout.
+    await clearLoginFailures("email", input.email);
 
     const loginAt = new Date();
     await prisma.adminAccount.update({

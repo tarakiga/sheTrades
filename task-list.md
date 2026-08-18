@@ -399,3 +399,13 @@ restriction ("Permanent" = until verified). API confirms the account is otherwis
 - `[ ]` TECHHER: complete business verification (Business portfolio -> WhatsApp account -> Start Verification). Needs CAC certificate + proof of address + utility bill/bank statement matching the registered name. THIS NOW BLOCKS EVERYTHING - number registration, display name, and higher messaging limits all depend on it.
 - Verified 2026-08-17 that the TEST number still sends and receives normally (real inbound traffic reached the platform), so client UAT can continue meanwhile. Only launch is blocked.
 - Note: the Techherng WABA (1105900442606502) disappeared when the client deleted the WhatsApp Business App account, so the plan simplifies - register the real number into the EXISTING test WABA (991712293855596), which the app is already webhook-subscribed to. Only `phoneNumberId` changes in config, not `businessAccountId`, and the app-subscription step is no longer needed.
+
+## SEC: Login rate limiting (COMPLETED 2026-08-18)
+Gap found during 2FA planning: /auth/login had no throttling at all.
+- `[x]` RL-1: auth_throttle table (Postgres-backed for multi-replica safety) + migration + ensurePrismaTables mirror.
+- `[x]` RL-2: pure throttle-policy engine (sliding window, exponential lockout with ceiling, env-tunable) + 10 unit tests.
+- `[x]` RL-3: wired into login - checked before the account lookup, recorded for unknown AND known addresses (no enumeration oracle), cleared on success, 429 + Retry-After.
+- `[x]` RL-4: `trust proxy` set to 1 for Cloud Run. Throttle keys on EMAIL not IP deliberately - a mis-derived client address would let one attacker lock out every admin.
+- `[x]` RL-5: 5 route tests, suite 465/0, rev 00116-vfm, verified live (lockout, countdown, per-account isolation, case-rotation resistance).
+- `[ ]` Periodic prune of auth_throttle rows (harmless accumulation, hygiene only).
+- `[ ]` NEXT: 2FA (TOTP) per the agreed plan - see handoff.md.

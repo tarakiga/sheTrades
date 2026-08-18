@@ -11,7 +11,7 @@ import {
   updateProfileResponseSchema
 } from "../auth/contracts.js";
 import { authenticateJwt, requireAuthenticatedSession } from "../auth/jwt-rbac.js";
-import { getAdminAuthService } from "../auth/service.js";
+import { getAdminAuthService, LoginThrottledError } from "../auth/service.js";
 
 export const adminAuthRouter = Router();
 const authService = getAdminAuthService();
@@ -35,6 +35,14 @@ adminAuthRouter.post("/auth/login", async (req, res, next) => {
       res.status(400).json({
         message: "Invalid admin login request payload.",
         details: error.issues
+      });
+      return;
+    }
+    if (error instanceof LoginThrottledError) {
+      res.setHeader("Retry-After", String(error.retryAfterSeconds));
+      res.status(429).json({
+        message: error.message,
+        retryAfterSeconds: error.retryAfterSeconds
       });
       return;
     }

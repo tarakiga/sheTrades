@@ -1582,3 +1582,64 @@ header MUST now send X-SheTrades-Sandbox-Token too:
   TOK=$(gcloud secrets versions access latest --secret=whatsapp-sandbox-token)
 The dashboard simulator will need the same token wired in if/when it is
 used against staging - it currently sends only the Source header.
+
+## SECURITY: login rate limiting shipped (2026-08-18)
+
+Found during the 2FA planning conversation: /api/admin/auth/login had NO
+rate limiting or lockout of any kind - passwords could be guessed against
+it indefinitely. Agreed to do this BEFORE 2FA, since throttling stops a
+password leaking by brute force whereas 2FA only protects an account whose
+password already leaked.
+
+Design:
+- `auth_throttle` table (Postgres, not in-memory - Cloud Run runs several
+  replicas, so an in-memory counter would let an attacker spread guesses
+  across instances and reset on every scale-to-zero). Migration
+  20260818090000_auth_throttle + ensurePrismaTables mirror.
+- `throttle-policy.ts` is PURE (no DB, no clock of its own) so every branch
+  is unit-testable; `throttle-store.ts` is the thin persistence layer.
+- Keyed on the EMAIL, normalized to lowercase+trimmed. NOT on IP: Cloud Run
+  puts Google's front end in `req.ip` unless trust proxy is set, and a
+  mis-derived address would let one attacker lock out every admin at once.
+  `trust proxy` is now set to 1 (skip exactly one hop, so a client-forged
+  leftmost X-Forwarded-For is ignored) but IP is recorded for forensics
+  only, never used as a throttle key.
+- LOCKS for a bounded period rather than disabling the account - a permanent
+  lock would hand an attacker a trivial DoS against a known admin address.
+  Defaults: 5 failures / 15 min window -> 15 min lock, backing off
+  exponentially for repeat offenders (15m, 30m, 1h, 2h, 4h ceiling).
+  Tunable via AUTH_THROTTLE_MAX_FAILURES / _WINDOW_SECONDS /
+  _LOCKOUT_SECONDS / _MAX_LOCKOUT_SECONDS.
+- Failures are recorded for BOTH "no such account" and "wrong password", so
+  the throttle cannot be used as an account-enumeration oracle.
+- FAILS OPEN on a throttle-store error: a database blip must not lock every
+  admin out of their own dashboard. The password check still stands behind
+  it, and the degradation is logged (auth.throttle.*_failed).
+- A successful login clears the failure count but deliberately KEEPS
+  lockoutCount, so someone who eventually guesses right does not also earn
+  back the short early lockouts.
+- 429 + Retry-After header + retryAfterSeconds in the body.
+
+Tests: 10 pure policy tests + 5 route tests. Suite 465/0/48.
+Deployed rev 00116-vfm.
+
+VERIFIED LIVE against staging (throwaway @example.invalid addresses so no
+real admin was touched):
+- 5 failures -> 401 each; 6th -> 429 with Retry-After: 900; 7th -> 899
+  (counting down correctly).
+- A DIFFERENT address still gets 401, and admin@shetrades.digital was
+  confirmed NOT locked - per-account isolation holds.
+- Alternating letter case each attempt still locked on the 6th, so case
+  rotation cannot buy extra allowances.
+
+Note: payload validation (password >= 8 chars) runs BEFORE the throttle, so
+malformed requests do not consume the allowance. Fine - they cannot be
+credential guesses.
+
+FOLLOW-UPS:
+- auth_throttle rows accumulate (one per attempted address, including
+  garbage from attackers). Harmless but worth a periodic prune.
+- 2FA (TOTP) is the agreed next step. Plan: encrypted-at-rest secret,
+  two-step login with a short-lived challenge token that authenticateJwt
+  MUST reject on normal routes, hashed single-use recovery codes,
+  admin-resets-another-admin path, opt-in then enforced by config flag.
