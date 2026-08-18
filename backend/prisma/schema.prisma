@@ -274,7 +274,7 @@ model Certificate {
   id               String    @id @default(uuid())
   publicId         String    @unique
   userId           String    @unique
-  user             User      @relation(fields: [userId], references: [id])
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   learnerName      String
   programmeName    String
   modulesCompleted Int

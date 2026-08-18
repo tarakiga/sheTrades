@@ -183,10 +183,10 @@ export async function ensurePrismaTables() {
     // publicId is the identifier in the verification URL and one learner earns
     // at most one certificate; both upsert paths depend on these holding.
     await prisma.$executeRawUnsafe(
-      `CREATE UNIQUE INDEX IF NOT EXISTS certificates_publicId_key ON certificates ("publicId");`
+      `CREATE UNIQUE INDEX IF NOT EXISTS "certificates_publicId_key" ON certificates ("publicId");`
     );
     await prisma.$executeRawUnsafe(
-      `CREATE UNIQUE INDEX IF NOT EXISTS certificates_userId_key ON certificates ("userId");`
+      `CREATE UNIQUE INDEX IF NOT EXISTS "certificates_userId_key" ON certificates ("userId");`
     );
 
     // certificate_assets — certificate artwork as bytes in Postgres rather
@@ -462,6 +462,19 @@ export async function ensurePrismaTables() {
       DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rewards_userId_fkey') THEN
           ALTER TABLE rewards ADD CONSTRAINT "rewards_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
+    `);
+
+    // certificates.userId -> users.id. Added here rather than beside the
+    // CREATE TABLE above because `users` is not bootstrapped until later in
+    // this function. CASCADE so wiping a learner takes their certificate with
+    // them — a certificate for a deleted learner is unverifiable anyway.
+    await prisma.$executeRawUnsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'certificates_userId_fkey') THEN
+          ALTER TABLE certificates ADD CONSTRAINT "certificates_userId_fkey"
             FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE;
         END IF;
       END $$;

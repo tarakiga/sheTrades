@@ -1,8 +1,6 @@
 -- Completion certificates. Every printed value is stored on the row rather than
 -- joined at render time, so a certificate keeps saying what was true the day it
 -- was earned even as the curriculum changes beneath it.
--- No FK on "userId": rewards and user_progress were bootstrapped the same way,
--- with the relation enforced by Prisma at the application layer.
 -- Additive only; safe on a live DB.
 CREATE TABLE IF NOT EXISTS "certificates" (
     "id" TEXT NOT NULL,
@@ -46,3 +44,14 @@ CREATE TABLE IF NOT EXISTS "certificate_assets" (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "certificate_assets_key_key" ON "certificate_assets"("key");
+
+-- CASCADE so wiping a learner takes their certificate with them; a certificate
+-- for a deleted learner is unverifiable anyway. Guarded because the boot-time
+-- bootstrap in src/admin/prisma.ts adds the same constraint, and whichever runs
+-- second must be a no-op rather than an error.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'certificates_userId_fkey') THEN
+    ALTER TABLE "certificates" ADD CONSTRAINT "certificates_userId_fkey"
+      FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE;
+  END IF;
+END $$;

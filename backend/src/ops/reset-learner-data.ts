@@ -9,13 +9,14 @@
  *   POSTGRES_URL=... npm run ops:reset-learner-data -w @shetrades/backend -- --confirm
  *
  * CLEARED: users, user_sessions, user_progress, quiz_attempts, rewards,
- *          outbound_messages, processed_webhook_messages
+ *          certificates, outbound_messages, processed_webhook_messages
  * PRESERVED: config_documents / config_versions / config_audit_log (every
  *          lesson, quiz, FAQ, Resource, bot prompt, option set, legal block,
  *          branding, integration + reward rule, with full version history),
  *          admin_accounts, admin_sessions, report_schedules,
  *          translation_requests, translation_drafts (pending human review -
- *          real work product, NOT test data).
+ *          real work product, NOT test data), certificate_assets (certificate
+ *          artwork - design work, not learner data).
  *
  * Delete order is load-bearing: the learner relations are required with no
  * cascade rule, so Postgres refuses to delete a `users` row while any
@@ -56,6 +57,7 @@ const CLEAR_TABLES = [
   "quiz_attempts",
   "user_progress",
   "rewards",
+  "certificates",
   "user_sessions",
   "users",
   "outbound_messages",
@@ -70,7 +72,8 @@ const PRESERVE_TABLES = [
   "admin_sessions",
   "report_schedules",
   "translation_requests",
-  "translation_drafts"
+  "translation_drafts",
+  "certificate_assets"
 ] as const;
 
 async function snapshot(tables: readonly string[]): Promise<Record<string, number>> {
