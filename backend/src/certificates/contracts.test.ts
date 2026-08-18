@@ -75,3 +75,79 @@ test("a qrCode field needs no assetKey", () => {
 test("a template with no fields is rejected", () => {
   assert.throws(() => certificateTemplatePayloadSchema.parse({ ...VALID, fields: [] }));
 });
+
+const BODY_FIELD = {
+  id: "body",
+  variable: "bodyText",
+  text: "In recognition of your successful completion of the **SheTrades Digital Learning Programme**.",
+  x: 0.5,
+  y: 0.62,
+  maxWidth: 0.6,
+  align: "center",
+  font: "Poppins",
+  size: 0.022,
+  weight: 400,
+  color: "#333333"
+};
+
+test("a bodyText field parses and carries sensible wrapping defaults", () => {
+  const parsed = certificateTemplatePayloadSchema.parse({ ...VALID, fields: [BODY_FIELD] });
+  const field = parsed.fields[0];
+  assert.equal(field?.variable, "bodyText");
+  assert.ok(field && "lineHeight" in field && field.lineHeight === 1.4);
+  assert.ok(field && "maxLines" in field && field.maxLines === 4);
+});
+
+test("a bodyText field with nothing to say is rejected at publish", () => {
+  // An empty paragraph is a blank gap under the learner's name. Fail the
+  // publish, not the render -- the same rule a logo without an assetKey gets.
+  const bad = { ...VALID, fields: [{ ...BODY_FIELD, text: "   " }] };
+  assert.throws(() => certificateTemplatePayloadSchema.parse(bad));
+});
+
+test("a line cap of zero is rejected", () => {
+  const bad = { ...VALID, fields: [{ ...BODY_FIELD, maxLines: 0 }] };
+  assert.throws(() => certificateTemplatePayloadSchema.parse(bad));
+});
+
+test("a line height below single spacing is rejected", () => {
+  // Under 1.0 the lines overlap each other. There is no design that wants it,
+  // and the result is unreadable rather than merely tight.
+  const bad = { ...VALID, fields: [{ ...BODY_FIELD, lineHeight: 0.5 }] };
+  assert.throws(() => certificateTemplatePayloadSchema.parse(bad));
+});
+
+test("an issuedDate field takes a format and defaults to iso", () => {
+  const base = { ...VALID.fields[0], id: "date", variable: "issuedDate" };
+  const parsed = certificateTemplatePayloadSchema.parse({ ...VALID, fields: [base] });
+  const field = parsed.fields[0];
+  assert.ok(field && "format" in field && field.format === "iso");
+
+  const ordinal = certificateTemplatePayloadSchema.parse({
+    ...VALID,
+    fields: [{ ...base, format: "long-ordinal" }]
+  });
+  const ordinalField = ordinal.fields[0];
+  assert.ok(ordinalField && "format" in ordinalField && ordinalField.format === "long-ordinal");
+});
+
+test("an unknown date format is rejected", () => {
+  const bad = { ...VALID, fields: [{ ...VALID.fields[0], id: "date", variable: "issuedDate", format: "dd/mm/yy" }] };
+  assert.throws(() => certificateTemplatePayloadSchema.parse(bad));
+});
+
+test("a single-line field cannot smuggle in wrapping or format keys", () => {
+  // The branches are separate so that config which looks like it does
+  // something and does not can never be published. maxLines on a learner name
+  // is meaningless; it must not survive the parse looking meaningful.
+  const parsed = certificateTemplatePayloadSchema.parse({
+    ...VALID,
+    fields: [{ ...VALID.fields[0], maxLines: 3, lineHeight: 2, format: "long-ordinal", text: "hello" }]
+  });
+  const field = parsed.fields[0];
+  assert.ok(field);
+  assert.equal("maxLines" in field, false);
+  assert.equal("lineHeight" in field, false);
+  assert.equal("format" in field, false);
+  assert.equal("text" in field, false);
+});

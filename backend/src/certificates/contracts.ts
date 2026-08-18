@@ -51,12 +51,26 @@ export const certificateTextVariableSchema = z.enum([
   "learnerName",
   "programmeName",
   "issuedDate",
-  "certificateId"
+  "certificateId",
+  /** The wrapped paragraph under the learner's name. Unlike the four above it
+   * resolves to no value from the certificate record -- it carries its own
+   * `text`, because the sentence is template copy an admin writes, not a fact
+   * about the learner. It is in this enum anyway so that it routes through the
+   * same text half of the layout as everything else that is drawn as type. */
+  "bodyText"
 ]);
 
-const certificateTextFieldSchema = z.object({
+/** How an `issuedDate` renders. A closed set rather than a strftime-style
+ * pattern string: an admin needs to pick a house style, not to be handed a
+ * mini-language in which "%M" silently means minutes. */
+export const certificateDateFormatSchema = z.enum(["iso", "long-ordinal"]);
+export type CertificateDateFormat = z.infer<typeof certificateDateFormatSchema>;
+
+/** Everything a drawn-text field shares, whatever it draws. Spread into the
+ * branches below rather than extended, so each branch stays a plain z.object
+ * and therefore stays legal as a member of a discriminated union. */
+const textFieldShape = {
   id: z.string().min(1),
-  variable: certificateTextVariableSchema,
   x: normalised,
   y: normalised,
   maxWidth: normalised.default(0.8),
@@ -68,8 +82,62 @@ const certificateTextFieldSchema = z.object({
   weight: z.number().int().min(100).max(900).default(400),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   autoShrink: z.boolean().default(true)
+};
+
+/**
+ * The three text branches exist so that a property is only accepted where it
+ * MEANS something. `maxLines` on a learner name, or `format` on a certificate
+ * id, would parse happily into a single shared schema and then be ignored by
+ * the renderer -- config that looks like it does something and does not, which
+ * is the class of bug an admin has no way to diagnose. Splitting the branches
+ * makes zod strip such a key instead of storing it.
+ *
+ * The variable sets are DERIVED from certificateTextVariableSchema by
+ * exclusion rather than restated, so adding a variable to that enum without
+ * giving it a branch is caught here rather than at render time.
+ */
+const certificateSimpleTextFieldSchema = z.object({
+  variable: certificateTextVariableSchema.exclude(["issuedDate", "bodyText"]),
+  ...textFieldShape
 });
-export type CertificateTextField = z.infer<typeof certificateTextFieldSchema>;
+
+const certificateDateFieldSchema = z.object({
+  variable: z.literal("issuedDate"),
+  ...textFieldShape,
+  /**
+   * Defaults to `iso`, not to the prettier `long-ordinal` the delivered
+   * artwork uses. An unconfigured template should render the date it was
+   * given, unchanged and unambiguous: `iso` is the identity transform on the
+   * value the resolver supplies, so it needs no month table, no ordinal rules
+   * and no locale, and it cannot be misread as day-first or month-first by
+   * anyone. Choosing the English long form is a presentational decision, and
+   * presentational decisions on a credential should be made deliberately by
+   * whoever authors the template, not inherited by silence.
+   */
+  format: certificateDateFormatSchema.default("iso")
+});
+
+const certificateBodyTextFieldSchema = z.object({
+  variable: z.literal("bodyText"),
+  ...textFieldShape,
+  /** The paragraph itself, with optional `**bold**` runs. Capped so an
+   * accidental paste cannot produce a wall of type no shrink can rescue. */
+  text: z.string().trim().min(1).max(600),
+  /** Leading, as a multiple of the font size -- normalised for the same reason
+   * every other measurement here is. Floored at 1.0: below single spacing the
+   * lines overlap, which no design wants and which reads as a rendering
+   * fault rather than a tight setting. */
+  lineHeight: z.number().min(1).max(3).default(1.4),
+  /** The renderer shrinks the paragraph until it wraps within this many lines.
+   * If it cannot even at the legibility floor, the text OVERFLOWS rather than
+   * being truncated -- see fitWrappedText in layout.ts for why. */
+  maxLines: z.number().int().min(1).max(12).default(4)
+});
+
+export type CertificateTextField =
+  | z.infer<typeof certificateSimpleTextFieldSchema>
+  | z.infer<typeof certificateDateFieldSchema>
+  | z.infer<typeof certificateBodyTextFieldSchema>;
 
 /** Images placed on the artwork. `logo` is repeatable by design — several
  * partner marks sit as independent fields, so one partner's rebrand (or their
@@ -114,7 +182,9 @@ export type CertificateImageField = z.infer<typeof certificateImageFieldSchema>;
  * actually written for.
  */
 export const certificateFieldSchema = z.discriminatedUnion("variable", [
-  certificateTextFieldSchema,
+  certificateSimpleTextFieldSchema,
+  certificateDateFieldSchema,
+  certificateBodyTextFieldSchema,
   certificateImageFieldSchema
 ]);
 export type CertificateField = z.infer<typeof certificateFieldSchema>;

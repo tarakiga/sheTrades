@@ -1,6 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildTextLayerSvg, escapeXml, fitFontSize, placeImage } from "./layout.js";
+import {
+  buildTextLayerSvg,
+  escapeXml,
+  estimateLineWidthPx,
+  fitFontSize,
+  fitWrappedText,
+  formatDateValue,
+  parseInlineBold,
+  placeImage,
+  wrapRichText,
+  type TextSegment
+} from "./layout.js";
 
 const CANVAS = { width: 2000, height: 1414 };
 
@@ -225,4 +236,264 @@ test("fitFontSize agrees with a naive 1px-decrement reference loop across a samp
     }
   }
   assert.equal(mismatches.length, 0, `${mismatches.length}/${checked} disagreements:\n${mismatches.slice(0, 10).join("\n")}`);
+});
+
+// ---------------------------------------------------------------------------
+// Wrapped body paragraph with inline bold
+// ---------------------------------------------------------------------------
+
+/** The words a line carries, ignoring where the bold boundaries fell. */
+function plain(line: TextSegment[]): string {
+  return line.map((segment) => segment.text).join("");
+}
+
+const PARAGRAPH =
+  "In recognition of your successful completion of the " +
+  "**SheTrades Digital Learning Programme** and your commitment to building " +
+  "practical digital and business skills for greater economic opportunity.";
+
+const BODY_FIELD = {
+  id: "body",
+  variable: "bodyText" as const,
+  text: PARAGRAPH,
+  lineHeight: 1.4,
+  maxLines: 4,
+  x: 0.5,
+  y: 0.6,
+  maxWidth: 0.6,
+  align: "center" as const,
+  font: "DejaVu Sans",
+  size: 0.03,
+  weight: 400,
+  color: "#333333",
+  autoShrink: true
+};
+
+test("plain text parses as one non-bold segment", () => {
+  assert.deepEqual(parseInlineBold("just words"), [{ text: "just words", bold: false }]);
+});
+
+test("a bold run becomes its own segment and the markers are consumed", () => {
+  assert.deepEqual(parseInlineBold("the **SheTrades** programme"), [
+    { text: "the ", bold: false },
+    { text: "SheTrades", bold: true },
+    { text: " programme", bold: false }
+  ]);
+});
+
+test("bold at the very start and end of the string is still recognised", () => {
+  assert.deepEqual(parseInlineBold("**all of it**"), [{ text: "all of it", bold: true }]);
+});
+
+test("an unmatched marker degrades to literal text rather than throwing", () => {
+  // Admin-authored config. A typo must produce a slightly ugly certificate,
+  // never a render that fails for every learner on the programme.
+  assert.deepEqual(parseInlineBold("a **b"), [{ text: "a **b", bold: false }]);
+});
+
+test("an empty marker pair degrades to literal text", () => {
+  assert.deepEqual(parseInlineBold("a ****b"), [{ text: "a ****b", bold: false }]);
+});
+
+test("an empty string parses to no segments at all", () => {
+  assert.deepEqual(parseInlineBold(""), []);
+});
+
+test("a bold run is measured wider than the same characters unbolded", () => {
+  const boldWidth = estimateLineWidthPx([{ text: "aaaa", bold: true }], 100);
+  const plainWidth = estimateLineWidthPx([{ text: "aaaa", bold: false }], 100);
+  assert.ok(boldWidth > plainWidth, `${boldWidth} should exceed ${plainWidth}`);
+  // Pinned, not merely "greater": AVG_GLYPH_RATIO 0.8 times the 1.15 weight
+  // multiplier. If either moves, this is where the wrap model's width
+  // assumption is meant to be re-argued rather than silently re-derived.
+  assert.equal(plainWidth, 4 * 100 * 0.8);
+  assert.equal(boldWidth, 4 * 100 * 0.8 * 1.15);
+});
+
+test("a paragraph breaks on word boundaries at the width it was given", () => {
+  // Deterministic by construction: every word is 4 chars, so at 100px each
+  // word estimates to 320px and each space to 80px. Two words (720px) fit an
+  // 800px box; three (1120px) do not.
+  const lines = wrapRichText({ text: "aaaa ".repeat(6).trim(), maxWidthPx: 800, fontSizePx: 100 });
+  assert.equal(lines.length, 3);
+  assert.deepEqual(lines.map(plain), ["aaaa aaaa", "aaaa aaaa", "aaaa aaaa"]);
+});
+
+test("no line exceeds the box it was wrapped into", () => {
+  const lines = wrapRichText({ text: PARAGRAPH, maxWidthPx: 1200, fontSizePx: 42 });
+  for (const line of lines) {
+    assert.ok(
+      estimateLineWidthPx(line, 42) <= 1200,
+      `line "${plain(line)}" estimates ${estimateLineWidthPx(line, 42)} in a 1200px box`
+    );
+  }
+});
+
+test("wrapping loses no words and reorders none", () => {
+  const lines = wrapRichText({ text: PARAGRAPH, maxWidthPx: 1200, fontSizePx: 42 });
+  const rejoined = lines.map(plain).join(" ");
+  assert.equal(rejoined, PARAGRAPH.split("**").join(""));
+});
+
+test("a word longer than the whole line gets its own line rather than being split", () => {
+  // A hyphenated Nigerian surname is one word. Breaking it mid-word would
+  // print a name its owner does not have, permanently, on a credential.
+  const surname = "Chukwuemeka-Oluwaseun";
+  const lines = wrapRichText({ text: `Adaeze ${surname} Okonkwo`, maxWidthPx: 400, fontSizePx: 100 });
+  const carriers = lines.map(plain).filter((text) => text.includes("Chukwuemeka"));
+  assert.equal(carriers.length, 1);
+  assert.equal(carriers[0], surname);
+});
+
+test("a bold run that spans a line break stays bold on both lines", () => {
+  // The delivered artwork does exactly this: "SheTrades Digital Learning" ends
+  // one line and the bold "Programme" opens the next.
+  const lines = wrapRichText({ text: "plain **bbbb bbbb** plain", maxWidthPx: 800, fontSizePx: 100 });
+  assert.ok(lines.length >= 2);
+  const boldPerLine = lines.map((line) => line.filter((segment) => segment.bold).map((segment) => segment.text.trim()));
+  assert.deepEqual(boldPerLine.flat().join(" "), "bbbb bbbb");
+});
+
+test("text that already fits keeps the size the designer set", () => {
+  const fitted = fitWrappedText({ text: "aaaa ".repeat(6).trim(), maxWidthPx: 800, startPx: 100, maxLines: 3 });
+  assert.equal(fitted.fontSizePx, 100);
+  assert.equal(fitted.lines.length, 3);
+});
+
+test("text that needs more lines than the cap is shrunk until it fits the cap", () => {
+  // 6 four-char words in an 800px box. Three per line needs
+  // (3 * 4 + 2) * 0.8 * size <= 800, i.e. size <= 71.43 -- so 71, and 72 must
+  // still spill to a third line.
+  const fitted = fitWrappedText({ text: "aaaa ".repeat(6).trim(), maxWidthPx: 800, startPx: 100, maxLines: 2 });
+  assert.equal(fitted.fontSizePx, 71);
+  assert.equal(fitted.lines.length, 2);
+});
+
+test("an impossible cap overflows at the legibility floor instead of truncating", () => {
+  // Deliberate: a silently truncated sentence reads as a complete but
+  // different statement on a credential nobody can check. Overflow is
+  // visible; truncation is not.
+  const fitted = fitWrappedText({ text: "aaaa ".repeat(6).trim(), maxWidthPx: 200, startPx: 100, maxLines: 1 });
+  assert.equal(fitted.fontSizePx, 24);
+  assert.ok(fitted.lines.length > 1);
+  assert.equal(fitted.lines.map(plain).join(" "), "aaaa ".repeat(6).trim());
+});
+
+test("a body field emits one tspan per line inside a single text element", () => {
+  const svg = buildTextLayerSvg(CANVAS, [BODY_FIELD], VALUES);
+  const lines = fitWrappedText({
+    text: PARAGRAPH,
+    maxWidthPx: Math.round(0.6 * CANVAS.width),
+    startPx: Math.round(0.03 * CANVAS.height),
+    maxLines: 4
+  });
+  assert.equal(svg.split("<tspan").length - 1 >= lines.lines.length, true);
+  assert.equal(svg.split("<text ").length - 1, 1);
+  // Each line is its own text chunk, anchored at the field's x, which is what
+  // keeps centre and right alignment working per line rather than per block.
+  assert.equal(svg.split(`<tspan x="1000"`).length - 1, lines.lines.length);
+  assert.ok(svg.includes(`text-anchor="middle"`));
+});
+
+test("a body field preserves the spaces that separate its tspans", () => {
+  // Without xml:space="preserve" an SVG renderer may strip the space at the
+  // end of a tspan, running "the" straight into a bold "SheTrades".
+  const svg = buildTextLayerSvg(CANVAS, [BODY_FIELD], VALUES);
+  assert.ok(svg.includes(`xml:space="preserve"`));
+});
+
+test("a bold segment carrying a closing text tag comes out escaped", () => {
+  // The bold parser must not open a path where text reaches the XML parser
+  // unescaped. Escaping happens per segment, after the split, never before.
+  const svg = buildTextLayerSvg(
+    CANVAS,
+    [{ ...BODY_FIELD, text: "safe **</text><script>alert(1)</script>** words" }],
+    VALUES
+  );
+  assert.equal(svg.includes("<script>"), false);
+  assert.ok(svg.includes("&lt;/text&gt;"));
+  assert.ok(svg.includes(`font-weight="700"`));
+});
+
+test("a single-line field is emitted exactly as before, with no tspans", () => {
+  const svg = buildTextLayerSvg(CANVAS, [NAME_FIELD], VALUES);
+  assert.equal(svg.includes("<tspan"), false);
+  assert.equal(svg.includes("xml:space"), false);
+  assert.ok(svg.includes(">Adaeze Okonkwo</text>"));
+});
+
+// ---------------------------------------------------------------------------
+// Issued-date formatting
+// ---------------------------------------------------------------------------
+
+test("long-ordinal renders the date the delivered artwork asks for", () => {
+  assert.equal(formatDateValue("2026-08-23", "long-ordinal"), "August 23rd, 2026");
+});
+
+test("iso renders the calendar date alone", () => {
+  assert.equal(formatDateValue("2026-08-23", "iso"), "2026-08-23");
+  assert.equal(formatDateValue("2026-08-23T11:22:33.000Z", "iso"), "2026-08-23");
+});
+
+test("the teens take th, which is where naive ordinal code breaks", () => {
+  assert.equal(formatDateValue("2026-01-11", "long-ordinal"), "January 11th, 2026");
+  assert.equal(formatDateValue("2026-01-12", "long-ordinal"), "January 12th, 2026");
+  assert.equal(formatDateValue("2026-01-13", "long-ordinal"), "January 13th, 2026");
+});
+
+test("every ordinal suffix in a month is correct", () => {
+  const expected = [
+    "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th",
+    "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th",
+    "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th", "29th", "30th", "31st"
+  ];
+  for (let day = 1; day <= 31; day += 1) {
+    const iso = `2026-01-${String(day).padStart(2, "0")}`;
+    assert.equal(formatDateValue(iso, "long-ordinal"), `January ${expected[day - 1]}, 2026`);
+  }
+});
+
+test("a date with no configured format is left exactly as it arrived", () => {
+  assert.equal(formatDateValue("2026-08-23", undefined), "2026-08-23");
+});
+
+test("a value that is not an ISO date passes through rather than rendering Invalid Date", () => {
+  // The value is produced by this codebase, not by a learner, so a mismatch
+  // here is a bug in our own resolver. Rendering the raw value is still a
+  // TRUE date on the credential; failing the render is not recoverable once
+  // the learner is waiting for it, and "Invalid Date" would be a lie.
+  assert.equal(formatDateValue("18 August 2026", "long-ordinal"), "18 August 2026");
+  assert.equal(formatDateValue("2026-13-45", "long-ordinal"), "2026-13-45");
+  assert.equal(formatDateValue("", "iso"), "");
+});
+
+test("a date field renders through its configured format", () => {
+  const svg = buildTextLayerSvg(
+    CANVAS,
+    [{ ...NAME_FIELD, id: "d", variable: "issuedDate" as const, format: "long-ordinal" as const, y: 0.8 }],
+    { ...VALUES, issuedDate: "2026-08-23" }
+  );
+  assert.ok(svg.includes("August 23rd, 2026"));
+});
+
+test("a date field shrinks against its FORMATTED width, not its raw value", () => {
+  // "2026-08-23" is 10 characters; "August 23rd, 2026" is 17. Sizing on the
+  // raw value would let the long form overhang a box the short form fitted.
+  const svg = buildTextLayerSvg(
+    CANVAS,
+    [
+      {
+        ...NAME_FIELD,
+        id: "d",
+        variable: "issuedDate" as const,
+        format: "long-ordinal" as const,
+        maxWidth: 0.1,
+        size: 0.05,
+        y: 0.8
+      }
+    ],
+    { ...VALUES, issuedDate: "2026-08-23" }
+  );
+  const fitted = fitFontSize({ text: "August 23rd, 2026", startPx: Math.round(0.05 * CANVAS.height), maxWidthPx: 200 });
+  assert.ok(svg.includes(`font-size="${fitted}"`));
 });

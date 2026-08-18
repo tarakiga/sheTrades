@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import sharp from "sharp";
 import { certificateTemplatePayloadSchema, type CertificateTemplatePayload } from "./contracts.js";
-import type { TextValues } from "./layout.js";
+import { estimateLineWidthPx, fitWrappedText, type TextValues } from "./layout.js";
 import type { AssetLoader, LoadedAsset } from "./assets.js";
 import { renderCertificatePng } from "./render.js";
 
@@ -318,4 +318,97 @@ test("a qrCode field with no verify URL fails rather than printing a QR that lea
     }),
     /verify/i
   );
+});
+
+const PARAGRAPH =
+  "In recognition of your successful completion of the " +
+  "**SheTrades Digital Learning Programme** and your commitment to building " +
+  "practical digital and business skills for greater economic opportunity.";
+
+const BODY_FIELD = {
+  id: "body",
+  variable: "bodyText",
+  text: PARAGRAPH,
+  x: 0.5,
+  y: 0.6,
+  maxWidth: 0.8,
+  align: "center",
+  font: "DejaVu Sans",
+  size: 0.04,
+  weight: 400,
+  color: "#333333",
+  maxLines: 6
+};
+
+test("a long wrapped paragraph renders and stays inside the box it was given", async () => {
+  const { loadAsset } = loaderFor(await fullAssetMap());
+  const png = await renderCertificatePng({
+    template: buildTemplate({ fields: [NAME_FIELD, BODY_FIELD, DATE_FIELD] }),
+    values: VALUES,
+    verifyUrl: VERIFY_URL,
+    loadAsset
+  });
+
+  const meta = await sharp(png).metadata();
+  assert.equal(meta.format, "png");
+  assert.equal(meta.width, CANVAS.width);
+  assert.equal(meta.height, CANVAS.height);
+
+  // Pixels are not the assertion -- the geometry is. The same pure function
+  // the renderer uses decides the wrap, so checking it here checks what was
+  // actually drawn without decoding glyphs.
+  const boxPx = Math.round(0.8 * CANVAS.width);
+  const startPx = Math.round(0.04 * CANVAS.height);
+  const fitted = fitWrappedText({ text: PARAGRAPH, maxWidthPx: boxPx, startPx, maxLines: 6 });
+
+  assert.ok(fitted.lines.length > 1, "a 190-character paragraph must actually wrap");
+  assert.ok(fitted.lines.length <= 6, `wrapped to ${fitted.lines.length} lines against a cap of 6`);
+  for (const line of fitted.lines) {
+    const width = estimateLineWidthPx(line, fitted.fontSizePx);
+    assert.ok(width <= boxPx, `a line estimates ${width}px in a ${boxPx}px box`);
+  }
+
+  // The block is centred on x=0.5, so half its widest line either side must
+  // still land on the canvas.
+  const widest = Math.max(...fitted.lines.map((line) => estimateLineWidthPx(line, fitted.fontSizePx)));
+  const centreX = 0.5 * CANVAS.width;
+  assert.ok(centreX - widest / 2 >= 0);
+  assert.ok(centreX + widest / 2 <= CANVAS.width);
+
+  // And the block's last baseline must still be on the canvas, which is the
+  // half of "inside the canvas" that wrapping -- not fitFontSize -- owns.
+  const lastBaseline = 0.6 * CANVAS.height + (fitted.lines.length - 1) * 1.4 * fitted.fontSizePx;
+  assert.ok(lastBaseline <= CANVAS.height, `last baseline at ${lastBaseline} on a ${CANVAS.height}px canvas`);
+});
+
+test("a paragraph carrying markup inside a bold run still produces a valid PNG", async () => {
+  // Same reasoning as the learner-name case: if per-segment escaping ever
+  // regressed, the malformed layer would make sharp throw rather than quietly
+  // draw a tag. The bold split is the new path where that could happen.
+  const { loadAsset } = loaderFor(await fullAssetMap());
+  const png = await renderCertificatePng({
+    template: buildTemplate({
+      fields: [NAME_FIELD, { ...BODY_FIELD, text: 'ok **</text><script>alert(1)</script>** ok' }]
+    }),
+    values: VALUES,
+    verifyUrl: VERIFY_URL,
+    loadAsset
+  });
+
+  const meta = await sharp(png).metadata();
+  assert.equal(meta.format, "png");
+  assert.equal(meta.width, CANVAS.width);
+});
+
+test("a date field renders through the format its template configured", async () => {
+  const { loadAsset } = loaderFor(await fullAssetMap());
+  const png = await renderCertificatePng({
+    template: buildTemplate({ fields: [{ ...DATE_FIELD, format: "long-ordinal" }] }),
+    values: { ...VALUES, issuedDate: "2026-08-23" },
+    verifyUrl: VERIFY_URL,
+    loadAsset
+  });
+
+  const meta = await sharp(png).metadata();
+  assert.equal(meta.format, "png");
 });

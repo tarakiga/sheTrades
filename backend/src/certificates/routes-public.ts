@@ -103,12 +103,16 @@ const defaultDeps: CertificatePublicDeps = {
 };
 
 /**
- * Formats the issue date for both the page and the artwork, in UTC.
+ * Formats the issue date for the VERIFICATION PAGE, in UTC.
  *
  * UTC and a fixed locale on purpose: the date printed on the certificate was
  * frozen when it was issued, and a verification page that renders it a day
  * earlier for a reader in Lagos than for one in Auckland reads as a
  * discrepancy between the page and the image it is vouching for.
+ *
+ * The ARTWORK no longer goes through here -- see issuedDateForArtwork. The
+ * page keeps its own presentation because it is HTML this module writes and
+ * nobody configures, where the certificate's is a template decision.
  */
 function formatIssuedDate(value: Date): string {
   return value.toLocaleDateString("en-GB", {
@@ -117,6 +121,23 @@ function formatIssuedDate(value: Date): string {
     year: "numeric",
     timeZone: "UTC"
   });
+}
+
+/**
+ * The date handed to the renderer: the plain UTC calendar date, unformatted.
+ *
+ * Presentation is the TEMPLATE's decision now (the issuedDate field carries a
+ * `format`), so this resolver's job is to supply a machine-readable value and
+ * nothing else. Handing the renderer a pre-prettified "23 August 2026" would
+ * make that field's format inert, and a formatter that had to parse English
+ * month names back out of a string it was given would be a second date model
+ * to keep in step with the first.
+ *
+ * toISOString is UTC by definition, which is the same clock formatIssuedDate
+ * pins the page to -- the two must not disagree about which day it is.
+ */
+function issuedDateForArtwork(value: Date): string {
+  return value.toISOString().slice(0, 10);
 }
 
 export type VerifyPageInput = {
@@ -654,7 +675,7 @@ export function createCertificatePublicRouter(overrides: Partial<CertificatePubl
           // at issue time is what this learner was certified in, even if the
           // template has since been renamed.
           programmeName: row.programmeName,
-          issuedDate: formatIssuedDate(row.issuedAt),
+          issuedDate: issuedDateForArtwork(row.issuedAt),
           certificateId: row.publicId
         },
         verifyUrl: urls.verify,
