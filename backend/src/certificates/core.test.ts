@@ -46,6 +46,15 @@ test("zero-width characters are stripped, not treated as spaces", () => {
   });
 });
 
+test("bidi override characters are stripped", () => {
+  // U+202E would render the rest of the name reversed. On a credential
+  // whose whole point is being trustworthy, that is a spoofing vector.
+  assert.deepEqual(sanitiseLearnerName("Ada\u202EOkeke"), {
+    ok: true,
+    value: "AdaOkeke"
+  });
+});
+
 test("control characters are stripped", () => {
   assert.deepEqual(sanitiseLearnerName("Ada\u0000 Okeke"), {
     ok: true,

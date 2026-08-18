@@ -26,13 +26,29 @@ export type SanitiseResult =
   | { ok: true; value: string }
   | { ok: false; reason: "empty" | "too_long" };
 
-// Control chars (C0 + C1), zero-width spaces/joiners, and the BOM. Kept as a
-// literal escape-sequence regex (never literal invisible characters) so the
-// source stays legible in any editor or diff tool.
-const INVISIBLE_CHARS = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\uFEFF]/g;
+// Control chars (C0 + C1), zero-width spaces/joiners, bidi controls, and the
+// BOM. Bidi overrides (U+202E RIGHT-TO-LEFT OVERRIDE and friends) are the
+// classic trick for making text render in reversed order to disguise what
+// it actually says; on a publicly verifiable credential that is a spoofing
+// vector, not a cosmetic bug. \u200E and \u200F (LRM/RLM) are already
+// covered by the \u200B-\u200F run below, so they are not repeated.
+//
+// U+200D ZERO WIDTH JOINER also falls inside that run, so multi-codepoint
+// emoji (which ZWJ glues into one glyph) split into separate glyphs here.
+// That is a deliberate tradeoff for a name field on a formal certificate,
+// not an oversight -- do not "fix" it by carving ZWJ out of the range.
+//
+// Kept as a literal escape-sequence regex (never literal invisible
+// characters) so the source stays legible in any editor or diff tool.
+const INVISIBLE_CHARS = /[\u0000-\u001F\u007F-\u009F\u061C\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
 
 export function sanitiseLearnerName(raw: string): SanitiseResult {
-  const stripped = raw.replace(INVISIBLE_CHARS, "");
+  // NFC before trim/collapse: a combining-mark spelling ("e" + U+0301) and
+  // its precomposed form (an e with an accent) must land as the same stored
+  // value, or the length cap measures an arbitrary encoding rather than the
+  // name, and two learners who typed "the same" name would later compare
+  // unequal.
+  const stripped = raw.replace(INVISIBLE_CHARS, "").normalize("NFC");
   const value = stripped.trim().replace(/\s+/g, " ");
 
   if (value.length === 0) return { ok: false, reason: "empty" };
