@@ -39,6 +39,16 @@ export type LearnerDetail = {
   progress: Array<{ module: string; completionPercentage: number; updatedAt: string }>;
   quizAttempts: Array<{ lessonKey: string; passed: boolean; attemptCount: number; lastAttemptAt: string }>;
   rewards: Array<{ id: string; module: string; amount: number; channel: string; status: string; issuedAt: string | null; createdAt: string }>;
+  /** Absent when she has not earned one. Carries no phone number and no
+   * template snapshot - the drawer shows status and links to the public
+   * page, nothing more. */
+  certificate?: {
+    id: string;
+    publicId: string;
+    learnerName: string;
+    issuedAt: string;
+    revokedAt: string | null;
+  };
 };
 
 export type UsersPageData = {

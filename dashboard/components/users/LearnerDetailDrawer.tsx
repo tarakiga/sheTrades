@@ -11,6 +11,7 @@ import {
 import { getLearnerDetail } from "../../lib/admin/api";
 import { formatNgn, formatRelativeTime } from "../../lib/format";
 import type { LearnerDetail } from "../../lib/admin/contracts";
+import { certificateVerifyUrl } from "../../lib/admin/certificates";
 import { Badge } from "../ui";
 
 export type LearnerDetailDrawerProps = {
@@ -241,7 +242,7 @@ type LearnerDetailBodyProps = {
 function LearnerDetailBody(props: LearnerDetailBodyProps): ReactElement {
   const { detail, currentFlagged, noteValue, flagging, onFlagToggle, onNoteChange } =
     props;
-  const { identity, session, progress, quizAttempts, rewards } = detail;
+  const { identity, session, progress, quizAttempts, rewards, certificate } = detail;
 
   return (
     <>
@@ -437,6 +438,36 @@ function LearnerDetailBody(props: LearnerDetailBodyProps): ReactElement {
           </ul>
         )}
       </section>
+
+      {/* Certificate */}
+      {certificate ? (
+        <section
+          className="learner-detail-drawer__section"
+          aria-label="Certificate"
+        >
+          <h3 className="learner-detail-drawer__section-title">Certificate</h3>
+          <ul className="learner-detail-drawer__list">
+            <li className="learner-detail-drawer__list-item">
+              <span className="learner-detail-drawer__list-item-label">
+                {certificate.learnerName}
+              </span>
+              <span className="learner-detail-drawer__list-item-meta">
+                <Badge variant={certificate.revokedAt ? "danger" : "success"}>
+                  {certificate.revokedAt ? "Revoked" : "Issued"}
+                </Badge>
+                <a
+                  className="learner-detail-drawer__certificate-link"
+                  href={certificateVerifyUrl(certificate.publicId)}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  Verify page
+                </a>
+              </span>
+            </li>
+          </ul>
+        </section>
+      ) : null}
 
       {/* Rewards */}
       <section

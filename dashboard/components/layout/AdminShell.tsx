@@ -89,6 +89,13 @@ const RewardsIcon = (
     <path d="M12 8.5C12 6 10.5 4 8.5 4S6 6 8 7.2c1.3.8 4 1.3 4 1.3ZM12 8.5C12 6 13.5 4 15.5 4S18 6 16 7.2c-1.3.8-4 1.3-4 1.3Z" />
   </Icon>
 );
+const CertificatesIcon = (
+  <Icon>
+    <circle cx="12" cy="9.5" r="5.5" />
+    <path d="M9.5 9.5l1.8 1.8 3.2-3.4" />
+    <path d="M9 14.6 7.5 21l4.5-2.3L16.5 21 15 14.6" />
+  </Icon>
+);
 const ReportsIcon = (
   <Icon>
     <path d="M6 3h8l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
@@ -115,7 +122,13 @@ const navSections: Array<NavSection> = [
     labelFallback: "Operations",
     items: [
       { copyKey: "nav.rewards", fallbackLabel: "Rewards", href: "/rewards", icon: RewardsIcon },
-      { copyKey: "nav.reports", fallbackLabel: "Reports", href: "/reports", icon: ReportsIcon }
+      { copyKey: "nav.reports", fallbackLabel: "Reports", href: "/reports", icon: ReportsIcon },
+      {
+        copyKey: "nav.certificates",
+        fallbackLabel: "Certificates",
+        href: "/certificates",
+        icon: CertificatesIcon
+      }
     ]
   },
   {

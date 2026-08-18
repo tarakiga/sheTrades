@@ -8538,3 +8538,164 @@ button.needs-attention-panel__item:focus {
   padding: var(--space-2);
   text-align: center;
 }
+
+/* ---------------------------------------------------------------------------
+   Certificates
+   Composed from the same tokens the rewards table uses, so the two operations
+   screens read as one system rather than two.
+   ------------------------------------------------------------------------ */
+
+.certificates-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.certificates-page__toolbar {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.certificates-page__filters {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.certificates-page__error {
+  background: var(--color-danger-50);
+  border: 1px solid var(--color-danger-200);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-700);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.certificates-page__notice {
+  background: var(--color-success-50);
+  border: 1px solid var(--color-success-200);
+  border-radius: var(--radius-md);
+  color: var(--color-success-700);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.certificates-table {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+}
+
+.certificates-table__table {
+  border-collapse: collapse;
+  table-layout: auto;
+  width: 100%;
+}
+
+.certificates-table__caption {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.certificates-table__sr-only {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.certificates-table__table th {
+  background: var(--color-neutral-50);
+  border-bottom: 1px solid var(--color-neutral-200);
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.certificates-table__table td {
+  border-bottom: 1px solid var(--color-neutral-100);
+  color: var(--color-neutral-800);
+  font-size: var(--font-size-sm);
+  padding: var(--space-3) var(--space-4);
+  vertical-align: middle;
+}
+
+.certificates-table__name {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* A revoked row stays legible rather than being greyed into illegibility:
+   an operator still needs to read it to understand what happened. */
+.certificates-table__row--revoked td {
+  background: var(--color-neutral-50);
+}
+
+.certificates-table__reason {
+  color: var(--color-neutral-600);
+  display: block;
+  font-size: var(--font-size-xs);
+  margin-top: var(--space-1);
+}
+
+.certificates-table__link {
+  color: var(--color-primary-600);
+  text-decoration: underline;
+}
+
+.certificates-table__link:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+.certificates-table__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.certificates-table__skeleton-row {
+  background: var(--color-neutral-100);
+  border-bottom: 1px solid var(--color-neutral-200);
+  height: var(--space-10);
+}
+
+.certificates-table__empty {
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+}
+
+.certificates-table__empty-title {
+  color: var(--color-neutral-800);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-2);
+}
+
+.certificates-table__empty-body {
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-sm);
+  margin: 0 auto;
+  max-width: 42ch;
+}
+
+.learner-detail-drawer__certificate-link {
+  color: var(--color-primary-600);
+  font-size: var(--font-size-xs);
+  text-decoration: underline;
+}
