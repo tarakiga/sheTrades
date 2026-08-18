@@ -153,6 +153,68 @@ export async function ensurePrismaTables() {
       `CREATE UNIQUE INDEX IF NOT EXISTS auth_throttle_scope_key_key ON auth_throttle ("scope", "key");`
     );
 
+    // certificates — one row per learner who has finished every module. Every
+    // printed value is a column rather than a join because a certificate must
+    // keep saying what was true the day it was earned, even as the curriculum
+    // changes underneath it. Keep in sync with schema.prisma.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS certificates (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["publicId", "TEXT"],
+      ["userId", "TEXT"],
+      ["learnerName", "TEXT"],
+      ["programmeName", "TEXT"],
+      ["modulesCompleted", "INTEGER NOT NULL DEFAULT 0"],
+      ["totalModules", "INTEGER NOT NULL DEFAULT 0"],
+      ["issuedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"],
+      ["revokedAt", "TIMESTAMP(3)"],
+      ["revokedReason", "TEXT"],
+      ["revokedBy", "TEXT"],
+      ["templateKey", "TEXT"],
+      ["templateVersion", "INTEGER NOT NULL DEFAULT 1"],
+      ["createdAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"],
+      ["updatedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE certificates ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+    // publicId is the identifier in the verification URL and one learner earns
+    // at most one certificate; both upsert paths depend on these holding.
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS certificates_publicId_key ON certificates ("publicId");`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS certificates_userId_key ON certificates ("userId");`
+    );
+
+    // certificate_assets — certificate artwork as bytes in Postgres rather
+    // than object storage: a handful of images does not justify a GCS bucket,
+    // its IAM policy and a CORS config. Keep in sync with schema.prisma.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS certificate_assets (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["key", "TEXT"],
+      ["kind", "TEXT"],
+      ["mimeType", "TEXT"],
+      ["bytes", "BYTEA"],
+      ["width", "INTEGER NOT NULL DEFAULT 0"],
+      ["height", "INTEGER NOT NULL DEFAULT 0"],
+      ["checksum", "TEXT"],
+      ["uploadedBy", "TEXT"],
+      ["uploadedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE certificate_assets ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+    // Assets are addressed by key from the template, never by row id.
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS certificate_assets_key_key ON certificate_assets ("key");`
+    );
+
     // translation_requests — GAP-D1: the /content translation queue used to
     // live in an in-memory Map, so requests vanished whenever Cloud Run scaled
     // to zero. Keep in sync with the TranslationRequest model in schema.prisma.

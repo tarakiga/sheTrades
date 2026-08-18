@@ -27,6 +27,7 @@ model User {
   progress     UserProgress[]
   quizAttempts QuizAttempt[]
   rewards      Reward[]
+  certificate  Certificate?
 
   @@map("users")
 }
@@ -262,4 +263,51 @@ model AdminSession {
 
   @@index([adminUserId])
   @@map("admin_sessions")
+}
+
+/// A learner's completion certificate. Every printed value is a column rather
+/// than a join because a certificate must keep saying what was true the day it
+/// was earned, even as the curriculum is renamed or modules are added beneath
+/// it. publicId is the only identifier that appears in the verification URL —
+/// the row id never leaves the backend.
+model Certificate {
+  id               String    @id @default(uuid())
+  publicId         String    @unique
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id])
+  learnerName      String
+  programmeName    String
+  modulesCompleted Int
+  totalModules     Int
+  issuedAt         DateTime  @default(now())
+  revokedAt        DateTime?
+  revokedReason    String?
+  revokedBy        String?
+  /// Which template rendered this certificate, and at which revision — a
+  /// reissue must be able to reproduce the original artwork.
+  templateKey      String
+  templateVersion  Int
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([issuedAt])
+  @@map("certificates")
+}
+
+/// Certificate artwork (backgrounds, seals, signatures) stored as bytes in
+/// Postgres rather than object storage: a handful of images does not justify a
+/// GCS bucket, its IAM policy and a CORS config.
+model CertificateAsset {
+  id         String   @id @default(uuid())
+  key        String   @unique
+  kind       String
+  mimeType   String
+  bytes      Bytes
+  width      Int
+  height     Int
+  checksum   String
+  uploadedBy String
+  uploadedAt DateTime @default(now())
+
+  @@map("certificate_assets")
 }
