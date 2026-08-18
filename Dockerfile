@@ -45,10 +45,11 @@ ENV PORT=8080
 # reported 0 fonts and a 64px name rendered 504 dark pixels of tofu, against
 # 9365 for the identical SVG on a machine that has fonts.
 #
-# DejaVu is a stopgap, not the answer. The real certificate design will want
-# a brand font committed to the repo and installed here instead; whoever
-# seeds the final artwork owns that decision.
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates fontconfig fonts-dejavu-core \
+# Roboto is the certificate's design font, chosen by the client. DejaVu stays
+# as the fallback: Roboto's Latin coverage is fine for names but DejaVu's is
+# far wider, and a learner whose name carries an unusual diacritic should get
+# her name rather than a row of boxes.
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates fontconfig fonts-roboto-unhinted fonts-dejavu-core \
   && rm -rf /var/lib/apt/lists/*
 
 # Install runtime deps for backend workspace only

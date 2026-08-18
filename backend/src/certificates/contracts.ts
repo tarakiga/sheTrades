@@ -81,7 +81,22 @@ const textFieldShape = {
   size: normalised,
   weight: z.number().int().min(100).max(900).default(400),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  autoShrink: z.boolean().default(true)
+  autoShrink: z.boolean().default(true),
+  /**
+   * Average glyph width as a fraction of font size, overriding the renderer's
+   * global upper bound for this field only.
+   *
+   * A font METRIC, not a design decision - which is why it is optional and why
+   * most fields should omit it. Measured in Roboto, prose runs about 0.45 while
+   * an all-capitals name reaches 0.65, and no single number serves both: the
+   * safe value for a shouted name breaks a paragraph onto an extra line, and
+   * the accurate value for a paragraph lets a shouted name overhang its box.
+   * So a field whose content is known to be prose can declare tighter and get
+   * the line breaks the design intends.
+   *
+   * Font-specific. Re-measure if the typeface changes.
+   */
+  glyphRatio: z.number().min(0.3).max(1.5).optional()
 };
 
 /**

@@ -9,18 +9,19 @@ import { certificateTemplatePayloadSchema, type CertificateTemplatePayload } fro
  * the bounding box of what the mockup added. Colours were sampled from the
  * mockup's own glyphs rather than guessed from the brand palette.
  *
- * The four logo images were CROPPED OUT of that mockup, because only the
- * SheTrades rosette existed as a separate file. A useful consequence: each
- * crop carries the exact cream gradient it sat on, so compositing it back at
- * the coordinates it came from is seamless. If the partner originals ever
- * arrive, replace the assets under NEW keys - see assets.ts on why keys are
- * immutable.
+ * The three PARTNER logos were cropped out of that mockup, because they exist
+ * nowhere else. A useful consequence: each crop carries the exact cream
+ * gradient it sat on, so compositing it back at the coordinates it came from
+ * is seamless. The issuing badge is the client's own badge.png, so it keeps
+ * its full ribbons - the cropped version cut them off. If the partner
+ * originals ever arrive, replace those assets under NEW keys; see assets.ts
+ * on why keys are immutable.
  *
- * Typeface is DejaVu Sans, which is what the container has. The design uses a
- * rounded geometric sans, so the letterforms read plainer than the mockup.
- * Positions, sizes, colours and wrapping match; the type does not. Committing
- * a licensed brand font to the repo and republishing is the fix, and needs no
- * code change.
+ * Typeface is Roboto, the client's choice, installed in the runtime image via
+ * fonts-roboto-unhinted. DejaVu stays behind it as a coverage fallback.
+ *
+ * The QR position came from a placement guide the client marked up, not from
+ * a guess - see the field comment.
  */
 export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateTemplatePayload =
   certificateTemplatePayloadSchema.parse({
@@ -72,7 +73,7 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateTemplatePayload =
         y: 0.5269,
         maxWidth: 0.62,
         align: "center",
-        font: "DejaVu Sans",
+        font: "Roboto",
         size: 0.0566,
         weight: 700,
         color: "#f2530f",
@@ -90,11 +91,16 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateTemplatePayload =
         y: 0.5993,
         maxWidth: 0.6,
         align: "center",
-        font: "DejaVu Sans",
+        font: "Roboto",
         size: 0.0228,
         weight: 400,
         color: "#1e1b18",
         autoShrink: true,
+        // Roboto prose measures 0.443-0.460; 0.48 is just above that so the
+        // paragraph wraps to the three lines the design has, rather than the
+        // four the global 0.68 upper bound produces. That bound exists for
+        // all-capitals NAMES, which are half again as wide as prose.
+        glyphRatio: 0.48,
         lineHeight: 1.1,
         maxLines: 4
       },
@@ -107,20 +113,20 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateTemplatePayload =
         y: 0.8483,
         maxWidth: 0.22,
         align: "center",
-        font: "DejaVu Sans",
+        font: "Roboto",
         size: 0.0172,
         weight: 700,
         color: "#1f1b1a",
         autoShrink: false
       },
       {
-        id: "logo-rosette",
+        id: "logo-badge",
         variable: "logo",
-        assetKey: "logo-sdp-rosette-v1",
-        x: 0.4473,
+        assetKey: "logo-sdp-badge-v1",
+        x: 0.5107,
         y: 0.7214,
         width: 0.127,
-        align: "left"
+        align: "center"
       },
       // The delivered design had no QR. It is here because a learner who
       // forwards only the IMAGE strips the caption, and the caption is where
@@ -132,9 +138,9 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateTemplatePayload =
       {
         id: "verify-qr",
         variable: "qrCode",
-        x: 0.155,
-        y: 0.885,
-        width: 0.058,
+        x: 0.2266,
+        y: 0.7083,
+        width: 0.0591,
         align: "left"
       }
     ]

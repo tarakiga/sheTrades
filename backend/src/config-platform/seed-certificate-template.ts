@@ -36,7 +36,7 @@ const ASSETS: ReadonlyArray<{ key: string; kind: "background" | "logo"; file: st
   { key: "logo-care-v1", kind: "logo", file: "logo-care-v1.png" },
   { key: "logo-techher-v1", kind: "logo", file: "logo-techher-v1.png" },
   { key: "logo-sheconnects-v1", kind: "logo", file: "logo-sheconnects-v1.png" },
-  { key: "logo-sdp-rosette-v1", kind: "logo", file: "logo-sdp-rosette-v1.png" }
+  { key: "logo-sdp-badge-v1", kind: "logo", file: "logo-sdp-badge-v1.png" }
 ];
 
 async function seedAsset(entry: (typeof ASSETS)[number]) {

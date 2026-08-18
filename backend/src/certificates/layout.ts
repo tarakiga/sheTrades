@@ -35,6 +35,9 @@ type TextFieldBase = {
   weight: number;
   color: string;
   autoShrink: boolean;
+  /** Per-field font metric override; see AVG_GLYPH_RATIO for why one global
+   * number cannot serve both a shouted name and a paragraph. */
+  glyphRatio?: number | undefined;
 };
 
 /** Mirrors the text-field shapes from contracts.ts. Kept as standalone types
@@ -158,16 +161,41 @@ export function escapeXml(value: string): string {
  *
  * Erring high is the safe direction: it shrinks text that would have fitted
  * (a name a little smaller than the designer intended, bounded below by
- * MIN_FONT_PX) rather than overflowing text that would not. Re-measure
- * against the real face when the brand artwork and its font land.
+ * MIN_FONT_PX) rather than overflowing text that would not.
+ *
+ * RE-MEASURED for Roboto, which the client chose over DejaVu. Method: each
+ * string rendered at 100px through sharp inside the actual runtime container,
+ * then trimmed to ink, over a corpus of realistic learner names, the
+ * certificate's own citation lines and its date.
+ *
+ *   prose (citation lines)   0.443 - 0.453 regular, 0.451 - 0.460 bold
+ *   mixed-case names         0.470 - 0.576 regular, 0.478 - 0.580 bold
+ *   ALL-CAPS names           0.647        regular, 0.655        bold
+ *
+ * Roboto is much narrower than DejaVu, so 0.8 was roughly 45% too wide for
+ * prose and broke the citation onto four lines where the design has three.
+ *
+ * 0.68 sits above the all-caps maximum with margin. That spread - 0.45 for
+ * prose against 0.65 for capitals - is too wide for one number to serve both
+ * well, which is what `glyphRatio` on a field is for: a value safe for a
+ * shouted name breaks a paragraph early, and a value that fits a paragraph
+ * lets a shouted name overhang. This constant is the safe upper bound; a
+ * field whose content is known can declare tighter.
  */
-const AVG_GLYPH_RATIO = 0.8;
+const AVG_GLYPH_RATIO = 0.68;
 
 /** Below this, text stops being legible on a printed/shared certificate. */
 const MIN_FONT_PX = 24;
 
-export function fitFontSize(args: { text: string; startPx: number; maxWidthPx: number }): number {
+export function fitFontSize(args: {
+  text: string;
+  startPx: number;
+  maxWidthPx: number;
+  /** Font metric override; see AVG_GLYPH_RATIO. */
+  glyphRatio?: number | undefined;
+}): number {
   const { text, startPx, maxWidthPx } = args;
+  const ratio = args.glyphRatio ?? AVG_GLYPH_RATIO;
 
   // The floor must never ENLARGE a field: a designer who set a line at 10px
   // (a certificate id, say) did that on purpose, and clamping it up to the
@@ -176,7 +204,7 @@ export function fitFontSize(args: { text: string; startPx: number; maxWidthPx: n
   // the size down from where the designer put it, never up past it.
   const floorPx = Math.min(MIN_FONT_PX, startPx);
 
-  const estimatedWidth = text.length * startPx * AVG_GLYPH_RATIO;
+  const estimatedWidth = text.length * startPx * ratio;
   if (estimatedWidth <= maxWidthPx) return startPx;
 
   // Floored to a whole pixel, not left fractional: AVG_GLYPH_RATIO is
@@ -186,7 +214,7 @@ export function fitFontSize(args: { text: string; startPx: number; maxWidthPx: n
   // boundary instead of exactly on it. Also clamped to startPx so the
   // floor-then-max below can never push a fractional-but-still-too-big
   // value back up past where the designer started it.
-  const fitted = maxWidthPx / (text.length * AVG_GLYPH_RATIO);
+  const fitted = maxWidthPx / (text.length * ratio);
   let candidate = Math.floor(fitted);
 
   // Division and multiplication are not exact inverses in IEEE-754, and the
@@ -205,9 +233,9 @@ export function fitFontSize(args: { text: string; startPx: number; maxWidthPx: n
   // yields 124.99999999999999 where 125 multiplies back to exactly 300).
   // A closed form that is correct only for one value of a tunable constant
   // is not correct, so the recovery is symmetric.
-  if (candidate * text.length * AVG_GLYPH_RATIO > maxWidthPx) {
+  if (candidate * text.length * ratio > maxWidthPx) {
     candidate -= 1;
-  } else if ((candidate + 1) * text.length * AVG_GLYPH_RATIO <= maxWidthPx) {
+  } else if ((candidate + 1) * text.length * ratio <= maxWidthPx) {
     candidate += 1;
   }
 
@@ -292,9 +320,13 @@ export function parseInlineBold(source: string): TextSegment[] {
  * measure through this function, so a line the wrap accepted can never be a
  * line a later check calls too wide.
  */
-export function estimateLineWidthPx(line: TextSegment[], fontSizePx: number): number {
+export function estimateLineWidthPx(
+  line: TextSegment[],
+  fontSizePx: number,
+  glyphRatio: number = AVG_GLYPH_RATIO
+): number {
   return line.reduce((total, segment) => {
-    const base = segment.text.length * fontSizePx * AVG_GLYPH_RATIO;
+    const base = segment.text.length * fontSizePx * glyphRatio;
     return total + (segment.bold ? base * BOLD_WIDTH_MULTIPLIER : base);
   }, 0);
 }
@@ -372,14 +404,20 @@ function appendToken(pieces: TextSegment[], token: Token): TextSegment[] {
  * its owner does not have, permanently, on a credential she shares. An
  * overhang is visibly wrong and fixable; a mangled name looks intentional.
  */
-export function wrapRichText(args: { text: string; maxWidthPx: number; fontSizePx: number }): TextSegment[][] {
+export function wrapRichText(args: {
+  text: string;
+  maxWidthPx: number;
+  fontSizePx: number;
+  /** Font metric override; see AVG_GLYPH_RATIO. */
+  glyphRatio?: number | undefined;
+}): TextSegment[][] {
   const tokens = tokenise(parseInlineBold(args.text));
   const lines: TextSegment[][] = [];
   let current: TextSegment[] = [];
 
   for (const token of tokens) {
     const candidate = appendToken(current, token);
-    if (current.length > 0 && estimateLineWidthPx(candidate, args.fontSizePx) > args.maxWidthPx) {
+    if (current.length > 0 && estimateLineWidthPx(candidate, args.fontSizePx, args.glyphRatio) > args.maxWidthPx) {
       lines.push(current);
       current = appendToken([], token);
       continue;
@@ -420,6 +458,8 @@ export function fitWrappedText(args: {
   maxWidthPx: number;
   startPx: number;
   maxLines: number;
+  /** Font metric override; see AVG_GLYPH_RATIO. */
+  glyphRatio?: number | undefined;
 }): { fontSizePx: number; lines: TextSegment[][] } {
   // Same rule as fitFontSize: shrinking never ENLARGES a field the designer
   // deliberately made small.
@@ -427,14 +467,14 @@ export function fitWrappedText(args: {
 
   const fits = (lines: TextSegment[][], fontSizePx: number): boolean =>
     lines.length <= args.maxLines &&
-    lines.every((line) => estimateLineWidthPx(line, fontSizePx) <= args.maxWidthPx);
+    lines.every((line) => estimateLineWidthPx(line, fontSizePx, args.glyphRatio) <= args.maxWidthPx);
 
   let fontSizePx = args.startPx;
-  let lines = wrapRichText({ text: args.text, maxWidthPx: args.maxWidthPx, fontSizePx });
+  let lines = wrapRichText({ text: args.text, maxWidthPx: args.maxWidthPx, fontSizePx, glyphRatio: args.glyphRatio });
 
   while (fontSizePx > floorPx && !fits(lines, fontSizePx)) {
     fontSizePx -= 1;
-    lines = wrapRichText({ text: args.text, maxWidthPx: args.maxWidthPx, fontSizePx });
+    lines = wrapRichText({ text: args.text, maxWidthPx: args.maxWidthPx, fontSizePx, glyphRatio: args.glyphRatio });
   }
 
   return { fontSizePx, lines };
@@ -621,7 +661,13 @@ function renderLineSegments(line: TextSegment[]): string {
  */
 function buildBodyElement(field: BodyTextFieldSpec, x: number, y: number, startPx: number, maxWidthPx: number): string {
   const wrapped = field.autoShrink
-    ? fitWrappedText({ text: field.text, maxWidthPx, startPx, maxLines: field.maxLines })
+    ? fitWrappedText({
+        text: field.text,
+        maxWidthPx,
+        startPx,
+        maxLines: field.maxLines,
+        glyphRatio: field.glyphRatio
+      })
     : { fontSizePx: startPx, lines: wrapRichText({ text: field.text, maxWidthPx, fontSizePx: startPx }) };
 
   const leadingPx = Math.round(field.lineHeight * wrapped.fontSizePx);
@@ -646,7 +692,9 @@ export function buildTextLayerSvg(canvas: Canvas, fields: TextFieldSpec[], value
       if (field.variable === "bodyText") return buildBodyElement(field, x, y, startPx, maxWidthPx);
 
       const value = resolveTextValue(field, values);
-      const fontSize = field.autoShrink ? fitFontSize({ text: value, startPx, maxWidthPx }) : startPx;
+      const fontSize = field.autoShrink
+        ? fitFontSize({ text: value, startPx, maxWidthPx, glyphRatio: field.glyphRatio })
+        : startPx;
 
       return (
         `<text x="${x}" y="${y}" text-anchor="${TEXT_ANCHOR[field.align]}" ` +

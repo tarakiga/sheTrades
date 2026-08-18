@@ -116,22 +116,22 @@ test("a deliberately small field is never ENLARGED to the floor", () => {
 });
 
 test("a shrunk size is a whole number, on the conservative side of the box", () => {
-  // 12 chars at ratio 0.8 in a 400px box solves to 400 / (12 * 0.8) = 41.6667px,
+  // 12 chars at ratio 0.68 in a 400px box solves to 400 / (12 * 0.68) =
+  // 49.0196px (49 * 12 * 0.68 = 399.84, inside; 50 would be 408, outside),
   // well above the 24px floor for a 100px field, so this exercises the
   // fractional mid-range rather than the floor clamp. Rounding UP or keeping
-  // the fraction would put the text on the box edge, spending the margin the
-  // upper-bound ratio exists to provide.
-  assert.equal(fitFontSize({ text: "a".repeat(12), startPx: 100, maxWidthPx: 400 }), 41);
+  // the fraction would spend the margin the upper bound exists to provide.
+  assert.equal(fitFontSize({ text: "a".repeat(12), startPx: 100, maxWidthPx: 400 }), 49);
 });
 
 test("a candidate the division floors a pixel too low is stepped back up", () => {
-  // The direct guard for the step-UP half of the float re-check. 3 chars in a
-  // 300px box: (3 * 0.8) is 2.4000000000000004, so 300 / that is
-  // 124.99999999999999 and floors to 124 -- while 125 multiplies back to
-  // exactly 300 and therefore fits. Without the step-up this returns 124 and
-  // silently gives away a pixel of the designer's type size on every render
-  // that lands on such a boundary.
-  assert.equal(fitFontSize({ text: "a".repeat(3), startPx: 150, maxWidthPx: 300 }), 125);
+  // The direct guard for the step-UP half of the float re-check. Which inputs
+  // land on such a boundary depends on the ratio, so these were re-derived
+  // when it moved from 0.8 to 0.68: 85 / (1 * 0.68) is 124.99999999999999,
+  // which floors to 124 -- while 125 multiplies back to exactly 85 and so
+  // fits. Without the step-up this returns 124 and silently gives away a
+  // pixel of the designer's type size whenever a render lands there.
+  assert.equal(fitFontSize({ text: "a", startPx: 150, maxWidthPx: 85 }), 125);
 });
 
 test("an empty value keeps its configured size", () => {
@@ -191,7 +191,12 @@ test("every text field appears in the layer", () => {
 // change to those constants silently drag the spec along with the code
 // under test, instead of catching the disagreement. Updating this number is
 // meant to be a deliberate second act, not a free ride on the first.
-const REFERENCE_AVG_GLYPH_RATIO = 0.8;
+const PARAGRAPH_PLAIN =
+  "In recognition of your successful completion of the SheTrades Digital " +
+  "Learning Programme and your commitment to building practical digital and " +
+  "business skills for greater economic opportunity.";
+
+const REFERENCE_AVG_GLYPH_RATIO = 0.68;
 const REFERENCE_MIN_FONT_PX = 24;
 
 // The specification, not the optimisation: shrink one pixel at a time,
@@ -303,11 +308,11 @@ test("a bold run is measured wider than the same characters unbolded", () => {
   const boldWidth = estimateLineWidthPx([{ text: "aaaa", bold: true }], 100);
   const plainWidth = estimateLineWidthPx([{ text: "aaaa", bold: false }], 100);
   assert.ok(boldWidth > plainWidth, `${boldWidth} should exceed ${plainWidth}`);
-  // Pinned, not merely "greater": AVG_GLYPH_RATIO 0.8 times the 1.15 weight
+  // Pinned, not merely "greater": AVG_GLYPH_RATIO 0.68 times the 1.15 weight
   // multiplier. If either moves, this is where the wrap model's width
   // assumption is meant to be re-argued rather than silently re-derived.
-  assert.equal(plainWidth, 4 * 100 * 0.8);
-  assert.equal(boldWidth, 4 * 100 * 0.8 * 1.15);
+  assert.equal(plainWidth, 4 * 100 * 0.68);
+  assert.equal(boldWidth, 4 * 100 * 0.68 * 1.15);
 });
 
 test("a paragraph breaks on word boundaries at the width it was given", () => {
@@ -362,10 +367,10 @@ test("text that already fits keeps the size the designer set", () => {
 
 test("text that needs more lines than the cap is shrunk until it fits the cap", () => {
   // 6 four-char words in an 800px box. Three per line needs
-  // (3 * 4 + 2) * 0.8 * size <= 800, i.e. size <= 71.43 -- so 71, and 72 must
-  // still spill to a third line.
+  // (3 * 4 + 2) * 0.68 * size <= 800, i.e. size <= 84.03 -- so 84, and 85
+  // must still spill to a third line.
   const fitted = fitWrappedText({ text: "aaaa ".repeat(6).trim(), maxWidthPx: 800, startPx: 100, maxLines: 2 });
-  assert.equal(fitted.fontSizePx, 71);
+  assert.equal(fitted.fontSizePx, 84);
   assert.equal(fitted.lines.length, 2);
 });
 
@@ -496,4 +501,23 @@ test("a date field shrinks against its FORMATTED width, not its raw value", () =
   );
   const fitted = fitFontSize({ text: "August 23rd, 2026", startPx: Math.round(0.05 * CANVAS.height), maxWidthPx: 200 });
   assert.ok(svg.includes(`font-size="${fitted}"`));
+});
+
+test("a per-field glyphRatio overrides the global upper bound when shrinking", () => {
+  // The global 0.68 is an upper bound sized for ALL-CAPS names. A field whose
+  // content is prose can declare the tighter figure its font actually measures
+  // and keep the size the designer chose.
+  const wide = fitFontSize({ text: "a".repeat(30), startPx: 100, maxWidthPx: 600 });
+  const tight = fitFontSize({ text: "a".repeat(30), startPx: 100, maxWidthPx: 600, glyphRatio: 0.48 });
+  assert.ok(tight > wide, "a tighter metric must permit a larger size");
+});
+
+test("a per-field glyphRatio overrides the global upper bound when wrapping", () => {
+  // The real citation at the real template geometry: the global upper bound
+  // breaks it onto four lines, the measured prose figure onto the three the
+  // design has. This is the whole reason the override exists.
+  const text = PARAGRAPH_PLAIN;
+  const wide = wrapRichText({ text, maxWidthPx: 1229, fontSizePx: 33 });
+  const tight = wrapRichText({ text, maxWidthPx: 1229, fontSizePx: 33, glyphRatio: 0.48 });
+  assert.ok(tight.length < wide.length, "a tighter metric must fit more words per line");
 });
