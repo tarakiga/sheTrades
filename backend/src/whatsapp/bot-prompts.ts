@@ -235,6 +235,60 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     en: "Choose module",
     pcm: "Choose module",
     ig: "Họrọ modul"
+  },
+  // Completion certificate. English only for now — the pcm/ig pass comes with
+  // the rest of the translation work, and getPrompt already falls back to en,
+  // so a learner on Pidgin reads English here rather than nothing.
+  //
+  // The learner reading this has spent weeks on a low-end phone to get here.
+  // Keep it short, warm and free of jargon; every sentence has to survive
+  // being read on a 4-line screen.
+  certificate_congrats: {
+    // {name} is the ONBOARDING name, shown because it is what will be printed
+    // on a permanent, publicly verifiable credential — a learner who typed a
+    // nickname at signup gets one chance to see that before it is frozen.
+    // Substituted the same way bot.main_menu does it (first {name} only).
+    en: "🎓 Congratulations! You have finished every module.\n\nYour certificate will show this name:\n\n{name}\n\nIs that how you want it written? Choose below."
+  },
+  certificate_confirm_yes: {
+    // Reply-button title: 20 UTF-16 units max (WHATSAPP_LIMITS.buttonTitle).
+    en: "Yes, use this name"
+  },
+  certificate_confirm_change: {
+    en: "Change the name"
+  },
+  certificate_name_prompt: {
+    en: "No problem. Send the full name you want on your certificate, spelled exactly how it should be printed."
+  },
+  certificate_name_too_long: {
+    // {max} is filled from MAX_NAME_LENGTH so the number a learner is held to
+    // can never drift from the number the sanitiser actually enforces.
+    en: "That name is too long for the certificate — {max} letters is the most it can hold. Please send a shorter version."
+  },
+  certificate_name_empty: {
+    en: "I did not get a name there. Please send your full name."
+  },
+  certificate_sent: {
+    // Rides as the CAPTION on the certificate image, so it is the sentence
+    // that arrives attached to the artwork itself.
+    en: "Here is your certificate. Well done — you earned it. The link below lets anyone check that it is real."
+  },
+  certificate_send_failed: {
+    // Covers both unhappy outcomes: the row was never written, and the row
+    // exists but the image did not reach the chat. It must be true in both,
+    // so it promises nothing about what is saved — only what to do next.
+    en: "Sorry, your certificate could not be sent just now. Nothing you did is wrong — we have logged it for our team. Choose My Certificate from the menu in a few minutes and we will try again."
+  },
+  certificate_menu_label: {
+    // List row title: 24 UTF-16 units max (WHATSAPP_LIMITS.listRowTitle).
+    en: "My Certificate"
+  },
+  certificate_menu_description: {
+    // List row description: 72 UTF-16 units max.
+    en: "Get your completion certificate"
+  },
+  certificate_not_ready: {
+    en: "Your certificate is not ready yet. Finish every module and it will come to you right here."
   }
 };
 
@@ -279,5 +333,16 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   lesson_menu_header: "Bot · Lesson menu header",
   lesson_menu_footer: "Bot · Lesson menu footer",
   lesson_menu_button: "Bot · Lesson menu button",
-  module_menu_button: "Bot · Module menu button"
+  module_menu_button: "Bot · Module menu button",
+  certificate_congrats: "Bot · Certificate congratulations",
+  certificate_confirm_yes: "Bot · Certificate confirm button",
+  certificate_confirm_change: "Bot · Certificate change-name button",
+  certificate_name_prompt: "Bot · Certificate name prompt",
+  certificate_name_too_long: "Bot · Certificate name too long",
+  certificate_name_empty: "Bot · Certificate name empty",
+  certificate_sent: "Bot · Certificate image caption",
+  certificate_send_failed: "Bot · Certificate send failed",
+  certificate_menu_label: "Bot · Certificate menu label",
+  certificate_menu_description: "Bot · Certificate menu description",
+  certificate_not_ready: "Bot · Certificate not ready"
 };

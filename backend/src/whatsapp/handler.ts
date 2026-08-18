@@ -1,12 +1,25 @@
 import { z } from "zod";
-import { getRuntimeOptionSet, getRuntimeText, getRuntimeBranding, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, RuntimeLesson, pickLocalized } from "../config-platform/runtime-config.js";
+import { getRuntimeOptionSet, getRuntimeText, getRuntimeBranding, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, getRuntimeCertificateTemplate, getRuntimeCertificateTemplateVersion, RuntimeLesson, pickLocalized } from "../config-platform/runtime-config.js";
 import { countCompletedModules, resolveMilestoneAwards } from "../rewards/milestones.js";
 import { sendHelpRequestEmail } from "../notifications/help-request-email.js";
 import { BOT_PROMPT_DEFAULTS, BOT_PROMPT_CONFIG_PREFIX } from "./bot-prompts.js";
 import { prisma } from "../admin/prisma.js";
 import type { WhatsAppListSpec } from "./sender.js";
-import { sendWhatsAppMessage, BUTTON_TITLE_MAX, clip } from "./sender.js";
+import { sendWhatsAppMessage, sendWhatsAppOutreach, BUTTON_TITLE_MAX, clip } from "./sender.js";
 import { WHATSAPP_LIMITS } from "./constraints.js";
+import type { CertificateTemplatePayload } from "../certificates/contracts.js";
+import {
+  isEligible,
+  sanitiseLearnerName,
+  MAX_NAME_LENGTH,
+  type Completion
+} from "../certificates/core.js";
+import {
+  buildCertificateCaption,
+  buildIssuePlan,
+  certificateUrls,
+  issueCertificate
+} from "../certificates/service.js";
 
 /**
  * Quiz answer buttons plus a MENU escape — but only append MENU when it fits
@@ -17,7 +30,7 @@ function quizAnswerButtons(options: string[]): string[] {
   return options.length < WHATSAPP_LIMITS.maxButtons ? [...options, "MENU"] : options;
 }
 
-export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu" | "faq_menu" | "resources_menu";
+export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu" | "faq_menu" | "resources_menu" | "awaiting_certificate_confirm" | "awaiting_certificate_name";
 
 type AnalyticsEvent =
   | { type: "quiz_answered"; lessonKey: string; correct: boolean }
@@ -485,7 +498,8 @@ function mainMenuText(name: string): string {
  */
 export function buildMainMenuReply(
   name: string,
-  lang: "en" | "pcm" | "ig"
+  lang: "en" | "pcm" | "ig",
+  showCertificate = false
 ): { reply: string; list: WhatsAppListSpec } {
   const options = [
     { id: "menu-learn", title: "Start Learning", description: "Modules, lessons and quizzes" },
@@ -494,6 +508,20 @@ export function buildMainMenuReply(
     { id: "menu-faq", title: "FAQs", description: "Common questions, quick answers" },
     { id: "menu-resources", title: "Resources", description: "Helpful links and contacts" }
   ];
+  // Conditional, never permanent. A row that is always there reads as a
+  // promise to a learner on lesson 2, and tapping it would find a locked door;
+  // the caller only passes true once she holds a certificate or has finished
+  // everything needed to be handed one.
+  if (showCertificate) {
+    options.push({
+      id: "menu-certificate",
+      title: clip(getPrompt("certificate_menu_label", lang, "My Certificate"), WHATSAPP_LIMITS.listRowTitle),
+      description: clip(
+        getPrompt("certificate_menu_description", lang, "Get your completion certificate"),
+        WHATSAPP_LIMITS.listRowDescription
+      )
+    });
+  }
   let reply = mainMenuText(name);
   if (!reply.endsWith("\n")) reply += "\n";
   options.forEach((option, index) => {
@@ -1175,10 +1203,406 @@ export function advanceAfterAcceptedAnswer(
   }
 }
 
-function transition(
+type TurnReply = {
+  state: ConversationState;
+  reply: string;
+  buttons?: string[];
+  list?: WhatsAppListSpec;
+};
+
+/**
+ * Everything the certificate conversation needs from outside this module,
+ * behind one seam so the branches can be exercised without Postgres, the
+ * WhatsApp Cloud API or a published config document. Mirrors the
+ * `storeForTests` seam in certificates/service.ts rather than inventing a
+ * second style for the same problem.
+ */
+export type CertificateDeps = {
+  lessons(): ReadonlyArray<{ key: string; module?: string | null }>;
+  template(): CertificateTemplatePayload | null;
+  templateVersion(): number;
+  baseUrl(): string;
+  findCertificate(userId: string): Promise<{ publicId: string } | null>;
+  issue: typeof issueCertificate;
+  /** Re-delivers an already-issued certificate. True when it reached the chat. */
+  resend(input: { phone: string; publicId: string; caption: string; baseUrl: string }): Promise<boolean>;
+};
+
+export const liveCertificateDeps: CertificateDeps = {
+  lessons: () => getRuntimeLessons(),
+  template: () => getRuntimeCertificateTemplate(),
+  templateVersion: () => getRuntimeCertificateTemplateVersion(),
+  baseUrl: () => process.env.PUBLIC_BASE_URL ?? "",
+  findCertificate: (userId) =>
+    prisma.certificate.findUnique({ where: { userId }, select: { publicId: true } }),
+  issue: (input) => issueCertificate(input),
+  resend: async ({ phone, publicId, caption, baseUrl }) => {
+    try {
+      // Sent from the stored publicId, never re-issued: the artwork renders
+      // from the row's frozen template snapshot, so a resend still works after
+      // an admin has disabled or redesigned the live template.
+      const urls = certificateUrls(baseUrl, publicId);
+      const result = await sendWhatsAppOutreach(phone, {
+        kind: "image",
+        link: urls.image,
+        caption: buildCertificateCaption(caption, urls.verify)
+      });
+      return result.status === "sent";
+    } catch (error) {
+      // certificateUrls throws when PUBLIC_BASE_URL is unset.
+      console.warn(
+        JSON.stringify({
+          event: "certificate.resend.failed",
+          publicId,
+          reason: error instanceof Error ? error.message : String(error)
+        })
+      );
+      return false;
+    }
+  }
+};
+
+/**
+ * Eligibility is RECOMPUTED from the session's completed lessons on every
+ * turn, never stored. `user_sessions` gains no column for it: the conversation
+ * state string is enough to remember where the learner is in the exchange, and
+ * a stored flag would be one more thing that can disagree with the curriculum.
+ */
+function certificateCompletion(session: UserSession, deps: CertificateDeps): Completion {
+  return countCompletedModules(session.completedLessons ?? [], deps.lessons());
+}
+
+/**
+ * Whether the main menu should carry the "My Certificate" row: she holds one,
+ * or she has finished everything and can be handed one. A lookup failure hides
+ * the row rather than offering a door that will not open.
+ */
+async function showCertificateRow(session: UserSession, deps: CertificateDeps): Promise<boolean> {
+  if (isEligible(certificateCompletion(session, deps))) return true;
+  try {
+    return (await deps.findCertificate(session.userId)) !== null;
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        event: "certificate.lookup.failed",
+        userId: session.userId,
+        reason: error instanceof Error ? error.message : String(error)
+      })
+    );
+    return false;
+  }
+}
+
+function certificateConfirmButtons(lang: "en" | "pcm" | "ig"): string[] {
+  return [
+    clip(getPrompt("certificate_confirm_yes", lang, "Yes, use this name"), BUTTON_TITLE_MAX),
+    clip(getPrompt("certificate_confirm_change", lang, "Change the name"), BUTTON_TITLE_MAX)
+  ];
+}
+
+function certificateCongratsReply(session: UserSession, lang: "en" | "pcm" | "ig"): TurnReply {
+  return {
+    state: "awaiting_certificate_confirm",
+    reply: getPrompt(
+      "certificate_congrats",
+      lang,
+      "🎓 Congratulations! You have finished every module.\n\nYour certificate will show this name:\n\n{name}\n\nIs that how you want it written? Choose below."
+    ).replace("{name}", session.name ?? "Learner"),
+    buttons: certificateConfirmButtons(lang)
+  };
+}
+
+async function mainMenuTurn(
   session: UserSession,
-  text: string
-): { state: ConversationState; reply: string; buttons?: string[]; list?: WhatsAppListSpec } {
+  lang: "en" | "pcm" | "ig",
+  deps: CertificateDeps,
+  prefix = ""
+): Promise<TurnReply> {
+  const menu = buildMainMenuReply(
+    session.name ?? "Learner",
+    lang,
+    await showCertificateRow(session, deps)
+  );
+  return {
+    state: session.state,
+    reply: prefix ? `${prefix}\n\n${menu.reply}` : menu.reply,
+    list: menu.list
+  };
+}
+
+/**
+ * Freeze, write and send one certificate, then put the learner back on the
+ * main menu.
+ *
+ * `buildIssuePlan` returns null for three different reasons and they are NOT
+ * the same event, so a null is diagnosed rather than swallowed.
+ */
+async function issueCertificateTurn(
+  session: UserSession,
+  learnerName: string,
+  lang: "en" | "pcm" | "ig",
+  deps: CertificateDeps
+): Promise<TurnReply> {
+  const completion = certificateCompletion(session, deps);
+  const template = deps.template();
+  const plan = template
+    ? buildIssuePlan({
+        template,
+        templateVersion: deps.templateVersion(),
+        learnerName,
+        completion
+      })
+    : null;
+
+  if (!plan) {
+    // Asked of the sanitiser directly, and BEFORE anything else, because a
+    // name it rejects is a necessary failure whatever the template says — so
+    // sending her to fix it is never the wrong move. This is not a second
+    // eligibility or enabled gate; issuance stays gated by buildIssuePlan
+    // alone.
+    const name = sanitiseLearnerName(learnerName);
+    if (!name.ok) {
+      // The confirm path carries the name captured at ONBOARDING, which never
+      // passed through this sanitiser — so a 200-character name, or one
+      // carrying a bidi override, lands here. She has finished the programme;
+      // a wordless nothing is the worst possible outcome, so fall through to
+      // the change-name prompt instead of returning silently.
+      session.state = "awaiting_certificate_name";
+      session.lastUpdatedAt = nowIso();
+      console.warn(
+        JSON.stringify({
+          event: "certificate.stored_name.rejected",
+          userId: session.userId,
+          reason: name.reason
+        })
+      );
+      return {
+        state: session.state,
+        reply: getPrompt(
+          "certificate_name_prompt",
+          lang,
+          "No problem. Send the full name you want on your certificate, spelled exactly how it should be printed."
+        )
+      };
+    }
+
+    // Template unpublished or still a draft (admins preview drafts, and the
+    // renderer deliberately does not enforce the flag — issuance does), or the
+    // curriculum grew after she qualified. None of that is hers to fix or to
+    // hear about as an error: "not ready" is the honest word.
+    session.state = "main_menu";
+    session.lastUpdatedAt = nowIso();
+    return mainMenuTurn(
+      session,
+      lang,
+      deps,
+      getPrompt(
+        "certificate_not_ready",
+        lang,
+        "Your certificate is not ready yet. Finish every module and it will come to you right here."
+      )
+    );
+  }
+
+  const outcome = await deps.issue({
+    userId: session.userId,
+    learnerPhone: session.phone,
+    plan,
+    baseUrl: deps.baseUrl(),
+    caption: getPrompt(
+      "certificate_sent",
+      lang,
+      "Here is your certificate. Well done — you earned it. The link below lets anyone check that it is real."
+    )
+  });
+
+  session.state = "main_menu";
+  session.lastUpdatedAt = nowIso();
+
+  if (outcome.status === "issued" && outcome.sent) {
+    // No text prefix: the copy already rode in as the caption on the image, and
+    // repeating it costs a whole screen on a low-end phone.
+    return mainMenuTurn(session, lang, deps);
+  }
+
+  // Both remaining outcomes reach her the same way — a certificate that was
+  // never written (status "failed", which by design carries no publicId) and
+  // one that exists but did not send. The failure is already logged for an
+  // admin; what she needs is a sentence and a way to try again.
+  return mainMenuTurn(
+    session,
+    lang,
+    deps,
+    getPrompt(
+      "certificate_send_failed",
+      lang,
+      "Sorry, your certificate could not be sent just now. Nothing you did is wrong — we have logged it for our team. Choose My Certificate from the menu in a few minutes and we will try again."
+    )
+  );
+}
+
+/**
+ * The "My Certificate" tap. Two recovery paths, both load-bearing: the common
+ * one is a learner who lost the image in a busy chat months later, and the
+ * other is a learner who never answered the congratulations — she has still
+ * earned it, so the exchange re-opens rather than starting over.
+ */
+export async function certificateMenuTurn(
+  session: UserSession,
+  lang: "en" | "pcm" | "ig",
+  deps: CertificateDeps
+): Promise<TurnReply> {
+  let existing: { publicId: string } | null = null;
+  try {
+    existing = await deps.findCertificate(session.userId);
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        event: "certificate.lookup.failed",
+        userId: session.userId,
+        reason: error instanceof Error ? error.message : String(error)
+      })
+    );
+  }
+
+  if (existing) {
+    const sent = await deps.resend({
+      phone: session.phone,
+      publicId: existing.publicId,
+      caption: getPrompt(
+        "certificate_sent",
+        lang,
+        "Here is your certificate. Well done — you earned it. The link below lets anyone check that it is real."
+      ),
+      baseUrl: deps.baseUrl()
+    });
+    session.lastUpdatedAt = nowIso();
+    const menu = buildMainMenuReply(session.name ?? "Learner", lang, true);
+    if (sent) return { state: session.state, reply: menu.reply, list: menu.list };
+    return {
+      state: session.state,
+      reply: `${getPrompt(
+        "certificate_send_failed",
+        lang,
+        "Sorry, your certificate could not be sent just now. Nothing you did is wrong — we have logged it for our team. Choose My Certificate from the menu in a few minutes and we will try again."
+      )}\n\n${menu.reply}`,
+      list: menu.list
+    };
+  }
+
+  if (isEligible(certificateCompletion(session, deps))) {
+    session.state = "awaiting_certificate_confirm";
+    session.lastUpdatedAt = nowIso();
+    return certificateCongratsReply(session, lang);
+  }
+
+  // Neither applies. Reachable if the row vanished or the lookup failed, so it
+  // answers rather than falling silent.
+  return {
+    state: session.state,
+    reply: getPrompt(
+      "certificate_not_ready",
+      lang,
+      "Your certificate is not ready yet. Finish every module and it will come to you right here."
+    ),
+    buttons: ["MENU"]
+  };
+}
+
+/**
+ * Exported for tests: the `awaiting_certificate_confirm` turn on its own, so
+ * the confirm and change-name paths can be driven without a database.
+ */
+export async function certificateConfirmTurn(
+  session: UserSession,
+  text: string,
+  lang: "en" | "pcm" | "ig",
+  deps: CertificateDeps = liveCertificateDeps
+): Promise<TurnReply> {
+  const normalized = text.trim().toLowerCase();
+  // A tapped button echoes its own title back (clipped to BUTTON_TITLE_MAX on
+  // real WhatsApp), so the configured label is matched alongside the typed
+  // shortcuts. Everything else confirms — including MENU, which costs her
+  // nothing: the name she is being shown is the one she would get anyway.
+  const changeLabel = getPrompt("certificate_confirm_change", lang, "Change the name")
+    .trim()
+    .toLowerCase();
+  const wantsChange =
+    ["change", "no", "2", "change name"].includes(normalized) ||
+    normalized === changeLabel ||
+    normalized === clip(changeLabel, BUTTON_TITLE_MAX).trim();
+
+  if (wantsChange) {
+    session.state = "awaiting_certificate_name";
+    session.lastUpdatedAt = nowIso();
+    return {
+      state: session.state,
+      reply: getPrompt(
+        "certificate_name_prompt",
+        lang,
+        "No problem. Send the full name you want on your certificate, spelled exactly how it should be printed."
+      )
+    };
+  }
+
+  return issueCertificateTurn(session, session.name ?? "", lang, deps);
+}
+
+/**
+ * Exported for tests: the `awaiting_certificate_name` turn on its own.
+ */
+export async function certificateNameTurn(
+  session: UserSession,
+  text: string,
+  lang: "en" | "pcm" | "ig",
+  deps: CertificateDeps = liveCertificateDeps
+): Promise<TurnReply> {
+  const safeText = text.trim();
+  // MENU is the one escape the bot teaches everywhere, and this state is the
+  // only place where honouring it matters permanently: without this line the
+  // word sanitises into a perfectly valid name and gets printed on a
+  // credential that is never re-issued. She keeps the menu row and can come
+  // back through it.
+  if (["menu", "0", "back"].includes(safeText.toLowerCase())) {
+    session.state = "main_menu";
+    session.lastUpdatedAt = nowIso();
+    return mainMenuTurn(session, lang, deps);
+  }
+
+  const name = sanitiseLearnerName(safeText);
+  if (!name.ok) {
+    // STAY in this state: bouncing her to the main menu over a typo would cost
+    // her the thread she is in the middle of.
+    session.lastUpdatedAt = nowIso();
+    return {
+      state: session.state,
+      reply:
+        name.reason === "too_long"
+          ? getPrompt(
+              "certificate_name_too_long",
+              lang,
+              "That name is too long for the certificate — {max} letters is the most it can hold. Please send a shorter version."
+            ).replace("{max}", String(MAX_NAME_LENGTH))
+          : getPrompt(
+              "certificate_name_empty",
+              lang,
+              "I did not get a name there. Please send your full name."
+            )
+    };
+  }
+
+  // She has just told us her real name. It belongs on her record, not only on
+  // this certificate — saveSession() writes session.name to users.name at the
+  // end of the turn.
+  session.name = name.value;
+  return issueCertificateTurn(session, name.value, lang, deps);
+}
+
+async function transition(
+  session: UserSession,
+  text: string,
+  deps: CertificateDeps = liveCertificateDeps
+): Promise<TurnReply> {
   const safeText = text.trim();
   const normalized = safeText.toLowerCase();
   const lang = session.language || "en";
@@ -1220,6 +1644,17 @@ function transition(
       ).replace("{name}", safeText),
       buttons: buildLanguageButtons(getLanguageChoices())
     };
+  }
+
+  // The certificate exchange sits beside awaiting_name because it is the same
+  // kind of step: a short, focused question whose answer is a NAME, which must
+  // not be read as a menu command.
+  if (session.state === "awaiting_certificate_confirm") {
+    return certificateConfirmTurn(session, safeText, lang, deps);
+  }
+
+  if (session.state === "awaiting_certificate_name") {
+    return certificateNameTurn(session, safeText, lang, deps);
   }
 
   if (session.state === "awaiting_language") {
@@ -1297,10 +1732,7 @@ function transition(
     session.location = chosen.title;
     session.state = "main_menu";
     session.lastUpdatedAt = nowIso();
-    {
-      const mainMenu = buildMainMenuReply(session.name ?? "Learner", lang);
-      return { state: session.state, reply: mainMenu.reply, list: mainMenu.list };
-    }
+    return mainMenuTurn(session, lang, deps);
   }
 
   if (session.state === "awaiting_custom_state") {
@@ -1317,10 +1749,7 @@ function transition(
     session.location = custom.slice(0, 60);
     session.state = "main_menu";
     session.lastUpdatedAt = nowIso();
-    {
-      const mainMenu = buildMainMenuReply(session.name ?? "Learner", lang);
-      return { state: session.state, reply: mainMenu.reply, list: mainMenu.list };
-    }
+    return mainMenuTurn(session, lang, deps);
   }
 
   // Handle global MENU command to return to Main Menu from anywhere
@@ -1331,10 +1760,7 @@ function transition(
     session.awaitingQuizAnswer = false;
     session.currentQuizIndex = 0;
     session.lastUpdatedAt = nowIso();
-    {
-      const mainMenu = buildMainMenuReply(session.name ?? "Learner", lang);
-      return { state: session.state, reply: mainMenu.reply, list: mainMenu.list };
-    }
+    return mainMenuTurn(session, lang, deps);
   }
 
   // Load active dynamic lessons from config-platform database seeds
@@ -1427,6 +1853,12 @@ function transition(
   }
 
   if (session.state === "main_menu") {
+    // Option 6: My Certificate. The row only renders once earned (or
+    // earnable), so this branch is reachable exactly when it can do something.
+    if (["6", "certificate", "my certificate", "6. my certificate", "menu-certificate"].includes(normalized)) {
+      return certificateMenuTurn(session, lang, deps);
+    }
+
     // Option 5: Resources (config option set bot.resources; graceful when
     // unpublished/empty).
     if (["5", "resources", "resource", "menu-resources", "5. resources"].includes(normalized)) {
@@ -1562,7 +1994,11 @@ function transition(
     }
 
     {
-      const mainMenu = buildMainMenuReply(session.name ?? "Learner", lang);
+      const mainMenu = buildMainMenuReply(
+        session.name ?? "Learner",
+        lang,
+        await showCertificateRow(session, deps)
+      );
       return {
         state: session.state,
         reply: getRuntimeText(
@@ -1883,15 +2319,129 @@ function transition(
 }
 
 /**
+ * Milestone (or legacy flat) reward rows for one completed module. Lifted out
+ * of recordAnalytics so the certificate check can run after it in the same
+ * branch — the `continue`s it used to end on would have skipped that too.
+ */
+async function awardModuleRewards(
+  session: UserSession,
+  moduleName: string,
+  completion: Completion
+): Promise<void> {
+  const rule = getRuntimeRewardRules();
+  // Rewards disabled by the admin reward rule — skip creating a reward. Note
+  // this does NOT skip the certificate: money and credentials are separate
+  // promises to the learner.
+  if (rule && rule.enabled === false) return;
+  const channel = rule?.channel ?? ((process.env.REWARD_DEFAULT_CHANNEL ?? "airtime").trim() || "airtime");
+
+  if (rule?.milestones && rule.milestones.length > 0) {
+    // Client incentive plan (2026-08): milestone payouts replace
+    // per-module payouts. Count fully-completed modules and award every
+    // milestone the learner has reached; the (userId, key) uniqueness
+    // makes catch-ups and replays idempotent, so a learner never earns
+    // the same milestone twice.
+    const awards = resolveMilestoneAwards(
+      rule.milestones,
+      completion.completedModules,
+      completion.totalModules
+    );
+    for (const award of awards) {
+      await prisma.reward.upsert({
+        where: {
+          userId_module: { userId: session.userId, module: award.key }
+        },
+        update: {}, // an already-earned milestone is never re-issued or repriced
+        create: {
+          userId: session.userId,
+          module: award.key,
+          amount: award.amount,
+          channel,
+          status: "Pending",
+          learnerPhone: session.phone
+        }
+      });
+    }
+    return;
+  }
+
+  // Legacy flat mode: one reward per completed module.
+  const envAmount = Number(process.env.REWARD_DEFAULT_AMOUNT);
+  const fallbackAmount = Number.isFinite(envAmount) && envAmount > 0 ? envAmount : 500;
+  const amount = rule?.amount ?? fallbackAmount;
+  // Guard against an empty or whitespace-only module name, which would
+  // otherwise collapse the (userId, module) dedup key for the user.
+  const moduleKey = (moduleName ?? "").trim() || "Unknown";
+  await prisma.reward.upsert({
+    where: {
+      userId_module: { userId: session.userId, module: moduleKey }
+    },
+    update: {},  // never overwrite an existing reward when the user replays a module
+    create: {
+      userId: session.userId,
+      module: moduleKey,
+      amount,
+      channel,
+      status: "Pending",
+      learnerPhone: session.phone
+    }
+  });
+}
+
+/**
+ * Ask a learner who has just finished everything to confirm the name that will
+ * be printed — or return null, which is the ordinary answer on nearly every
+ * module completion.
+ *
+ * The template gate here decides whether to OFFER: congratulating a learner the
+ * issuer would then refuse is worse than staying quiet. Issuance itself stays
+ * gated by buildIssuePlan, which checks the same flag for its own reasons.
+ */
+async function offerCertificate(
+  session: UserSession,
+  completion: Completion,
+  deps: CertificateDeps
+): Promise<TurnFollowUp | null> {
+  if (!isEligible(completion)) return null;
+
+  const template = deps.template();
+  if (!template || !template.enabled) return null;
+  if (await deps.findCertificate(session.userId)) return null;
+
+  session.state = "awaiting_certificate_confirm";
+  session.lastUpdatedAt = nowIso();
+  // saveSession() already ran for this turn, so the new state has to be
+  // written again here — and the offer is only returned once that write is
+  // durable, or the learner would be asked to confirm a question the next turn
+  // has no memory of. A throw lands in the caller's per-event catch, which
+  // leaves her on the main menu with the "My Certificate" row still showing,
+  // because that row is driven by recomputed eligibility rather than by this
+  // state.
+  await saveSession(session.phone, session);
+
+  return certificateCongratsReply(session, session.language ?? "en");
+}
+
+/** A reply the analytics pass wants appended to the turn already computed. */
+type TurnFollowUp = { state: ConversationState; reply: string; buttons?: string[] };
+
+/**
  * Drain the transient `_events` buffer set by transition() and persist
  * the corresponding rows in quiz_attempts / user_progress. Failures here
  * MUST NOT bubble up — the user already got their reply from transition,
  * and analytics drift is far less important than a 500 in the webhook.
+ *
+ * Returns a follow-up reply when the turn earned a certificate offer, so the
+ * caller can merge it into the outbound message rather than send a second one.
  */
-async function recordAnalytics(session: UserSession): Promise<void> {
+async function recordAnalytics(
+  session: UserSession,
+  deps: CertificateDeps = liveCertificateDeps
+): Promise<TurnFollowUp | null> {
+  let followUp: TurnFollowUp | null = null;
   const events = session._events ?? [];
   if (events.length === 0) {
-    return;
+    return null;
   }
   for (const event of events) {
     try {
@@ -1967,64 +2517,15 @@ async function recordAnalytics(session: UserSession): Promise<void> {
           }
         });
       } else if (event.type === "module_completed") {
-        const rule = getRuntimeRewardRules();
-        if (rule && rule.enabled === false) {
-          // Rewards disabled by the admin reward rule — skip creating a reward.
-          continue;
-        }
-        const channel = rule?.channel ?? ((process.env.REWARD_DEFAULT_CHANNEL ?? "airtime").trim() || "airtime");
-
-        if (rule?.milestones && rule.milestones.length > 0) {
-          // Client incentive plan (2026-08): milestone payouts replace
-          // per-module payouts. Count fully-completed modules and award every
-          // milestone the learner has reached; the (userId, key) uniqueness
-          // makes catch-ups and replays idempotent, so a learner never earns
-          // the same milestone twice.
-          const { completedModules, totalModules } = countCompletedModules(
-            session.completedLessons ?? [],
-            getRuntimeLessons()
-          );
-          const awards = resolveMilestoneAwards(rule.milestones, completedModules, totalModules);
-          for (const award of awards) {
-            await prisma.reward.upsert({
-              where: {
-                userId_module: { userId: session.userId, module: award.key }
-              },
-              update: {}, // an already-earned milestone is never re-issued or repriced
-              create: {
-                userId: session.userId,
-                module: award.key,
-                amount: award.amount,
-                channel,
-                status: "Pending",
-                learnerPhone: session.phone
-              }
-            });
-          }
-          continue;
-        }
-
-        // Legacy flat mode: one reward per completed module.
-        const envAmount = Number(process.env.REWARD_DEFAULT_AMOUNT);
-        const fallbackAmount = Number.isFinite(envAmount) && envAmount > 0 ? envAmount : 500;
-        const amount = rule?.amount ?? fallbackAmount;
-        // Guard against an empty or whitespace-only module name, which would
-        // otherwise collapse the (userId, module) dedup key for the user.
-        const moduleKey = (event.module ?? "").trim() || "Unknown";
-        await prisma.reward.upsert({
-          where: {
-            userId_module: { userId: session.userId, module: moduleKey }
-          },
-          update: {},  // never overwrite an existing reward when the user replays a module
-          create: {
-            userId: session.userId,
-            module: moduleKey,
-            amount,
-            channel,
-            status: "Pending",
-            learnerPhone: session.phone
-          }
-        });
+        // Counted ONCE for the whole branch and handed to both consumers.
+        // Rewards and certificates must never be able to disagree about what
+        // "finished everything" means.
+        const completion = countCompletedModules(
+          session.completedLessons ?? [],
+          getRuntimeLessons()
+        );
+        await awardModuleRewards(session, event.module, completion);
+        followUp = (await offerCertificate(session, completion, deps)) ?? followUp;
       } else if (event.type === "help_requested") {
         // Raise the existing follow-up flag so the request lands in the
         // /users worklist instead of vanishing. Append rather than overwrite:
@@ -2085,6 +2586,7 @@ async function recordAnalytics(session: UserSession): Promise<void> {
       );
     }
   }
+  return followUp;
 }
 
 export async function handleWhatsAppWebhook(
@@ -2118,9 +2620,9 @@ export async function handleWhatsAppWebhook(
     };
   }
 
-  let result: ReturnType<typeof transition>;
+  let result: Awaited<ReturnType<typeof transition>>;
   try {
-    result = transition(existingSession, inbound.text);
+    result = await transition(existingSession, inbound.text);
     await saveSession(inbound.from, existingSession);
   } catch (error) {
     await releaseInboundMessage(inbound.id);
@@ -2129,7 +2631,20 @@ export async function handleWhatsAppWebhook(
 
   // Session is durably saved past this point — analytics/delivery failures must
   // not release the claim (that would re-run the transition and double-advance).
-  await recordAnalytics(existingSession);
+  const followUp = await recordAnalytics(existingSession);
+  if (followUp) {
+    // Merged into the SAME outbound message rather than sent as a second one:
+    // one billable message, and no way for the congratulations to overtake the
+    // module-complete reply it is meant to follow. Any `list` on the original
+    // is dropped with it — a WhatsApp message carries buttons or a list, never
+    // both — which costs nothing here, because the only reply that can earn a
+    // certificate offer is the programme-complete one, and it carries buttons.
+    result = {
+      state: followUp.state,
+      reply: `${result.reply}\n\n${followUp.reply}`,
+      ...(followUp.buttons ? { buttons: followUp.buttons } : {})
+    };
+  }
 
   if (opts.deliver) {
     await sendWhatsAppMessage(inbound.from, {

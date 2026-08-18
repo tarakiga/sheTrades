@@ -622,3 +622,301 @@ test("findFaqItem resolves tapped row ids, numbers, and rejects nonsense", () =>
   assert.equal(findFaqItem(FAQ_FIXTURES, "9"), null);
   assert.equal(findFaqItem(FAQ_FIXTURES, "how do i fly"), null);
 });
+
+// ---- Completion certificate: the bot flow ----
+//
+// No database and no network. The certificate turns take a CertificateDeps
+// seam, so every branch below runs on fakes — the same idea as the
+// `storeForTests` seam in certificates/service.ts.
+
+import {
+  certificateConfirmTurn,
+  certificateNameTurn,
+  certificateMenuTurn,
+  type CertificateDeps
+} from "./handler.js";
+import { certificateTemplatePayloadSchema } from "../certificates/contracts.js";
+
+type CertSession = Parameters<typeof certificateConfirmTurn>[0];
+
+// Parsed rather than hand-written so the fixture carries the schema defaults
+// and cannot drift into a shape the real runtime would never produce.
+const CERT_TEMPLATE = certificateTemplatePayloadSchema.parse({
+  kind: "certificate_template",
+  enabled: true,
+  programmeName: "SheTrades Digital Skills Programme",
+  issuerName: "TechHer",
+  assetKey: "cert-bg",
+  canvas: { width: 2000, height: 1414 },
+  fields: [
+    {
+      id: "learner-name",
+      variable: "learnerName",
+      x: 0.5,
+      y: 0.52,
+      font: "Playfair Display",
+      size: 0.06,
+      color: "#1a1a1a"
+    }
+  ]
+});
+
+// One module, two lessons. A session that holds both keys is finished.
+const CERT_LESSONS = [
+  { key: "m1_l1", module: "Module 1: First" },
+  { key: "m1_l2", module: "Module 1: First" }
+];
+
+function makeCertSession(): CertSession {
+  return {
+    phone: "2348000000001",
+    userId: "user-1",
+    name: "Chiamaka Obi",
+    language: "en",
+    state: "awaiting_certificate_confirm",
+    completedLessons: ["m1_l1", "m1_l2"],
+    namePrompted: true,
+    lastUpdatedAt: new Date().toISOString(),
+    _events: []
+  } as unknown as CertSession;
+}
+
+function certDeps(overrides: Partial<CertificateDeps> = {}) {
+  const issued: Array<{ userId: string; learnerName: string }> = [];
+  const resends: string[] = [];
+  const base: CertificateDeps = {
+    lessons: () => CERT_LESSONS,
+    template: () => CERT_TEMPLATE,
+    templateVersion: () => 3,
+    baseUrl: () => "https://certificates.test",
+    findCertificate: async () => null,
+    issue: async (input) => {
+      issued.push({ userId: input.userId, learnerName: input.plan.learnerName });
+      return { status: "issued", publicId: "abcdefghijklmnopqrstuvwxyz234567", sent: true };
+    },
+    resend: async (input) => {
+      resends.push(input.publicId);
+      return true;
+    }
+  };
+  return { deps: { ...base, ...overrides }, issued, resends };
+}
+
+test("main menu HIDES the certificate row until it is earned", () => {
+  const menu = buildMainMenuReply("Ada", "en");
+  const rows = menu.list.sections[0]?.rows ?? [];
+  assert.equal(rows.length, 5);
+  assert.equal(rows.some((r) => r.id === "menu-certificate"), false);
+  // A line in the body text would be just as misleading as the row itself.
+  assert.doesNotMatch(menu.reply, /Certificate/i);
+});
+
+test("main menu SHOWS the certificate row once it is earned", () => {
+  const menu = buildMainMenuReply("Ada", "en", true);
+  const rows = menu.list.sections[0]?.rows ?? [];
+  assert.equal(rows.length, 6);
+  assert.equal(rows[5]?.id, "menu-certificate");
+  assert.match(menu.reply, /6\. My Certificate/);
+  for (const row of rows) {
+    assert.ok(row.title.length <= 24, `row title too long: ${row.title}`);
+    assert.ok((row.description ?? "").length <= 72, `row description too long: ${row.description}`);
+  }
+});
+
+test("confirming issues with the stored name and lands back on the menu", async () => {
+  const session = makeCertSession();
+  const { deps, issued } = certDeps();
+  const result = await certificateConfirmTurn(session, "Yes, use this name", "en", deps);
+
+  assert.equal(issued.length, 1);
+  assert.equal(issued[0]?.learnerName, "Chiamaka Obi");
+  assert.equal(result.state, "main_menu");
+  assert.equal(session.state, "main_menu");
+  assert.ok(
+    result.list?.sections[0]?.rows.some((r) => r.id === "menu-certificate"),
+    "the certificate row must be visible once she holds one"
+  );
+});
+
+test("a change answer opens the name step and then issues the CORRECTED name", async () => {
+  const session = makeCertSession();
+  const { deps, issued } = certDeps();
+
+  const change = await certificateConfirmTurn(session, "Change the name", "en", deps);
+  assert.equal(change.state, "awaiting_certificate_name");
+  assert.equal(session.state, "awaiting_certificate_name");
+  assert.equal(issued.length, 0, "changing the name must not issue anything yet");
+
+  const done = await certificateNameTurn(session, "  Ngozi   Eze ", "en", deps);
+  assert.equal(issued.length, 1);
+  assert.equal(issued[0]?.learnerName, "Ngozi Eze");
+  // She told us her real name; it belongs on her record, not only on this
+  // certificate. saveSession() writes session.name through to users.name.
+  assert.equal(session.name, "Ngozi Eze");
+  assert.equal(done.state, "main_menu");
+});
+
+test("typed no / 2 / change all reach the change-name step", async () => {
+  for (const answer of ["no", "2", "change"]) {
+    const session = makeCertSession();
+    const { deps, issued } = certDeps();
+    const result = await certificateConfirmTurn(session, answer, "en", deps);
+    assert.equal(result.state, "awaiting_certificate_name", `${answer} should ask for a name`);
+    assert.equal(issued.length, 0);
+  }
+});
+
+test("a too-long name re-prompts and STAYS in the name step", async () => {
+  const session = makeCertSession();
+  session.state = "awaiting_certificate_name";
+  const { deps, issued } = certDeps();
+
+  const rejected = await certificateNameTurn(session, "A".repeat(61), "en", deps);
+  assert.equal(rejected.state, "awaiting_certificate_name");
+  assert.equal(session.state, "awaiting_certificate_name");
+  assert.equal(issued.length, 0);
+  // The cap in the copy is filled from MAX_NAME_LENGTH, never typed twice.
+  assert.match(rejected.reply, /60/);
+
+  // Still in the same step, so the next attempt simply works.
+  const accepted = await certificateNameTurn(session, "Ada Nwosu", "en", deps);
+  assert.equal(issued.length, 1);
+  assert.equal(issued[0]?.learnerName, "Ada Nwosu");
+  assert.equal(accepted.state, "main_menu");
+});
+
+test("an empty name re-prompts rather than issuing a blank certificate", async () => {
+  const session = makeCertSession();
+  session.state = "awaiting_certificate_name";
+  const { deps, issued } = certDeps();
+  const result = await certificateNameTurn(session, "   ", "en", deps);
+  assert.equal(result.state, "awaiting_certificate_name");
+  assert.equal(issued.length, 0);
+  assert.ok(result.reply.trim().length > 0, "silence is the one unacceptable reply");
+});
+
+test("a stored name the sanitiser rejects falls through to the change prompt, not silence", async () => {
+  // 210 characters. Nothing at onboarding stops a learner typing this — that
+  // step never runs the name past sanitiseLearnerName — so buildIssuePlan
+  // returns null for someone who HAS finished the programme.
+  const session = makeCertSession();
+  session.name = "Nne".repeat(70);
+  const { deps, issued } = certDeps();
+
+  const result = await certificateConfirmTurn(session, "yes", "en", deps);
+  assert.equal(issued.length, 0);
+  assert.equal(result.state, "awaiting_certificate_name");
+  assert.equal(session.state, "awaiting_certificate_name");
+  assert.ok(result.reply.trim().length > 0);
+
+  // And the recovery actually completes from right there.
+  const done = await certificateNameTurn(session, "Nneka Obi", "en", deps);
+  assert.equal(issued.length, 1);
+  assert.equal(issued[0]?.learnerName, "Nneka Obi");
+  assert.equal(done.state, "main_menu");
+});
+
+test("a FAILED issue still gets a human reply", async () => {
+  const session = makeCertSession();
+  const { deps } = certDeps({
+    // Carries no publicId, by design: nothing was written.
+    issue: async () => ({ status: "failed", reason: "database is down" })
+  });
+  const result = await certificateConfirmTurn(session, "yes", "en", deps);
+  assert.equal(result.state, "main_menu");
+  assert.match(result.reply, /could not be sent/i);
+  // She is still eligible, so the way back in stays on the menu.
+  assert.ok(result.list?.sections[0]?.rows.some((r) => r.id === "menu-certificate"));
+});
+
+test("a written-but-undelivered certificate also gets a reply", async () => {
+  const session = makeCertSession();
+  const { deps } = certDeps({
+    issue: async () => ({ status: "issued", publicId: "z".repeat(32), sent: false })
+  });
+  const result = await certificateConfirmTurn(session, "yes", "en", deps);
+  assert.equal(result.state, "main_menu");
+  assert.match(result.reply, /could not be sent/i);
+});
+
+test("an unpublished template says 'not ready' rather than reporting an error", async () => {
+  const session = makeCertSession();
+  const { deps, issued } = certDeps({ template: () => null });
+  const result = await certificateConfirmTurn(session, "yes", "en", deps);
+  assert.equal(issued.length, 0);
+  assert.equal(result.state, "main_menu");
+  assert.match(result.reply, /not ready/i);
+});
+
+test("a disabled (draft) template says 'not ready' and issues nothing", async () => {
+  const session = makeCertSession();
+  const { deps, issued } = certDeps({
+    template: () => ({ ...CERT_TEMPLATE, enabled: false })
+  });
+  const result = await certificateConfirmTurn(session, "yes", "en", deps);
+  assert.equal(issued.length, 0);
+  assert.match(result.reply, /not ready/i);
+});
+
+test("MENU escapes the name step so the word is never printed on a certificate", async () => {
+  const session = makeCertSession();
+  session.state = "awaiting_certificate_name";
+  const { deps, issued } = certDeps();
+  const result = await certificateNameTurn(session, "MENU", "en", deps);
+  assert.equal(result.state, "main_menu");
+  assert.equal(issued.length, 0);
+  // She keeps the row, so the exchange is resumable.
+  assert.ok(result.list?.sections[0]?.rows.some((r) => r.id === "menu-certificate"));
+});
+
+test("the menu tap RE-SENDS an existing certificate", async () => {
+  const session = makeCertSession();
+  session.state = "main_menu";
+  const { deps, resends, issued } = certDeps({
+    findCertificate: async () => ({ publicId: "q".repeat(32) })
+  });
+  const result = await certificateMenuTurn(session, "en", deps);
+
+  assert.deepEqual(resends, ["q".repeat(32)]);
+  assert.equal(issued.length, 0, "a resend must never mint a second certificate");
+  assert.equal(result.state, "main_menu");
+  assert.ok(result.list?.sections[0]?.rows.some((r) => r.id === "menu-certificate"));
+});
+
+test("the menu tap RESUMES the confirm exchange when she never answered it", async () => {
+  const session = makeCertSession();
+  session.state = "main_menu";
+  const { deps } = certDeps();
+  const result = await certificateMenuTurn(session, "en", deps);
+
+  assert.equal(result.state, "awaiting_certificate_confirm");
+  assert.equal(session.state, "awaiting_certificate_confirm");
+  // The name that will be printed has to be in front of her before she agrees.
+  assert.match(result.reply, /Chiamaka Obi/);
+  assert.equal(result.buttons?.length, 2);
+  for (const button of result.buttons ?? []) {
+    assert.ok(button.length <= 20, `button too long: ${button}`);
+  }
+});
+
+test("a failed resend still answers, and the row stays reachable", async () => {
+  const session = makeCertSession();
+  session.state = "main_menu";
+  const { deps } = certDeps({
+    findCertificate: async () => ({ publicId: "q".repeat(32) }),
+    resend: async () => false
+  });
+  const result = await certificateMenuTurn(session, "en", deps);
+  assert.match(result.reply, /could not be sent/i);
+  assert.ok(result.list?.sections[0]?.rows.some((r) => r.id === "menu-certificate"));
+});
+
+test("neither a certificate nor eligibility answers 'not ready' rather than nothing", async () => {
+  const session = makeCertSession();
+  session.state = "main_menu";
+  session.completedLessons = ["m1_l1"];
+  const { deps } = certDeps();
+  const result = await certificateMenuTurn(session, "en", deps);
+  assert.match(result.reply, /not ready/i);
+  assert.ok(result.reply.trim().length > 0);
+});
