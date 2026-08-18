@@ -140,7 +140,7 @@ export function ProfileTwoFactorCard() {
         {phase === "codes" && recoveryCodes.length > 0 ? (
           <div className="two-factor-settings__codes">
             <p className="two-factor-settings__codes-warning">
-              Save these now — they are shown once and cannot be retrieved later. Each one works a
+              Save these now. They are shown once and cannot be retrieved later. Each one works a
               single time, and they are the only way back in if you lose your phone.
             </p>
             <ul className="two-factor-settings__codes-list">
@@ -175,7 +175,7 @@ export function ProfileTwoFactorCard() {
           <div className="two-factor-settings__setup">
             <ol className="two-factor-settings__steps">
               <li>
-                Open an authenticator app — Google Authenticator, Authy or 1Password all work.
+                Open an authenticator app. Google Authenticator, Authy or 1Password all work.
               </li>
               <li>Scan this code, or enter the key by hand if you cannot scan.</li>
               <li>Enter the 6-digit code it shows to confirm.</li>

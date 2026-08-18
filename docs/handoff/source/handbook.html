@@ -219,13 +219,19 @@
   li::marker { color: var(--brand); }
 
   ol.steps { counter-reset: step; list-style: none; padding-left: 0; gap: .85rem; }
+  /* The number is positioned OUT of flow rather than being a grid cell. A grid
+     list item turns every inline child into its own grid item, so a step that
+     opens with a bold word pushed the rest of its sentence into the 1.85rem
+     number column and wrapped it one word per line. */
   ol.steps > li {
     counter-increment: step;
-    display: grid; grid-template-columns: 1.85rem 1fr; gap: .75rem;
-    padding-left: 0;
+    position: relative;
+    padding-left: 2.7rem;
+    min-height: 1.85rem;
   }
   ol.steps > li::before {
     content: counter(step);
+    position: absolute; left: 0; top: .05em;
     font-family: var(--display); font-weight: 700; font-size: .95rem;
     color: var(--flame);
     width: 1.85rem; height: 1.85rem; border-radius: 50%;
@@ -462,7 +468,7 @@
 
       <p>
         <strong>The second half is this console.</strong> Almost everything the bot says, offers, or
-        pays out is something you control from here — the lesson text, the quiz questions, the menu
+        pays out is something you control from here: the lesson text, the quiz questions, the menu
         wording, the consent notice, the reward amounts, the certificate design. You change it here;
         the bot picks it up. No developer, no app release, no waiting.
       </p>
@@ -491,7 +497,7 @@
 
       <figure>
         <img src="IMG:01-login" alt="The sign-in screen, with email and password fields on the left and a panel explaining protected access on the right.">
-        <figcaption><b>Fig 3.1</b><span>The sign-in screen. Use the email address your certificate of access was issued to — not a personal address.</span></figcaption>
+        <figcaption><b>Fig 3.1</b><span>The sign-in screen. Use the email address your certificate of access was issued to, not a personal address.</span></figcaption>
       </figure>
 
       <ol class="steps">
@@ -568,8 +574,8 @@
             </tr>
             <tr>
               <td><strong>Configuration</strong></td>
-              <td>Settings</td>
-              <td>Change wording, choices, connections, people and branding.</td>
+              <td>Settings, Help</td>
+              <td>Change wording, choices, connections, people and branding. Help opens this guide.</td>
             </tr>
           </tbody>
         </table>
@@ -586,6 +592,15 @@
           Some pages have a <strong>Take a tour</strong> button in the top right. It walks you
           through that screen in about a minute. They are worth doing once each, and you can skip
           out at any point.
+        </p>
+      </div>
+
+      <div class="call">
+        <span class="call__label">Help is always one click away</span>
+        <p>
+          <strong>Help</strong>, at the bottom of the sidebar, opens this guide in a new tab so you
+          can read it beside the screen you are stuck on. It is part of the console rather than a
+          file someone emailed you, so it is updated whenever the platform is.
         </p>
       </div>
     </section>
@@ -617,7 +632,7 @@
         <div>
           <dt>Quiz Pass Rate</dt>
           <dd>Of the quizzes attempted, how many were passed. Read this <em>next to</em> completion,
-            not on its own — a high pass rate with low completion usually means the few who persist
+            not on its own. A high pass rate with low completion usually means the few who persist
             are doing fine and the rest are dropping out before the quiz.</dd>
         </div>
         <div>
@@ -629,21 +644,21 @@
 
       <h3>Operational Review</h3>
       <p>
-        The table below the figures turns them into a verdict. Each row carries a status pill —
-        <strong>Healthy</strong>, <strong>Watch</strong> or <strong>Idle</strong> — so you can scan
+        The table below the figures turns them into a verdict. Each row carries a status pill
+        (<strong>Healthy</strong>, <strong>Watch</strong> or <strong>Idle</strong>), so you can scan
         for the one that needs you rather than interpreting four percentages yourself.
       </p>
 
       <h3>The support panels</h3>
       <ul>
-        <li><strong>Recent Reward Activity</strong> — the last airtime payments, newest first.</li>
-        <li><strong>Users requesting help</strong> — learners who tapped the help option during a
+        <li><strong>Recent Reward Activity</strong>: the last airtime payments, newest first.</li>
+        <li><strong>Users requesting help</strong>: learners who tapped the help option during a
           lesson check-in. These are people who asked for a human. They are the highest-value list
           on this page.</li>
-        <li><strong>At-Risk Learners</strong> — registered but barely progressing.</li>
-        <li><strong>Module Funnel Snapshot</strong> — how many made it from registered, to started,
+        <li><strong>At-Risk Learners</strong>: registered but barely progressing.</li>
+        <li><strong>Module Funnel Snapshot</strong>: how many made it from registered, to started,
           to completed, to quiz passed.</li>
-        <li><strong>Upcoming Milestones</strong> — learners about to cross a reward threshold, so you
+        <li><strong>Upcoming Milestones</strong>: learners about to cross a reward threshold, so you
           can check the airtime balance before it matters.</li>
       </ul>
 
@@ -675,16 +690,16 @@
       <h3>The three icons on each row</h3>
       <dl class="defs">
         <div>
-          <dt>Eye &mdash; open her details</dt>
+          <dt>Eye: open her details</dt>
           <dd>Opens the panel in Fig 6.2 without leaving the list.</dd>
         </div>
         <div>
-          <dt>Speech bubble &mdash; message on WhatsApp</dt>
+          <dt>Speech bubble: message on WhatsApp</dt>
           <dd>Opens WhatsApp with her number ready, so you can write to her personally. This is a
             human conversation from your own phone or desktop WhatsApp, not an automated message.</dd>
         </div>
         <div>
-          <dt>Flag &mdash; mark for follow-up</dt>
+          <dt>Flag: mark for follow-up</dt>
           <dd>Adds her to the flagged list so your team knows she needs attention. Add a note saying
             why.</dd>
         </div>
@@ -692,12 +707,12 @@
 
       <figure>
         <img src="IMG:04-user-drawer" alt="The learner detail panel sliding in from the right, showing name, phone, location, status, member since, a follow-up flag with note box, session state, and module progress.">
-        <figcaption><b>Fig 6.2</b><span>Learner detail. "Session" tells you where she is in the conversation right now — useful when someone says the bot has stopped replying.</span></figcaption>
+        <figcaption><b>Fig 6.2</b><span>Learner detail. "Session" tells you where she is in the conversation right now, which is useful when someone says the bot has stopped replying.</span></figcaption>
       </figure>
 
       <p>
-        The panel shows her progress, her quiz attempts, any rewards she has received, and — once
-        she has earned one — a link to her certificate. <strong>State</strong> under Session is the
+        The panel shows her progress, her quiz attempts, any rewards she has received, and, once
+        she has earned one, a link to her certificate. <strong>State</strong> under Session is the
         step of the conversation she is currently on; if it says she is waiting to answer something,
         she is, and a nudge on WhatsApp will usually restart her.
       </p>
@@ -732,22 +747,22 @@
             <tr>
               <td>Registered &rarr; Started drops sharply</td>
               <td>Onboarding is too long, or the first lesson is not compelling</td>
-              <td>Content &mdash; the welcome and first module</td>
+              <td>Content: the welcome and first module</td>
             </tr>
             <tr>
               <td>Started &rarr; Completed drops sharply</td>
               <td>Lessons are too long, or arriving at the wrong pace</td>
-              <td>Content &mdash; lesson length and structure</td>
+              <td>Content: lesson length and structure</td>
             </tr>
             <tr>
               <td>Completed &rarr; Quiz attempted drops</td>
               <td>The quiz prompt is unclear or feels like a test</td>
-              <td>Content &mdash; the wording that introduces the quiz</td>
+              <td>Content: the wording that introduces the quiz</td>
             </tr>
             <tr>
               <td>Quiz attempted &rarr; Passed drops</td>
               <td>Questions are harder than the lesson prepared people for</td>
-              <td>Content &mdash; the questions themselves</td>
+              <td>Content: the questions themselves</td>
             </tr>
           </tbody>
         </table>
@@ -786,15 +801,15 @@
         Two kinds of thing, in one table:
       </p>
       <ul>
-        <li><strong>Lessons</strong> — the teaching material, each with its text, an optional audio
+        <li><strong>Lessons</strong>: the teaching material, each with its text, an optional audio
           version, and the quiz at the end.</li>
-        <li><strong>Bot messages</strong> — everything else the bot says: the welcome, the main menu,
+        <li><strong>Bot messages</strong>: everything else the bot says: the welcome, the main menu,
           the prompt that asks for a name, the congratulations at the end of a module, the FAQs.</li>
       </ul>
 
       <p>
-        The chips above the table — <strong>All</strong>, <strong>Draft</strong>,
-        <strong>Live</strong>, <strong>Trash</strong> — filter it. <strong>Draft</strong> is the one
+        The chips above the table (<strong>All</strong>, <strong>Draft</strong>,
+        <strong>Live</strong>, <strong>Trash</strong>) filter it. <strong>Draft</strong> is the one
         to watch: anything sitting there is a change somebody started and has not published, so
         learners are not seeing it yet.
       </p>
@@ -808,8 +823,8 @@
       <ol class="steps">
         <li>Find the item. Search by its title, or by the small grey name beneath it.</li>
         <li>Click the pencil to open it.</li>
-        <li>Make your change. The editor formats text the way WhatsApp does — <code>*bold*</code>
-          and <code>_italics_</code> — and shows you a preview.</li>
+        <li>Make your change. The editor formats text the way WhatsApp does, with <code>*bold*</code>
+          and <code>_italics_</code>, and shows you a preview.</li>
         <li>Save. This creates a <strong>draft</strong>. Nothing has changed for learners yet.</li>
         <li>Publish when you are happy. The bot uses the new wording from the next message it sends.</li>
       </ol>
@@ -821,10 +836,10 @@
       </figure>
 
       <ol class="steps">
-        <li><strong>Info</strong> — choose a category and give it a short name. The console assembles
+        <li><strong>Info</strong>: choose a category and give it a short name. The console assembles
           the internal reference itself so it stays consistent.</li>
-        <li><strong>Content</strong> — write the text, and add quiz questions if it is a lesson.</li>
-        <li><strong>Preview</strong> — see it as a learner will, then save it as a draft.</li>
+        <li><strong>Content</strong>: write the text, and add quiz questions if it is a lesson.</li>
+        <li><strong>Preview</strong>: see it as a learner will, then save it as a draft.</li>
       </ol>
 
       <p>
@@ -843,7 +858,7 @@
         </div>
         <div>
           <dt>Check-in question</dt>
-          <dd>Every answer is accepted. One option can be marked as a request for help — a learner
+          <dd>Every answer is accepted. One option can be marked as a request for help. A learner
             who picks it is flagged for follow-up and appears on the Overview page. Use this to find
             people who are struggling but would never say so directly.</dd>
         </div>
@@ -853,7 +868,7 @@
         <span class="call__label">WhatsApp limits your wording</span>
         <p>
           WhatsApp allows only 24 characters on a button and 24 on a menu row. The editor shows a
-          meter and will not let you exceed it. This is not the console being fussy — longer text is
+          meter and will not let you exceed it. This is not the console being fussy: longer text is
           silently cut off by WhatsApp itself, mid-word, on the learner's phone.
         </p>
       </div>
@@ -869,8 +884,8 @@
       <p>
         English is live. Pidgin and Igbo appear to learners as coming soon. When you are ready to
         add them, the Translations area (Settings → Integration → Translations) drafts a translation
-        of every piece of content for a person to review and approve before anything is published —
-        machine translation is a starting point here, never the final word.
+        of every piece of content for a person to review and approve before anything is published.
+        Machine translation is a starting point here, never the final word.
       </p>
     </section>
 
@@ -901,7 +916,7 @@
         <div>
           <dt>Pending</dt>
           <dd>Queued, not yet confirmed. Normal for a few minutes. Pending for hours means the
-            provider is not responding — check Settings → Integration → Payouts.</dd>
+            provider is not responding. Check Settings → Integration → Payouts.</dd>
         </div>
         <div>
           <dt>Failed</dt>
@@ -929,7 +944,7 @@
       </div>
 
       <p>
-        The amounts and the milestones themselves are not set here — they live in
+        The amounts and the milestones themselves are not set here. They live in
         Settings&nbsp;&rarr;&nbsp;Rewards, covered in section 12.
       </p>
     </section>
@@ -951,7 +966,7 @@
       <p>
         Press <strong>Generate Report</strong>, choose a preset, and the export appears in
         <strong>Export History</strong> to download when it is ready. The presets are shaped for
-        different audiences — Donor leads with impact and completion, Ops with operational detail,
+        different audiences: Donor leads with impact and completion, Ops with operational detail,
         Finance with reward totals.
       </p>
 
@@ -967,8 +982,8 @@
 
       <p>
         <strong>Pause</strong> stops a schedule without deleting it, and resuming does not send the
-        runs it missed. <strong>Run Now</strong> sends immediately without disturbing the schedule —
-        useful when a donor asks between reporting dates.
+        runs it missed. <strong>Run Now</strong> sends immediately without disturbing the schedule,
+        which is useful when a donor asks between reporting dates.
       </p>
 
       <div class="call">
@@ -1052,7 +1067,7 @@
 
       <ul>
         <li>The <strong>Layout</strong> panel on the left shows dashed boxes over the artwork. Each
-          box is a <em>handle</em> — it marks where a field is anchored and how much width it may
+          box is a <em>handle</em>: it marks where a field is anchored and how much width it may
           use. Drag it, or select it and use the arrow keys (hold Shift for bigger steps).</li>
         <li>The <strong>Preview</strong> panel on the right is the certificate itself, drawn by the
           same machinery that draws a real one. It refreshes a second or two after you finish a
@@ -1065,7 +1080,7 @@
           The boxes are instruments for positioning; the preview is the artefact. They are not the
           same picture, and only the preview is what a learner receives. Before publishing, use the
           <strong>Preview for</strong> selector to check the design against a long name and an
-          all-capitals name — that is how a layout that looked fine ends up with somebody's own name
+          all-capitals name. That is how a layout that looked fine ends up with somebody's own name
           running off her certificate.
         </p>
       </div>
@@ -1083,7 +1098,7 @@
       <div class="call">
         <span class="call__label">Artwork is never replaced</span>
         <p>
-          Upload a new version of a logo and it gets a new name — the box suggests a free one for
+          Upload a new version of a logo and it gets a new name, and the box suggests a free one for
           you. This is deliberate. Every certificate already issued still points at the artwork it
           was issued with, so overwriting a picture would quietly redraw credentials that are
           already in learners' hands, months later.
@@ -1093,7 +1108,7 @@
       <h3>Saving, publishing, rolling back</h3>
       <p>
         <strong>Save draft</strong> stores your work and changes nothing for learners.
-        <strong>Publish</strong> makes it the design the next certificate is issued with — write a
+        <strong>Publish</strong> makes it the design the next certificate is issued with. Write a
         note saying what changed, because it is kept in the history. <strong>History</strong> lists
         every published version with a way back to it. Rolling back does not alter certificates
         already issued: each one keeps a frozen copy of the design it was granted under, which is
@@ -1114,17 +1129,17 @@
         <figcaption><b>Fig 12.1</b><span>Settings. The six cards at the top switch between areas; the rest of the page changes underneath.</span></figcaption>
       </figure>
 
-      <h3>Options &mdash; the lists people choose from</h3>
+      <h3>Options: the lists people choose from</h3>
       <div class="who"><span class="chip chip--editor">Editor</span><span class="chip chip--admin">Admin</span></div>
       <p>
         Every list of choices in the system lives here: the states a learner can pick during
         onboarding, the languages offered, the FAQ topics, the resources menu, report recipients,
         report cadences. Add an entry, reorder them, or switch one off without deleting it. If a
-        state should no longer be offered, disable it here and it disappears from the bot — the
+        state should no longer be offered, disable it here and it disappears from the bot, and the
         learners who already chose it keep their record.
       </p>
 
-      <h3>Legal &mdash; consent and policy text</h3>
+      <h3>Legal: consent and policy text</h3>
       <div class="who"><span class="chip chip--editor">Editor</span><span class="chip chip--admin">Admin</span></div>
       <figure>
         <img src="IMG:19-settings-legal" alt="The Legal area of Settings, listing consent and policy blocks with draft and live version columns.">
@@ -1136,7 +1151,7 @@
         history is the answer.
       </p>
 
-      <h3>Integration &mdash; connections to the outside world</h3>
+      <h3>Integration: connections to the outside world</h3>
       <div class="who"><span class="chip chip--admin">Admin only</span></div>
       <figure>
         <img src="IMG:13-settings-integration" alt="The Integration workspace with tabs for WhatsApp, Notification, Payouts and Translations, and a table showing the primary WhatsApp integration as Live.">
@@ -1175,12 +1190,12 @@
       <p>
         This is the most useful tool in the console and the least obvious. It is a simulated
         WhatsApp conversation running against your live wording, so you can walk the whole learner
-        journey — welcome, name, state, language, a lesson, a quiz — without touching a real phone or
+        journey (welcome, name, state, language, a lesson, a quiz) without touching a real phone or
         a real learner. <strong>Use it every time you change something a learner reads.</strong>
         <strong>Reset Session State</strong> starts the conversation over from the beginning.
       </p>
 
-      <h3>Rewards &mdash; how much, and when</h3>
+      <h3>Rewards: how much, and when</h3>
       <div class="who"><span class="chip chip--admin">Admin only</span></div>
       <figure>
         <img src="IMG:16-settings-rewards" alt="The Rewards settings area showing the active rule with milestones, an Edit Rule button, and a draft and publish workflow panel with Preview, Publish Live and Restore Previous controls.">
@@ -1199,7 +1214,7 @@
         </p>
       </div>
 
-      <h3>Admins &mdash; your team</h3>
+      <h3>Admins: your team</h3>
       <div class="who"><span class="chip chip--admin">Admin only</span></div>
       <figure>
         <img src="IMG:17-settings-admins" alt="The Admin Team area listing admin accounts with role dropdowns, status, last sign-in, and controls to reset password, reset 2FA, suspend and delete.">
@@ -1220,11 +1235,11 @@
         <span class="call__label">When someone leaves</span>
         <p>
           Suspend the same day. Their past actions stay in the record, which is exactly what you
-          want — you are removing access, not erasing history.
+          want: you are removing access, not erasing history.
         </p>
       </div>
 
-      <h3>Branding &mdash; making it yours</h3>
+      <h3>Branding: making it yours</h3>
       <div class="who"><span class="chip chip--admin">Admin only</span></div>
       <figure>
         <img src="IMG:18-settings-branding" alt="The Branding area with organisation name, a colour palette showing primary, secondary and accent swatches with hex values, and a live preview of the sidebar and typography.">
@@ -1261,7 +1276,7 @@
       </p>
       <ol class="steps">
         <li>Press <strong>Set up two-factor authentication</strong>.</li>
-        <li>Scan the square code with an authenticator app — Google Authenticator, Microsoft
+        <li>Scan the square code with an authenticator app. Google Authenticator, Microsoft
           Authenticator and Authy all work.</li>
         <li>Type the six digits it shows to confirm.</li>
         <li><strong>Save the recovery codes somewhere safe and offline.</strong> They are how you get
@@ -1319,7 +1334,7 @@
 
       <p>
         Every version records who made it, when, and the note they wrote. That record is what lets
-        you answer "who changed the consent text and when" months later — so write a real note, not
+        you answer "who changed the consent text and when" months later, so write a real note, not
         "update".
       </p>
 
@@ -1363,16 +1378,16 @@
           <tbody>
             <tr><td>See learners, analytics and content</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
             <tr><td>Download reports and exports</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-            <tr><td>Write and save drafts</td><td>&mdash;</td><td>Yes</td><td>Yes</td></tr>
-            <tr><td>Flag a learner for follow-up</td><td>&mdash;</td><td>Yes</td><td>Yes</td></tr>
-            <tr><td>Design the certificate</td><td>&mdash;</td><td>Yes</td><td>Yes</td></tr>
-            <tr><td>Correct, resend or revoke a certificate</td><td>&mdash;</td><td>Yes</td><td>Yes</td></tr>
-            <tr><td>Publish anything live</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
-            <tr><td>Restore a previous version</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
-            <tr><td>Change reward amounts</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
-            <tr><td>Switch certificate issuing on or off</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
-            <tr><td>Change connections and branding</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
-            <tr><td>Add, suspend or remove admins</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
+            <tr><td>Write and save drafts</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Flag a learner for follow-up</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Design the certificate</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Correct, resend or revoke a certificate</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Publish anything live</td><td>No</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Restore a previous version</td><td>No</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Change reward amounts</td><td>No</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Switch certificate issuing on or off</td><td>No</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Change connections and branding</td><td>No</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Add, suspend or remove admins</td><td>No</td><td>No</td><td>Yes</td></tr>
           </tbody>
         </table>
       </div>
@@ -1387,7 +1402,7 @@
       <div class="call call--tip">
         <span class="call__label">A sensible starting shape</span>
         <p>
-          Two Admins — never one, or a holiday becomes an outage. Editors for everyone who writes
+          Two Admins, never one, or a holiday becomes an outage. Editors for everyone who writes
           content or handles learners. Viewer for M&amp;E staff and partner observers who need the
           numbers but should not change anything.
         </p>
@@ -1404,9 +1419,9 @@
 
       <h3>Every day (five minutes)</h3>
       <ul>
-        <li>Overview — is anything showing <strong>Watch</strong>?</li>
-        <li><strong>Users requesting help</strong> — anyone new? Reply to them personally.</li>
-        <li>Rewards — any <strong>Failed</strong> payments?</li>
+        <li>Overview: is anything showing <strong>Watch</strong>?</li>
+        <li><strong>Users requesting help</strong>: anyone new? Reply to them personally.</li>
+        <li>Rewards: any <strong>Failed</strong> payments?</li>
       </ul>
 
       <h3>Every week</h3>
@@ -1490,7 +1505,7 @@
         Everything above is yours to fix. Escalate when the whole console will not load, when a
         connection test keeps failing after the credentials have been re-entered, when Meta changes
         something about the WhatsApp number, or when you see the same error after trying the steps
-        here twice. Say what you did, what you expected, and what happened instead — that alone
+        here twice. Say what you did, what you expected, and what happened instead. That alone
         usually halves the time to a fix.
       </p>
     </section>
@@ -1557,7 +1572,7 @@
       <h4>Certificates</h4>
       <ul>
         <li>The design has been signed off from the <em>preview</em>, checked against a long name.</li>
-        <li>Issuing is switched on when — and only when — you are ready.</li>
+        <li>Issuing is switched on when, and only when, you are ready.</li>
         <li>One learner has been through the whole programme and received hers, and you have opened
           her verification link yourself.</li>
       </ul>
@@ -1569,7 +1584,7 @@
       </ul>
 
       <div class="foot">
-        <p><strong>SheTrades Digital &mdash; Operator Handbook, version 1.0.</strong></p>
+        <p><strong>SheTrades Digital Operator Handbook, version 1.0.</strong></p>
         <p>
           Reflects the platform as at August 2026. Screenshots show the test environment; learner
           names, phone numbers and staff email addresses have been replaced with examples throughout.

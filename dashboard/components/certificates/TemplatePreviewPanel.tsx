@@ -45,7 +45,7 @@ export function TemplatePreviewPanel({
           value={sampleId}
           options={samples.map((sample) => ({
             value: sample.id,
-            label: `${sample.label} — ${sample.learnerName}`
+            label: `${sample.label}: ${sample.learnerName}`
           }))}
           emptyMessage="No sample learners available."
           onChange={onSampleChange}

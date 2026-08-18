@@ -230,7 +230,7 @@ export function TemplateCanvas({
 
       <p className="certificate-canvas__hint">
         These boxes show where each field is anchored and how much width it may use. They are not
-        the certificate — the preview beside them is the real render.
+        the certificate: the preview beside them is the real render.
       </p>
     </div>
   );

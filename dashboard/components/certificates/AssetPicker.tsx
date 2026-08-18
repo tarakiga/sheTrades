@@ -101,7 +101,7 @@ export function AssetPicker({
           label="Name it"
           value={key}
           placeholder="logo-techher-v1"
-          hint="Lowercase and hyphens. Artwork is never replaced, so a new version of a picture needs a new name — this box already suggests a free one."
+          hint="Lowercase and hyphens. Artwork is never replaced, so a new version of a picture needs a new name, and this box already suggests a free one."
           onChange={(event) => setKey(event.target.value)}
         />
 

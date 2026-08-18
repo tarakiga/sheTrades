@@ -530,7 +530,7 @@ export function TemplateEditor() {
 
       <Card
         title="Artwork"
-        description="Uploaded artwork is never replaced — a new version of a picture gets a new name, because certificates already issued still point at the old one."
+        description="Uploaded artwork is never replaced. A new version of a picture gets a new name, because certificates already issued still point at the old one."
       >
         <AssetPicker
           assets={assets}
@@ -566,7 +566,7 @@ export function TemplateEditor() {
               ? "Save the draft before publishing, so what goes live is what you are looking at."
               : draftVersionId
                 ? "The saved draft is ready to publish."
-                : "Nothing to publish — the live version and the draft are the same."}
+                : "Nothing to publish: the live version and the draft are the same."}
           </p>
         </div>
       </Card>
@@ -604,7 +604,7 @@ export function TemplateEditor() {
       <ConfirmationModal
         open={Boolean(rollbackTarget)}
         title={`Roll back to version ${rollbackTarget?.versionNumber ?? ""}?`}
-        description="This publishes the older design as a new version. Certificates already issued do not change — each one keeps the design it was issued under."
+        description="This publishes the older design as a new version. Certificates already issued do not change: each one keeps the design it was issued under."
         confirmLabel="Roll back"
         loading={busy}
         onCancel={() => setRollbackTarget(null)}

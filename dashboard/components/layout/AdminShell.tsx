@@ -17,6 +17,15 @@ type NavItem = {
   fallbackLabel: string;
   href: string;
   icon: ReactNode;
+  /**
+   * Opens in a new tab instead of navigating the console away.
+   *
+   * Used for the handbook, which is a long reference document people read
+   * BESIDE the screen they are stuck on. Replacing the console with it would
+   * lose their place, and it is a plain file rather than an app route, so it
+   * also has nothing to navigate back from.
+   */
+  newTab?: boolean;
 };
 
 type NavSection = {
@@ -104,6 +113,14 @@ const ReportsIcon = (
   </Icon>
 );
 
+const HelpIcon = (
+  <Icon>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.6 9.3a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.7-.9 1.3v.5" />
+    <path d="M12 16.8h.01" />
+  </Icon>
+);
+
 const navSections: Array<NavSection> = [
   {
     items: [{ copyKey: "nav.overview", fallbackLabel: "Overview", href: "/dashboard", icon: OverviewIcon }]
@@ -134,7 +151,20 @@ const navSections: Array<NavSection> = [
   {
     labelKey: "nav.section.configuration",
     labelFallback: "Configuration",
-    items: [{ copyKey: "nav.settings", fallbackLabel: "Settings", href: "/settings", icon: SettingsIcon }]
+    items: [
+      { copyKey: "nav.settings", fallbackLabel: "Settings", href: "/settings", icon: SettingsIcon },
+      {
+        copyKey: "nav.help",
+        fallbackLabel: "Help",
+        // A static file rather than an app route: the handbook is one
+        // self-contained page with its screenshots inlined, rebuilt from
+        // docs/handoff/source whenever the console changes, so it cannot fall
+        // out of step with the product it documents.
+        href: "/handbook.html",
+        icon: HelpIcon,
+        newTab: true
+      }
+    ]
   }
 ];
 
@@ -195,6 +225,44 @@ export function AdminShell({ children, copy = {} }: AdminShellProps) {
                 </p>
               ) : null}
               {section.items.map((item) => {
+                const label = resolveCopy(copy, item.copyKey, item.fallbackLabel);
+                if (item.newTab) {
+                  // A plain anchor, not next/link: this is a file the server
+                  // hands over whole, and routing it through the client router
+                  // would only add a step before the browser does the same
+                  // thing.
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      suppressHydrationWarning
+                      className="admin-shell__nav-link admin-shell__nav-link--external"
+                    >
+                      <span className="admin-shell__nav-link-rail" aria-hidden="true" />
+                      {item.icon}
+                      <span className="admin-shell__nav-link-label">{label}</span>
+                      <svg
+                        className="admin-shell__nav-link-external"
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M14 4h6v6" />
+                        <path d="M20 4 11 13" />
+                        <path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+                      </svg>
+                      <span className="admin-shell__nav-link-sr">(opens in a new tab)</span>
+                    </a>
+                  );
+                }
                 const active = isActivePath(pathname, item.href);
                 return (
                   <Link
@@ -206,9 +274,7 @@ export function AdminShell({ children, copy = {} }: AdminShellProps) {
                   >
                     <span className="admin-shell__nav-link-rail" aria-hidden="true" />
                     {item.icon}
-                    <span className="admin-shell__nav-link-label">
-                      {resolveCopy(copy, item.copyKey, item.fallbackLabel)}
-                    </span>
+                    <span className="admin-shell__nav-link-label">{label}</span>
                   </Link>
                 );
               })}

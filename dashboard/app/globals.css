@@ -9251,3 +9251,33 @@ button.needs-attention-panel__item:focus {
   border-radius: var(--radius-md);
   background: var(--color-neutral-50);
 }
+
+/* The Help link opens the operator handbook in a new tab. It is never the
+   "active" page, so it carries an outward arrow instead of the accent rail. */
+.admin-shell__nav-link--external .admin-shell__nav-link-label {
+  flex: 1;
+}
+
+.admin-shell__nav-link-external {
+  color: var(--sidebar-text-muted);
+  flex: 0 0 auto;
+  opacity: 0.75;
+  transition:
+    color 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.admin-shell__nav-link--external:hover .admin-shell__nav-link-external {
+  color: var(--sidebar-text-strong);
+  opacity: 1;
+}
+
+.admin-shell__nav-link-sr {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
