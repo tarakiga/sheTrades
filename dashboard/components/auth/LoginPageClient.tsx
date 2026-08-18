@@ -10,6 +10,7 @@ import { useAdminSession } from "./AdminSessionProvider";
 import { useBranding } from "../branding/BrandingProvider";
 import type { AuthStatusMessage } from "./types";
 import { LoginPageFallback } from "./LoginPageFallback";
+import { TwoFactorCodeCard } from "./TwoFactorCodeCard";
 
 function validateLogin(value: LoginFormValue) {
   return {
@@ -28,11 +29,15 @@ export function LoginPageClient() {
   const branding = useBranding();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { status, signIn } = useAdminSession();
+  const { status, signIn, completeTwoFactor } = useAdminSession();
   const [value, setValue] = useState<LoginFormValue>({ email: "", password: "" });
   const [errors, setErrors] = useState<Partial<Record<keyof LoginFormValue, string>>>({});
   const [feedback, setFeedback] = useState<AuthStatusMessage | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Set only when the password step succeeded but a second factor is owed.
+  // Holding it in state (never in storage) means an abandoned half-login
+  // leaves nothing behind.
+  const [challenge, setChallenge] = useState<{ token: string; expiresAt: string } | null>(null);
 
   const nextRoute = useMemo(() => searchParams.get("next") || "/dashboard", [searchParams]);
 
@@ -64,6 +69,37 @@ export function LoginPageClient() {
     });
   }
 
+  async function handleTwoFactorSubmit(code: string) {
+    if (!challenge) return;
+    setSubmitting(true);
+    try {
+      await completeTwoFactor(challenge.token, code);
+      setFeedback({
+        tone: "success",
+        title: t("auth.login.success.title", "Sign-in successful"),
+        description: t(
+          "auth.login.success.description",
+          "Your admin workspace is ready. Redirecting now."
+        )
+      });
+      router.replace(nextRoute);
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        title: t("auth.login.twoFactor.error.title", "That code did not work"),
+        description:
+          error instanceof Error
+            ? error.message
+            : t(
+                "auth.login.twoFactor.error.description",
+                "Check the current code in your authenticator app, or use a recovery code."
+              )
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit() {
     const nextErrors = validateLogin(value);
     setErrors(nextErrors);
@@ -90,7 +126,19 @@ export function LoginPageClient() {
     });
 
     try {
-      await signIn(value.email.trim(), value.password);
+      const result = await signIn(value.email.trim(), value.password);
+      if (result.status === "two_factor_required") {
+        setChallenge({ token: result.challengeToken, expiresAt: result.challengeExpiresAt });
+        setFeedback({
+          tone: "info",
+          title: t("auth.login.twoFactor.title", "One more step"),
+          description: t(
+            "auth.login.twoFactor.description",
+            "Enter the code from your authenticator app to finish signing in."
+          )
+        });
+        return;
+      }
       setFeedback({
         tone: "success",
         title: t("auth.login.success.title", "Sign-in successful"),
@@ -182,47 +230,61 @@ export function LoginPageClient() {
           </>
         }
       >
-        <LoginFormCard
-          density="compact"
-          emailLabel={t("auth.login.form.email.label", "Email address")}
-          emailHint={t(
-            "auth.login.form.email.hint",
-            "Use the email assigned to your admin account."
-          )}
-          passwordLabel={t("auth.login.form.password.label", "Password")}
-          passwordHint={t(
-            "auth.login.form.password.hint",
-            "Passwords are verified against your secure admin account."
-          )}
-          submitLabel={t("auth.login.form.submit", "Sign in")}
-          loadingLabel={t("auth.login.form.loading", "Signing in...")}
-          submitHint={t(
-            "auth.login.form.submitHint",
-            "Your session stays role-aware and protected as you move across the dashboard."
-          )}
-          recoveryAction={
-            <Button variant="ghost" size="sm" type="button" onClick={handleSupport}>
-              {t("auth.login.form.recovery", "Get sign-in help")}
-            </Button>
-          }
-          forgotPasswordAction={
-            <button
-              type="button"
-              className="auth-login-card__forgot-link"
-              onClick={handleForgotPassword}
-            >
-              {t("auth.login.form.forgotPassword", "Forgot password?")}
-            </button>
-          }
-          value={value}
-          errors={errors}
-          status={feedback}
-          submitting={submitting}
-          onChange={setValue}
-          onSubmit={() => {
-            void handleSubmit();
-          }}
-        />
+        {challenge ? (
+          <TwoFactorCodeCard
+            submitting={submitting}
+            expiresAt={challenge.expiresAt}
+            onSubmit={handleTwoFactorSubmit}
+            onCancel={() => {
+              // Drop the challenge entirely rather than keeping it around:
+              // going back means starting the password step again.
+              setChallenge(null);
+              setFeedback(null);
+            }}
+          />
+        ) : (
+          <LoginFormCard
+            density="compact"
+            emailLabel={t("auth.login.form.email.label", "Email address")}
+            emailHint={t(
+              "auth.login.form.email.hint",
+              "Use the email assigned to your admin account."
+            )}
+            passwordLabel={t("auth.login.form.password.label", "Password")}
+            passwordHint={t(
+              "auth.login.form.password.hint",
+              "Passwords are verified against your secure admin account."
+            )}
+            submitLabel={t("auth.login.form.submit", "Sign in")}
+            loadingLabel={t("auth.login.form.loading", "Signing in...")}
+            submitHint={t(
+              "auth.login.form.submitHint",
+              "Your session stays role-aware and protected as you move across the dashboard."
+            )}
+            recoveryAction={
+              <Button variant="ghost" size="sm" type="button" onClick={handleSupport}>
+                {t("auth.login.form.recovery", "Get sign-in help")}
+              </Button>
+            }
+            forgotPasswordAction={
+              <button
+                type="button"
+                className="auth-login-card__forgot-link"
+                onClick={handleForgotPassword}
+              >
+                {t("auth.login.form.forgotPassword", "Forgot password?")}
+              </button>
+            }
+            value={value}
+            errors={errors}
+            status={feedback}
+            submitting={submitting}
+            onChange={setValue}
+            onSubmit={() => {
+              void handleSubmit();
+            }}
+          />
+        )}
       </AuthPageShell>
     </main>
   );

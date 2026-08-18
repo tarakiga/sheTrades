@@ -1705,3 +1705,42 @@ FOLLOW-UPS:
    currently opt-in per account. Belongs in a config document, not code.
  - TOTP_ISSUER env (defaults to "SheTrades") sets the label shown in the
    authenticator app.
+
+## 2FA dashboard UI shipped (2026-08-18)
+
+Completes the 2FA work - it is now usable by operators, not API-only.
+
+- Login gains a second step. `signIn` returns a discriminated result rather
+  than assuming a session, so the caller must handle the challenge case;
+  the challenge lives in component state only, NEVER in storage, so an
+  abandoned half-login leaves nothing behind that could look like a session.
+- TwoFactorCodeCard accepts a TOTP code OR a recovery code in ONE field.
+  Making people pick a mode first would be pointless friction at exactly
+  the moment someone is already locked out - the formats are unambiguous
+  (6 digits vs a longer alphanumeric).
+- Profile gains a Two-factor card: status, QR (rendered CLIENT-SIDE via
+  qrcode so the secret never reaches a third-party QR service), manual key
+  in readable chunks, confirm step, one-time recovery codes with copy, and
+  regenerate/turn-off.
+- Admins tab gains a Reset 2FA action with a confirmation that spells out
+  the consequence and warns to be certain who you are talking to (this is
+  a social-engineering target).
+- Added `qrcode` + @types/qrcode to the dashboard.
+
+VERIFIED in the browser against the staging backend, on a throwaway
+2FA-enabled admin (created and deleted afterwards; the three real admins
+were untouched):
+ - password step -> code step renders, field auto-focused, password field
+   gone, and NO token in storage at that point.
+ - correct code -> redirected to /dashboard as the probe user.
+ - /profile shows "On" with "10 recovery codes remaining" and the
+   regenerate / turn-off actions.
+Dashboard production build clean.
+
+NOTE for local dev: dashboard/.env.local (untracked) now points the dev
+server at the staging backend. Without it Next.js falls back to
+localhost:8080 and every auth call fails with "Failed to fetch" - the root
+.env.local is NOT read by Next, it must live in the dashboard directory.
+
+STILL OPEN: enforcement policy (requiring 2FA for the admin role) is not
+wired - enrolment is opt-in per account. Belongs in a config document.

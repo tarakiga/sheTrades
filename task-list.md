@@ -415,6 +415,6 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[x]` 2FA-2: AdminAccount TOTP columns + migration + ensurePrismaTables mirror (all nullable - existing admins are unaffected).
 - `[x]` 2FA-3: two-step login. authenticateJwt now REJECTS challenge tokens - the property the whole feature rests on (7 tests).
 - `[x]` 2FA-4: setup/enable/disable/status/recovery-codes endpoints + admin-assisted reset-2fa mirroring reset-password.
-- `[ ]` 2FA-5: DASHBOARD UI - login code step, profile Two-factor section (QR + one-time recovery codes), Admins tab status column + reset action. NOT STARTED; until this lands 2FA is API-only and effectively unavailable to operators.
+- `[x]` 2FA-5: DASHBOARD UI shipped - login code step (accepts TOTP or recovery code), profile Two-factor card (client-side QR, manual key, one-time recovery codes, regenerate/turn-off), Admins tab Reset 2FA action. Browser-verified end to end against staging on a throwaway account.
 - `[x]` 2FA-6: suite 490/0, rev 00117-hn4, 12/12 live checks on a throwaway admin.
 - `[ ]` Enforcement policy (require 2FA for the admin role) - config-driven, currently opt-in per account.

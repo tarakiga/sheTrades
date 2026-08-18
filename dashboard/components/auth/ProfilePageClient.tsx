@@ -7,6 +7,7 @@ import { fetchAdminAuthJson } from "../../lib/admin-auth";
 import { useAdminUiCopyClient } from "../../lib/config/admin-ui-copy-client";
 import { ProfileDetailsForm, type ProfileDetailsFormValue } from "./ProfileDetailsForm";
 import { ProfilePasswordForm, type ProfilePasswordFormValue } from "./ProfilePasswordForm";
+import { ProfileTwoFactorCard } from "./ProfileTwoFactorCard";
 import { ProfileSummaryCard } from "./ProfileSummaryCard";
 import { useAdminSession } from "./AdminSessionProvider";
 import type { AuthStatusMessage } from "./types";
@@ -297,6 +298,8 @@ export function ProfilePageClient() {
             void handlePasswordSubmit();
           }}
         />
+
+        <ProfileTwoFactorCard />
       </div>
     </main>
   );

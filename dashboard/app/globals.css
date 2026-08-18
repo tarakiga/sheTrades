@@ -8392,3 +8392,149 @@ button.needs-attention-panel__item:focus {
 .constraint-meter--over .constraint-meter__count {
   color: var(--color-danger-700);
 }
+
+/* --- Two-factor authentication ------------------------------------------ */
+
+.two-factor-card {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.two-factor-card__intro {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.two-factor-card__title {
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.two-factor-card__hint {
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.two-factor-card__actions,
+.two-factor-settings__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.two-factor-settings {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.two-factor-settings__status {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.two-factor-settings__meta {
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+}
+
+.two-factor-settings__error {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.two-factor-settings__notice {
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.two-factor-settings__setup,
+.two-factor-settings__codes {
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.two-factor-settings__steps {
+  color: var(--color-neutral-800);
+  display: grid;
+  font-size: var(--font-size-sm);
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.two-factor-settings__qr {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  height: auto;
+  justify-self: center;
+  max-width: 220px;
+  padding: var(--space-2);
+  width: 100%;
+}
+
+.two-factor-settings__secret {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.two-factor-settings__secret-label {
+  color: var(--color-neutral-600);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.two-factor-settings__secret code {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm, var(--radius-md));
+  color: var(--color-neutral-900);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.08em;
+  padding: var(--space-2) var(--space-3);
+  word-break: break-all;
+}
+
+/* Recovery codes are shown exactly once, so the warning must be unmissable. */
+.two-factor-settings__codes-warning {
+  background: var(--color-warning-50, var(--color-neutral-0));
+  border-left: 3px solid var(--color-warning, var(--color-neutral-400));
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.two-factor-settings__codes-list {
+  display: grid;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-sm);
+  gap: var(--space-1);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  letter-spacing: 0.06em;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.two-factor-settings__codes-list li {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  text-align: center;
+}

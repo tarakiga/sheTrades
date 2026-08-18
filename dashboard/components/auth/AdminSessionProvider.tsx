@@ -10,13 +10,24 @@ import {
   type AdminSessionUser
 } from "../../lib/admin-auth";
 
+/**
+ * The login endpoint answers one of two shapes: a full session, or - when the
+ * account carries a second factor - a short-lived challenge to exchange at
+ * /auth/2fa/verify. It is deliberately NOT a session at that point.
+ */
 type LoginPayload = {
-  session: {
+  session?: {
     token: string;
     expiresAt: string;
   };
-  user: AdminSessionUser;
+  user?: AdminSessionUser;
+  twoFactorRequired?: boolean;
+  challenge?: { token: string; expiresAt: string };
 };
+
+export type SignInResult =
+  | { status: "authenticated" }
+  | { status: "two_factor_required"; challengeToken: string; challengeExpiresAt: string };
 
 type MePayload = {
   user: AdminSessionUser;
@@ -29,7 +40,8 @@ type AdminSessionContextValue = {
   status: "loading" | "authenticated" | "unauthenticated";
   user: AdminSessionUser | null;
   expiresAt: string | null;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<SignInResult>;
+  completeTwoFactor: (challengeToken: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
   applyProfileUpdate: (user: AdminSessionUser) => void;
@@ -86,16 +98,54 @@ export function AdminSessionProvider({ children }: AdminSessionProviderProps) {
     };
   }, [refresh]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const payload = await fetchAdminAuthJson<LoginPayload>("/api/admin/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password })
-    });
-    saveStoredAdminAuthToken(payload.session.token);
-    setUser(payload.user);
-    setExpiresAt(payload.session.expiresAt);
-    setStatus("authenticated");
-  }, []);
+  const adoptSession = useCallback(
+    (token: string, nextUser: AdminSessionUser, sessionExpiresAt: string) => {
+      saveStoredAdminAuthToken(token);
+      setUser(nextUser);
+      setExpiresAt(sessionExpiresAt);
+      setStatus("authenticated");
+    },
+    []
+  );
+
+  const signIn = useCallback(
+    async (email: string, password: string): Promise<SignInResult> => {
+      const payload = await fetchAdminAuthJson<LoginPayload>("/api/admin/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
+      if (payload.twoFactorRequired && payload.challenge) {
+        // Stop here deliberately: no token is stored, so a half-finished login
+        // leaves nothing behind that could be mistaken for a session.
+        return {
+          status: "two_factor_required",
+          challengeToken: payload.challenge.token,
+          challengeExpiresAt: payload.challenge.expiresAt
+        };
+      }
+      if (!payload.session || !payload.user) {
+        throw new Error("Sign-in response was not understood.");
+      }
+      adoptSession(payload.session.token, payload.user, payload.session.expiresAt);
+      return { status: "authenticated" };
+    },
+    [adoptSession]
+  );
+
+  /** Step two: exchange the challenge plus a code for a real session. */
+  const completeTwoFactor = useCallback(
+    async (challengeToken: string, code: string) => {
+      const payload = await fetchAdminAuthJson<LoginPayload>("/api/admin/auth/2fa/verify", {
+        method: "POST",
+        body: JSON.stringify({ challengeToken, code })
+      });
+      if (!payload.session || !payload.user) {
+        throw new Error("Two-factor response was not understood.");
+      }
+      adoptSession(payload.session.token, payload.user, payload.session.expiresAt);
+    },
+    [adoptSession]
+  );
 
   const signOut = useCallback(async () => {
     const token = getStoredAdminAuthToken();
@@ -122,11 +172,12 @@ export function AdminSessionProvider({ children }: AdminSessionProviderProps) {
       user,
       expiresAt,
       signIn,
+      completeTwoFactor,
       signOut,
       refresh,
       applyProfileUpdate
     }),
-    [applyProfileUpdate, expiresAt, refresh, signIn, signOut, status, user]
+    [applyProfileUpdate, completeTwoFactor, expiresAt, refresh, signIn, signOut, status, user]
   );
 
   return <AdminSessionContext.Provider value={value}>{children}</AdminSessionContext.Provider>;

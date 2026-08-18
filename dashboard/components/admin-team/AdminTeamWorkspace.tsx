@@ -90,6 +90,7 @@ export function AdminTeamWorkspace() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingRowId, setPendingRowId] = useState<string | null>(null);
   const [suspendTarget, setSuspendTarget] = useState<ManagedAdmin | null>(null);
+  const [resetTwoFactorTarget, setResetTwoFactorTarget] = useState<ManagedAdmin | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ManagedAdmin | null>(null);
   const [resetTarget, setResetTarget] = useState<ManagedAdmin | null>(null);
   const [resetValue, setResetValue] = useState("");
@@ -152,6 +153,7 @@ export function AdminTeamWorkspace() {
     }
 
     window.addEventListener(ADMIN_CONFIG_TOKEN_UPDATED_EVENT, handleTokenUpdated);
+
     return () => window.removeEventListener(ADMIN_CONFIG_TOKEN_UPDATED_EVENT, handleTokenUpdated);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -281,6 +283,26 @@ export function AdminTeamWorkspace() {
     } finally {
       setPendingRowId(null);
       setDeleteTarget(null);
+    }
+  }
+
+  async function confirmResetTwoFactor(target: ManagedAdmin) {
+    setPendingRowId(target.id);
+    try {
+      await request(`/api/admin/team/${encodeURIComponent(target.id)}/reset-2fa`, {
+        method: "POST",
+        body: "{}"
+      });
+      setResetTwoFactorTarget(null);
+      setFeedback({
+        tone: "success",
+        text: `Two-factor removed for ${target.fullName}. Ask them to enrol again immediately.`
+      });
+      await refresh();
+    } catch (error) {
+      setFeedback({ tone: "danger", text: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setPendingRowId(null);
     }
   }
 
@@ -472,6 +494,14 @@ export function AdminTeamWorkspace() {
                     >
                       Reset password
                     </Button>
+                    <Button
+                      variant="secondary"
+                      disabled={row.id === selfId || pendingRowId === row.id}
+                      title="Removes two-factor so they can enrol again - use only when they have lost both their device and their recovery codes."
+                      onClick={() => setResetTwoFactorTarget(row)}
+                    >
+                      Reset 2FA
+                    </Button>
                     {row.status === "active" ? (
                       <Button
                         variant="secondary"
@@ -504,6 +534,23 @@ export function AdminTeamWorkspace() {
           />
         </section>
       )}
+
+      <ConfirmationModal
+        open={resetTwoFactorTarget !== null}
+        title="Reset two-factor authentication?"
+        description={
+          resetTwoFactorTarget
+            ? `${resetTwoFactorTarget.fullName} will be able to sign in with their password alone until they enrol again. Only do this when they have lost both their device and their recovery codes, and you are certain who you are talking to.`
+            : ""
+        }
+        confirmLabel="Reset two-factor"
+        tone="danger"
+        cancelLabel="Cancel"
+        onCancel={() => setResetTwoFactorTarget(null)}
+        onConfirm={() => {
+          if (resetTwoFactorTarget) void confirmResetTwoFactor(resetTwoFactorTarget);
+        }}
+      />
 
       <ConfirmationModal
         open={suspendTarget !== null}
