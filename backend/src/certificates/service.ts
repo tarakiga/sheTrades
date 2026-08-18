@@ -152,50 +152,186 @@ function clipCodeUnits(value: string, budget: number): string {
   return endsOnHalfPair ? cut.slice(0, -1) : cut;
 }
 
+
 /**
- * Writes the certificate, then sends it. Never throws: the caller is a bot
- * turn, and a learner who has just finished the programme must not see a
- * crash. A failed send comes back as `sent: false` with the reason in the log.
+ * The result of trying to issue a certificate.
+ *
+ * Discriminated rather than a bare `{ publicId, sent }` because the two
+ * failures are not the same failure. A certificate that exists but did not
+ * SEND is recoverable — the "My Certificate" menu entry and the admin Resend
+ * action both find it. A certificate that was never WRITTEN has no publicId,
+ * and reporting one anyway would hand the caller a menu entry pointing at a
+ * 404: a lie shaped exactly like success, which is worse than the failure it
+ * hides.
  */
-export async function issueCertificate(input: {
+export type IssueOutcome =
+  | { status: "issued"; publicId: string; sent: boolean }
+  | { status: "failed"; reason: string };
+
+/**
+ * The database half of issuance, behind an interface so the outcome contract —
+ * including the concurrent-race branch, which is the part most likely to be
+ * wrong — can be exercised without a Postgres connection. Named ...ForTests at
+ * the call site following the payouts-worker precedent.
+ */
+export type CertificateStore = {
+  upsert(input: { userId: string; plan: IssuePlan }): Promise<{ publicId: string }>;
+  findByUserId(userId: string): Promise<{ publicId: string } | null>;
+};
+
+const prismaCertificateStore: CertificateStore = {
+  upsert: ({ userId, plan }) =>
+    prisma.certificate.upsert({
+      where: { userId },
+      create: {
+        publicId: plan.publicId,
+        userId,
+        learnerName: plan.learnerName,
+        programmeName: plan.programmeName,
+        modulesCompleted: plan.modulesCompleted,
+        totalModules: plan.totalModules,
+        templateKey: plan.templateKey,
+        templateVersion: plan.templateVersion
+      },
+      // Empty ON PURPOSE. An already-issued certificate is never silently
+      // replaced: its name, counts and template version are the historical
+      // record of what a learner earned, not a cache to be refreshed.
+      update: {},
+      select: { publicId: true }
+    }),
+  findByUserId: (userId) =>
+    prisma.certificate.findUnique({ where: { userId }, select: { publicId: true } })
+};
+
+/**
+ * P2002 is Prisma's unique-constraint violation, matched on the CODE and never
+ * on the message text — which is version-dependent and carries the constraint
+ * name inline.
+ *
+ * A structural check rather than an `instanceof PrismaClientKnownRequestError`
+ * on purpose: this app drives Prisma through a driver adapter, and an
+ * `instanceof` resolved against a second copy of @prisma/client answers false
+ * SILENTLY — turning a handled race straight back into the unhandled throw this
+ * function exists to prevent. The `code` field is the stable half of the
+ * contract; the class identity is not.
+ */
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2002"
+  );
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+type PersistResult = { ok: true; publicId: string } | { ok: false; reason: string };
+
+/**
+ * Writes the certificate, resolving the concurrent case rather than throwing.
+ *
+ * Two guarantees, worth separating because the second does not follow from the
+ * first. The UNIQUE CONSTRAINT on userId guarantees at most one certificate per
+ * learner, full stop. It does NOT guarantee no error: Prisma's upsert is not
+ * always compiled to a native INSERT ... ON CONFLICT, and when it falls back to
+ * find-then-create, two simultaneous callers can both miss and both insert, so
+ * the loser gets a P2002. `module_completed` arrives from an at-least-once
+ * webhook, which makes simultaneous callers ordinary rather than exotic.
+ *
+ * The upsert PLUS this handler is what makes that race resolve cleanly. A P2002
+ * on userId means the row this call wanted now exists, so re-reading it and
+ * carrying on IS the idempotent outcome, not a consolation prize.
+ */
+async function persistCertificate(
+  store: CertificateStore,
+  userId: string,
+  plan: IssuePlan
+): Promise<PersistResult> {
+  try {
+    const row = await store.upsert({ userId, plan });
+    return { ok: true, publicId: row.publicId };
+  } catch (error) {
+    if (!isUniqueViolation(error)) return { ok: false, reason: errorMessage(error) };
+
+    let existing: { publicId: string } | null;
+    try {
+      existing = await store.findByUserId(userId);
+    } catch (refetchError) {
+      return {
+        ok: false,
+        reason: `unique-violation recovery could not re-read the row: ${errorMessage(refetchError)}`
+      };
+    }
+    if (existing) return { ok: true, publicId: existing.publicId };
+
+    // A P2002 with no row for this user means the collision was on the OTHER
+    // unique column, publicId. At 32 base32 characters that is not something
+    // that happens; if it ever does, a retry mints a fresh id. Reported as a
+    // failure rather than fabricating an id for a row that was never written.
+    return {
+      ok: false,
+      reason: "certificate upsert hit a unique violation but no certificate exists for this user"
+    };
+  }
+}
+
+type IssueInput = {
   userId: string;
   learnerPhone: string;
   plan: IssuePlan;
   baseUrl: string;
   caption: string;
-}): Promise<{ publicId: string; sent: boolean }> {
+  storeForTests?: CertificateStore | undefined;
+};
+
+/**
+ * Writes the certificate, then sends it.
+ *
+ * NEVER THROWS. The caller is a bot turn: a learner who has just finished the
+ * programme cannot be handed an exception, and there is no layer above this one
+ * that could turn it into anything she should read. Every outcome — including a
+ * database that is down — comes back as an IssueOutcome.
+ */
+export async function issueCertificate(input: IssueInput): Promise<IssueOutcome> {
+  try {
+    return await issueCertificateInner(input);
+  } catch (error) {
+    // Backstop. Every KNOWN failure is already converted to an outcome below,
+    // so reaching here is a bug rather than a bad day — hence its own event, so
+    // it stays visible instead of blending into ordinary send failures. It
+    // exists so the promise above survives a future edit that introduces a
+    // throwing path.
+    const reason = errorMessage(error);
+    console.error(
+      JSON.stringify({ event: "certificate.issue.crashed", userId: input.userId, reason })
+    );
+    return { status: "failed", reason };
+  }
+}
+
+async function issueCertificateInner(input: IssueInput): Promise<IssueOutcome> {
   const { userId, plan } = input;
+  const store = input.storeForTests ?? prismaCertificateStore;
 
   // PERSIST BEFORE SENDING, deliberately. If the send fails the certificate
-  // still exists, and both the "My Certificate" menu entry and the admin
-  // Resend action recover it. Sending first would mean a network blip between
-  // the send and the write erases something a learner spent weeks earning,
-  // with nothing left to recover it from.
-  const row = await prisma.certificate.upsert({
-    where: { userId },
-    create: {
-      publicId: plan.publicId,
-      userId,
-      learnerName: plan.learnerName,
-      programmeName: plan.programmeName,
-      modulesCompleted: plan.modulesCompleted,
-      totalModules: plan.totalModules,
-      templateKey: plan.templateKey,
-      templateVersion: plan.templateVersion
-    },
-    // Empty ON PURPOSE. An already-issued certificate is never silently
-    // replaced — its name, counts and template version are the historical
-    // record — and this is what makes concurrent module_completed events
-    // idempotent instead of racing to overwrite each other.
-    update: {},
-    select: { publicId: true }
-  });
+  // still exists, and both the "My Certificate" menu entry and the admin Resend
+  // action recover it. Sending first would mean a network blip between the send
+  // and the write erases something a learner spent weeks earning, with nothing
+  // left to recover it from.
+  const persisted = await persistCertificate(store, userId, plan);
+  if (!persisted.ok) {
+    console.warn(
+      JSON.stringify({ event: "certificate.issue.failed", userId, reason: persisted.reason })
+    );
+    // Deliberately carries NO publicId — see IssueOutcome.
+    return { status: "failed", reason: persisted.reason };
+  }
 
-  // From the RETURNED row, never from the plan. On a concurrent second call
-  // the upsert resolves to the EXISTING row, and plan.publicId is a freshly
+  // From the PERSISTED row, never from the plan. On a concurrent second call
+  // the row that exists is the first call's, and plan.publicId is a freshly
   // minted id that was never written — a link built from it would point at a
   // verification page that does not exist.
-  const publicId = row.publicId;
+  const publicId = persisted.publicId;
 
   let sent = false;
   let reason: string | undefined;
@@ -212,9 +348,9 @@ export async function issueCertificate(input: {
     if (result.status === "failed") reason = result.reason;
   } catch (error) {
     // Reached when the base URL is unconfigured. Caught rather than thrown on
-    // because the row above is already safe: this is a send failure, and the
-    // admin Resend action recovers it once the config is fixed.
-    reason = error instanceof Error ? error.message : String(error);
+    // because the row is already safe: this is a send failure, and the admin
+    // Resend action recovers it once the config is fixed.
+    reason = errorMessage(error);
   }
 
   console.log(
@@ -227,5 +363,5 @@ export async function issueCertificate(input: {
     })
   );
 
-  return { publicId, sent };
+  return { status: "issued", publicId, sent };
 }
