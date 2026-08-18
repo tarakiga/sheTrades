@@ -1789,3 +1789,90 @@ learner to finish a module. Deliberately NOT wired to an npm script.
 
 (Reach the staging/production DB with
  cloud-sql-proxy shetrades-staging-12345:us-central1:shetrades-pg-staging --port 5433)
+
+## Completion certificates - Phase 1 shipped (2026-08-18)
+
+A learner who finishes every module gets a certificate image in her WhatsApp
+chat plus a public link anyone can open to check it. Branch
+`feat/completion-certificates`, 17 commits, 237 tests.
+
+Design: docs/superpowers/specs/2026-08-18-certificates-design.md
+Plan:   docs/superpowers/plans/2026-08-18-completion-certificates-phase-1.md
+
+### The rule the whole thing rests on
+
+Everything a certificate shows is SNAPSHOTTED at issue time, including the
+template itself in `certificates.templateSnapshot`. Compute any of it live and
+a curriculum change or a redesign silently rewrites credentials already in
+learners' hands - a review caught exactly that halfway through: the schema
+recorded `templateVersion` but nothing read it, so both public routes rendered
+from whatever was published NOW.
+
+The one deliberate exception is `issuerName` on the verify page, which reads
+live: who vouches for a credential today is a statement about the
+organisation, whereas what was awarded is history.
+
+### What was found by measuring rather than reasoning
+
+- **node:24-slim ships no fonts at all.** `fc-list` returned 0 and names
+  rendered as tofu boxes. The render SUCCEEDS, so no test could catch it.
+  Fixed with fonts-roboto-unhinted (the design font) plus fonts-dejavu-core
+  behind it for glyph coverage.
+- **The glyph-width constant was backwards.** It was 0.55, commented
+  "deliberately pessimistic", measured against nothing. Against DejaVu it was
+  optimistic; re-measured at 0.8. Then the client chose Roboto, which is far
+  narrower, and 0.8 broke the citation onto four lines where the design has
+  three. Now 0.68, with a per-field `glyphRatio` override because prose (0.45)
+  and ALL-CAPS names (0.65) cannot share one number. The citation declares
+  0.48.
+- **A duplicate-index bug** in the bootstrap: unquoted mixed-case identifiers
+  fold to lowercase in Postgres, so the migration and the boot-time bootstrap
+  were creating two different unique indexes per column.
+- **escapeXml did not strip characters XML forbids.** A NUL in an
+  admin-authored programme name would have broken every render for that
+  programme. Admin config never passes through the learner-name sanitiser.
+
+### Verified live on staging (rev 00119-w5c)
+
+Assets seeded (5), `certificate.template` published at version 1 with
+`enabled: false`, then a probe certificate rendered through the real service
+and deleted afterwards:
+
+  GET /c/<id>       200 text/html   - name, programme, date, issuer
+  GET /c/<id>.png   200 image/png   782 KB, cache-control public max-age=86400,
+                                    x-content-type-options nosniff,
+                                    x-robots-tag noindex
+  GET /c/<unknown>  404
+
+The page carries no phone number (asserted against the live HTML). Certificates
+table is back to 0 rows.
+
+### NOT yet done, and both are deliberate
+
+1. **`enabled` is still false, so nothing issues.** Flipping it is the go-live
+   act and belongs with a human. Republish the document with `enabled: true`.
+2. **The bot flow has not been exercised end to end**, because that needs a
+   real WhatsApp conversation completing every module. The pieces are unit
+   tested and the public routes are proven live, but nobody has yet watched a
+   learner finish and receive one.
+
+### Operator notes
+
+- Asset keys are IMMUTABLE. An issued certificate's snapshot names assets by
+  key, so re-pointing a key at new bytes redraws credentials already sent.
+  New artwork means a new key (`...-v2`).
+- `PUBLIC_BASE_URL` is now set on Cloud Run. Without it the image link handed
+  to Meta is relative and the send fails silently.
+- Partner logos (CARE, TechHer, SheConnects) were CROPPED from the client's
+  mockup because they exist nowhere else, at 124-232px wide. Fine on a phone,
+  marginal in print - swap under new keys if originals arrive.
+- The png route renders on demand, so it is cached in-process (32 MiB, FIFO)
+  and rate limited per IP (60/60s, fails open). Both are in routes-public.ts.
+
+### Phase 2 (not started)
+
+The `/certificates` canvas editor: upload a background, drag the fields onto
+it. It authors the same config document the renderer already reads, so it adds
+no new storage concepts. Its one trap is written up in the spec - the preview
+must be the SERVER's render, not the browser's, or what gets signed off is not
+what learners receive.

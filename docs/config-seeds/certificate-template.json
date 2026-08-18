@@ -1,0 +1,106 @@
+{
+  "kind": "certificate_template",
+  "enabled": false,
+  "programmeName": "SheTrades Digital Learning Programme",
+  "issuerName": "TechHer",
+  "assetKey": "certificate-background-v1",
+  "canvas": {
+    "width": 2048,
+    "height": 1450
+  },
+  "fields": [
+    {
+      "id": "logo-care",
+      "variable": "logo",
+      "assetKey": "logo-care-v1",
+      "x": 0.1357,
+      "y": 0.0331,
+      "width": 0.0605,
+      "align": "left",
+      "opacity": 1
+    },
+    {
+      "id": "logo-techher",
+      "variable": "logo",
+      "assetKey": "logo-techher-v1",
+      "x": 0.4453,
+      "y": 0.0469,
+      "width": 0.1133,
+      "align": "left",
+      "opacity": 1
+    },
+    {
+      "id": "logo-sheconnects",
+      "variable": "logo",
+      "assetKey": "logo-sheconnects-v1",
+      "x": 0.7705,
+      "y": 0.0455,
+      "width": 0.1035,
+      "align": "left",
+      "opacity": 1
+    },
+    {
+      "variable": "learnerName",
+      "id": "learner-name",
+      "x": 0.4951,
+      "y": 0.5269,
+      "maxWidth": 0.62,
+      "align": "center",
+      "font": "Roboto",
+      "size": 0.0566,
+      "weight": 700,
+      "color": "#f2530f",
+      "autoShrink": true
+    },
+    {
+      "variable": "bodyText",
+      "id": "citation",
+      "x": 0.5007,
+      "y": 0.5993,
+      "maxWidth": 0.6,
+      "align": "center",
+      "font": "Roboto",
+      "size": 0.0228,
+      "weight": 400,
+      "color": "#1e1b18",
+      "autoShrink": true,
+      "glyphRatio": 0.48,
+      "text": "In recognition of your successful completion of the **SheTrades Digital Learning Programme** and your commitment to building practical digital and business skills for greater economic opportunity.",
+      "lineHeight": 1.1,
+      "maxLines": 4
+    },
+    {
+      "variable": "issuedDate",
+      "id": "issued-date",
+      "x": 0.2561,
+      "y": 0.8483,
+      "maxWidth": 0.22,
+      "align": "center",
+      "font": "Roboto",
+      "size": 0.0172,
+      "weight": 700,
+      "color": "#1f1b1a",
+      "autoShrink": false,
+      "format": "long-ordinal"
+    },
+    {
+      "id": "logo-badge",
+      "variable": "logo",
+      "assetKey": "logo-sdp-badge-v1",
+      "x": 0.5107,
+      "y": 0.7214,
+      "width": 0.127,
+      "align": "center",
+      "opacity": 1
+    },
+    {
+      "id": "verify-qr",
+      "variable": "qrCode",
+      "x": 0.2266,
+      "y": 0.7083,
+      "width": 0.0591,
+      "align": "left",
+      "opacity": 1
+    }
+  ]
+}
