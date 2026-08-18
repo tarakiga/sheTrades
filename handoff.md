@@ -1643,3 +1643,65 @@ FOLLOW-UPS:
   two-step login with a short-lived challenge token that authenticateJwt
   MUST reject on normal routes, hashed single-use recovery codes,
   admin-resets-another-admin path, opt-in then enforced by config flag.
+
+## SECURITY: TOTP two-factor for admin accounts (2026-08-18)
+
+Follows the login rate limiting. Optional authenticator-app 2FA with
+recovery codes and an admin-assisted reset. Backend complete and verified
+live; the dashboard UI is NOT built yet (see follow-ups).
+
+Why hand-rolled TOTP instead of a dependency: the RFCs publish test
+vectors, so correctness is demonstrable rather than trusted.
+totp.test.ts asserts every RFC 4226 Appendix D and RFC 6238 Appendix B
+vector, which is what guarantees interoperability with Google
+Authenticator / Authy / 1Password.
+
+THE LOAD-BEARING PROPERTY: a challenge token proves the PASSWORD step
+only. If it ever authenticates a normal route, 2FA becomes decorative -
+an attacker with a stolen password takes the step-one token and never
+calls step two. Defences, all tested:
+ - authenticateJwt rejects typ=admin_2fa_challenge outright.
+ - The challenge carries NO sid, so nothing can resolve it to a session.
+ - readTwoFactorChallenge refuses a session token, so an old session
+   cannot be replayed to skip the second factor.
+ - The challenge lives 5 minutes.
+
+Other deliberate choices:
+ - Secrets are AES-256-GCM sealed under Secret Manager key
+   `totp-encryption-key` (secretAccessor granted to the Cloud Run SA).
+   Plaintext storage would let one database leak defeat 2FA for everyone.
+   Enrolment REFUSES outright when no key is configured, rather than
+   silently degrading.
+ - Enrolment is two-phase: setup mints an inactive secret, enable
+   requires a working code. An abandoned or mistyped enrolment therefore
+   cannot lock anyone out.
+ - totpLastUsedStep records the last accepted 30-second step, so an
+   observed code cannot be replayed inside its own window. NOTE this is
+   why a code used at enable is refused for a login in that same window -
+   correct, and worth knowing when testing by hand.
+ - Recovery codes: 10, hashed (SHA-256 is right here - they are
+   machine-generated randomness, not guessable passwords), single-use,
+   shown exactly once, vowel-free alphabet so they cannot spell words.
+ - /auth/2fa/verify reuses the login throttle, so the six-digit code
+   cannot be brute forced either.
+ - POST /api/admin/team/:id/reset-2fa mirrors reset-password: admin-only,
+   never on yourself, audited.
+
+Suite 490/0. Deployed rev 00117-hn4.
+
+VERIFIED LIVE on a throwaway admin (created and deleted by the script):
+password-only login before enrolment; setup does not enable; enable
+returns 10 recovery codes; login then returns a challenge not a session;
+challenge REJECTED on /auth/me AND on the admin data API; wrong code
+refused; correct code issues a working session; recovery code works and
+is refused on reuse.
+
+FOLLOW-UPS:
+ - Dashboard UI is not built: login code step, a profile Two-factor
+   section (QR + recovery codes shown once), and a 2FA column + reset
+   action on the Admins tab. Until then 2FA can only be enrolled via the
+   API, so it is effectively off for operators.
+ - Enforcement policy (require 2FA for the admin role) is not wired -
+   currently opt-in per account. Belongs in a config document, not code.
+ - TOTP_ISSUER env (defaults to "SheTrades") sets the label shown in the
+   authenticator app.

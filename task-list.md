@@ -409,3 +409,12 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[x]` RL-5: 5 route tests, suite 465/0, rev 00116-vfm, verified live (lockout, countdown, per-account isolation, case-rotation resistance).
 - `[ ]` Periodic prune of auth_throttle rows (harmless accumulation, hygiene only).
 - `[ ]` NEXT: 2FA (TOTP) per the agreed plan - see handoff.md.
+
+## SEC: TOTP two-factor authentication (BACKEND COMPLETE 2026-08-18)
+- `[x]` 2FA-1: TOTP/HOTP + base32 + AES-256-GCM secret sealing, verified against the published RFC 4226 and RFC 6238 test vectors (18 tests).
+- `[x]` 2FA-2: AdminAccount TOTP columns + migration + ensurePrismaTables mirror (all nullable - existing admins are unaffected).
+- `[x]` 2FA-3: two-step login. authenticateJwt now REJECTS challenge tokens - the property the whole feature rests on (7 tests).
+- `[x]` 2FA-4: setup/enable/disable/status/recovery-codes endpoints + admin-assisted reset-2fa mirroring reset-password.
+- `[ ]` 2FA-5: DASHBOARD UI - login code step, profile Two-factor section (QR + one-time recovery codes), Admins tab status column + reset action. NOT STARTED; until this lands 2FA is API-only and effectively unavailable to operators.
+- `[x]` 2FA-6: suite 490/0, rev 00117-hn4, 12/12 live checks on a throwaway admin.
+- `[ ]` Enforcement policy (require 2FA for the admin role) - config-driven, currently opt-in per account.
