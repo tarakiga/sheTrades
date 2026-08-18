@@ -1744,3 +1744,44 @@ localhost:8080 and every auth call fails with "Failed to fetch" - the root
 
 STILL OPEN: enforcement policy (requiring 2FA for the admin role) is not
 wired - enrolment is opt-in per account. Belongs in a config document.
+
+## Africa's Talking airtime enabled - live payout CONFIRMED (2026-08-18)
+
+The account-level blocker is cleared. Airtime is enabled on the live AT
+Nigeria account and a real payment has now gone through end to end.
+
+Live test: NGN 100 airtime to +2349056895713, dispatched through the
+production `africasTalkingAdapter` reading the PUBLISHED payouts config
+(provider africas_talking, sandbox false, username shetrades, NGN/airtime).
+
+  { ok: true, providerTxnId: "ATQid_edb70dbb4409545550e2b920d2cd2c3d" }
+
+Wallet moved NGN 105.1841 -> NGN 8.1841, so the money really left the
+account.
+
+COST FACT worth planning around: a NGN 100 airtime reward cost NGN 97.00,
+not NGN 100 - AT sells airtime to the reseller at roughly a 3% discount, so
+the learner receives the full face value while the platform pays ~97% of
+it. Budget on face value; the discount is upside, not a fee.
+
+SAFETY CHECK done BEFORE dispatching, because enabling airtime changes the
+outcome of any retry: the `rewards` table is EMPTY (the production data
+cleanup took all 672 rows, including every failed Termii/AT attempt), so
+there is nothing queued that the 5-minute payouts scheduler could now pay
+by surprise. Confirmed again after the test - still 0 rows.
+
+WALLET IS NOW EFFECTIVELY EMPTY (NGN 8.18). Top up before go-live or the
+first real reward fails. Insufficient balance surfaces as a non-retryable
+failure (status != "Sent"), so the reward parks with the real reason rather
+than burning its three retries - but it still does not pay.
+
+New tool: `backend/src/ops/at-live-probe.ts` - dry-run by default,
+`--confirm` sends one real payment through the published config. Use it
+after a credential rotation or provider change instead of waiting for a
+learner to finish a module. Deliberately NOT wired to an npm script.
+
+  POSTGRES_URL=... AT_TEST_PHONE=+234... AT_TEST_AMOUNT=100 \
+    npx tsx src/ops/at-live-probe.ts --confirm
+
+(Reach the staging/production DB with
+ cloud-sql-proxy shetrades-staging-12345:us-central1:shetrades-pg-staging --port 5433)
