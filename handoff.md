@@ -1758,6 +1758,10 @@ production `africasTalkingAdapter` reading the PUBLISHED payouts config
 
 Wallet moved NGN 105.1841 -> NGN 8.1841, so the money really left the
 account.
+DELIVERY CONFIRMED on the handset by the recipient - not just gateway
+acceptance. AT returning "Sent" only means the request was accepted, so the
+handset check is what actually closes the chain.
+
 
 COST FACT worth planning around: a NGN 100 airtime reward cost NGN 97.00,
 not NGN 100 - AT sells airtime to the reseller at roughly a 3% discount, so
