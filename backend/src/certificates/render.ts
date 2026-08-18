@@ -40,8 +40,17 @@ export type RenderInput = {
 };
 
 /** Bytes plus the asset's TRUE pixel dimensions, which is what placeImage
- * needs to derive a box that preserves the aspect ratio. */
-type ImageSource = { bytes: Buffer; natural: { width: number; height: number } };
+ * needs to derive a box that preserves the aspect ratio. `describe` names the
+ * source in operator-facing errors: a template may carry up to 20 fields and
+ * several separate logos, so "which one" has to be in the message or a
+ * failure is undiagnosable from a log line. */
+type ImageSource = { bytes: Buffer; natural: { width: number; height: number }; describe: string };
+
+/** Not `cause as Error`: something can throw a non-Error, and that cast would
+ * put `undefined` in the middle of the message an admin has to act on. */
+function causeMessage(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}
 
 /**
  * Re-validates the template on the way in.
@@ -80,7 +89,7 @@ async function loadQrSource(verifyUrl: string): Promise<ImageSource> {
   const svg = await qrCodeToString(url, { type: "svg", margin: 0 });
   // A QR symbol is square by definition, so 1x1 is its natural ratio --
   // placeImage derives the height from the configured width and this ratio.
-  return { bytes: Buffer.from(svg), natural: { width: 1, height: 1 } };
+  return { bytes: Buffer.from(svg), natural: { width: 1, height: 1 }, describe: "generated QR code" };
 }
 
 async function loadLogoSource(field: CertificateImageField, loadAsset: AssetLoader): Promise<ImageSource> {
@@ -96,7 +105,7 @@ async function loadLogoSource(field: CertificateImageField, loadAsset: AssetLoad
   if (!asset) {
     throw new Error(`certificate template logo asset "${key}" is missing`);
   }
-  return { bytes: asset.bytes, natural: { width: asset.width, height: asset.height } };
+  return { bytes: asset.bytes, natural: { width: asset.width, height: asset.height }, describe: `asset "${key}"` };
 }
 
 async function buildImageOverlay(
@@ -117,29 +126,45 @@ async function buildImageOverlay(
   // own, an overlapping rect, a redefined font. Rasterising first reduces
   // it to pixels, so the only layer that ever parses as markup is the one
   // this codebase writes.
-  let image = sharp(source.bytes)
-    // "fill", not "inside": placeImage has already sized the box to the
-    // asset's true aspect ratio, so filling it exactly is correct. "inside"
-    // re-derives the fit and can land a pixel short on rounding, leaving
-    // the layout subtly and invisibly off.
-    .resize(box.width, box.height, { fit: "fill" });
+  try {
+    let image = sharp(source.bytes)
+      // "fill", not "inside": placeImage has already sized the box to the
+      // asset's true aspect ratio, so filling it exactly is correct. "inside"
+      // re-derives the fit and can land a pixel short on rounding, leaving
+      // the layout subtly and invisibly off.
+      .resize(box.width, box.height, { fit: "fill" });
 
-  if (field.opacity < 1) {
-    // Multiply the alpha channel down by compositing a single translucent
-    // pixel over the whole image with `dest-in`, which keeps the
-    // destination and scales its alpha by the source's. ensureAlpha first,
-    // or an opaque source (a JPEG logo) has no alpha channel to scale.
-    image = image.ensureAlpha().composite([
-      {
-        input: Buffer.from([0, 0, 0, Math.round(field.opacity * 255)]),
-        raw: { width: 1, height: 1, channels: 4 },
-        tile: true,
-        blend: "dest-in"
-      }
-    ]);
+    if (field.opacity < 1) {
+      // Multiply the alpha channel down by compositing a single translucent
+      // pixel over the whole image with `dest-in`, which keeps the
+      // destination and scales its alpha by the source's. ensureAlpha first,
+      // or an opaque source (a JPEG logo) has no alpha channel to scale.
+      image = image.ensureAlpha().composite([
+        {
+          input: Buffer.from([0, 0, 0, Math.round(field.opacity * 255)]),
+          raw: { width: 1, height: 1, channels: 4 },
+          tile: true,
+          blend: "dest-in"
+        }
+      ]);
+    }
+
+    // Awaited INSIDE the try rather than returned as a promise: sharp does
+    // its decoding lazily at toBuffer(), so a returned promise would reject
+    // after this block had already exited and the catch below would never
+    // see it.
+    return { input: await image.png().toBuffer(), left: box.left, top: box.top };
+  } catch (cause) {
+    // Corrupt bytes get one line out of sharp -- "Input buffer contains
+    // unsupported image format" -- naming neither the asset nor the field.
+    // With up to 20 fields and several logos on a template, that leaves an
+    // admin nothing to act on, so the identity of the failing source is
+    // added here and the original kept as the cause.
+    throw new Error(
+      `certificate ${source.describe} (field "${field.id}") could not be rasterised: ${causeMessage(cause)}`,
+      { cause }
+    );
   }
-
-  return { input: await image.png().toBuffer(), left: box.left, top: box.top };
 }
 
 export async function renderCertificatePng(input: RenderInput): Promise<Buffer> {
@@ -181,12 +206,22 @@ export async function renderCertificatePng(input: RenderInput): Promise<Buffer> 
     overlays.push({ input: Buffer.from(buildTextLayerSvg(canvas, textFields, input.values)), left: 0, top: 0 });
   }
 
-  // "cover", so artwork authored at a different aspect ratio fills the
-  // canvas the field coordinates were normalised against instead of leaving
-  // a border the layout does not account for.
-  return sharp(background.bytes)
-    .resize(canvas.width, canvas.height, { fit: "cover" })
-    .composite(overlays)
-    .png()
-    .toBuffer();
+  try {
+    // "cover", so artwork authored at a different aspect ratio fills the
+    // canvas the field coordinates were normalised against instead of leaving
+    // a border the layout does not account for.
+    return await sharp(background.bytes)
+      .resize(canvas.width, canvas.height, { fit: "cover" })
+      .composite(overlays)
+      .png()
+      .toBuffer();
+  } catch (cause) {
+    // Corrupt background bytes, or a text layer sharp cannot parse. Same
+    // reasoning as the per-overlay wrap: say which asset, not just that
+    // something somewhere was not an image.
+    throw new Error(
+      `certificate background asset "${template.assetKey}" could not be composited: ${causeMessage(cause)}`,
+      { cause }
+    );
+  }
 }

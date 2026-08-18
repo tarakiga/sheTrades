@@ -110,10 +110,11 @@ export function escapeXml(value: string): string {
  * wider than DejaVu.
  *
  * The previous value was 0.55, commented as "deliberately pessimistic". It
- * was neither: it UNDER-estimated every realistic bold name by 10-25%, so
- * fitFontSize reported that names fitted which then overhung their box on a
- * permanent, publicly shared credential -- precisely the failure this
- * function exists to prevent.
+ * was neither. Against the bold figures above it under-estimated a real
+ * name's true width by 15% at the median (0.55 against 0.645) and 30% at the
+ * maximum (0.55 against 0.787), so fitFontSize reported that names fitted
+ * which then overhung their box on a permanent, publicly shared credential
+ * -- precisely the failure this function exists to prevent.
  *
  * Erring high is the safe direction: it shrinks text that would have fitted
  * (a name a little smaller than the designer intended, bounded below by

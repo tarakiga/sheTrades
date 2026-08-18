@@ -210,6 +210,80 @@ test("a partially transparent logo still renders", async () => {
   assert.equal(meta.width, CANVAS.width);
 });
 
+test("a corrupt logo asset names the key and the field that failed", async () => {
+  // On its own sharp says only "Input buffer contains unsupported image
+  // format": no key, no field. A template may carry several logos, so that
+  // message alone cannot tell an admin which asset to re-upload.
+  const assets = await fullAssetMap();
+  assets.set(LOGO_KEY, { bytes: Buffer.from("this is definitely not an image"), width: 400, height: 200 });
+  const { loadAsset } = loaderFor(assets);
+
+  await assert.rejects(
+    renderCertificatePng({ template: buildTemplate(), values: VALUES, verifyUrl: VERIFY_URL, loadAsset }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, literally(LOGO_KEY));
+      assert.match(error.message, /field "logo"/);
+      // The original is kept rather than swallowed -- the wrapper adds the
+      // identity sharp cannot know, it does not replace the diagnosis.
+      assert.ok(error.cause instanceof Error);
+      return true;
+    }
+  );
+});
+
+test("a hostile SVG logo cannot paint outside the box it was placed in", async () => {
+  // The rasterisation guarantee, on the path that actually matters. The QR
+  // is an SVG too, but it is library-generated; only a stored logo asset is
+  // hand-authored, so this is the only place the boundary is under pressure.
+  //
+  // The assertion is containment, not a marker string. A marker cannot work:
+  // the output is a rasterised PNG either way, so the literal text is absent
+  // whether the SVG was rasterised first or inlined into the text layer --
+  // the check would pass through exactly the regression it is meant to
+  // catch. What DOES differ is reach. Rasterised at its own 400x200 viewport
+  // the logo is clipped to its placed box; inlined into the canvas-sized
+  // layer that carries the learner name, the same markup could paint over
+  // the whole certificate.
+  const hostileSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200">' +
+    '<rect x="-50000" y="-50000" width="100000" height="100000" fill="#ff0000"/>' +
+    '<text x="10" y="100" font-size="24" fill="#000000">INJECTED</text>' +
+    "</svg>";
+
+  const assets = await fullAssetMap();
+  assets.set(LOGO_KEY, { bytes: Buffer.from(hostileSvg), width: 400, height: 200 });
+  const { loadAsset } = loaderFor(assets);
+
+  const png = await renderCertificatePng({
+    template: buildTemplate({ fields: [NAME_FIELD, LOGO_FIELD] }),
+    values: VALUES,
+    verifyUrl: VERIFY_URL,
+    loadAsset
+  });
+
+  const raw = await sharp(png).ensureAlpha().raw().toBuffer();
+  const pixelAt = (x: number, y: number): [number, number, number] => {
+    const i = (y * CANVAS.width + x) * 4;
+    return [raw[i] ?? -1, raw[i + 1] ?? -1, raw[i + 2] ?? -1];
+  };
+
+  // LOGO_FIELD places a 180x90 box at (96, 68). Assert the hostile fill
+  // landed INSIDE it first: without this the containment check below would
+  // also pass if the asset had silently failed to render at all.
+  const [insideR, insideG, insideB] = pixelAt(150, 100);
+  assert.ok(insideR > 200 && insideG < 60 && insideB < 60, `expected red inside the logo box, got ${insideR},${insideG},${insideB}`);
+
+  // Far outside the box: still the untouched background. If the SVG were
+  // inlined rather than rasterised, that 100000px rect would have covered
+  // this pixel.
+  assert.deepEqual(pixelAt(1100, 800), [250, 250, 250]);
+
+  // Costs nothing and guards a future where the renderer emitted anything
+  // markup-shaped. It cannot fail today -- see the note above.
+  assert.equal(png.includes(Buffer.from("INJECTED", "utf8")), false);
+});
+
 test("a malformed template document fails loudly rather than rendering a corrupt image", async () => {
   // getRuntimeCertificateTemplate() hands back its value by TYPE ASSERTION,
   // not validation: a document seeded straight into the database is never
