@@ -12,12 +12,28 @@ import { z } from "zod";
  * no log line, and no obvious culprit — so the unit is fixed at the contract
  * boundary instead of being negotiated per call site.
  *
- * The document itself lives in the `integration` namespace with type
+ * The document lives in the `integration` namespace with type
  * `integration_config` and key `certificate.template`, following the
- * reward-rules precedent: the runtime cache keys off the namespace, not the key
- * prefix, so anything that needs to be readable via getRuntimeIntegrationConfig
- * has to be an integration_config. The `kind` literal below is what keeps it
- * distinguishable inside integrationConfigPayloadSchema.
+ * reward-rules precedent. Those two choices do separate jobs and neither
+ * implies the other:
+ *
+ *   - NAMESPACE is what makes the document readable at runtime.
+ *     refreshRuntimeConfigCache() lists `namespace: "integration"` and caches
+ *     every published, active document by key; it never inspects `type`. This
+ *     is also why reward.rules.primary is reachable through
+ *     getRuntimeIntegrationConfig despite its key not starting with
+ *     `integration.` — the key prefix is a naming convention, not a mechanism.
+ *
+ *   - TYPE is what gets the payload validated on the way in.
+ *     validatePayloadForDocumentType (service.ts / postgres-service.ts) parses
+ *     against integrationConfigPayloadSchema only when the type is
+ *     `integration_config`, which is why the schema below MUST be a member of
+ *     that union. A document typed `ui_copy` in this namespace would still be
+ *     cached and readable at runtime — it would just have been stored without
+ *     ever being validated.
+ *
+ * The `kind: "certificate_template"` literal is what keeps this payload
+ * distinguishable inside that union, mirroring reward_rules.
  */
 
 /**
@@ -84,11 +100,18 @@ const certificateImageFieldSchema = z
 export type CertificateImageField = z.infer<typeof certificateImageFieldSchema>;
 
 /**
- * Discriminated on `variable` rather than a plain z.union: a plain union tries
- * each member and reports the LAST failure, so a logo missing its assetKey
- * would be blamed on the text branch's missing `font`/`color` instead. The
- * discriminator routes on `variable` first, so the error names the real cause
- * and an unknown variable fails as an unknown variable.
+ * Discriminated on `variable` rather than a plain z.union, so that branch
+ * routing — and therefore the error an admin is shown — is deterministic.
+ *
+ * A plain union would mostly work: zod v4 picks a best-match branch by fewest
+ * issues, and for a logo missing its assetKey that does surface the single
+ * correct error today. But it is a heuristic, not a guarantee, and it degrades
+ * badly when branches score comparably — it then emits a merged `invalid_union`
+ * carrying every branch's failures, so someone who simply typo'd `variable`
+ * gets the text branch's missing-`font`/`size`/`color` complaints piled on top
+ * of the real cause. Discriminating makes `variable` decide the branch
+ * outright, so a bad field is always reported against the branch it was
+ * actually written for.
  */
 export const certificateFieldSchema = z.discriminatedUnion("variable", [
   certificateTextFieldSchema,
