@@ -33,8 +33,8 @@ function DefaultEmptyState() {
     <div className="certificates-table__empty">
       <p className="certificates-table__empty-title">No certificates issued yet</p>
       <p className="certificates-table__empty-body">
-        A certificate is issued automatically when a learner completes every module. If the
-        template is published with <code>enabled: false</code>, none will be issued yet.
+        A certificate is issued automatically when a learner completes every module. If issuing is
+        switched off above, none will be sent yet.
       </p>
     </div>
   );

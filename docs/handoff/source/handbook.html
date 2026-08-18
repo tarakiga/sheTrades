@@ -1,0 +1,1581 @@
+<title>SheTrades Operator Handbook</title>
+<style>
+  /* ── Tokens ────────────────────────────────────────────────────────────
+     Colours are taken from the platform's own published branding settings
+     (Settings → Branding), so this document and the console it describes
+     are the same green. Neutrals carry a green bias rather than being
+     inherited greys.                                                      */
+  :root {
+    --ground:        #FBFAF7;
+    --ground-sunk:   #F2F1EC;
+    --card:          #FFFFFF;
+    --ink:           #10201C;
+    --ink-soft:      #40514C;
+    --slate:         #5B6B66;
+    --rule:          #DCE2DE;
+    --rule-strong:   #BCC7C2;
+    --brand:         #206757;
+    --brand-deep:    #14453A;
+    --brand-wash:    #EAF2EF;
+    --flame:         #DE581C;
+    --flame-wash:    #FCEFE8;
+    --amber:         #FF8000;
+    --amber-wash:    #FFF4E3;
+    --shadow:        0 1px 2px rgba(16, 32, 28, .06), 0 12px 28px -14px rgba(16, 32, 28, .28);
+    --shadow-soft:   0 1px 2px rgba(16, 32, 28, .05);
+
+    --display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    --measure: 68ch;
+    --wide: 1080px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0D1613;
+      --ground-sunk: #111D19;
+      --card:        #14211D;
+      --ink:         #E7EFEB;
+      --ink-soft:    #B3C2BC;
+      --slate:       #94A5A0;
+      --rule:        #263531;
+      --rule-strong: #354842;
+      --brand:       #5FAE96;
+      --brand-deep:  #8FCBB8;
+      --brand-wash:  #16302A;
+      --flame:       #F5834F;
+      --flame-wash:  #33201A;
+      --amber:       #FFA23F;
+      --amber-wash:  #33260F;
+      --shadow:      0 1px 2px rgba(0, 0, 0, .5), 0 14px 30px -16px rgba(0, 0, 0, .8);
+      --shadow-soft: 0 1px 2px rgba(0, 0, 0, .4);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0D1613;
+    --ground-sunk: #111D19;
+    --card:        #14211D;
+    --ink:         #E7EFEB;
+    --ink-soft:    #B3C2BC;
+    --slate:       #94A5A0;
+    --rule:        #263531;
+    --rule-strong: #354842;
+    --brand:       #5FAE96;
+    --brand-deep:  #8FCBB8;
+    --brand-wash:  #16302A;
+    --flame:       #F5834F;
+    --flame-wash:  #33201A;
+    --amber:       #FFA23F;
+    --amber-wash:  #33260F;
+    --shadow:      0 1px 2px rgba(0, 0, 0, .5), 0 14px 30px -16px rgba(0, 0, 0, .8);
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, .4);
+  }
+
+  /* ── Base ─────────────────────────────────────────────────────────── */
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 { font-family: var(--display); text-wrap: balance; margin: 0; font-weight: 700; }
+
+  p { margin: 0; }
+
+  a { color: var(--brand); text-underline-offset: .18em; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--flame); outline-offset: 3px; }
+
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .88em;
+    background: var(--ground-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: .08em .38em;
+  }
+
+  /* ── Cover ────────────────────────────────────────────────────────── */
+  .cover {
+    background: var(--brand-deep);
+    color: #F3F8F6;
+    padding: clamp(3rem, 8vw, 7rem) clamp(1.5rem, 6vw, 5rem) clamp(3rem, 6vw, 5rem);
+  }
+
+  .cover__inner { max-width: var(--wide); margin: 0 auto; display: grid; gap: 2.5rem; }
+
+  .mark {
+    display: flex; align-items: center; gap: .85rem;
+  }
+
+  .mark__tile {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--amber);
+    display: grid; place-items: center;
+    font-family: var(--sans); font-weight: 800; font-size: .95rem;
+    color: #2A1400; letter-spacing: .02em;
+  }
+
+  .mark__text { display: grid; line-height: 1.25; }
+  .mark__name { font-weight: 700; font-size: 1.05rem; letter-spacing: .01em; }
+  .mark__sub { font-size: .72rem; letter-spacing: .17em; text-transform: uppercase; color: #9FC4B8; }
+
+  .cover h1 {
+    font-size: clamp(2.6rem, 7vw, 4.6rem);
+    line-height: 1.03;
+    letter-spacing: -.02em;
+  }
+
+  .cover__lede {
+    max-width: 46ch;
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    color: #C6DCD4;
+  }
+
+  .cover__meta {
+    display: flex; flex-wrap: wrap; gap: 2.5rem;
+    border-top: 1px solid rgba(255, 255, 255, .16);
+    padding-top: 1.75rem;
+    font-size: .9rem;
+  }
+
+  .cover__meta dt {
+    font-size: .68rem; letter-spacing: .16em; text-transform: uppercase;
+    color: #8FB6A9; margin-bottom: .35rem;
+  }
+  .cover__meta dd { margin: 0; color: #EAF3F0; font-weight: 600; }
+
+  /* ── Shell ────────────────────────────────────────────────────────── */
+  .shell {
+    max-width: var(--wide);
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4rem) clamp(1.25rem, 5vw, 3rem) 5rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
+  @media (min-width: 1000px) {
+    .shell { grid-template-columns: 218px minmax(0, 1fr); gap: 4rem; align-items: start; }
+    .toc { position: sticky; top: 2rem; }
+  }
+
+  /* ── Contents rail ────────────────────────────────────────────────── */
+  .toc {
+    border-top: 2px solid var(--brand);
+    padding-top: 1rem;
+  }
+  .toc__title {
+    font-size: .68rem; letter-spacing: .17em; text-transform: uppercase;
+    color: var(--slate); margin-bottom: .9rem;
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .42rem; }
+  .toc a {
+    display: grid; grid-template-columns: 1.7rem 1fr; gap: .3rem;
+    text-decoration: none; color: var(--ink-soft); font-size: .875rem; line-height: 1.35;
+  }
+  .toc a:hover { color: var(--brand); }
+  .toc a span:first-child { color: var(--slate); font-variant-numeric: tabular-nums; }
+
+  /* ── Sections ─────────────────────────────────────────────────────── */
+  .body { display: grid; gap: 3.5rem; min-width: 0; }
+
+  section { display: grid; gap: 1.15rem; scroll-margin-top: 1.5rem; }
+
+  .sec-head {
+    display: grid; gap: .5rem;
+    border-top: 2px solid var(--brand);
+    padding-top: 1.1rem;
+  }
+  .sec-num {
+    font-family: var(--display);
+    font-size: 1.05rem; color: var(--flame); font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .sec-head h2 { font-size: clamp(1.65rem, 3.4vw, 2.15rem); line-height: 1.12; letter-spacing: -.015em; }
+  .sec-head p { color: var(--slate); max-width: var(--measure); }
+
+  section > p, section > ul, section > ol, section > dl { max-width: var(--measure); }
+
+  h3 {
+    font-size: 1.18rem; margin-top: .9rem;
+    color: var(--brand-deep);
+  }
+  h4 {
+    font-family: var(--sans); font-size: .78rem; font-weight: 700;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--slate);
+    margin-top: .6rem;
+  }
+
+  ul, ol { margin: 0; padding-left: 1.3rem; display: grid; gap: .5rem; }
+  li { padding-left: .15rem; }
+  li::marker { color: var(--brand); }
+
+  ol.steps { counter-reset: step; list-style: none; padding-left: 0; gap: .85rem; }
+  ol.steps > li {
+    counter-increment: step;
+    display: grid; grid-template-columns: 1.85rem 1fr; gap: .75rem;
+    padding-left: 0;
+  }
+  ol.steps > li::before {
+    content: counter(step);
+    font-family: var(--display); font-weight: 700; font-size: .95rem;
+    color: var(--flame);
+    width: 1.85rem; height: 1.85rem; border-radius: 50%;
+    border: 1.5px solid var(--flame);
+    display: grid; place-items: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Figures ──────────────────────────────────────────────────────── */
+  figure {
+    margin: .6rem 0 .2rem;
+    display: grid; gap: .6rem;
+  }
+  figure img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    background: var(--card);
+  }
+  figcaption {
+    font-size: .84rem; color: var(--slate); line-height: 1.5;
+    display: grid; grid-template-columns: auto 1fr; gap: .55rem;
+    max-width: var(--measure);
+  }
+  figcaption b {
+    color: var(--flame); font-weight: 700; font-family: var(--display);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+
+  /* ── Callouts ─────────────────────────────────────────────────────── */
+  .call {
+    max-width: var(--measure);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--brand);
+    background: var(--brand-wash);
+    border-radius: 0 8px 8px 0;
+    padding: .9rem 1.1rem;
+    display: grid; gap: .35rem;
+    font-size: .95rem;
+  }
+  .call__label {
+    font-size: .68rem; letter-spacing: .14em; text-transform: uppercase;
+    font-weight: 700; color: var(--brand-deep);
+  }
+  .call--careful { border-left-color: var(--flame); background: var(--flame-wash); }
+  .call--careful .call__label { color: var(--flame); }
+  .call--tip { border-left-color: var(--amber); background: var(--amber-wash); }
+  .call--tip .call__label { color: #96560A; }
+  :root[data-theme="dark"] .call--tip .call__label,
+  :root:not([data-theme="light"]) .call--tip .call__label { color: var(--amber); }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .call--tip .call__label { color: #96560A; }
+  }
+
+  /* ── Role chips ───────────────────────────────────────────────────── */
+  .who {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .45rem;
+    font-size: .74rem; color: var(--slate);
+    margin-top: -.3rem;
+  }
+  .chip {
+    display: inline-block;
+    font-size: .68rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+    padding: .18rem .5rem; border-radius: 99px;
+    border: 1px solid var(--rule-strong); color: var(--ink-soft);
+    background: var(--card);
+  }
+  .chip--admin { border-color: var(--brand); color: var(--brand); background: var(--brand-wash); }
+  .chip--editor { border-color: var(--amber); color: #96560A; background: var(--amber-wash); }
+  :root[data-theme="dark"] .chip--editor { color: var(--amber); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .chip--editor { color: var(--amber); }
+  }
+
+  /* ── Tables ───────────────────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; min-width: 480px; }
+  th, td { text-align: left; padding: .68rem .9rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: var(--sans); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--slate); font-weight: 700; background: var(--ground-sunk);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num { font-variant-numeric: tabular-nums; }
+
+  /* ── Definition rows ──────────────────────────────────────────────── */
+  dl.defs { display: grid; gap: .85rem; max-width: var(--measure); margin: 0; }
+  dl.defs > div { display: grid; gap: .18rem; }
+  dl.defs dt { font-weight: 700; color: var(--ink); }
+  dl.defs dd { margin: 0; color: var(--ink-soft); }
+
+  /* ── Footer ───────────────────────────────────────────────────────── */
+  .foot {
+    border-top: 2px solid var(--brand);
+    margin-top: 1rem; padding-top: 1.5rem;
+    color: var(--slate); font-size: .88rem;
+    display: grid; gap: .4rem; max-width: var(--measure);
+  }
+
+  /* ── Print ────────────────────────────────────────────────────────── */
+  @media print {
+    body { background: #fff; color: #000; font-size: 10.5pt; }
+    .toc { display: none; }
+    .shell { display: block; max-width: none; padding: 0 1.5cm; }
+    .cover { background: #14453A !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; break-after: page; }
+    section { break-inside: auto; page-break-inside: auto; margin-bottom: 1.2cm; }
+    .sec-head { break-after: avoid; page-break-after: avoid; }
+    figure, .call, .table-wrap { break-inside: avoid; page-break-inside: avoid; }
+    figure img { box-shadow: none; }
+    h3 { break-after: avoid; page-break-after: avoid; }
+    a { color: #14453A; text-decoration: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<header class="cover">
+  <div class="cover__inner">
+    <div class="mark">
+      <div class="mark__tile">SH</div>
+      <div class="mark__text">
+        <span class="mark__name">SheTrades Digital</span>
+        <span class="mark__sub">Admin Console</span>
+      </div>
+    </div>
+
+    <div>
+      <h1>The Operator&nbsp;Handbook</h1>
+      <p class="cover__lede">
+        Everything you can change on the SheTrades Digital Learning Programme, where to change it,
+        and what happens to learners when you do. Written for the people who run the programme,
+        not the people who built it.
+      </p>
+    </div>
+
+    <dl class="cover__meta">
+      <div>
+        <dt>Prepared for</dt>
+        <dd>TechHer &middot; CARE &middot; SheConnects</dd>
+      </div>
+      <div>
+        <dt>Covers</dt>
+        <dd>Admin console &amp; WhatsApp bot</dd>
+      </div>
+      <div>
+        <dt>Version</dt>
+        <dd>1.0 &middot; August 2026</dd>
+      </div>
+      <div>
+        <dt>Reading time</dt>
+        <dd>About 35 minutes</dd>
+      </div>
+    </dl>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc" aria-label="Contents">
+    <p class="toc__title">Contents</p>
+    <ol>
+      <li><a href="#s1"><span>1</span><span>About this guide</span></a></li>
+      <li><a href="#s2"><span>2</span><span>How the platform works</span></a></li>
+      <li><a href="#s3"><span>3</span><span>Signing in</span></a></li>
+      <li><a href="#s4"><span>4</span><span>Finding your way around</span></a></li>
+      <li><a href="#s5"><span>5</span><span>Overview</span></a></li>
+      <li><a href="#s6"><span>6</span><span>Users</span></a></li>
+      <li><a href="#s7"><span>7</span><span>Analytics</span></a></li>
+      <li><a href="#s8"><span>8</span><span>Content</span></a></li>
+      <li><a href="#s9"><span>9</span><span>Rewards</span></a></li>
+      <li><a href="#s10"><span>10</span><span>Reports</span></a></li>
+      <li><a href="#s11"><span>11</span><span>Certificates</span></a></li>
+      <li><a href="#s12"><span>12</span><span>Settings</span></a></li>
+      <li><a href="#s13"><span>13</span><span>Your account</span></a></li>
+      <li><a href="#s14"><span>14</span><span>How changes go live</span></a></li>
+      <li><a href="#s15"><span>15</span><span>Who can do what</span></a></li>
+      <li><a href="#s16"><span>16</span><span>Your operating rhythm</span></a></li>
+      <li><a href="#s17"><span>17</span><span>If something looks wrong</span></a></li>
+      <li><a href="#s18"><span>18</span><span>Words you will see</span></a></li>
+      <li><a href="#s19"><span>19</span><span>Handover checklist</span></a></li>
+    </ol>
+  </nav>
+
+  <main class="body">
+
+    <!-- 1 ───────────────────────────────────────────────────────────── -->
+    <section id="s1">
+      <div class="sec-head">
+        <span class="sec-num">01</span>
+        <h2>About this guide</h2>
+        <p>Who it is for, and how to use it.</p>
+      </div>
+
+      <p>
+        This handbook covers the SheTrades Digital admin console: the website your team uses to run
+        the programme. It assumes no technical knowledge. Where something genuinely does need a
+        developer, the guide says so plainly rather than leaving you to discover it.
+      </p>
+
+      <p>
+        You do not need to read it end to end. Sections 5 to 13 each cover one page of the console
+        and can be read on their own when you need them. Sections 14 and 15 are worth reading once
+        by everyone on the team, because they explain the two rules that govern every change:
+        <strong>nothing goes live until it is published</strong>, and
+        <strong>what you are allowed to do depends on your role</strong>.
+      </p>
+
+      <div class="call">
+        <span class="call__label">A note on the screenshots</span>
+        <p>
+          Every screenshot in this guide is the real console. Learner names, phone numbers and staff
+          email addresses have been replaced with examples, because a document like this gets
+          forwarded. The numbers shown are from the test environment and will not match yours.
+        </p>
+      </div>
+    </section>
+
+    <!-- 2 ───────────────────────────────────────────────────────────── -->
+    <section id="s2">
+      <div class="sec-head">
+        <span class="sec-num">02</span>
+        <h2>How the platform works</h2>
+        <p>Two halves, one system.</p>
+      </div>
+
+      <p>
+        <strong>The first half is the WhatsApp bot.</strong> Learners save a phone number, send a
+        message, and are walked through the programme entirely inside WhatsApp: a welcome, a name,
+        a state, a language, then lessons one at a time with a short quiz at the end of each. When
+        they hit a milestone they get airtime. When they finish everything, they get a certificate.
+      </p>
+
+      <p>
+        <strong>The second half is this console.</strong> Almost everything the bot says, offers, or
+        pays out is something you control from here — the lesson text, the quiz questions, the menu
+        wording, the consent notice, the reward amounts, the certificate design. You change it here;
+        the bot picks it up. No developer, no app release, no waiting.
+      </p>
+
+      <p>
+        That is the single most important thing to understand about this platform: the words your
+        learners read are <em>your</em> words, held in a place you can edit, with a record of who
+        changed what and a way back to the previous version.
+      </p>
+
+      <h3>What is not in your hands</h3>
+      <p>
+        Three things sit outside the console and need someone technical, or Meta, to change:
+        the WhatsApp phone number and its verification with Meta; the airtime provider account and
+        its balance; and the underlying software itself. Everything else in this guide is yours.
+      </p>
+    </section>
+
+    <!-- 3 ───────────────────────────────────────────────────────────── -->
+    <section id="s3">
+      <div class="sec-head">
+        <span class="sec-num">03</span>
+        <h2>Signing in</h2>
+        <p>Getting into the console, and getting back in when you cannot.</p>
+      </div>
+
+      <figure>
+        <img src="IMG:01-login" alt="The sign-in screen, with email and password fields on the left and a panel explaining protected access on the right.">
+        <figcaption><b>Fig 3.1</b><span>The sign-in screen. Use the email address your certificate of access was issued to — not a personal address.</span></figcaption>
+      </figure>
+
+      <ol class="steps">
+        <li>Open the console address your team was given and enter your email and password.</li>
+        <li>If you have set up two-factor authentication, you will then be asked for the six-digit
+          code from your phone. Enter it and you are in.</li>
+        <li>You land on the Overview page.</li>
+      </ol>
+
+      <h3>If you cannot get in</h3>
+      <dl class="defs">
+        <div>
+          <dt>Forgotten password</dt>
+          <dd>Use <strong>Forgot password?</strong> on the sign-in screen, or ask any colleague with
+            the Admin role to reset it for you from Settings → Admins. They will give you a temporary
+            password to change once you are in.</dd>
+        </div>
+        <div>
+          <dt>Lost the phone with your codes</dt>
+          <dd>Ask an Admin colleague to press <strong>Reset 2FA</strong> against your name in
+            Settings → Admins. That switches two-factor off for your account so you can sign in with
+            your password and set it up again on the new phone.</dd>
+        </div>
+        <div>
+          <dt>"Too many attempts"</dt>
+          <dd>The console locks an account briefly after several wrong passwords in a row. This is
+            deliberate. Wait a few minutes and try again, or have your password reset.</dd>
+        </div>
+      </dl>
+
+      <div class="call call--careful">
+        <span class="call__label">Do not share logins</span>
+        <p>
+          Every action in the console is recorded against the person who did it. A shared login
+          destroys that record, and it is the record that protects you when a donor asks who
+          approved a change. Give each person their own account from Settings → Admins.
+        </p>
+      </div>
+    </section>
+
+    <!-- 4 ───────────────────────────────────────────────────────────── -->
+    <section id="s4">
+      <div class="sec-head">
+        <span class="sec-num">04</span>
+        <h2>Finding your way around</h2>
+        <p>The menu down the left, and what each group is for.</p>
+      </div>
+
+      <p>
+        The dark sidebar is always there. It is grouped by what you are trying to do, not by how the
+        software is built.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Group</th><th>Pages</th><th>You come here to&hellip;</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Overview</strong></td>
+              <td>Overview</td>
+              <td>See how the programme is doing this morning, in one screen.</td>
+            </tr>
+            <tr>
+              <td><strong>Engagement</strong></td>
+              <td>Users, Analytics, Content</td>
+              <td>Understand learners, and change what they are taught.</td>
+            </tr>
+            <tr>
+              <td><strong>Operations</strong></td>
+              <td>Rewards, Reports, Certificates</td>
+              <td>Run the things learners receive: airtime, exports, credentials.</td>
+            </tr>
+            <tr>
+              <td><strong>Configuration</strong></td>
+              <td>Settings</td>
+              <td>Change wording, choices, connections, people and branding.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Your own name sits at the bottom of the sidebar. Clicking it opens your profile, where you
+        change your password and set up two-factor authentication.
+      </p>
+
+      <div class="call call--tip">
+        <span class="call__label">Guided tours</span>
+        <p>
+          Some pages have a <strong>Take a tour</strong> button in the top right. It walks you
+          through that screen in about a minute. They are worth doing once each, and you can skip
+          out at any point.
+        </p>
+      </div>
+    </section>
+
+    <!-- 5 ───────────────────────────────────────────────────────────── -->
+    <section id="s5">
+      <div class="sec-head">
+        <span class="sec-num">05</span>
+        <h2>Overview</h2>
+        <p>The morning screen. Start here, then go looking.</p>
+      </div>
+
+      <figure>
+        <img src="IMG:02-overview" alt="The Overview page showing four headline figures, an operational review table with status pills, and support panels for reward activity, help requests and at-risk learners.">
+        <figcaption><b>Fig 5.1</b><span>Overview. The four figures across the top are the health of the programme; everything below explains them.</span></figcaption>
+      </figure>
+
+      <h3>The four figures</h3>
+      <dl class="defs">
+        <div>
+          <dt>Registered Learners</dt>
+          <dd>How many people have started a conversation and given their name. This is your reach.</dd>
+        </div>
+        <div>
+          <dt>Module Completion</dt>
+          <dd>How far registered learners are getting through the material. Low completion with high
+            registration means people are arriving but not staying.</dd>
+        </div>
+        <div>
+          <dt>Quiz Pass Rate</dt>
+          <dd>Of the quizzes attempted, how many were passed. Read this <em>next to</em> completion,
+            not on its own — a high pass rate with low completion usually means the few who persist
+            are doing fine and the rest are dropping out before the quiz.</dd>
+        </div>
+        <div>
+          <dt>Rewards Automation</dt>
+          <dd>How much of the airtime that should have gone out actually did. Anything below 100%
+            means some payments failed and need looking at on the Rewards page.</dd>
+        </div>
+      </dl>
+
+      <h3>Operational Review</h3>
+      <p>
+        The table below the figures turns them into a verdict. Each row carries a status pill —
+        <strong>Healthy</strong>, <strong>Watch</strong> or <strong>Idle</strong> — so you can scan
+        for the one that needs you rather than interpreting four percentages yourself.
+      </p>
+
+      <h3>The support panels</h3>
+      <ul>
+        <li><strong>Recent Reward Activity</strong> — the last airtime payments, newest first.</li>
+        <li><strong>Users requesting help</strong> — learners who tapped the help option during a
+          lesson check-in. These are people who asked for a human. They are the highest-value list
+          on this page.</li>
+        <li><strong>At-Risk Learners</strong> — registered but barely progressing.</li>
+        <li><strong>Module Funnel Snapshot</strong> — how many made it from registered, to started,
+          to completed, to quiz passed.</li>
+        <li><strong>Upcoming Milestones</strong> — learners about to cross a reward threshold, so you
+          can check the airtime balance before it matters.</li>
+      </ul>
+
+      <p>
+        <strong>Export Summary</strong> in the top right downloads what is on this page as a
+        spreadsheet, which is usually the quickest way to answer "how are we doing?" in an email.
+      </p>
+    </section>
+
+    <!-- 6 ───────────────────────────────────────────────────────────── -->
+    <section id="s6">
+      <div class="sec-head">
+        <span class="sec-num">06</span>
+        <h2>Users</h2>
+        <p>Every learner, and what to do about the ones who are stuck.</p>
+      </div>
+
+      <figure>
+        <img src="IMG:03-users" alt="The Users page: four summary figures, then a learner directory table with name, location, language, completion and status columns.">
+        <figcaption><b>Fig 6.1</b><span>The learner directory. Names and numbers here are examples.</span></figcaption>
+      </figure>
+
+      <p>
+        The table lists every learner with their location, language, how far through they are, and
+        whether they are active. <strong>Flagged only</strong> narrows it to the people someone has
+        already marked for follow-up. <strong>Export Users</strong> downloads the list.
+      </p>
+
+      <h3>The three icons on each row</h3>
+      <dl class="defs">
+        <div>
+          <dt>Eye &mdash; open her details</dt>
+          <dd>Opens the panel in Fig 6.2 without leaving the list.</dd>
+        </div>
+        <div>
+          <dt>Speech bubble &mdash; message on WhatsApp</dt>
+          <dd>Opens WhatsApp with her number ready, so you can write to her personally. This is a
+            human conversation from your own phone or desktop WhatsApp, not an automated message.</dd>
+        </div>
+        <div>
+          <dt>Flag &mdash; mark for follow-up</dt>
+          <dd>Adds her to the flagged list so your team knows she needs attention. Add a note saying
+            why.</dd>
+        </div>
+      </dl>
+
+      <figure>
+        <img src="IMG:04-user-drawer" alt="The learner detail panel sliding in from the right, showing name, phone, location, status, member since, a follow-up flag with note box, session state, and module progress.">
+        <figcaption><b>Fig 6.2</b><span>Learner detail. "Session" tells you where she is in the conversation right now — useful when someone says the bot has stopped replying.</span></figcaption>
+      </figure>
+
+      <p>
+        The panel shows her progress, her quiz attempts, any rewards she has received, and — once
+        she has earned one — a link to her certificate. <strong>State</strong> under Session is the
+        step of the conversation she is currently on; if it says she is waiting to answer something,
+        she is, and a nudge on WhatsApp will usually restart her.
+      </p>
+    </section>
+
+    <!-- 7 ───────────────────────────────────────────────────────────── -->
+    <section id="s7">
+      <div class="sec-head">
+        <span class="sec-num">07</span>
+        <h2>Analytics</h2>
+        <p>Where learners fall out, and how to tell teaching problems from testing problems.</p>
+      </div>
+
+      <figure>
+        <img src="IMG:05-analytics" alt="The Analytics page with registration, completion and quiz pass figures, a funnel breakdown chart, performance signals and interpretation notes.">
+        <figcaption><b>Fig 7.1</b><span>Analytics. The funnel is the part to look at first.</span></figcaption>
+      </figure>
+
+      <h3>Reading the funnel</h3>
+      <p>
+        The funnel counts people at each stage: registered, started a module, completed it, attempted
+        the quiz, passed. The useful information is in the <em>gaps between the bars</em>, not the
+        bars themselves.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>The gap you see</th><th>What it usually means</th><th>Where to act</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Registered &rarr; Started drops sharply</td>
+              <td>Onboarding is too long, or the first lesson is not compelling</td>
+              <td>Content &mdash; the welcome and first module</td>
+            </tr>
+            <tr>
+              <td>Started &rarr; Completed drops sharply</td>
+              <td>Lessons are too long, or arriving at the wrong pace</td>
+              <td>Content &mdash; lesson length and structure</td>
+            </tr>
+            <tr>
+              <td>Completed &rarr; Quiz attempted drops</td>
+              <td>The quiz prompt is unclear or feels like a test</td>
+              <td>Content &mdash; the wording that introduces the quiz</td>
+            </tr>
+            <tr>
+              <td>Quiz attempted &rarr; Passed drops</td>
+              <td>Questions are harder than the lesson prepared people for</td>
+              <td>Content &mdash; the questions themselves</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        <strong>Overall</strong> shows the totals; <strong>Delta</strong> shows the change since the
+        last snapshot, which is what tells you whether something you changed last month worked.
+        <strong>Download CSV</strong> gives you the underlying figures for a report.
+      </p>
+
+      <div class="call">
+        <span class="call__label">Why the numbers might not move instantly</span>
+        <p>
+          Analytics is calculated from the events the bot records, and the page takes a snapshot
+          rather than streaming live. Reload the page to pull a fresh one.
+        </p>
+      </div>
+    </section>
+
+    <!-- 8 ───────────────────────────────────────────────────────────── -->
+    <section id="s8">
+      <div class="sec-head">
+        <span class="sec-num">08</span>
+        <h2>Content</h2>
+        <p>Every word the bot says. The most powerful page in the console.</p>
+      </div>
+
+      <figure>
+        <img src="IMG:06-content" alt="The Content page showing counts for total items, drafts and live items, a Create Content button, filter chips for All, Draft, Live and Trash, and a review table of content items.">
+        <figcaption><b>Fig 8.1</b><span>The Content workspace. The counts at the top right tell you how much is live and how much is sitting in draft.</span></figcaption>
+      </figure>
+
+      <h3>What lives here</h3>
+      <p>
+        Two kinds of thing, in one table:
+      </p>
+      <ul>
+        <li><strong>Lessons</strong> — the teaching material, each with its text, an optional audio
+          version, and the quiz at the end.</li>
+        <li><strong>Bot messages</strong> — everything else the bot says: the welcome, the main menu,
+          the prompt that asks for a name, the congratulations at the end of a module, the FAQs.</li>
+      </ul>
+
+      <p>
+        The chips above the table — <strong>All</strong>, <strong>Draft</strong>,
+        <strong>Live</strong>, <strong>Trash</strong> — filter it. <strong>Draft</strong> is the one
+        to watch: anything sitting there is a change somebody started and has not published, so
+        learners are not seeing it yet.
+      </p>
+
+      <h3>Changing something that already exists</h3>
+      <div class="who">
+        <span class="chip chip--editor">Editor</span><span class="chip chip--admin">Admin</span>
+        <span>can edit &middot; only Admin can publish</span>
+      </div>
+
+      <ol class="steps">
+        <li>Find the item. Search by its title, or by the small grey name beneath it.</li>
+        <li>Click the pencil to open it.</li>
+        <li>Make your change. The editor formats text the way WhatsApp does — <code>*bold*</code>
+          and <code>_italics_</code> — and shows you a preview.</li>
+        <li>Save. This creates a <strong>draft</strong>. Nothing has changed for learners yet.</li>
+        <li>Publish when you are happy. The bot uses the new wording from the next message it sends.</li>
+      </ol>
+
+      <h3>Creating something new</h3>
+      <figure>
+        <img src="IMG:07-content-create" alt="The Add New Content panel with a visual wizard showing three steps: Info, Content and Preview, and fields for section, category and slug.">
+        <figcaption><b>Fig 8.2</b><span>The content wizard. Three steps, and it builds the internal name for you.</span></figcaption>
+      </figure>
+
+      <ol class="steps">
+        <li><strong>Info</strong> — choose a category and give it a short name. The console assembles
+          the internal reference itself so it stays consistent.</li>
+        <li><strong>Content</strong> — write the text, and add quiz questions if it is a lesson.</li>
+        <li><strong>Preview</strong> — see it as a learner will, then save it as a draft.</li>
+      </ol>
+
+      <p>
+        There is a <strong>Raw JSON Editor</strong> tab beside the wizard. Ignore it; it exists for
+        developers, and the wizard can do everything you need.
+      </p>
+
+      <h3>Quiz questions</h3>
+      <p>
+        Each lesson can carry two kinds of question, and the difference matters:
+      </p>
+      <dl class="defs">
+        <div>
+          <dt>Knowledge question</dt>
+          <dd>Has a correct answer. Getting it right counts towards the pass rate.</dd>
+        </div>
+        <div>
+          <dt>Check-in question</dt>
+          <dd>Every answer is accepted. One option can be marked as a request for help — a learner
+            who picks it is flagged for follow-up and appears on the Overview page. Use this to find
+            people who are struggling but would never say so directly.</dd>
+        </div>
+      </dl>
+
+      <div class="call call--careful">
+        <span class="call__label">WhatsApp limits your wording</span>
+        <p>
+          WhatsApp allows only 24 characters on a button and 24 on a menu row. The editor shows a
+          meter and will not let you exceed it. This is not the console being fussy — longer text is
+          silently cut off by WhatsApp itself, mid-word, on the learner's phone.
+        </p>
+      </div>
+
+      <h3>Categories and the bin</h3>
+      <p>
+        <strong>Manage Categories</strong> groups items so the table stays navigable as it grows.
+        Deleting an item moves it to <strong>Trash</strong>, where it can be restored;
+        <strong>Empty Trash</strong> is the only permanent step, and it asks first.
+      </p>
+
+      <h3>Other languages</h3>
+      <p>
+        English is live. Pidgin and Igbo appear to learners as coming soon. When you are ready to
+        add them, the Translations area (Settings → Integration → Translations) drafts a translation
+        of every piece of content for a person to review and approve before anything is published —
+        machine translation is a starting point here, never the final word.
+      </p>
+    </section>
+
+    <!-- 9 ───────────────────────────────────────────────────────────── -->
+    <section id="s9">
+      <div class="sec-head">
+        <span class="sec-num">09</span>
+        <h2>Rewards</h2>
+        <p>The airtime learners earn, and what to do when a payment fails.</p>
+      </div>
+
+      <figure>
+        <img src="IMG:08-rewards" alt="The Rewards page showing an issuance ring at 0%, total value for the last 7 days, a needs-attention panel, filter chips for All, Issued, Pending and Failed, and an empty reward table.">
+        <figcaption><b>Fig 9.1</b><span>Rewards. The ring shows issued against pending and failed; the filters below let you isolate each.</span></figcaption>
+      </figure>
+
+      <p>
+        Learners earn airtime automatically when they cross a milestone. This page is where you watch
+        that happening and step in when it does not.
+      </p>
+
+      <h3>The three states</h3>
+      <dl class="defs">
+        <div>
+          <dt>Issued</dt>
+          <dd>Sent and confirmed by the airtime provider. Nothing to do.</dd>
+        </div>
+        <div>
+          <dt>Pending</dt>
+          <dd>Queued, not yet confirmed. Normal for a few minutes. Pending for hours means the
+            provider is not responding — check Settings → Integration → Payouts.</dd>
+        </div>
+        <div>
+          <dt>Failed</dt>
+          <dd>Rejected. Almost always an empty provider wallet or a mistyped phone number. The row
+            gives the reason.</dd>
+        </div>
+      </dl>
+
+      <h3>Fixing a failure</h3>
+      <ol class="steps">
+        <li>Filter to <strong>Failed</strong> and read the reason on the row.</li>
+        <li>If the wallet is empty, top it up with the airtime provider, then reissue.</li>
+        <li>If the number is wrong, correct it on the learner's record first, or the reissue fails
+          the same way.</li>
+        <li>Use <strong>Issue Manual Reward</strong> to send it by hand once the cause is fixed.</li>
+      </ol>
+
+      <div class="call call--careful">
+        <span class="call__label">Manual rewards spend real money</span>
+        <p>
+          <strong>Issue Manual Reward</strong> sends airtime immediately and cannot be recalled.
+          Check the amount and the number before confirming. Every manual reward is recorded against
+          your name.
+        </p>
+      </div>
+
+      <p>
+        The amounts and the milestones themselves are not set here — they live in
+        Settings&nbsp;&rarr;&nbsp;Rewards, covered in section 12.
+      </p>
+    </section>
+
+    <!-- 10 ──────────────────────────────────────────────────────────── -->
+    <section id="s10">
+      <div class="sec-head">
+        <span class="sec-num">10</span>
+        <h2>Reports</h2>
+        <p>Exports for donors and stakeholders, on demand or on a schedule.</p>
+      </div>
+
+      <figure>
+        <img src="IMG:09-reports" alt="The Reports page with export counts, an export history panel, report presets grouped by Donor, Ops and Finance, and scheduled jobs with run-now, resume and delete controls.">
+        <figcaption><b>Fig 10.1</b><span>Reports. Presets on the left, standing schedules in the middle.</span></figcaption>
+      </figure>
+
+      <h3>A report right now</h3>
+      <p>
+        Press <strong>Generate Report</strong>, choose a preset, and the export appears in
+        <strong>Export History</strong> to download when it is ready. The presets are shaped for
+        different audiences — Donor leads with impact and completion, Ops with operational detail,
+        Finance with reward totals.
+      </p>
+
+      <h3>A report every week, automatically</h3>
+      <div class="who"><span class="chip chip--editor">Editor</span><span class="chip chip--admin">Admin</span></div>
+      <ol class="steps">
+        <li><strong>Create Schedule</strong> under Scheduled Jobs.</li>
+        <li>Pick the preset and how often it should run.</li>
+        <li>Choose who receives it. Your admin team appears automatically; external stakeholders come
+          from a recipient list you maintain in Settings → Options; or type a one-off address.</li>
+        <li>Save. Each schedule card then shows its next run and how the last one went.</li>
+      </ol>
+
+      <p>
+        <strong>Pause</strong> stops a schedule without deleting it, and resuming does not send the
+        runs it missed. <strong>Run Now</strong> sends immediately without disturbing the schedule —
+        useful when a donor asks between reporting dates.
+      </p>
+
+      <div class="call">
+        <span class="call__label">Keep the recipient list current</span>
+        <p>
+          These emails contain learner data. Maintaining external recipients in the shared list
+          rather than typing addresses each time means you have one place to look when someone
+          leaves a partner organisation, and removing them there removes them from every schedule
+          at once.
+        </p>
+      </div>
+    </section>
+
+    <!-- 11 ──────────────────────────────────────────────────────────── -->
+    <section id="s11">
+      <div class="sec-head">
+        <span class="sec-num">11</span>
+        <h2>Certificates</h2>
+        <p>What a learner receives for finishing, and how you design it.</p>
+      </div>
+
+      <p>
+        When a learner completes every module, the bot congratulates her, confirms the name to print,
+        and sends the certificate as an image in the chat along with a link anyone can open to verify
+        it. She can ask for it again at any time from the bot's main menu.
+      </p>
+
+      <figure>
+        <img src="IMG:21-certificate" alt="A rendered certificate of achievement with partner logos across the top, the learner's name in orange, a citation paragraph, a QR code, the issue date and the SheTrades Digital Project badge.">
+        <figcaption><b>Fig 11.1</b><span>A certificate as issued. This one is drawn with the longest name the system accepts, to show that long names shrink to fit rather than running off the artwork.</span></figcaption>
+      </figure>
+
+      <h3>Switching issuing on and off</h3>
+      <div class="who"><span class="chip chip--admin">Admin only</span></div>
+
+      <figure>
+        <img src="IMG:10-certificates" alt="The Certificates page with an Issuing card showing an On badge, programme and issuer names, a Stop issuing button, and a search and filter row above the certificate list.">
+        <figcaption><b>Fig 11.2</b><span>The Certificates page. The Issuing card is the master switch.</span></figcaption>
+      </figure>
+
+      <p>
+        Turning issuing <strong>on</strong> is confirmed, because the next learner to finish receives
+        a permanent, publicly shareable credential and a WhatsApp message cannot be recalled. Turning
+        it <strong>off</strong> stops new certificates; the ones already issued stay valid and their
+        links keep working.
+      </p>
+
+      <h3>Managing certificates already issued</h3>
+      <dl class="defs">
+        <div>
+          <dt>Edit name</dt>
+          <dd>Corrects a name a learner typed badly. The verification link does not change, so a link
+            she has already shared keeps working.</dd>
+        </div>
+        <div>
+          <dt>Resend</dt>
+          <dd>Sends the same certificate again. Use it when a message never arrived.</dd>
+        </div>
+        <div>
+          <dt>Revoke</dt>
+          <dd>Marks it as no longer valid, with a reason you record. Anyone opening its page is told
+            plainly. This can be undone.</dd>
+        </div>
+      </dl>
+
+      <h3>Designing the certificate</h3>
+      <div class="who">
+        <span class="chip chip--editor">Editor</span><span class="chip chip--admin">Admin</span>
+        <span>can design &middot; only Admin can publish</span>
+      </div>
+
+      <figure>
+        <img src="IMG:11-template-editor" alt="The certificate design editor: on the left a canvas with labelled dashed boxes over the artwork, on the right the server's rendered preview of the finished certificate.">
+        <figcaption><b>Fig 11.3</b><span>The design editor. Boxes on the left, the real certificate on the right.</span></figcaption>
+      </figure>
+
+      <p>
+        <strong>Certificates → Edit the design</strong> opens a screen with two panels, and the
+        difference between them is the single thing to understand here:
+      </p>
+
+      <ul>
+        <li>The <strong>Layout</strong> panel on the left shows dashed boxes over the artwork. Each
+          box is a <em>handle</em> — it marks where a field is anchored and how much width it may
+          use. Drag it, or select it and use the arrow keys (hold Shift for bigger steps).</li>
+        <li>The <strong>Preview</strong> panel on the right is the certificate itself, drawn by the
+          same machinery that draws a real one. It refreshes a second or two after you finish a
+          change.</li>
+      </ul>
+
+      <div class="call call--careful">
+        <span class="call__label">Approve the preview, never the canvas</span>
+        <p>
+          The boxes are instruments for positioning; the preview is the artefact. They are not the
+          same picture, and only the preview is what a learner receives. Before publishing, use the
+          <strong>Preview for</strong> selector to check the design against a long name and an
+          all-capitals name — that is how a layout that looked fine ends up with somebody's own name
+          running off her certificate.
+        </p>
+      </div>
+
+      <figure>
+        <img src="IMG:12-template-inspector" alt="Lower part of the design editor showing the Wording card with programme name and issuer fields, and the Artwork card with an upload form and a list of uploaded logos.">
+        <figcaption><b>Fig 11.4</b><span>Wording and artwork. Each uploaded logo offers "Place on certificate", which drops it in the corner for you to drag.</span></figcaption>
+      </figure>
+
+      <h3>Uploading artwork</h3>
+      <p>
+        PNG, JPEG or SVG, up to 5&nbsp;MB. A background must be at least 800&nbsp;&times;&nbsp;600.
+      </p>
+
+      <div class="call">
+        <span class="call__label">Artwork is never replaced</span>
+        <p>
+          Upload a new version of a logo and it gets a new name — the box suggests a free one for
+          you. This is deliberate. Every certificate already issued still points at the artwork it
+          was issued with, so overwriting a picture would quietly redraw credentials that are
+          already in learners' hands, months later.
+        </p>
+      </div>
+
+      <h3>Saving, publishing, rolling back</h3>
+      <p>
+        <strong>Save draft</strong> stores your work and changes nothing for learners.
+        <strong>Publish</strong> makes it the design the next certificate is issued with — write a
+        note saying what changed, because it is kept in the history. <strong>History</strong> lists
+        every published version with a way back to it. Rolling back does not alter certificates
+        already issued: each one keeps a frozen copy of the design it was granted under, which is
+        why an old verification link still shows what that learner was actually given.
+      </p>
+    </section>
+
+    <!-- 12 ──────────────────────────────────────────────────────────── -->
+    <section id="s12">
+      <div class="sec-head">
+        <span class="sec-num">12</span>
+        <h2>Settings</h2>
+        <p>Six areas. Choices, legal text, connections, reward rules, people, and branding.</p>
+      </div>
+
+      <figure>
+        <img src="IMG:15-settings-options" alt="The Settings page showing six configuration area cards - Options, Legal, Integration, Rewards, Admins and Branding - with the Options workspace open below.">
+        <figcaption><b>Fig 12.1</b><span>Settings. The six cards at the top switch between areas; the rest of the page changes underneath.</span></figcaption>
+      </figure>
+
+      <h3>Options &mdash; the lists people choose from</h3>
+      <div class="who"><span class="chip chip--editor">Editor</span><span class="chip chip--admin">Admin</span></div>
+      <p>
+        Every list of choices in the system lives here: the states a learner can pick during
+        onboarding, the languages offered, the FAQ topics, the resources menu, report recipients,
+        report cadences. Add an entry, reorder them, or switch one off without deleting it. If a
+        state should no longer be offered, disable it here and it disappears from the bot — the
+        learners who already chose it keep their record.
+      </p>
+
+      <h3>Legal &mdash; consent and policy text</h3>
+      <div class="who"><span class="chip chip--editor">Editor</span><span class="chip chip--admin">Admin</span></div>
+      <figure>
+        <img src="IMG:19-settings-legal" alt="The Legal area of Settings, listing consent and policy blocks with draft and live version columns.">
+        <figcaption><b>Fig 12.2</b><span>Legal blocks. These carry the strictest version history in the console, because you may need to show which wording a learner agreed to.</span></figcaption>
+      </figure>
+      <p>
+        The consent notice, the privacy policy, the data statement. Edited with a proper text editor,
+        and every version is kept. If a learner or a regulator asks what she agreed to in March, the
+        history is the answer.
+      </p>
+
+      <h3>Integration &mdash; connections to the outside world</h3>
+      <div class="who"><span class="chip chip--admin">Admin only</span></div>
+      <figure>
+        <img src="IMG:13-settings-integration" alt="The Integration workspace with tabs for WhatsApp, Notification, Payouts and Translations, and a table showing the primary WhatsApp integration as Live.">
+        <figcaption><b>Fig 12.3</b><span>Integration. Four tabs, each a connection the platform depends on.</span></figcaption>
+      </figure>
+      <dl class="defs">
+        <div>
+          <dt>WhatsApp</dt>
+          <dd>The phone line the bot speaks through. Shows whether it is live and healthy.</dd>
+        </div>
+        <div>
+          <dt>Notification</dt>
+          <dd>The email account used for admin invitations and scheduled reports. If reports stop
+            arriving, check here first.</dd>
+        </div>
+        <div>
+          <dt>Payouts</dt>
+          <dd>The airtime provider. Failed rewards usually trace back to this tab.</dd>
+        </div>
+        <div>
+          <dt>Translations</dt>
+          <dd>The service that drafts translations for a human to review.</dd>
+        </div>
+      </dl>
+
+      <p>
+        Each has a <strong>test connection</strong> action. Use it after any change rather than
+        waiting to find out from a learner.
+      </p>
+
+      <h4>The WhatsApp sandbox</h4>
+      <figure>
+        <img src="IMG:14-whatsapp-sandbox" alt="The WhatsApp sandbox: a phone mock-up on the left with a message box reading Hello SheTrades, and a session diagnostics panel on the right showing simulated phone, session status and dialogue state.">
+        <figcaption><b>Fig 12.4</b><span>The sandbox. A fake phone that talks to your real content.</span></figcaption>
+      </figure>
+      <p>
+        This is the most useful tool in the console and the least obvious. It is a simulated
+        WhatsApp conversation running against your live wording, so you can walk the whole learner
+        journey — welcome, name, state, language, a lesson, a quiz — without touching a real phone or
+        a real learner. <strong>Use it every time you change something a learner reads.</strong>
+        <strong>Reset Session State</strong> starts the conversation over from the beginning.
+      </p>
+
+      <h3>Rewards &mdash; how much, and when</h3>
+      <div class="who"><span class="chip chip--admin">Admin only</span></div>
+      <figure>
+        <img src="IMG:16-settings-rewards" alt="The Rewards settings area showing the active rule with milestones, an Edit Rule button, and a draft and publish workflow panel with Preview, Publish Live and Restore Previous controls.">
+        <figcaption><b>Fig 12.5</b><span>Reward rules. The active rule is stated in one line, in plain money.</span></figcaption>
+      </figure>
+      <p>
+        This sets what learners earn and at which milestones. <strong>Edit Rule</strong> opens the
+        form; the change becomes a draft; <strong>Publish Live</strong> makes it real.
+        <strong>Restore Previous</strong> puts the last version back.
+      </p>
+      <div class="call call--careful">
+        <span class="call__label">This is a budget decision</span>
+        <p>
+          Changing an amount changes what every future learner receives. Multiply the new amount by
+          the learners you expect and check it against the airtime wallet before publishing.
+        </p>
+      </div>
+
+      <h3>Admins &mdash; your team</h3>
+      <div class="who"><span class="chip chip--admin">Admin only</span></div>
+      <figure>
+        <img src="IMG:17-settings-admins" alt="The Admin Team area listing admin accounts with role dropdowns, status, last sign-in, and controls to reset password, reset 2FA, suspend and delete.">
+        <figcaption><b>Fig 12.6</b><span>The admin team. Email addresses shown here are examples.</span></figcaption>
+      </figure>
+      <p>
+        <strong>Add Admin</strong> creates an account with a temporary password the person changes
+        on first sign-in. Change someone's role from the dropdown on their row.
+      </p>
+      <ul>
+        <li><strong>Suspend</strong> blocks access while keeping the account and its history. This is
+          what you want when someone goes on leave or a contract pauses.</li>
+        <li><strong>Delete</strong> removes the account permanently.</li>
+        <li><strong>Reset password</strong> and <strong>Reset 2FA</strong> are how you rescue a
+          colleague who is locked out.</li>
+      </ul>
+      <div class="call call--tip">
+        <span class="call__label">When someone leaves</span>
+        <p>
+          Suspend the same day. Their past actions stay in the record, which is exactly what you
+          want — you are removing access, not erasing history.
+        </p>
+      </div>
+
+      <h3>Branding &mdash; making it yours</h3>
+      <div class="who"><span class="chip chip--admin">Admin only</span></div>
+      <figure>
+        <img src="IMG:18-settings-branding" alt="The Branding area with organisation name, a colour palette showing primary, secondary and accent swatches with hex values, and a live preview of the sidebar and typography.">
+        <figcaption><b>Fig 12.7</b><span>Branding. The preview on the right re-themes as you edit.</span></figcaption>
+      </figure>
+      <p>
+        The organisation name and the three brand colours used across the console, the bot's welcome
+        message, and outgoing emails. The preview updates as you change them. This is what makes the
+        platform reusable for another programme without rebuilding it.
+      </p>
+    </section>
+
+    <!-- 13 ──────────────────────────────────────────────────────────── -->
+    <section id="s13">
+      <div class="sec-head">
+        <span class="sec-num">13</span>
+        <h2>Your account</h2>
+        <p>Your password, and the one security step worth doing today.</p>
+      </div>
+
+      <figure>
+        <img src="IMG:20-profile" alt="The Profile page with profile details, a change password card, and a two-factor authentication card currently switched off with a set-up button.">
+        <figcaption><b>Fig 13.1</b><span>Your profile, reached by clicking your name at the bottom of the sidebar.</span></figcaption>
+      </figure>
+
+      <p>
+        Change your display name, your password, and set up two-factor authentication.
+      </p>
+
+      <h3>Two-factor authentication</h3>
+      <p>
+        With it on, signing in needs your password <em>and</em> a six-digit code from your phone, so a
+        stolen password is not enough on its own. Setting it up takes about two minutes:
+      </p>
+      <ol class="steps">
+        <li>Press <strong>Set up two-factor authentication</strong>.</li>
+        <li>Scan the square code with an authenticator app — Google Authenticator, Microsoft
+          Authenticator and Authy all work.</li>
+        <li>Type the six digits it shows to confirm.</li>
+        <li><strong>Save the recovery codes somewhere safe and offline.</strong> They are how you get
+          in if you lose the phone.</li>
+      </ol>
+
+      <div class="call call--careful">
+        <span class="call__label">Strongly recommended for anyone who can approve payouts</span>
+        <p>
+          An Admin account can send real money and publish text to thousands of learners. Two-factor
+          authentication is the difference between a stolen password being an inconvenience and
+          being an incident.
+        </p>
+      </div>
+    </section>
+
+    <!-- 14 ──────────────────────────────────────────────────────────── -->
+    <section id="s14">
+      <div class="sec-head">
+        <span class="sec-num">14</span>
+        <h2>How changes go live</h2>
+        <p>The one rule that applies everywhere in the console.</p>
+      </div>
+
+      <p>
+        Almost nothing you edit takes effect the moment you save it. Every change moves through the
+        same three states, and knowing them will save you more confusion than anything else in this
+        guide.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>State</th><th>Who sees it</th><th>How it moves on</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Draft</strong></td>
+              <td>Only your team, inside the console</td>
+              <td>An Admin publishes it</td>
+            </tr>
+            <tr>
+              <td><strong>Live</strong></td>
+              <td>Learners, from the next message the bot sends</td>
+              <td>It is replaced when something newer is published</td>
+            </tr>
+            <tr>
+              <td><strong>Previous versions</strong></td>
+              <td>Nobody, but they are kept</td>
+              <td>Restore one to make it live again</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Every version records who made it, when, and the note they wrote. That record is what lets
+        you answer "who changed the consent text and when" months later — so write a real note, not
+        "update".
+      </p>
+
+      <h3>Undoing something</h3>
+      <ol class="steps">
+        <li>Open the item and find its history or version list.</li>
+        <li>Choose the version that was correct.</li>
+        <li>Restore it. It is published as a new version rather than erasing what happened, so the
+          record stays honest.</li>
+      </ol>
+
+      <div class="call">
+        <span class="call__label">If a change does not seem to have taken</span>
+        <p>
+          Check the three usual causes in order: it is still a draft; you are looking at a page that
+          has not been reloaded; or you are testing on a phone whose conversation is mid-way through
+          a step and has not reached the message you changed. The sandbox
+          (Settings&nbsp;&rarr;&nbsp;Integration) settles it in under a minute.
+        </p>
+      </div>
+    </section>
+
+    <!-- 15 ──────────────────────────────────────────────────────────── -->
+    <section id="s15">
+      <div class="sec-head">
+        <span class="sec-num">15</span>
+        <h2>Who can do what</h2>
+        <p>Three roles, deliberately different.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Viewer</th>
+              <th>Editor</th>
+              <th>Admin</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>See learners, analytics and content</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Download reports and exports</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Write and save drafts</td><td>&mdash;</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Flag a learner for follow-up</td><td>&mdash;</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Design the certificate</td><td>&mdash;</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Correct, resend or revoke a certificate</td><td>&mdash;</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Publish anything live</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
+            <tr><td>Restore a previous version</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
+            <tr><td>Change reward amounts</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
+            <tr><td>Switch certificate issuing on or off</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
+            <tr><td>Change connections and branding</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
+            <tr><td>Add, suspend or remove admins</td><td>&mdash;</td><td>&mdash;</td><td>Yes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        The split between Editor and Admin is the important one: <strong>anyone trusted with the
+        programme can write, but only an Admin decides what reaches learners.</strong> That is why a
+        programme officer can draft a better lesson on a Tuesday without being able to change the
+        reward budget by accident.
+      </p>
+
+      <div class="call call--tip">
+        <span class="call__label">A sensible starting shape</span>
+        <p>
+          Two Admins — never one, or a holiday becomes an outage. Editors for everyone who writes
+          content or handles learners. Viewer for M&amp;E staff and partner observers who need the
+          numbers but should not change anything.
+        </p>
+      </div>
+    </section>
+
+    <!-- 16 ──────────────────────────────────────────────────────────── -->
+    <section id="s16">
+      <div class="sec-head">
+        <span class="sec-num">16</span>
+        <h2>Your operating rhythm</h2>
+        <p>A suggested routine, so nothing waits for someone to notice it.</p>
+      </div>
+
+      <h3>Every day (five minutes)</h3>
+      <ul>
+        <li>Overview — is anything showing <strong>Watch</strong>?</li>
+        <li><strong>Users requesting help</strong> — anyone new? Reply to them personally.</li>
+        <li>Rewards — any <strong>Failed</strong> payments?</li>
+      </ul>
+
+      <h3>Every week</h3>
+      <ul>
+        <li>Check the airtime wallet against <strong>Upcoming Milestones</strong>. Running out is the
+          most common preventable failure on this platform.</li>
+        <li>Look at flagged learners and clear the list.</li>
+        <li>Skim the funnel on Analytics for a stage that has got worse.</li>
+      </ul>
+
+      <h3>Every month</h3>
+      <ul>
+        <li>Review the drop-off with the biggest gap and change the content behind it.</li>
+        <li>Check Settings → Admins: does everyone listed still work here?</li>
+        <li>Confirm the scheduled reports actually arrived.</li>
+        <li>Send a certificate verification link to yourself and open it, to confirm the public page
+          is still working.</li>
+      </ul>
+    </section>
+
+    <!-- 17 ──────────────────────────────────────────────────────────── -->
+    <section id="s17">
+      <div class="sec-head">
+        <span class="sec-num">17</span>
+        <h2>If something looks wrong</h2>
+        <p>The common ones, and what to check first.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>What you see</th><th>Most likely cause</th><th>What to do</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Learners are not getting replies</td>
+              <td>The WhatsApp connection has dropped</td>
+              <td>Settings → Integration → WhatsApp, test the connection</td>
+            </tr>
+            <tr>
+              <td>A wording change has not appeared</td>
+              <td>It is still a draft</td>
+              <td>Publish it, then check in the sandbox</td>
+            </tr>
+            <tr>
+              <td>Rewards all failing at once</td>
+              <td>Empty airtime wallet</td>
+              <td>Top up with the provider, then reissue the failed ones</td>
+            </tr>
+            <tr>
+              <td>Scheduled report did not arrive</td>
+              <td>Email account or a wrong recipient address</td>
+              <td>Settings → Integration → Notification; check the recipient list</td>
+            </tr>
+            <tr>
+              <td>No certificates being issued</td>
+              <td>Issuing is switched off</td>
+              <td>Certificates → the Issuing card</td>
+            </tr>
+            <tr>
+              <td>A learner's name is wrong on her certificate</td>
+              <td>She typed it that way</td>
+              <td>Certificates → Edit name; her link keeps working</td>
+            </tr>
+            <tr>
+              <td>The console will not let you publish</td>
+              <td>You have the Editor role</td>
+              <td>Ask an Admin colleague to publish</td>
+            </tr>
+            <tr>
+              <td>Numbers look stale</td>
+              <td>The page is showing an older snapshot</td>
+              <td>Reload the page</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>When to call for technical help</h3>
+      <p>
+        Everything above is yours to fix. Escalate when the whole console will not load, when a
+        connection test keeps failing after the credentials have been re-entered, when Meta changes
+        something about the WhatsApp number, or when you see the same error after trying the steps
+        here twice. Say what you did, what you expected, and what happened instead — that alone
+        usually halves the time to a fix.
+      </p>
+    </section>
+
+    <!-- 18 ──────────────────────────────────────────────────────────── -->
+    <section id="s18">
+      <div class="sec-head">
+        <span class="sec-num">18</span>
+        <h2>Words you will see</h2>
+        <p>Plain meanings for the terms the console uses.</p>
+      </div>
+
+      <dl class="defs">
+        <div><dt>Draft</dt><dd>A saved change no learner can see yet.</dd></div>
+        <div><dt>Publish</dt><dd>Make a draft live. Only an Admin can do this.</dd></div>
+        <div><dt>Live</dt><dd>What learners are seeing right now.</dd></div>
+        <div><dt>Version</dt><dd>A numbered snapshot of something at the moment it was published, kept so you can go back to it.</dd></div>
+        <div><dt>Roll back / Restore</dt><dd>Make an older version live again.</dd></div>
+        <div><dt>Module</dt><dd>One lesson plus its quiz.</dd></div>
+        <div><dt>Funnel</dt><dd>The count of learners at each stage, from registered to passed.</dd></div>
+        <div><dt>Milestone</dt><dd>The point in the programme at which a reward is earned.</dd></div>
+        <div><dt>Issue</dt><dd>To send a reward or a certificate to a learner.</dd></div>
+        <div><dt>Revoke</dt><dd>To mark an issued certificate as no longer valid. Reversible.</dd></div>
+        <div><dt>Flag</dt><dd>To mark a learner as needing human follow-up.</dd></div>
+        <div><dt>Sandbox</dt><dd>The simulated WhatsApp conversation for testing without a real phone.</dd></div>
+        <div><dt>Preset</dt><dd>A ready-made report shaped for one audience.</dd></div>
+        <div><dt>Two-factor authentication (2FA)</dt><dd>A six-digit code from your phone, required alongside your password.</dd></div>
+      </dl>
+    </section>
+
+    <!-- 19 ──────────────────────────────────────────────────────────── -->
+    <section id="s19">
+      <div class="sec-head">
+        <span class="sec-num">19</span>
+        <h2>Handover checklist</h2>
+        <p>Work through this once, together, before the programme is yours to run.</p>
+      </div>
+
+      <h4>Access</h4>
+      <ul>
+        <li>Every person who needs the console has their own account, with the right role.</li>
+        <li>At least two people hold the Admin role.</li>
+        <li>Two-factor authentication is on for every Admin, and the recovery codes are stored
+          somewhere safe and offline.</li>
+        <li>Any accounts created during the build that your team does not recognise are suspended.</li>
+      </ul>
+
+      <h4>Content</h4>
+      <ul>
+        <li>Someone on your team has edited a lesson, published it, and seen the change in the
+          sandbox.</li>
+        <li>The consent and privacy wording has been read and approved by whoever is accountable
+          for it.</li>
+        <li>The FAQ and resources lists are populated with real answers.</li>
+      </ul>
+
+      <h4>Money</h4>
+      <ul>
+        <li>The reward amounts and milestones are the ones you intend to fund.</li>
+        <li>The airtime wallet is topped up, and someone owns keeping it that way.</li>
+        <li>You have watched one reward go out successfully.</li>
+      </ul>
+
+      <h4>Certificates</h4>
+      <ul>
+        <li>The design has been signed off from the <em>preview</em>, checked against a long name.</li>
+        <li>Issuing is switched on when — and only when — you are ready.</li>
+        <li>One learner has been through the whole programme and received hers, and you have opened
+          her verification link yourself.</li>
+      </ul>
+
+      <h4>Reporting</h4>
+      <ul>
+        <li>The schedules donors expect are set up, with the right recipients.</li>
+        <li>One scheduled report has actually arrived in an inbox.</li>
+      </ul>
+
+      <div class="foot">
+        <p><strong>SheTrades Digital &mdash; Operator Handbook, version 1.0.</strong></p>
+        <p>
+          Reflects the platform as at August 2026. Screenshots show the test environment; learner
+          names, phone numbers and staff email addresses have been replaced with examples throughout.
+        </p>
+      </div>
+    </section>
+
+  </main>
+</div>
