@@ -1,8 +1,9 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import request from "supertest";
 import { createApp } from "../app.js";
+import { disconnectPrismaForTests } from "../admin/prisma.js";
 import { certificateTemplatePayloadSchema, type CertificateTemplatePayload } from "./contracts.js";
 import {
   buildVerifyPageHtml,
@@ -42,7 +43,8 @@ const TEMPLATE: CertificateTemplatePayload = certificateTemplatePayloadSchema.pa
 /**
  * The template this certificate was ISSUED under, deliberately different from
  * the live one above in every way that shows on the artwork: a different
- * background asset, a different canvas, the name in a different place.
+ * background asset, a different canvas, the name in a different place. The
+ * issuer differs too, which is how the one live-value exception is testable.
  *
  * A redesign is exactly this -- the live document moves on, and the row must
  * not move with it.
@@ -51,7 +53,7 @@ const SNAPSHOT_TEMPLATE: CertificateTemplatePayload = certificateTemplatePayload
   kind: "certificate_template",
   enabled: true,
   programmeName: "SheTrades Nigeria",
-  issuerName: "ITC SheTrades",
+  issuerName: "International Trade Centre",
   assetKey: "certificate.background.v0",
   canvas: { width: 900, height: 640 },
   fields: [
@@ -242,12 +244,20 @@ test("an unknown id 404s identically on both routes", async () => {
   assert.equal(png.headers["cache-control"], page.headers["cache-control"]);
 });
 
-test("a withheld certificate is indistinguishable from an unknown id", async () => {
+test("a certificate with nothing to render from is withheld indistinguishably", async () => {
   const { app: known } = buildTestApp();
   const unknownBody = (await request(known).get("/c/nosuchcertificate")).text;
 
-  // No published template: the certificate exists, but we will not show it.
-  const { app: noTemplate } = buildTestApp({ getTemplate: () => null });
+  // A PRE-SNAPSHOT row with no published template is the one certificate that
+  // genuinely cannot be drawn: it carries no template of its own and there is
+  // no live one to borrow. It is withheld -- and must be withheld the same way
+  // an unknown id is refused, or these URLs become an oracle for "does this
+  // certificate id exist".
+  const legacy: PublicCertificateRow = { ...ROW, templateSnapshot: null };
+  const { app: noTemplate } = buildTestApp({
+    getTemplate: () => null,
+    findByPublicId: async (publicId) => (publicId === PUBLIC_ID ? legacy : null)
+  });
   const withheldPage = await request(noTemplate).get(`/c/${PUBLIC_ID}`);
   const withheldPng = await request(noTemplate).get(`/c/${PUBLIC_ID}.png`);
 
@@ -255,6 +265,41 @@ test("a withheld certificate is indistinguishable from an unknown id", async () 
   assert.equal(withheldPng.status, 404);
   assert.equal(withheldPage.text, unknownBody);
   assert.equal(withheldPng.text, unknownBody);
+  assert.equal(withheldPage.headers["cache-control"], "no-store");
+});
+
+test("a SNAPSHOTTED certificate still verifies when no template is published", async () => {
+  // The counterpart, and the reason the gate moved. Unpublishing the config
+  // document must not break credentials already in learners' hands: this row
+  // carries its own artwork and its own text, so the live document is
+  // irrelevant to it. Withdrawing a certificate is revocation, not config
+  // housekeeping -- see the note on the png route.
+  const { app, recorder } = buildTestApp({ getTemplate: () => null });
+
+  const png = await request(app).get(`/c/${PUBLIC_ID}.png`);
+  const page = await request(app).get(`/c/${PUBLIC_ID}`);
+
+  assert.equal(png.status, 200);
+  assert.equal(png.headers["content-type"], "image/png");
+  assert.deepEqual(recorder.templates[0], SNAPSHOT_TEMPLATE);
+
+  assert.equal(page.status, 200);
+  assert.ok(page.text.includes("Adaeze Okonkwo"));
+  // issuerName degrades to the FROZEN issuer rather than leaving the page with
+  // a blank where the vouching organisation should be.
+  assert.ok(page.text.includes("International Trade Centre"));
+});
+
+test("the verification page names the LIVE issuer when there is one", async () => {
+  // Rule 5, still intact: who vouches for a credential today is a statement
+  // about the organisation, so a rename shows up on every verification page at
+  // once rather than only on certificates issued after it.
+  const { app } = buildTestApp();
+
+  const page = await request(app).get(`/c/${PUBLIC_ID}`);
+
+  assert.ok(page.text.includes("ITC SheTrades"));
+  assert.ok(!page.text.includes("International Trade Centre"));
 });
 
 test("the .png route is not swallowed by the bare verification route", async () => {
@@ -449,11 +494,27 @@ test("the render budget resets when the window rolls over", () => {
 });
 
 test("both public routes are mounted on the app", async () => {
-  // No certificate template is published in a bare test process, so both
-  // routes take the withheld branch -- which is exactly the 404 an unknown id
-  // gets, and needs no database to reach.
+  // Both routes now look the certificate up BEFORE consulting the live
+  // template -- a snapshotted row does not need one -- so in a bare test
+  // process the lookup fails against the deliberately-closed port in
+  // admin/prisma.ts and each route answers with ITS OWN unavailable page.
+  //
+  // That still proves what this test is for: the router is mounted and the
+  // .png route is matched by the .png handler. An unmounted path would get
+  // express's default "Cannot GET" instead of either of our pages.
   const app = createApp();
 
-  await request(app).get("/c/nosuchcertificate.png").expect(404);
-  await request(app).get("/c/nosuchcertificate").expect(404);
+  const png = await request(app).get("/c/nosuchcertificate.png");
+  const page = await request(app).get("/c/nosuchcertificate");
+
+  for (const response of [png, page]) {
+    assert.ok(!response.text.includes("Cannot GET"));
+    assert.match(response.text, /Certificate (not found|unavailable)/);
+    assert.match(response.headers["content-type"] ?? "", /text[/]html/);
+  }
 });
+
+// This file's last test drives the real prisma client through createApp(). A
+// client whose connection FAILED can leave its socket open and pin the
+// node:test event loop for ~60s; see admin/prisma.ts.
+after(disconnectPrismaForTests);

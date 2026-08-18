@@ -39,6 +39,13 @@ import { certificateUrls } from "./service.js";
  *    restyle a credential a learner already holds and has already shared. The
  *    single exception -- issuerName on the verification page -- is marked at
  *    its call site with the reason it is one.
+ *
+ *    It follows that VERIFICATION OUTLIVES BOTH the template's `enabled` flag
+ *    and the published document itself. A snapshotted certificate serves even
+ *    when nothing is published, because it needs nothing that was unpublished.
+ *    Withdrawing a certificate is revocation (Certificate.revokedAt), which is
+ *    deliberate, visible on the page, and reversible -- not a side effect of
+ *    config housekeeping.
  */
 
 /**
@@ -353,16 +360,21 @@ function sendServerError(res: Response, event: string, publicId: string, error: 
  * malformed one throws, and the caller turns that into a logged 500; rendering
  * from a half-valid template would produce a plausible-looking certificate that
  * is quietly wrong, which is worse (see render.ts).
+ *
+ * Returns null for the ONE case with nothing to draw from at all: a
+ * pre-snapshot row at a moment when no template is published. Both routes turn
+ * that into the ordinary not-found response.
  */
 function resolveRenderTemplate(
   snapshot: unknown,
-  liveTemplate: CertificateTemplatePayload
-): CertificateTemplatePayload {
+  liveTemplate: CertificateTemplatePayload | null
+): CertificateTemplatePayload | null {
   // FALLBACK FOR PRE-SNAPSHOT ROWS ONLY -- not the normal path. The column is
   // nullable purely because rows written before it existed have to keep
   // rendering; every certificate issued since carries its own template, and a
   // NULL here means this row predates the freeze rather than that live lookup
-  // is an acceptable default.
+  // is an acceptable default. Such a row is the only one whose verifiability
+  // still depends on the live document, because it has nothing of its own.
   if (snapshot === null || snapshot === undefined) return liveTemplate;
 
   const parsed = certificateTemplatePayloadSchema.safeParse(snapshot);
@@ -593,30 +605,34 @@ export function createCertificatePublicRouter(overrides: Partial<CertificatePubl
         return;
       }
 
-      const liveTemplate = deps.getTemplate();
-      // NOT `template.enabled`, deliberately. That flag gates ISSUING new
-      // certificates; a certificate that was legitimately issued must stay
-      // verifiable even after an admin turns issuance off, or every credential
-      // already in learners' hands breaks at once.
-      //
-      // The absence of a template is still a refusal, now as a deliberate kill
-      // switch rather than for want of anything to draw: a snapshotted row
-      // could render perfectly well without a published document. Unpublishing
-      // withholds every certificate at once, which is a thing an admin may
-      // legitimately need and must be able to undo by republishing.
-      if (!liveTemplate) {
-        sendNotFound(res);
-        return;
-      }
-
       const row = await deps.findByPublicId(publicId);
       if (!row) {
         sendNotFound(res);
         return;
       }
 
-      // The frozen template, not the live one. See resolveRenderTemplate.
-      const template = resolveRenderTemplate(row.templateSnapshot, liveTemplate);
+      /**
+       * VERIFICATION OUTLIVES THE CONFIG DOCUMENT.
+       *
+       * `template.enabled` is not consulted here -- that flag gates ISSUING,
+       * and a certificate legitimately issued must stay verifiable after an
+       * admin turns issuance off, or every credential already in learners'
+       * hands breaks at once. Unpublishing the document is the same act with a
+       * different lever, so it gets the same answer: a row carrying its own
+       * snapshot serves whether or not anything is published, because the live
+       * document is irrelevant to it. Only a pre-snapshot row -- which
+       * genuinely has nothing to render from -- still depends on one.
+       *
+       * Withdrawing a certificate is REVOCATION: Certificate.revokedAt, which
+       * the verification page states plainly and an admin does deliberately.
+       * Do not reinstate a coupling that lets routine config housekeeping
+       * silently break credentials people are being judged on.
+       */
+      const template = resolveRenderTemplate(row.templateSnapshot, deps.getTemplate());
+      if (!template) {
+        sendNotFound(res);
+        return;
+      }
 
       const cacheKey = renderCacheKey(row.publicId, template);
       const cached = renderCache.get(cacheKey);
@@ -662,22 +678,20 @@ export function createCertificatePublicRouter(overrides: Partial<CertificatePubl
   router.get("/c/:publicId", async (req, res) => {
     const publicId = req.params.publicId;
     try {
-      // The LIVE template, and the whole reason this route needs one: the only
-      // template-derived value on this page is issuerName, which is
-      // deliberately not snapshotted (see below). Everything else the page
-      // states comes from the row, and the artwork it embeds is rendered by the
-      // png route from that row's frozen template.
-      const template = deps.getTemplate();
-      // Same reasoning as the png route: `enabled` is not consulted here, and
-      // the absence of a document is a kill switch rather than a lack of
-      // material.
-      if (!template) {
+      const row = await deps.findByPublicId(publicId);
+      if (!row) {
         sendNotFound(res);
         return;
       }
 
-      const row = await deps.findByPublicId(publicId);
-      if (!row) {
+      // The same gate as the png route, through the same resolver on purpose:
+      // the two routes must never disagree about whether a certificate is
+      // showable, or the page becomes the more permissive surface and starts
+      // vouching for an image that 404s. See the png route for why an
+      // unpublished template does not withhold a snapshotted certificate.
+      const liveTemplate = deps.getTemplate();
+      const template = resolveRenderTemplate(row.templateSnapshot, liveTemplate);
+      if (!template) {
         sendNotFound(res);
         return;
       }
@@ -693,8 +707,13 @@ export function createCertificatePublicRouter(overrides: Partial<CertificatePubl
         // transfer of the programme should show up on every verification page
         // at once. Everything the ARTWORK says is frozen (see the png route);
         // this line is not an oversight, and reading it from
-        // row.templateSnapshot instead would be a behaviour change, not a fix.
-        issuerName: template.issuerName,
+        // row.templateSnapshot by preference would be a behaviour change.
+        //
+        // It falls back to the FROZEN issuer only when nothing is published --
+        // graceful degradation, not a policy change. A live value when there is
+        // one, the value this certificate was issued under otherwise, and never
+        // a blank where the issuer should be.
+        issuerName: liveTemplate?.issuerName ?? template.issuerName,
         issuedAt: row.issuedAt,
         revokedAt: row.revokedAt,
         imageUrl: urls.image
