@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { certificateTemplatePayloadSchema, type CertificateTemplatePayload } from "./contracts.js";
-import { buildIssuePlan, certificateUrls } from "./service.js";
+import { buildCertificateCaption, buildIssuePlan, certificateUrls } from "./service.js";
 
 // Parsed (not hand-written) so the fixture carries the schema's defaults and
 // cannot drift into a shape the real runtime would never produce.
@@ -118,4 +118,43 @@ test("certificateUrls REFUSES an empty base rather than emitting a relative link
   // "/" collapses to empty once the trailing slash is trimmed — same relative
   // link, same failure, so it must take the same path.
   assert.throws(() => certificateUrls("/", "abc"), /base URL/i);
+});
+
+const VERIFY = "https://api.shetrades.test/c/abc";
+
+test("a caption that already fits is left exactly as the admin wrote it", () => {
+  assert.equal(buildCertificateCaption("Congratulations!", VERIFY), `Congratulations!\n\n${VERIFY}`);
+});
+
+test("an over-long caption is clipped to fit and the verify URL still ends it INTACT", () => {
+  const caption = buildCertificateCaption("A".repeat(2000), VERIFY);
+  // Meta rejects the whole send over 1024 UTF-16 units, so the cap is a hard
+  // requirement: over it, no certificate arrives at all.
+  assert.ok(caption.length <= 1024, `caption was ${caption.length} units`);
+  // The half that must survive. Clipping from the END - the obvious
+  // implementation - would eat the URL first and leave a link that still looks
+  // real and quietly 404s, which reads to the learner as a fake certificate.
+  assert.ok(caption.endsWith(`\n\n${VERIFY}`));
+  // Not the URL alone either: the copy is clipped, not discarded.
+  assert.ok(caption.startsWith("AAAA"));
+});
+
+test("an unfittable URL drops the copy rather than mangling the link", () => {
+  const huge = `https://api.shetrades.test/c/${"z".repeat(1200)}`;
+  // The resulting send may still be rejected by Meta. That is loud, logged and
+  // fixable; a truncated verification URL is none of those.
+  assert.equal(buildCertificateCaption("Congratulations!", huge), huge);
+});
+
+test("clipping does not leave half a surrogate pair at the cut", () => {
+  // Sliced by code units, an astral character straddling the budget would
+  // leave a lone half that renders as a replacement glyph on the learner's
+  // screen. Budget is engineered so the cut lands mid-pair.
+  const rocket = String.fromCodePoint(0x1f680); // 2 UTF-16 units
+  const budget = 1024 - VERIFY.length - 2;
+  const copy = "A".repeat(budget - 1) + rocket + "B".repeat(50);
+  const caption = buildCertificateCaption(copy, VERIFY);
+  const body = caption.slice(0, caption.length - VERIFY.length - 2);
+  assert.equal(body.length, budget - 1);
+  assert.ok(body.endsWith("A"));
 });

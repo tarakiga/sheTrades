@@ -1,4 +1,5 @@
 import { prisma } from "../admin/prisma.js";
+import { whatsappLength } from "../whatsapp/constraints.js";
 import { sendWhatsAppOutreach } from "../whatsapp/sender.js";
 import type { CertificateTemplatePayload } from "./contracts.js";
 import { generatePublicId, isEligible, sanitiseLearnerName, type Completion } from "./core.js";
@@ -104,6 +105,54 @@ export function certificateUrls(baseUrl: string, publicId: string): { verify: st
 }
 
 /**
+ * Meta caps an image caption at 1024 UTF-16 code units and REJECTS the entire
+ * send when it is exceeded — the certificate does not arrive at all.
+ *
+ * Deliberately a local constant and NOT a key in WHATSAPP_LIMITS: that object
+ * is mirrored by hand in dashboard/lib/whatsapp-constraints.ts, so a key added
+ * on one side only is a desync waiting to happen. Nothing outside this module
+ * sends an image caption.
+ */
+const CAPTION_MAX = 1024;
+
+const CAPTION_SEPARATOR = "\n\n";
+
+/**
+ * Fits the caption to Meta's cap by clipping the COPY, never the URL.
+ *
+ * The two halves are not equally important. The copy is a nicety; the verify
+ * URL is what makes the credential checkable from the chat itself. Clipping
+ * from the end — the obvious implementation — eats the URL first and leaves a
+ * link that still LOOKS real and quietly 404s. That is worse than losing
+ * words: a learner who taps a dead verification link concludes the
+ * certificate she spent weeks earning is fake.
+ *
+ * When the URL alone will not fit, the copy is dropped entirely rather than
+ * the link mangled. Such a send may still be rejected by Meta — which is loud,
+ * logged and fixable. A dead link is none of those.
+ */
+export function buildCertificateCaption(copy: string, verifyUrl: string): string {
+  const budget = CAPTION_MAX - whatsappLength(verifyUrl) - CAPTION_SEPARATOR.length;
+  const trimmed = copy.trim();
+  if (trimmed.length === 0 || budget <= 0) return verifyUrl;
+  return `${clipCodeUnits(trimmed, budget)}${CAPTION_SEPARATOR}${verifyUrl}`;
+}
+
+/**
+ * Slices to a UTF-16 code-unit budget — Meta's own counting unit, which is why
+ * whatsappLength is plain `.length` and an emoji costs 2 — without splitting a
+ * surrogate pair. Half a pair left at the cut renders as a replacement glyph
+ * on the learner's screen.
+ */
+function clipCodeUnits(value: string, budget: number): string {
+  if (value.length <= budget) return value;
+  const cut = value.slice(0, budget);
+  const last = cut.charCodeAt(cut.length - 1);
+  const endsOnHalfPair = last >= 0xd800 && last <= 0xdbff;
+  return endsOnHalfPair ? cut.slice(0, -1) : cut;
+}
+
+/**
  * Writes the certificate, then sends it. Never throws: the caller is a bot
  * turn, and a learner who has just finished the programme must not see a
  * crash. A failed send comes back as `sent: false` with the reason in the log.
@@ -157,7 +206,7 @@ export async function issueCertificate(input: {
       link: urls.image,
       // The verify URL rides in the caption so the credential is checkable
       // from the chat itself, not only by scanning the QR off the image.
-      caption: `${input.caption}\n\n${urls.verify}`
+      caption: buildCertificateCaption(input.caption, urls.verify)
     });
     sent = result.status === "sent";
     if (result.status === "failed") reason = result.reason;
