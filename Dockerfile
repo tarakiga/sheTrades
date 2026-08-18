@@ -34,8 +34,21 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 
-# Prisma's query engine binary needs OpenSSL at runtime too.
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates \
+# OpenSSL: Prisma's query engine binary needs it at runtime too.
+#
+# Fonts: the certificate renderer builds its text layer as SVG and rasterises
+# it with sharp INSIDE this container. With no font installed, librsvg draws
+# the learner name as a row of empty boxes and reports no error whatsoever --
+# sharp returns a perfectly valid PNG either way, so no unit test can catch
+# it and the public verification page would confirm the result as genuine.
+# Measured on this base image before these packages were added: fc-list
+# reported 0 fonts and a 64px name rendered 504 dark pixels of tofu, against
+# 9365 for the identical SVG on a machine that has fonts.
+#
+# DejaVu is a stopgap, not the answer. The real certificate design will want
+# a brand font committed to the repo and installed here instead; whoever
+# seeds the final artwork owns that decision.
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates fontconfig fonts-dejavu-core \
   && rm -rf /var/lib/apt/lists/*
 
 # Install runtime deps for backend workspace only

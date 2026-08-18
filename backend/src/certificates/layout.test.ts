@@ -105,12 +105,22 @@ test("a deliberately small field is never ENLARGED to the floor", () => {
 });
 
 test("a shrunk size is a whole number, on the conservative side of the box", () => {
-  // 20 chars at ratio 0.55 in a 400px box solves to 400 / (20 * 0.55) = 36.3636px,
-  // above the 24px floor for a 100px field, so this exercises the fractional
-  // mid-range rather than the floor clamp. Rounding UP or keeping the
-  // fraction would put the text on the box edge, spending the margin the
-  // pessimistic ratio exists to provide.
-  assert.equal(fitFontSize({ text: "a".repeat(20), startPx: 100, maxWidthPx: 400 }), 36);
+  // 12 chars at ratio 0.8 in a 400px box solves to 400 / (12 * 0.8) = 41.6667px,
+  // well above the 24px floor for a 100px field, so this exercises the
+  // fractional mid-range rather than the floor clamp. Rounding UP or keeping
+  // the fraction would put the text on the box edge, spending the margin the
+  // upper-bound ratio exists to provide.
+  assert.equal(fitFontSize({ text: "a".repeat(12), startPx: 100, maxWidthPx: 400 }), 41);
+});
+
+test("a candidate the division floors a pixel too low is stepped back up", () => {
+  // The direct guard for the step-UP half of the float re-check. 3 chars in a
+  // 300px box: (3 * 0.8) is 2.4000000000000004, so 300 / that is
+  // 124.99999999999999 and floors to 124 -- while 125 multiplies back to
+  // exactly 300 and therefore fits. Without the step-up this returns 124 and
+  // silently gives away a pixel of the designer's type size on every render
+  // that lands on such a boundary.
+  assert.equal(fitFontSize({ text: "a".repeat(3), startPx: 150, maxWidthPx: 300 }), 125);
 });
 
 test("an empty value keeps its configured size", () => {
@@ -168,8 +178,9 @@ test("every text field appears in the layer", () => {
 // imported: this loop IS the specification fitFontSize is checked against,
 // so importing the constants it is meant to validate would let a future
 // change to those constants silently drag the spec along with the code
-// under test, instead of catching the disagreement.
-const REFERENCE_AVG_GLYPH_RATIO = 0.55;
+// under test, instead of catching the disagreement. Updating this number is
+// meant to be a deliberate second act, not a free ride on the first.
+const REFERENCE_AVG_GLYPH_RATIO = 0.8;
 const REFERENCE_MIN_FONT_PX = 24;
 
 // The specification, not the optimisation: shrink one pixel at a time,
@@ -179,7 +190,9 @@ const REFERENCE_MIN_FONT_PX = 24;
 // to run on every render; any input where the two disagree is a bug in the
 // closed form, not a fact about what "fits" means. This is the loop a spec
 // review brute-forced fitFontSize against and found ~10% disagreement in,
-// before the epsilon re-check above was added.
+// before the epsilon re-check was added -- and the loop that then caught the
+// closed form coming up a pixel SHORT when AVG_GLYPH_RATIO was raised to
+// 0.8, which is what made that re-check symmetric.
 function referenceFitFontSize(text: string, startPx: number, maxWidthPx: number): number {
   const floorPx = Math.min(REFERENCE_MIN_FONT_PX, startPx);
   let size = startPx;

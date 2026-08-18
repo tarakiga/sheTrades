@@ -89,11 +89,38 @@ export function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/** Deliberately pessimistic: real glyph widths depend on font metrics this
- * module has no access to (no font is loaded here), so an average-width
- * guess is used instead. Pessimistic on purpose -- a size that lands a
- * little inside the box is safe, a size that overhangs it prints wrong. */
-const AVG_GLYPH_RATIO = 0.55;
+/**
+ * Upper bound on average glyph width as a fraction of font size. Real glyph
+ * widths depend on font metrics this module has no access to (no font is
+ * loaded here), so a per-character average stands in for measuring the text.
+ *
+ * MEASURED, not guessed. Rendered inside the deployment image (node:24-slim
+ * plus fonts-dejavu-core, which is the face sharp actually falls back to)
+ * over a corpus of 35 realistic learner names, programme names, dates and
+ * certificate ids, taking ADVANCE width rather than ink so the side bearings
+ * that decide overflow are included:
+ *
+ *   weight 400 (DejaVu Sans Book): median 0.574, max 0.695
+ *   weight 700 (DejaVu Sans Bold): median 0.645, max 0.787
+ *
+ * The maximum in both cases is an all-capitals name (WEMIMO OLUWAMUYIWA).
+ * Learners type their own names and a good number type them in capitals, so
+ * that is a real case, not a contrived one. 0.8 sits above the observed
+ * maximum with margin, which also leaves room for a brand font somewhat
+ * wider than DejaVu.
+ *
+ * The previous value was 0.55, commented as "deliberately pessimistic". It
+ * was neither: it UNDER-estimated every realistic bold name by 10-25%, so
+ * fitFontSize reported that names fitted which then overhung their box on a
+ * permanent, publicly shared credential -- precisely the failure this
+ * function exists to prevent.
+ *
+ * Erring high is the safe direction: it shrinks text that would have fitted
+ * (a name a little smaller than the designer intended, bounded below by
+ * MIN_FONT_PX) rather than overflowing text that would not. Re-measure
+ * against the real face when the brand artwork and its font land.
+ */
+const AVG_GLYPH_RATIO = 0.8;
 
 /** Below this, text stops being legible on a printed/shared certificate. */
 const MIN_FONT_PX = 24;
@@ -121,17 +148,26 @@ export function fitFontSize(args: { text: string; startPx: number; maxWidthPx: n
   const fitted = maxWidthPx / (text.length * AVG_GLYPH_RATIO);
   let candidate = Math.floor(fitted);
 
-  // Division and multiplication are not exact inverses in IEEE-754: for a
-  // measurable slice of inputs, the floored candidate still multiplies back
-  // (via the SAME formula the "already fits" guard above uses) to a hair
-  // over maxWidthPx -- a floating-point epsilon, not a real overflow, but
-  // enough to make the "conservative side of the boundary" comment above a
-  // lie for those inputs. Re-check with that identical multiplicative
-  // formula and step down once more if it still overflows, so the check
-  // that decides "does this fit" is always the same check, not a division
-  // assumed to invert it exactly.
+  // Division and multiplication are not exact inverses in IEEE-754, and the
+  // two do not even associate the same way: the solve above computes
+  // (text.length * AVG_GLYPH_RATIO) first, while the "does this fit" check
+  // computes (text.length * size) * AVG_GLYPH_RATIO. Those disagree by an
+  // epsilon for a measurable slice of inputs. So re-check with the identical
+  // multiplicative formula the "already fits" guard uses, and step once --
+  // the check that decides "does this fit" is always the same check, never a
+  // division assumed to invert it exactly.
+  //
+  // BOTH directions are needed. Only the step-down existed while
+  // AVG_GLYPH_RATIO was 0.55, where it happened to be sufficient; raising the
+  // constant to 0.8 immediately produced inputs that floored a whole pixel
+  // BELOW a size that fits (text.length 3, maxWidthPx 300: the division
+  // yields 124.99999999999999 where 125 multiplies back to exactly 300).
+  // A closed form that is correct only for one value of a tunable constant
+  // is not correct, so the recovery is symmetric.
   if (candidate * text.length * AVG_GLYPH_RATIO > maxWidthPx) {
     candidate -= 1;
+  } else if ((candidate + 1) * text.length * AVG_GLYPH_RATIO <= maxWidthPx) {
+    candidate += 1;
   }
 
   return Math.max(floorPx, Math.min(startPx, candidate));
