@@ -133,17 +133,36 @@
     letter-spacing: -.02em;
   }
 
+  /* The lede keeps a readable measure rather than stretching to the width of
+     the title above it, so on a wide screen the facing column carries the
+     document's own particulars instead of leaving the right half empty. */
+  .cover__foot {
+    display: grid;
+    gap: 2rem 4rem;
+    border-top: 1px solid rgba(255, 255, 255, .16);
+    padding-top: 1.75rem;
+    align-items: start;
+  }
+
+  @media (min-width: 820px) {
+    .cover__foot { grid-template-columns: minmax(0, 1fr) auto; }
+  }
+
   .cover__lede {
-    max-width: 46ch;
-    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    max-width: 52ch;
+    font-size: clamp(1.05rem, 2vw, 1.2rem);
     color: #C6DCD4;
   }
 
   .cover__meta {
-    display: flex; flex-wrap: wrap; gap: 2.5rem;
-    border-top: 1px solid rgba(255, 255, 255, .16);
-    padding-top: 1.75rem;
+    display: grid;
+    gap: 1.15rem;
     font-size: .9rem;
+    margin: 0;
+  }
+
+  @media (max-width: 819px) {
+    .cover__meta { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   }
 
   .cover__meta dt {
@@ -361,33 +380,34 @@
       </div>
     </div>
 
-    <div>
-      <h1>The Operator&nbsp;Handbook</h1>
+    <h1>The Operator&nbsp;Handbook</h1>
+
+    <div class="cover__foot">
       <p class="cover__lede">
         Everything you can change on the SheTrades Digital Learning Programme, where to change it,
         and what happens to learners when you do. Written for the people who run the programme,
         not the people who built it.
       </p>
-    </div>
 
-    <dl class="cover__meta">
-      <div>
-        <dt>Prepared for</dt>
-        <dd>TechHer &middot; CARE &middot; SheConnects</dd>
-      </div>
-      <div>
-        <dt>Covers</dt>
-        <dd>Admin console &amp; WhatsApp bot</dd>
-      </div>
-      <div>
-        <dt>Version</dt>
-        <dd>1.0 &middot; August 2026</dd>
-      </div>
-      <div>
-        <dt>Reading time</dt>
-        <dd>About 35 minutes</dd>
-      </div>
-    </dl>
+      <dl class="cover__meta">
+        <div>
+          <dt>Prepared for</dt>
+          <dd>TechHer &middot; CARE &middot; SheConnects</dd>
+        </div>
+        <div>
+          <dt>Covers</dt>
+          <dd>Admin console &amp; WhatsApp bot</dd>
+        </div>
+        <div>
+          <dt>Version</dt>
+          <dd>1.0 &middot; August 2026</dd>
+        </div>
+        <div>
+          <dt>Reading time</dt>
+          <dd>About 35 minutes</dd>
+        </div>
+      </dl>
+    </div>
   </div>
 </header>
 
