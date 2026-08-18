@@ -66,7 +66,7 @@ export default function CertificatesPage() {
   }
 
   return (
-    <div className="certificates-page">
+    <main className="admin-dashboard-page certificates-page">
       <SectionHeader
         title="Certificates"
         description={`${total} issued. A certificate is created automatically when a learner completes every module.`}
@@ -176,6 +176,6 @@ export default function CertificatesPage() {
           />
         }
       />
-    </div>
+    </main>
   );
 }

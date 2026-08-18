@@ -8545,11 +8545,9 @@ button.needs-attention-panel__item:focus {
    screens read as one system rather than two.
    ------------------------------------------------------------------------ */
 
-.certificates-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-}
+/* Layout - padding, max-width, vertical rhythm - comes from
+   .admin-dashboard-page, the shell every other admin page uses. Declaring
+   display/gap again here would silently override the grid it sets. */
 
 .certificates-page__toolbar {
   align-items: flex-end;
