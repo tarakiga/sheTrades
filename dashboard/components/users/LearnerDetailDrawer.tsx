@@ -8,11 +8,11 @@ import {
   type ChangeEvent,
   type ReactElement
 } from "react";
-import { getLearnerDetail } from "../../lib/admin/api";
+import { eraseLearner, getLearnerDetail } from "../../lib/admin/api";
 import { formatNgn, formatRelativeTime } from "../../lib/format";
 import type { LearnerDetail } from "../../lib/admin/contracts";
 import { certificateVerifyUrl } from "../../lib/admin/certificates";
-import { Badge } from "../ui";
+import { Badge, Button, ConfirmationModal } from "../ui";
 
 export type LearnerDetailDrawerProps = {
   phone: string | null; // null → closed
@@ -48,6 +48,13 @@ export function LearnerDetailDrawer(
   const [flagging, setFlagging] = useState(false);
   const [localFlagged, setLocalFlagged] = useState<boolean | null>(null);
   const [noteValue, setNoteValue] = useState<string>("");
+  const [erasing, setErasing] = useState(false);
+  const [eraseRunning, setEraseRunning] = useState(false);
+  /** The reference returned by a completed erasure. It is the only thing that
+   * links her request to the record that it was carried out, so it is shown
+   * rather than swallowed — whoever took the request needs to pass it on. */
+  const [eraseRef, setEraseRef] = useState<string | null>(null);
+  const [eraseError, setEraseError] = useState("");
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -163,6 +170,21 @@ export function LearnerDetailDrawer(
     setNoteValue(event.target.value);
   }
 
+  async function handleErase() {
+    if (!phone || eraseRunning) return;
+    setEraseRunning(true);
+    setEraseError("");
+    try {
+      const result = await eraseLearner(phone);
+      setEraseRef(result.requestRef);
+      setErasing(false);
+    } catch (caught) {
+      setEraseError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setEraseRunning(false);
+    }
+  }
+
   return (
     <div className="learner-detail-drawer" aria-hidden={!open}>
       <button
@@ -212,9 +234,34 @@ export function LearnerDetailDrawer(
               flagging={flagging}
               onFlagToggle={handleFlagToggle}
               onNoteChange={handleNoteChange}
+              onErase={() => setErasing(true)}
+              busy={flagging || eraseRunning}
             />
           )}
+
+          {eraseRef ? (
+            <p className="learner-detail-drawer__erase-done" role="status">
+              Deleted. Reference <strong>{eraseRef}</strong> &mdash; give this to whoever made the
+              request. Close this drawer and refresh the list.
+            </p>
+          ) : null}
+          {eraseError ? (
+            <p className="learner-detail-drawer__erase-error" role="alert">
+              {eraseError}
+            </p>
+          ) : null}
         </div>
+
+        <ConfirmationModal
+          open={erasing}
+          title="Delete everything about this learner?"
+          description="This cannot be undone. Her name, number, progress and quiz results will be deleted, along with any certificate and its public verification link. Records of airtime already paid are kept without her name or number, because they have to stay reconcilable with the airtime provider."
+          confirmLabel="Delete permanently"
+          tone="danger"
+          loading={eraseRunning}
+          onCancel={() => setErasing(false)}
+          onConfirm={() => void handleErase()}
+        />
 
         <footer className="learner-detail-drawer__footer">
           <button
@@ -237,12 +284,14 @@ type LearnerDetailBodyProps = {
   flagging: boolean;
   onFlagToggle: () => void;
   onNoteChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+  onErase: () => void;
+  busy: boolean;
 };
 
 function LearnerDetailBody(props: LearnerDetailBodyProps): ReactElement {
-  const { detail, currentFlagged, noteValue, flagging, onFlagToggle, onNoteChange } =
+  const { detail, currentFlagged, noteValue, flagging, onFlagToggle, onNoteChange, onErase, busy } =
     props;
-  const { identity, session, progress, quizAttempts, rewards, certificate } = detail;
+  const { identity, session, progress, quizAttempts, rewards, certificate, consent } = detail;
 
   return (
     <>
@@ -468,6 +517,45 @@ function LearnerDetailBody(props: LearnerDetailBodyProps): ReactElement {
           </ul>
         </section>
       ) : null}
+
+      {/* Privacy: what she agreed to, and the way to honour a deletion request */}
+      <section className="learner-detail-drawer__section" aria-label="Privacy">
+        <h3 className="learner-detail-drawer__section-title">Privacy</h3>
+        {consent ? (
+          <ul className="learner-detail-drawer__list">
+            <li className="learner-detail-drawer__list-item">
+              <span className="learner-detail-drawer__list-item-label">
+                <Badge variant={consent.decision === "accepted" ? "success" : "warning"}>
+                  {consent.decision === "accepted" ? "Agreed" : "Declined"}
+                </Badge>
+              </span>
+              <span className="learner-detail-drawer__list-item-meta">
+                {/* The version matters as much as the decision: the notice is
+                    editable, so "she agreed" says nothing without it. */}
+                Notice v{consent.noticeVersion} &middot;{" "}
+                {new Date(consent.decidedAt).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric"
+                })}
+                {consent.decisionCount > 1 ? ` · ${consent.decisionCount} decisions` : ""}
+              </span>
+            </li>
+          </ul>
+        ) : (
+          <p className="learner-detail-drawer__empty">
+            She has not been shown the privacy notice yet.
+          </p>
+        )}
+        <div className="learner-detail-drawer__privacy-actions">
+          <Button variant="danger" onClick={onErase} disabled={busy}>
+            Delete all her information
+          </Button>
+          <p className="learner-detail-drawer__privacy-hint">
+            For a deletion request that arrives by phone or email. Irreversible.
+          </p>
+        </div>
+      </section>
 
       {/* Rewards */}
       <section

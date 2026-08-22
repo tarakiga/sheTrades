@@ -31,6 +31,24 @@ export type LearnerDetail = {
     issuedAt: string;
     revokedAt: string | null;
   };
+  /**
+   * Her privacy decision, so an operator asked "did she agree, and to what?"
+   * does not need a developer and a database client.
+   *
+   * `decision` is the latest answer and `noticeVersion` the version of the
+   * notice she was shown when she gave it. The notice is editable, so the
+   * version is what makes the answer mean anything. Absent for anyone who has
+   * never been asked.
+   */
+  consent?: {
+    decision: string;
+    noticeVersion: number;
+    language: string;
+    decidedAt: string;
+    /** How many times she has answered, ever. More than one means she changed
+     * her mind, or was asked again after a material change to the notice. */
+    decisionCount: number;
+  };
 };
 
 function iso(value: Date | null | undefined): string | null {
@@ -40,7 +58,15 @@ function iso(value: Date | null | undefined): string | null {
 export async function getLearnerDetail(phone: string): Promise<LearnerDetail | null> {
   const user = await prisma.user.findUnique({
     where: { phone },
-    include: { session: true, progress: true, quizAttempts: true, rewards: true, certificate: true }
+    include: {
+      session: true,
+      progress: true,
+      quizAttempts: true,
+      rewards: true,
+      certificate: true,
+      // Newest first: the drawer shows the decision that currently stands.
+      consentEvents: { orderBy: { decidedAt: "desc" } }
+    }
   });
   if (!user) return null;
 
@@ -95,6 +121,17 @@ export async function getLearnerDetail(phone: string): Promise<LearnerDetail | n
             learnerName: user.certificate.learnerName,
             issuedAt: user.certificate.issuedAt.toISOString(),
             revokedAt: iso(user.certificate.revokedAt)
+          }
+        }
+      : {}),
+    ...(user.consentEvents.length > 0 && user.consentEvents[0]
+      ? {
+          consent: {
+            decision: user.consentEvents[0].decision,
+            noticeVersion: user.consentEvents[0].noticeVersion,
+            language: user.consentEvents[0].language,
+            decidedAt: user.consentEvents[0].decidedAt.toISOString(),
+            decisionCount: user.consentEvents.length
           }
         }
       : {})

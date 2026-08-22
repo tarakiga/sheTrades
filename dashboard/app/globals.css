@@ -9281,3 +9281,38 @@ button.needs-attention-panel__item:focus {
   white-space: nowrap;
   width: 1px;
 }
+
+/* Privacy section in the learner drawer: what she agreed to, and the way to
+   honour a deletion request that arrived by phone or email. */
+.learner-detail-drawer__privacy-actions {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.learner-detail-drawer__privacy-hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  line-height: var(--line-height-normal);
+}
+
+.learner-detail-drawer__erase-done {
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-success-50);
+  color: var(--color-success-700);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
+.learner-detail-drawer__erase-error {
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-50);
+  color: var(--color-danger-700);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}

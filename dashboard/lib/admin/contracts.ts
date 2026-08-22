@@ -49,6 +49,16 @@ export type LearnerDetail = {
     issuedAt: string;
     revokedAt: string | null;
   };
+  /** Her latest privacy decision and the version of the notice she was shown
+   * when she gave it. The notice is editable, so the version is what makes the
+   * decision mean anything. Absent for anyone never asked. */
+  consent?: {
+    decision: string;
+    noticeVersion: number;
+    language: string;
+    decidedAt: string;
+    decisionCount: number;
+  };
 };
 
 export type UsersPageData = {

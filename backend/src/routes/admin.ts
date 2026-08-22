@@ -31,10 +31,13 @@ import {
   getRuntimeRewardRules
 } from "../config-platform/runtime-config.js";
 import { authenticateJwt, requireRoles } from "../auth/jwt-rbac.js";
+import { eraseParticipant } from "../privacy/erasure.js";
 import { sendWhatsAppOutreach, type OutreachPayload } from "../whatsapp/sender.js";
 
 // Mutating admin actions require at least editor (viewers are read-only).
 const requireWriteAccess = requireRoles(["editor", "admin"]);
+// Irreversible or money-moving actions require admin.
+const requireAdminOnly = requireRoles(["admin"]);
 
 export const adminRouter = Router();
 
@@ -369,6 +372,40 @@ adminRouter.get("/users/:phone", async (req, res, next) => {
   }
 });
 
+/**
+ * Erase a participant, for a request that arrives by phone or email rather
+ * than through the bot.
+ *
+ * Admin only, and irreversible. The confirmation belongs in the UI, not here:
+ * by the time this route is reached the decision has been made, and adding a
+ * second "are you sure" to an API call only teaches people to send it twice.
+ */
+adminRouter.post("/users/:phone/erase", requireAdminOnly, async (req, res, next) => {
+  try {
+    const phone = String(req.params.phone);
+    const outcome = await eraseParticipant({
+      phone,
+      requestedVia: "admin",
+      actorId: req.authUser?.id ?? null
+    });
+
+    if (outcome.status === "not_found") {
+      res.status(404).json({ message: "Learner not found." });
+      return;
+    }
+    if (outcome.status === "failed") {
+      res.status(500).json({ message: `Nothing was deleted: ${outcome.reason}` });
+      return;
+    }
+
+    // The reference, not the phone number. Whoever asked can be told it, and
+    // it is the only thing linking her request to the erasure log.
+    res.status(200).json({ requestRef: outcome.requestRef, removed: outcome.counts });
+  } catch (error) {
+    next(error);
+  }
+});
+
 adminRouter.get("/analytics", async (_req, res, next) => {
   try {
     const payload = await getAnalyticsData();
@@ -577,7 +614,6 @@ adminRouter.post("/reports/generate", requireWriteAccess, async (req, res, next)
 // reports.recipient_directory option set) are managed elsewhere. Deleting and
 // creating schedules is admin-only; editors may pause/resume and run now.
 
-const requireAdminOnly = requireRoles(["admin"]);
 
 // Dashboard logins carry a session (authUser); service tokens (seeds, ops
 // scripts) only carry JWT claims. Fall back to the token subject so the

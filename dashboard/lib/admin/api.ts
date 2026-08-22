@@ -271,6 +271,23 @@ export function flagLearner(phone: string, body: { flagged: boolean; note?: stri
   );
 }
 
+/**
+ * Erases a learner on request, for a request that arrived by phone or email
+ * rather than through the bot. Admin only, and irreversible.
+ *
+ * Returns the reference the erasure was logged under. It is the only thing
+ * linking her request to the record that it was carried out, and nothing
+ * stored anywhere resolves it back to her, so whoever took the request has to
+ * pass it on rather than look it up later.
+ */
+export function eraseLearner(phone: string) {
+  return rewardsActionFetch<{ requestRef: string; removed: Record<string, number> }>(
+    `/api/admin/users/${encodeURIComponent(phone)}/erase`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+    "Delete learner failed"
+  );
+}
+
 export function usersExportEndpoint(): string {
   return `/api/admin/users/export`;
 }
