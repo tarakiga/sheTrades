@@ -170,14 +170,42 @@ console stays reachable on `*.vercel.app`. To restore the old behaviour
 completely, delete `dashboard/middleware.ts`. The config publishes roll back
 through the normal version history, like any other document.
 
+## The operator handbook
+
+The handbook used to live at `/handbook.html` in `dashboard/public/`, which meant
+Vercel's CDN served twenty-one screenshots of the console to anyone who knew the
+URL. The hostname split kept it off the public domain; on the admin domain it was
+still an ungated static asset.
+
+Middleware cannot gate it - the session token is in `localStorage`, unreadable
+server-side, and a plain link cannot carry an Authorization header. So:
+
+- The file moved to `dashboard/handbook/handbook.html`, outside `public/`, and is
+  pulled into the deployed bundle by `outputFileTracingIncludes`.
+- **`/api/handbook`** returns it only after forwarding the caller's bearer token
+  to the backend's `/api/admin/auth/me`. The dashboard does not verify session
+  tokens itself; the backend owns expiry, revocation, and suspended accounts, so
+  asking it is the only check that stays right when an account is disabled
+  mid-session. An unreachable backend fails CLOSED.
+- **`/handbook`** is a gated page that fetches the document with the token and
+  hands the bytes to an iframe as a blob URL. An iframe cannot set headers, which
+  is why it cannot simply point at the protected route.
+
+The page sits outside `(admin)` on purpose, so the document fills the window
+instead of being squeezed into the sidebar shell.
+
+**Size ceiling.** The document is served by a serverless function, whose response
+body is capped at 4.5 MB, and base64 PNGs do not compress - the file size IS the
+response size. It is 2.7 MB today. `docs/handoff/source/build.mjs` fails the build
+above 4 MB rather than letting an operator discover it by clicking Help.
+
 ## Not covered
 
-- **`/handbook.html` is still not auth-gated.** The split keeps it off the public
-  host, but on the admin host it is a static file in `public/` and anyone with
-  the URL can read it. It contains screenshots of the console. Gating it properly
-  means serving it through a route handler rather than as a static asset - the
-  same shape of problem as the component workshop, without the option of simply
-  not shipping it, since operators reach it from the Help link.
 - **The public root has nowhere to go.** `www.shetrades.digital/` redirects to
   `/privacy` because the policy is the only public document. When there is a
   landing page, it takes that slot.
+- **CORS no longer lists the public hosts.** Nothing on the public host calls the
+  admin API - the privacy page reads its config server-side, verified against the
+  live page - so `www.shetrades.digital` and the apex came out of
+  `BACKEND_CORS_ALLOWED_ORIGINS`. A future public page that reads config from the
+  BROWSER would need them added back.

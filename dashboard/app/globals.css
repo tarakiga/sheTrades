@@ -9316,3 +9316,23 @@ button.needs-attention-panel__item:focus {
   font-size: var(--font-size-sm);
   line-height: var(--line-height-normal);
 }
+
+/* Operator handbook - a self-contained document rendered full-bleed in its own
+   tab. The iframe carries the handbook's own styles, so nothing here reaches
+   inside it; these rules only give it the whole viewport to work with. */
+.handbook-page {
+  min-height: 100vh;
+  background: var(--color-brand-900);
+}
+.handbook-page--message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+}
+.handbook-page__frame {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  border: 0;
+}

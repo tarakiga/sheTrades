@@ -2072,14 +2072,23 @@ Update those two keys INDIVIDUALLY, never with `--env-vars-file`: that replaces
 the whole set, and four of this service's variables are Secret Manager
 references the yaml does not carry.
 
-### Still open
+### Follow-ups, both closed 2026-08-22
 
-`/handbook.html` is off the public host but still not auth-gated on the admin
-host - a static file in `public/`, containing console screenshots. Same shape as
-the component workshop, without the option of not shipping it, since operators
-reach it from the Help link.
+**The handbook is behind a session check.** It moved out of `dashboard/public/`
+(where the CDN served twenty-one console screenshots to anyone with the URL) to
+`dashboard/handbook/`, reaching the browser only through `/api/handbook`, which
+forwards the caller's token to the backend's `/api/admin/auth/me` and fails
+CLOSED if the backend is unreachable. `/handbook` fetches it with the token and
+hands the bytes to an iframe as a blob URL - an iframe cannot set headers, so it
+cannot point at the protected route directly. Verified: 401 with no token, a
+garbage token, or a non-bearer scheme; 200 and the full 2.8 MB document with a
+real session; `/handbook.html` now 404s everywhere.
 
-`www.shetrades.digital` remains in the CORS allowlist. Nothing on the public host
-calls the admin API any more, so it could come out; it was left in because the
-privacy page's own config reads are server-side and untested against a tighter
-list. Not urgent - the JWT is the boundary, not CORS.
+Watch the size. It is served by a serverless function, whose response body is
+capped at 4.5 MB, and base64 PNGs do not compress. `build.mjs` now fails above
+4 MB; it is 2.7 MB today.
+
+**CORS no longer lists the public hosts.** Confirmed against the live page that
+`/privacy` makes no browser request to the backend at all - its config reads are
+server-side - so `www.shetrades.digital` and the apex came out. A future public
+page that reads config from the BROWSER would need them put back.

@@ -108,7 +108,8 @@ test("the console is not reachable on the public host", () => {
     "/settings",
     "/certificates",
     "/previews/components",
-    "/handbook.html"
+    "/handbook",
+    "/api/handbook"
   ]) {
     assert.deepEqual(
       verdictForPublicRequest(path),

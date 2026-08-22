@@ -156,11 +156,13 @@ const navSections: Array<NavSection> = [
       {
         copyKey: "nav.help",
         fallbackLabel: "Help",
-        // A static file rather than an app route: the handbook is one
-        // self-contained page with its screenshots inlined, rebuilt from
+        // One self-contained page with its screenshots inlined, rebuilt from
         // docs/handoff/source whenever the console changes, so it cannot fall
-        // out of step with the product it documents.
-        href: "/handbook.html",
+        // out of step with the product it documents. Served through
+        // /api/handbook behind a session check rather than as a static file,
+        // because twenty-one screenshots of the console are not something to
+        // hand to anyone who guesses the URL.
+        href: "/handbook",
         icon: HelpIcon,
         newTab: true
       }

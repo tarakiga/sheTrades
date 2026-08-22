@@ -9,6 +9,13 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // The handbook is read from disk at request time by /api/handbook. It lives
+  // outside public/ precisely so the CDN will not serve it, which also means
+  // nothing references it statically and the tracer would otherwise leave it
+  // out of the deployed bundle.
+  outputFileTracingIncludes: {
+    "/api/handbook": ["./handbook/handbook.html"]
+  },
   async rewrites() {
     return [
       // Certificate verification pages and their PNGs, proxied so a learner's
