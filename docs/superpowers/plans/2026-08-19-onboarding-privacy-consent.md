@@ -73,6 +73,12 @@ gate.
    public certificate again at the moment one is issued. My preference is the
    second, because the bot already pauses there to confirm her name.
 
+**On the notice wording itself:** the client's draft goes in as-is and is treated
+as a placeholder. It is a config document, so replacing it later is an edit under
+Content with draft, publish and rollback — no deploy, no developer. Nothing in
+this plan depends on the final wording, only on its length and its published
+version number.
+
 ---
 
 ## Character budget
@@ -132,7 +138,7 @@ enforced at publish time, not discovered at send time.
 - [ ] `awaiting_language` advances to the new consent state rather than to
       `awaiting_state`.
 - [ ] Existing in-flight sessions keep working. Do not migrate anyone's state;
-      the old handlers stay, and Task 5 catches anyone without consent.
+      the old handlers stay for anyone mid-flow when this ships.
 
 ## Task 4: The consent gate
 
@@ -162,7 +168,91 @@ to catch up. The gate applies to everyone from first contact.
       operator asked "did she agree, and to what?" should not need a developer
       and a database client.
 
-## Task 7: Verify
+## Task 7: Erasure on request
+
+The notice promises she can ask for deletion, so the promise needs something
+behind it before the notice goes live. Three decisions are settled: rewards are
+de-identified rather than deleted, erasure is immediate rather than queued for
+an operator, and a separate log records that it happened.
+
+### What the database makes hard
+
+- **Everything except certificates is `ON DELETE RESTRICT`** (sessions,
+  progress, quiz attempts, rewards). A single `DELETE FROM users` fails. Erasure
+  has to be an ordered transaction, which is the right shape anyway because the
+  rows are not all treated alike.
+- **`outbound_messages` has no foreign key** — it stores a bare phone string. It
+  will not cascade and will not block. Miss it and the erasure reports success
+  while leaving her number, and any message staff sent her, in the database.
+  This is the one that has to be handled by hand.
+- **Certificates cascade**, so her public verification link stops resolving. She
+  must be told that before she confirms, not discover it when an employer tries
+  the link.
+
+### Reward de-identification
+
+Rewards are money actually paid, and donors will want a reconcilable trail.
+
+- [ ] New `reward_archive` table: `module`, `amount`, `channel`, `status`,
+      `issuedAt`, `providerTxnId`, `archivedAt`. No `userId`, no phone, no name.
+- [ ] On erasure, copy each reward row into it, then delete the rewards.
+
+Call this **de-identified, not anonymous, and say so in the code**: the provider
+transaction id stays, because reconciliation against the airtime provider is the
+entire point of keeping the record, and the provider can still resolve that id to
+a number. Anonymising it would destroy the audit value it exists for. If that
+trade is not acceptable to the client, the alternative is to hash it and lose
+reconciliation.
+
+### The erasure transaction
+
+- [ ] One transaction, in this order:
+      1. copy `rewards` → `reward_archive`
+      2. delete `certificates`
+      3. delete `rewards`
+      4. delete `quiz_attempts`
+      5. delete `user_progress`
+      6. delete `user_sessions`
+      7. delete `consent_events`
+      8. delete `outbound_messages` where `phone` matches
+      9. delete `users`
+      10. write the erasure log row
+- [ ] Anything that throws rolls the whole thing back. A partial erasure is
+      worse than none, because it reports done.
+
+### The erasure log
+
+- [ ] New `erasure_log` table: `id`, `requestRef`, `requestedVia`
+      (`bot` | `admin`), `decidedAt`, `tableCounts` (JSON of what was removed),
+      `actorId` for an admin-initiated erasure. **No phone, no name, no user id.**
+- [ ] `requestRef` is a short random reference given to her in the confirmation
+      message, so she can quote it without us holding anything identifying.
+
+### The bot path
+
+- [ ] A privacy row on the main menu leading to a short explanation and a
+      "Delete my information" action.
+- [ ] Confirmation step stating plainly, in her language, what she loses: her
+      progress, and any certificate along with its verification link. Irreversible.
+- [ ] On confirm: run the transaction, reply with the reference, stop.
+- [ ] All copy is config, in the same place as the rest of the bot's wording.
+
+### The admin path
+
+- [ ] An erase action on the learner drawer, for someone who phones or emails
+      instead of using the bot. Admin role only, confirmed, and it writes the
+      same log with `requestedVia: "admin"` and the actor recorded.
+
+### Tests
+
+- [ ] The transaction removes every table listed, `outbound_messages` included —
+      assert on a learner who has one.
+- [ ] A learner holding a certificate: it goes, and its public page 404s.
+- [ ] Rewards land in the archive with no identifiers, and the counts match.
+- [ ] A mid-transaction failure leaves everything intact.
+- [ ] The erasure log row contains nothing that identifies anyone.
+
+## Task 8: Verify
 
 - [ ] Unit tests for the gate: accept, decline, re-entry after decline, garbage
       input, and a participant with no consent record who is mid-programme.
@@ -172,7 +262,7 @@ to catch up. The gate applies to everyone from first contact.
       It exercises real published copy without a real phone or a real learner.
 - [ ] Then one pass on a real handset before it reaches participants.
 
-## Task 8: Documentation
+## Task 9: Documentation
 
 - [ ] Update the operator handbook's onboarding description and the Content
       section, since the notice is editable there.
@@ -188,9 +278,6 @@ to catch up. The gate applies to everyone from first contact.
 - Translating the notice into Pidgin and Igbo. Those languages are still shown
   as coming soon; the notice will be drafted for translation with the rest of
   the content when they are enabled.
-- A self-service deletion request path. The notice says she can ask; how that
-  request is received and actioned is an operational process, not a bot feature,
-  and should be settled before the notice promises it.
 - Retention. The notice says information is kept only as long as necessary, and
   there is still no retention period implemented. That commitment should not be
   published in a consent notice until something enforces it.
