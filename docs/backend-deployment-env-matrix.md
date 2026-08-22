@@ -19,6 +19,30 @@ This document defines the runtime environment variables for deploying the backen
 | --------------------- | ---------------- | ------------- | -------------------------------------------------------------------- |
 | `ADMIN_DATA_PROVIDER` | All              | `hybrid`      | Selects provider strategy: `postgres \| firestore \| hybrid`.        |
 | `NODE_ENV`            | All              | `development` | Use `production` for strict provider behavior (no fixture fallback). |
+| `PUBLIC_BASE_URL`     | All              | none          | Public origin of this service, no trailing slash. **Certificates cannot be issued without it** — see below. |
+
+### `PUBLIC_BASE_URL`
+
+A certificate reaches a learner as an image URL that **Meta fetches**, plus a
+verification link she shares. Neither can be relative, so `certificateUrls()`
+throws on an empty value rather than emitting a link WhatsApp cannot resolve.
+Leaving this unset does not degrade issuing, it stops it — and it stops it
+silently, because the failure only surfaces the first time a learner completes
+every module.
+
+That is exactly how it went missing once already: it is read from the
+environment, is not in any schema, and nothing at deploy time asks for it.
+
+Set it to the origin only:
+
+```
+PUBLIC_BASE_URL: "https://<host>"
+```
+
+If the service moves, or gains a custom domain, this changes with it. Note that
+certificates already issued keep the link they were issued with — see
+`docs/superpowers/plans/2026-08-19-data-residency-migration.md` on why a custom
+domain is worth adding before certificates go out at volume.
 
 ## Provider Connectivity
 
