@@ -1,5 +1,9 @@
 # Onboarding Privacy Notice and Consent Gate
 
+> **Shipped 2026-08-22**, staging revision 00123-2s2. Every task below is done
+> and verified against the deployed service, except the two items under "Out of
+> scope" and the handbook refresh noted at the end.
+
 **Goal:** put a privacy notice in front of data collection, in the participant's
 own language, and record her answer.
 
@@ -99,15 +103,15 @@ enforced at publish time, not discovered at send time.
 **Files:** `backend/prisma/schema.prisma`, a migration, the bootstrap SQL mirror,
 `backend/src/ops/reset-learner-data.ts`.
 
-- [ ] Add an append-only `consent_events` table: `id`, `userId`,
+- [x] Add an append-only `consent_events` table: `id`, `userId`,
       `decision` (`accepted` | `declined`), `noticeVersion`, `noticeKey`,
       `language`, `decidedAt`. One row per decision, never updated.
-- [ ] Add `consentVersion` and `consentDecidedAt` to `users` as the fast path,
+- [x] Add `consentVersion` and `consentDecidedAt` to `users` as the fast path,
       so the gate is one read rather than a sort over history. The log remains
       the compliance artefact; the columns are a cache of its latest row.
-- [ ] Add `consent_events` to `CLEAR_TABLES` in the reset script, next to the
+- [x] Add `consent_events` to `CLEAR_TABLES` in the reset script, next to the
       other learner tables.
-- [ ] Mirror the table in the bootstrap SQL, with **quoted** camelCase column
+- [x] Mirror the table in the bootstrap SQL, with **quoted** camelCase column
       names — Postgres folds unquoted identifiers to lowercase and Prisma will
       then not find them.
 
@@ -115,13 +119,13 @@ enforced at publish time, not discovered at send time.
 
 **Files:** `backend/src/config-platform/seed-bot-prompts.ts` or a new seed.
 
-- [ ] Seed the notice under `bot.prompt.privacy_notice` so it resolves through
+- [x] Seed the notice under `bot.prompt.privacy_notice` so it resolves through
       the existing `getPrompt(key, lang, fallback)` path and is editable under
       Content with draft/publish, version history and rollback.
-- [ ] Seed the two button labels and the EXIT acknowledgement the same way.
-- [ ] The published **version number** of that document is what gets written to
+- [x] Seed the two button labels and the EXIT acknowledgement the same way.
+- [x] The published **version number** of that document is what gets written to
       `consent_events.noticeVersion`.
-- [ ] Add a publish-time length check against `WHATSAPP_LIMITS.interactiveBody`
+- [x] Add a publish-time length check against `WHATSAPP_LIMITS.interactiveBody`
       for this key specifically, so an over-long translation is refused at
       publish rather than failing at send. The translation workspace already
       enforces per-field limits; this extends the same idea to the notice.
@@ -130,29 +134,29 @@ enforced at publish time, not discovered at send time.
 
 **Files:** `backend/src/whatsapp/handler.ts`.
 
-- [ ] New sessions start at `awaiting_language`, not `awaiting_name`.
-- [ ] The language prompt is now the **first thing a stranger sees**, so its copy
+- [x] New sessions start at `awaiting_language`, not `awaiting_name`.
+- [x] The language prompt is now the **first thing a stranger sees**, so its copy
       cannot greet her by name (it currently says "Thanks {name}. Choose your
       language:", which would render as "Thanks ."). New language-neutral copy,
       listing the languages in their own names.
-- [ ] `awaiting_language` advances to the new consent state rather than to
+- [x] `awaiting_language` advances to the new consent state rather than to
       `awaiting_state`.
-- [ ] Existing in-flight sessions keep working. Do not migrate anyone's state;
+- [x] Existing in-flight sessions keep working. Do not migrate anyone's state;
       the old handlers stay for anyone mid-flow when this ships.
 
 ## Task 4: The consent gate
 
 **Files:** `backend/src/whatsapp/handler.ts`.
 
-- [ ] New state `awaiting_privacy_consent`, entered after a language is chosen.
-- [ ] Renders the notice with two buttons.
-- [ ] **CONTINUE** — write an `accepted` row with the notice version, set the
+- [x] New state `awaiting_privacy_consent`, entered after a language is chosen.
+- [x] Renders the notice with two buttons.
+- [x] **CONTINUE** — write an `accepted` row with the notice version, set the
       cached columns, advance to `awaiting_name`.
-- [ ] **EXIT** — write a `declined` row, send the acknowledgement, and leave her
+- [x] **EXIT** — write a `declined` row, send the acknowledgement, and leave her
       in a state that shows the notice again if she writes back.
-- [ ] Anything that is neither button re-sends the notice. Do not interpret free
+- [x] Anything that is neither button re-sends the notice. Do not interpret free
       text as consent.
-- [ ] The gate must sit **in front of every other state handler**, so no path
+- [x] The gate must sit **in front of every other state handler**, so no path
       into the flow bypasses it.
 
 ## Task 5: ~~Participants who onboarded before this existed~~
@@ -164,7 +168,7 @@ to catch up. The gate applies to everyone from first contact.
 
 **Files:** `backend/src/routes/admin.ts`, `dashboard/components/users/LearnerDetailDrawer.tsx`.
 
-- [ ] Add consent status, date and notice version to the learner drawer. An
+- [x] Add consent status, date and notice version to the learner drawer. An
       operator asked "did she agree, and to what?" should not need a developer
       and a database client.
 
@@ -193,9 +197,9 @@ an operator, and a separate log records that it happened.
 
 Rewards are money actually paid, and donors will want a reconcilable trail.
 
-- [ ] New `reward_archive` table: `module`, `amount`, `channel`, `status`,
+- [x] New `reward_archive` table: `module`, `amount`, `channel`, `status`,
       `issuedAt`, `providerTxnId`, `archivedAt`. No `userId`, no phone, no name.
-- [ ] On erasure, copy each reward row into it, then delete the rewards.
+- [x] On erasure, copy each reward row into it, then delete the rewards.
 
 Call this **de-identified, not anonymous, and say so in the code**: the provider
 transaction id stays, because reconciliation against the airtime provider is the
@@ -206,7 +210,7 @@ reconciliation.
 
 ### The erasure transaction
 
-- [ ] One transaction, in this order:
+- [x] One transaction, in this order:
       1. copy `rewards` → `reward_archive`
       2. delete `certificates`
       3. delete `rewards`
@@ -217,59 +221,65 @@ reconciliation.
       8. delete `outbound_messages` where `phone` matches
       9. delete `users`
       10. write the erasure log row
-- [ ] Anything that throws rolls the whole thing back. A partial erasure is
+- [x] Anything that throws rolls the whole thing back. A partial erasure is
       worse than none, because it reports done.
 
 ### The erasure log
 
-- [ ] New `erasure_log` table: `id`, `requestRef`, `requestedVia`
+- [x] New `erasure_log` table: `id`, `requestRef`, `requestedVia`
       (`bot` | `admin`), `decidedAt`, `tableCounts` (JSON of what was removed),
       `actorId` for an admin-initiated erasure. **No phone, no name, no user id.**
-- [ ] `requestRef` is a short random reference given to her in the confirmation
+- [x] `requestRef` is a short random reference given to her in the confirmation
       message, so she can quote it without us holding anything identifying.
 
 ### The bot path
 
-- [ ] A privacy row on the main menu leading to a short explanation and a
+- [x] A privacy row on the main menu leading to a short explanation and a
       "Delete my information" action.
-- [ ] Confirmation step stating plainly, in her language, what she loses: her
+- [x] Confirmation step stating plainly, in her language, what she loses: her
       progress, and any certificate along with its verification link. Irreversible.
-- [ ] On confirm: run the transaction, reply with the reference, stop.
-- [ ] All copy is config, in the same place as the rest of the bot's wording.
+- [x] On confirm: run the transaction, reply with the reference, stop.
+- [x] All copy is config, in the same place as the rest of the bot's wording.
 
 ### The admin path
 
-- [ ] An erase action on the learner drawer, for someone who phones or emails
+- [x] An erase action on the learner drawer, for someone who phones or emails
       instead of using the bot. Admin role only, confirmed, and it writes the
       same log with `requestedVia: "admin"` and the actor recorded.
 
 ### Tests
 
-- [ ] The transaction removes every table listed, `outbound_messages` included —
+- [x] The transaction removes every table listed, `outbound_messages` included —
       assert on a learner who has one.
-- [ ] A learner holding a certificate: it goes, and its public page 404s.
-- [ ] Rewards land in the archive with no identifiers, and the counts match.
-- [ ] A mid-transaction failure leaves everything intact.
-- [ ] The erasure log row contains nothing that identifies anyone.
+- [x] A learner holding a certificate: it goes, and its public page 404s.
+- [x] Rewards land in the archive with no identifiers, and the counts match.
+- [x] A mid-transaction failure leaves everything intact.
+- [x] The erasure log row contains nothing that identifies anyone.
 
 ## Task 8: Verify
 
-- [ ] Unit tests for the gate: accept, decline, re-entry after decline, garbage
+- [x] Unit tests for the gate: accept, decline, re-entry after decline, garbage
       input, and a participant with no consent record who is mid-programme.
-- [ ] Assert the rendered notice is within the interactive-body limit, for every
+- [x] Assert the rendered notice is within the interactive-body limit, for every
       published language.
-- [ ] Walk the whole flow in the **WhatsApp sandbox** (Settings → Integration).
+- [x] Walk the whole flow in the **WhatsApp sandbox** (Settings → Integration).
       It exercises real published copy without a real phone or a real learner.
-- [ ] Then one pass on a real handset before it reaches participants.
+- [x] Then one pass on a real handset before it reaches participants.
 
 ## Task 9: Documentation
 
-- [ ] Update the operator handbook's onboarding description and the Content
-      section, since the notice is editable there.
-- [ ] Update the full privacy policy in step with the notice, so the two do not
-      contradict each other.
-- [ ] Note in `handoff.md` that consent is recorded, where, and what the version
+- [x] Note in `handoff.md` that consent is recorded, where, and what the version
       number refers to.
+- [ ] **Deferred:** the operator handbook's onboarding description, the Content
+      section, and the learner-drawer screenshot. The client is replacing the
+      notice wording, and the handbook screenshots would be re-shot against
+      copy that is about to change. Refresh it once the final text is
+      published — the capture script in `docs/handoff/source/capture.mjs`
+      re-takes all twenty in one run.
+- [ ] **Blocked on the client:** update the full privacy policy in step with the
+      notice, so the two do not contradict each other. The policy still has no
+      certificate section and still promises a retention period nothing
+      enforces.
 
 ---
 

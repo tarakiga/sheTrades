@@ -1930,3 +1930,86 @@ Notes for whoever picks this up:
 - Text fields anchor on the BASELINE. `geometry.ts` handles the offset in both
   directions; get it wrong and fields creep up the page a little on every drag.
 - `dashboard` now has an `npm test` script (node:test via the hoisted tsx).
+
+## Privacy: consent and erasure (shipped 2026-08-22, staging rev 00123-2s2)
+
+The bot now shows a privacy notice before it collects anything, records the
+answer, and can delete a participant on request.
+
+### The flow
+
+`awaiting_language` → `awaiting_privacy_consent` → `awaiting_name` →
+`awaiting_state` → `main_menu`.
+
+Language moved to first because she has to be able to READ the notice before
+agreeing to it. Two consequences in `handler.ts`: the opening message cannot
+greet her by name (there is not one yet), and an opening "hi" has to be answered
+with the language question rather than treated as an answer to it. Both are
+handled in the `awaiting_language` branch.
+
+### Where consent lives
+
+- `consent_events` — append-only, one row per decision, carrying the PUBLISHED
+  VERSION of the notice she was shown. The notice is an editable config
+  document (`bot.prompt.privacy_notice`, content namespace), so the version is
+  what makes the record mean anything.
+- `users.consentVersion` / `users.consentDecidedAt` — a cache of the newest
+  row, so the gate is one read per message rather than a sort over history.
+  Only an ACCEPTANCE updates `consentVersion`; a decline is logged but must not
+  look like consent to the gate.
+
+`noticeVersion: 0` means she agreed to the in-code default because no notice
+document was published at the time. After seeding, real consents carry v1.
+
+Re-consent is a deliberate lever, not automatic: `needsConsent()` takes a
+`reconsentFromVersion`, and republishing the notice re-prompts nobody unless
+somebody sets it. Otherwise fixing a typo interrupts every learner mid-lesson.
+
+### Erasure
+
+`eraseParticipant()` in `src/privacy/erasure.ts`. One transaction or nothing.
+
+Three things it turns on, all of them easy to get wrong:
+
+1. **Rewards are copied to `reward_archive` BEFORE anything is deleted**, so a
+   failure downstream cannot lose the financial record. The archive is
+   DE-IDENTIFIED, not anonymous: `providerTxnId` stays because reconciling
+   against the airtime provider is why the record is kept, and the provider can
+   still resolve that id to a number. Say "de-identified" to the client.
+2. **`outbound_messages` is cleared by PHONE**, not user id. It has no foreign
+   key at all, so it neither cascades nor blocks — nothing would have
+   complained if it were forgotten, and the erasure would have reported success
+   while leaving her number in the database.
+3. **The turn marks itself `_erased` and `saveSession` returns early.** Her row
+   is gone but the in-memory session is still in scope, and the usual post-turn
+   save would recreate a hollow record for somebody who just asked to be
+   forgotten.
+
+`erasure_log` proves it happened while holding nothing about who it was for:
+counts, a reference, no phone, no name, no user id. The reference is given to
+her; nothing stored anywhere resolves it back.
+
+Two ways in: the bot's "My data and privacy" menu row (always last, pushed after
+the conditional certificate row so it cannot displace it), and an admin action
+on the learner drawer for a request that arrives by phone or email.
+
+### Verified on the deployed service
+
+Walked with sandbox webhook calls against rev 00123-2s2: the reordered
+onboarding, consent recorded at v1, EXIT recording a decline and holding her on
+the gate, writing back after EXIT re-showing the notice, changing her mind
+recording a second decision, the privacy menu, cancel, an unclear answer at the
+confirmation NOT deleting, and a confirmed erasure removing her entirely. Test
+learners were erased afterwards; staging is back to its original three.
+
+### Still open
+
+- The notice text is the client's draft, in as a placeholder. English only;
+  `getPrompt` falls back to `en`, so a half-translated notice cannot reach
+  anybody.
+- The full privacy policy has not been updated to match. It still has no
+  certificate section and still promises a retention period nothing enforces.
+- The operator handbook is not refreshed. Deferred deliberately: the client is
+  replacing the notice wording, so the screenshots would be re-shot against copy
+  that is about to change. `docs/handoff/source/capture.mjs` re-takes all twenty
+  in one run when it is time.
