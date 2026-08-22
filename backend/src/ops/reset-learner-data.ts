@@ -58,10 +58,19 @@ const CLEAR_TABLES = [
   "user_progress",
   "rewards",
   "certificates",
+  "consent_events",
   "user_sessions",
   "users",
   "outbound_messages",
-  "processed_webhook_messages"
+  "processed_webhook_messages",
+  // Both hold de-identified records ABOUT learners rather than learner data,
+  // so they look like candidates for PRESERVE. They are cleared instead,
+  // because this script exists to produce a clean slate in a test environment:
+  // leaving behind a financial archive and erasure log belonging to learners
+  // who no longer exist would corrupt any later reconciliation with noise
+  // nobody can trace. This script must never run against real data anyway.
+  "reward_archive",
+  "erasure_log"
 ] as const;
 
 const PRESERVE_TABLES = [

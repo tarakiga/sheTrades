@@ -8,28 +8,110 @@ datasource db {
 }
 
 model User {
-  id           String         @id @default(uuid())
-  phone        String         @unique
-  name         String?
-  language     String?
-  location     String?
-  status             String         @default("Active")
-  flaggedForFollowUp Boolean        @default(false)
+  id                 String    @id @default(uuid())
+  phone              String    @unique
+  name               String?
+  language           String?
+  location           String?
+  status             String    @default("Active")
+  flaggedForFollowUp Boolean   @default(false)
   followUpNote       String?
   /// When the follow-up flag was last raised. Distinct from updatedAt, which
   /// changes on ANY write and would reorder the "most recent help requests"
   /// list whenever an unrelated field changed.
   flaggedAt          DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  /// The published version of the privacy notice she accepted, and when she
+  /// decided. A CACHE of the newest consent_events row, kept here so the gate
+  /// on every inbound message is one read rather than a sort over history.
+  /// consent_events remains the record; these two are an index into it.
+  consentVersion     Int?
+  consentDecidedAt   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  session      UserSession?
-  progress     UserProgress[]
-  quizAttempts QuizAttempt[]
-  rewards      Reward[]
-  certificate  Certificate?
+  session       UserSession?
+  progress      UserProgress[]
+  quizAttempts  QuizAttempt[]
+  rewards       Reward[]
+  certificate   Certificate?
+  consentEvents ConsentEvent[]
 
   @@map("users")
+}
+
+/// Append-only. One row per privacy decision a participant makes, never
+/// updated and never rewritten.
+///
+/// This is the artefact that answers "did she agree, and to what?". The notice
+/// is an admin-editable config document, so recording the decision without the
+/// VERSION she saw would be recording nothing: the wording has moved on since.
+///
+/// Cascades on user delete, because a consent record must never outlive the
+/// person who gave it — an erasure that left these behind would be holding a
+/// record about someone who asked to be forgotten.
+model ConsentEvent {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "accepted" | "declined"
+  decision      String
+  /// Which config document, and which published version of it, she was shown.
+  noticeKey     String
+  noticeVersion Int
+  /// The language it was rendered in, which is not always her current language.
+  language      String
+  decidedAt     DateTime @default(now())
+
+  @@index([userId, decidedAt])
+  @@map("consent_events")
+}
+
+/// Proof that an erasure happened, holding nothing about who it was for.
+///
+/// The tension this resolves: you have to be able to show a regulator that
+/// deletion requests are honoured, and you cannot do that by keeping a record
+/// of the person you deleted. So the row carries counts and a reference, and
+/// no phone, no name, no user id. `requestRef` is given to the participant in
+/// her confirmation message so she can quote it back without us storing
+/// anything that points to her.
+model ErasureLog {
+  id           String   @id @default(uuid())
+  requestRef   String   @unique
+  /// "bot" | "admin"
+  requestedVia String
+  /// The admin who ran it, for an admin-initiated erasure. Null for the bot
+  /// path, where the participant is the actor and naming her would defeat the
+  /// point of the table.
+  actorId      String?
+  /// { "users": 1, "rewards": 3, ... } — what was removed, by table.
+  tableCounts  Json
+  decidedAt    DateTime @default(now())
+
+  @@index([decidedAt])
+  @@map("erasure_log")
+}
+
+/// What survives an erasure from the rewards ledger: money that actually moved.
+///
+/// DE-IDENTIFIED, NOT ANONYMOUS, and the distinction is deliberate. There is no
+/// name, phone or user id here — but providerTxnId stays, because reconciling
+/// this ledger against the airtime provider's is the entire reason the record
+/// is kept, and the provider can still resolve that id to a number. Hashing it
+/// would make the row anonymous and useless. Say "de-identified" in anything
+/// client-facing; claiming anonymity would be claiming a property this data
+/// does not have.
+model RewardArchive {
+  id            String    @id @default(uuid())
+  module        String
+  amount        Float
+  channel       String
+  status        String
+  issuedAt      DateTime?
+  providerTxnId String?
+  archivedAt    DateTime  @default(now())
+
+  @@index([archivedAt])
+  @@map("reward_archive")
 }
 
 model UserSession {
@@ -106,23 +188,23 @@ model AdminAccount {
 }
 
 model Reward {
-  id                String     @id @default(uuid())
+  id                String    @id @default(uuid())
   userId            String
-  user              User       @relation(fields: [userId], references: [id])
+  user              User      @relation(fields: [userId], references: [id])
   module            String
   amount            Float
   channel           String
-  status            String     @default("Pending")
+  status            String    @default("Pending")
   issuedAt          DateTime?
-  learnerPhone      String     @default("")
+  learnerPhone      String    @default("")
   providerTxnId     String?
   failureReason     String?
-  retryCount        Int        @default(0)
+  retryCount        Int       @default(0)
   nextAttemptAt     DateTime?
-  attemptInProgress Boolean    @default(false)
+  attemptInProgress Boolean   @default(false)
   noteFromActor     String?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@unique([userId, module])
   @@map("rewards")
@@ -157,23 +239,23 @@ model TranslationRequest {
 }
 
 model TranslationDraft {
-  id                String   @id @default(uuid())
+  id                String    @id @default(uuid())
   contentDocumentId String
   contentKey        String
-  targetLanguage    String   // "pcm" | "ig"
+  targetLanguage    String // "pcm" | "ig"
   // Translated strings, shape: { title?, body?, quiz: [{ question?, options: (string|null)[] }] }
   // A null option means that option failed translation and must stay English.
   payload           Json
   // Per-string machine outcome summary for the reviewer, e.g. counts of
   // translated / failed / over-budget. Recomputed on each run.
   runSummary        Json?
-  status            String   @default("machine_draft") // machine_draft | in_review | approved | promoted
+  status            String    @default("machine_draft") // machine_draft | in_review | approved | promoted
   assignee          String?
   // Hash of the English source strings at translation time. If the live English
   // no longer hashes to this, the draft is stale.
   sourceHash        String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   promotedAt        DateTime?
 
   @@unique([contentDocumentId, targetLanguage])
@@ -183,10 +265,10 @@ model TranslationDraft {
 model OutboundMessage {
   id        String   @id @default(uuid())
   phone     String
-  kind      String   // "text" | "template"
+  kind      String // "text" | "template"
   // The text body for a free-text send, or the template name for a template send.
   body      String
-  status    String   // "sent" | "failed"
+  status    String // "sent" | "failed"
   // Provider message id on success; failure reason otherwise.
   detail    String?
   sentBy    String

@@ -219,6 +219,84 @@ export async function ensurePrismaTables() {
       `CREATE UNIQUE INDEX IF NOT EXISTS certificate_assets_key_key ON certificate_assets ("key");`
     );
 
+    // consent_events — append-only record of every privacy decision. The
+    // notice is an admin-editable config document, so the VERSION she saw is
+    // what makes the record mean anything. Keep in sync with schema.prisma.
+    for (const [column, type] of [
+      ["consentVersion", "INTEGER"],
+      ["consentDecidedAt", "TIMESTAMP(3)"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS consent_events (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["userId", "TEXT"],
+      ["decision", "TEXT"],
+      ["noticeKey", "TEXT"],
+      ["noticeVersion", "INTEGER NOT NULL DEFAULT 0"],
+      ["language", "TEXT"],
+      ["decidedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE consent_events ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "consent_events_userId_decidedAt_idx" ON consent_events ("userId", "decidedAt");`
+    );
+    // CASCADE, unlike every other learner relation, which is RESTRICT: a
+    // consent record must never outlive the person who gave it.
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE consent_events DROP CONSTRAINT IF EXISTS "consent_events_userId_fkey";`
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE consent_events ADD CONSTRAINT "consent_events_userId_fkey" FOREIGN KEY ("userId") REFERENCES users("id") ON DELETE CASCADE ON UPDATE CASCADE;`
+    );
+
+    // erasure_log — proof an erasure happened, holding nothing about who it
+    // was for. No foreign key, deliberately: there is nothing left to point at.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS erasure_log (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["requestRef", "TEXT"],
+      ["requestedVia", "TEXT"],
+      ["actorId", "TEXT"],
+      ["tableCounts", "JSONB"],
+      ["decidedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE erasure_log ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "erasure_log_requestRef_key" ON erasure_log ("requestRef");`
+    );
+
+    // reward_archive — money that actually moved, de-identified. No name, no
+    // phone, no user id; providerTxnId stays because reconciling against the
+    // airtime provider is the reason the record is kept at all.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS reward_archive (id TEXT PRIMARY KEY);`
+    );
+    for (const [column, type] of [
+      ["module", "TEXT"],
+      ["amount", "DOUBLE PRECISION NOT NULL DEFAULT 0"],
+      ["channel", "TEXT"],
+      ["status", "TEXT"],
+      ["issuedAt", "TIMESTAMP(3)"],
+      ["providerTxnId", "TEXT"],
+      ["archivedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE reward_archive ADD COLUMN IF NOT EXISTS "${column}" ${type};`
+      );
+    }
+
     // translation_requests — GAP-D1: the /content translation queue used to
     // live in an in-memory Map, so requests vanished whenever Cloud Run scaled
     // to zero. Keep in sync with the TranslationRequest model in schema.prisma.
