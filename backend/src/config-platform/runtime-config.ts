@@ -96,6 +96,32 @@ function getPublishedData(namespace: "content" | "options" | "legal", key: strin
   return bundle.documents.find((document) => document.key === key)?.data;
 }
 
+/**
+ * Published version number of a content document, or 0 when it is not
+ * published.
+ *
+ * Read off the cached `versionTag` (`<documentId>:v<n>`) rather than by going
+ * back to the database, because the caller is the privacy gate and it runs on
+ * every inbound message.
+ *
+ * It exists for consent: the notice a participant accepts is an editable
+ * document, so the record of her agreement has to name the version she was
+ * actually shown, or it says nothing about what she agreed to.
+ */
+export function getRuntimeContentVersion(
+  namespace: "content" | "options" | "legal",
+  key: string
+): number {
+  const bundle = cachedPublicConfigs.get(namespace);
+  if (!bundle) return 0;
+  const tag: unknown = bundle.documents.find((document) => document.key === key)?.versionTag;
+  if (typeof tag !== "string") return 0;
+  const match = tag.match(/:v(\d+)$/);
+  if (!match?.[1]) return 0;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function getPublishedIntegrationData(key: string) {
   return cachedIntegrationConfigs.get(key) ?? null;
 }

@@ -1,9 +1,11 @@
 import { z } from "zod";
-import { getRuntimeOptionSet, getRuntimeText, getRuntimeBranding, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, getRuntimeCertificateTemplate, getRuntimeCertificateTemplateVersion, RuntimeLesson, pickLocalized } from "../config-platform/runtime-config.js";
+import { getRuntimeOptionSet, getRuntimeText, getRuntimeBranding, getRuntimeLocalizedText, getRuntimeLessons, getRuntimeRewardRules, getRuntimeCertificateTemplate, getRuntimeCertificateTemplateVersion, getRuntimeContentVersion, RuntimeLesson, pickLocalized } from "../config-platform/runtime-config.js";
 import { countCompletedModules, resolveMilestoneAwards } from "../rewards/milestones.js";
 import { sendHelpRequestEmail } from "../notifications/help-request-email.js";
 import { BOT_PROMPT_DEFAULTS, BOT_PROMPT_CONFIG_PREFIX } from "./bot-prompts.js";
 import { prisma } from "../admin/prisma.js";
+import { CONSENT_NOTICE_KEY, resolveConsentReply, type ConsentDecision } from "../privacy/core.js";
+import { eraseParticipant } from "../privacy/erasure.js";
 import type { WhatsAppListSpec } from "./sender.js";
 import { sendWhatsAppMessage, sendWhatsAppOutreach, BUTTON_TITLE_MAX, clip } from "./sender.js";
 import { WHATSAPP_LIMITS } from "./constraints.js";
@@ -30,7 +32,7 @@ function quizAnswerButtons(options: string[]): string[] {
   return options.length < WHATSAPP_LIMITS.maxButtons ? [...options, "MENU"] : options;
 }
 
-export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu" | "faq_menu" | "resources_menu" | "awaiting_certificate_confirm" | "awaiting_certificate_name";
+export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_privacy_consent" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu" | "faq_menu" | "resources_menu" | "awaiting_certificate_confirm" | "awaiting_certificate_name" | "privacy_menu" | "awaiting_erase_confirm";
 
 type AnalyticsEvent =
   | { type: "quiz_answered"; lessonKey: string; correct: boolean }
@@ -82,6 +84,14 @@ type UserSession = {
    * saveSession() runs.
    */
   _events?: AnalyticsEvent[];
+  /**
+   * Set when this turn erased the participant. The row is gone, so the usual
+   * post-turn save would recreate a hollow user and session for somebody who
+   * just asked to be forgotten — and it would do it silently, because an
+   * upsert cannot tell the difference between "new participant" and "one we
+   * deleted four milliseconds ago".
+   */
+  _erased?: boolean;
 };
 
 type InboundMessage = {
@@ -522,6 +532,20 @@ export function buildMainMenuReply(
       )
     });
   }
+  // Always LAST, and pushed after the conditional certificate row so it can
+  // never displace it. The certificate is what she worked for; a housekeeping
+  // row must not sit above it. Permanent, unlike the certificate row, because
+  // the notice tells her she can ask to see or delete her information and a
+  // promise she has to message support to act on is a worse promise than one
+  // she can tap.
+  options.push({
+    id: "menu-privacy",
+    title: clip(getPrompt("privacy_menu_label", lang, "My data and privacy"), WHATSAPP_LIMITS.listRowTitle),
+    description: clip(
+      getPrompt("privacy_menu_description", lang, "See what we hold, or ask us to delete it"),
+      WHATSAPP_LIMITS.listRowDescription
+    )
+  });
   let reply = mainMenuText(name);
   if (!reply.endsWith("\n")) reply += "\n";
   options.forEach((option, index) => {
@@ -693,7 +717,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
     const newSession = await prisma.userSession.create({
       data: {
         userId: user.id,
-        state: "awaiting_name"
+        state: "awaiting_language"
       }
     });
     const s: UserSession = {
@@ -714,7 +738,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
       phone,
       session: {
         create: {
-          state: "awaiting_name"
+          state: "awaiting_language"
         }
       }
     },
@@ -735,6 +759,13 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
 }
 
 async function saveSession(phone: string, session: UserSession) {
+  // She asked to be forgotten and the transaction has already removed her.
+  // Writing the in-memory session back would resurrect a hollow record for
+  // somebody who is no longer supposed to have one, and `update` would throw
+  // on the missing row anyway — which the caller would log as an error rather
+  // than the expected outcome of a successful erasure.
+  if (session._erased) return;
+
   await prisma.user.update({
     where: { phone },
     data: {
@@ -1217,7 +1248,7 @@ type TurnReply = {
  * `storeForTests` seam in certificates/service.ts rather than inventing a
  * second style for the same problem.
  */
-export type CertificateDeps = {
+export type TurnDeps = {
   lessons(): ReadonlyArray<{ key: string; module?: string | null }>;
   template(): CertificateTemplatePayload | null;
   templateVersion(): number;
@@ -1226,7 +1257,28 @@ export type CertificateDeps = {
   issue: typeof issueCertificate;
   /** Re-delivers an already-issued certificate. True when it reached the chat. */
   resend(input: { phone: string; publicId: string; caption: string; baseUrl: string }): Promise<boolean>;
+
+  /** Published version of the privacy notice she is being shown. */
+  noticeVersion(): number;
+  /**
+   * Writes the consent decision. Returns false if it could not be recorded.
+   *
+   * The caller treats that as a refusal to proceed rather than a warning to
+   * log. Letting somebody through a gate whose outcome was not written down is
+   * the one failure mode this whole feature exists to prevent: she would be
+   * onboarded with no record that she ever agreed.
+   */
+  recordConsent(input: {
+    userId: string;
+    decision: ConsentDecision;
+    noticeVersion: number;
+    language: string;
+  }): Promise<boolean>;
+  erase(input: { phone: string }): Promise<{ status: string; requestRef?: string }>;
 };
+
+/** @deprecated Use TurnDeps. Kept so existing callers and tests keep compiling. */
+export type CertificateDeps = TurnDeps;
 
 export const liveCertificateDeps: CertificateDeps = {
   lessons: () => getRuntimeLessons(),
@@ -1259,8 +1311,75 @@ export const liveCertificateDeps: CertificateDeps = {
       );
       return false;
     }
-  }
+  },
+
+  noticeVersion: () => getRuntimeContentVersion("content", `${BOT_PROMPT_CONFIG_PREFIX}${CONSENT_NOTICE_KEY}`),
+
+  recordConsent: async ({ userId, decision, noticeVersion, language }) => {
+    try {
+      // The append-only row and the cached columns go together or not at all:
+      // a cache that disagrees with the record would send her through the gate
+      // again, or worse, stop asking somebody who never agreed.
+      await prisma.$transaction([
+        prisma.consentEvent.create({
+          data: {
+            userId,
+            decision,
+            noticeKey: `${BOT_PROMPT_CONFIG_PREFIX}${CONSENT_NOTICE_KEY}`,
+            noticeVersion,
+            language
+          }
+        }),
+        prisma.user.update({
+          where: { id: userId },
+          data: {
+            // Only an acceptance updates the cache. A decline is recorded in
+            // the log but must NOT look like consent to the gate.
+            ...(decision === "accepted" ? { consentVersion: noticeVersion } : {}),
+            consentDecidedAt: new Date()
+          }
+        })
+      ]);
+      return true;
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: "privacy.consent.write_failed",
+          userId,
+          decision,
+          reason: error instanceof Error ? error.message : String(error)
+        })
+      );
+      return false;
+    }
+  },
+
+  erase: (input) => eraseParticipant({ phone: input.phone, requestedVia: "bot" })
 };
+
+/**
+ * The privacy notice, as an interactive message with two buttons.
+ *
+ * One helper rather than three call sites, because the notice is shown on first
+ * contact, again after an unclear answer, and again if she writes back after
+ * declining — and those three must be the same message. A gate that words
+ * itself differently on the second asking invites the reading that the first
+ * one did not count.
+ */
+function privacyNoticeReply(lang: "en" | "pcm" | "ig"): TurnReply {
+  return {
+    state: "awaiting_privacy_consent",
+    reply: getPrompt(
+      CONSENT_NOTICE_KEY,
+      lang,
+      BOT_PROMPT_DEFAULTS[CONSENT_NOTICE_KEY]?.en ?? "Before we begin, a quick note about your privacy."
+    ),
+    buttons: [
+      clip(getPrompt("privacy_accept_label", lang, "CONTINUE"), WHATSAPP_LIMITS.buttonTitle),
+      clip(getPrompt("privacy_decline_label", lang, "EXIT"), WHATSAPP_LIMITS.buttonTitle)
+    ]
+  };
+}
 
 /**
  * Eligibility is RECOMPUTED from the session's completed lessons on every
@@ -1598,7 +1717,13 @@ export async function certificateNameTurn(
   return issueCertificateTurn(session, name.value, lang, deps);
 }
 
-async function transition(
+/**
+ * Exported for tests. The privacy gate spans several states and its value is
+ * in the sequence — that an unclear answer does not advance, that a failed
+ * write does not let her through — so it has to be driven turn by turn rather
+ * than asserted a branch at a time.
+ */
+export async function transition(
   session: UserSession,
   text: string,
   deps: CertificateDeps = liveCertificateDeps
@@ -1616,12 +1741,7 @@ async function transition(
   session._events = [];
 
   if (session.state === "awaiting_name") {
-    const greetings = ["hi", "hello", "hey", "start", "menu", "yo", "hola", "begin", "ping", "test", "shetrades"];
-    const cleanText = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "");
-    const words = cleanText.split(/\s+/);
-    const isGreeting = words.some(w => greetings.includes(w));
-
-    if (!safeText || (isGreeting && !session.namePrompted)) {
+    if (!safeText) {
       session.namePrompted = true;
       session.lastUpdatedAt = nowIso();
       return {
@@ -1634,15 +1754,16 @@ async function transition(
     }
 
     session.name = safeText;
-    session.state = "awaiting_language";
+    // Straight to location now. Language was chosen before the notice, because
+    // she has to be able to READ the notice before she agrees to it.
+    session.state = "awaiting_state";
     session.lastUpdatedAt = nowIso();
+    const rowsAfterName = getDisplayStateRows(lang);
+    const listAfterName = buildStateListReply(lang, rowsAfterName);
     return {
       state: session.state,
-      reply: getRuntimeText(
-        "bot.awaiting_language.prompt",
-        `Thanks {name}. Choose your language:`
-      ).replace("{name}", safeText),
-      buttons: buildLanguageButtons(getLanguageChoices())
+      reply: listAfterName.reply,
+      list: listAfterName.list
     };
   }
 
@@ -1658,6 +1779,26 @@ async function transition(
   }
 
   if (session.state === "awaiting_language") {
+    // First contact. This is now the FIRST thing a stranger sees, so it cannot
+    // greet her by name — there is no name yet — and an opening "hi" has to be
+    // answered with the language question rather than treated as an answer to
+    // it.
+    const greetings = ["hi", "hello", "hey", "start", "menu", "yo", "hola", "begin", "ping", "test", "shetrades"];
+    const cleanText = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "");
+    const isGreeting = cleanText.split(/\s+/).some((w) => greetings.includes(w));
+    if (!safeText || (isGreeting && !session.namePrompted)) {
+      session.namePrompted = true;
+      session.lastUpdatedAt = nowIso();
+      return {
+        state: "awaiting_language",
+        reply: getRuntimeText(
+          "bot.awaiting_language.welcome",
+          `Welcome to ${getRuntimeBranding().organisationName}. Please choose your language:`
+        ),
+        buttons: buildLanguageButtons(getLanguageChoices())
+      };
+    }
+
     const choice = resolveLanguageChoice(normalized);
     if (!choice) {
       return {
@@ -1684,14 +1825,145 @@ async function transition(
 
     const language = choice.value;
     session.language = language;
-    session.state = "awaiting_state";
+    // The notice, before anything else is asked. At this moment the only data
+    // held about her is her number and the language she just picked, which is
+    // exactly what makes EXIT a clean answer.
+    session.state = "awaiting_privacy_consent";
     session.lastUpdatedAt = nowIso();
-    const stateRows = getDisplayStateRows(language);
-    const stateList = buildStateListReply(language, stateRows);
+    return privacyNoticeReply(language);
+  }
+
+  if (session.state === "awaiting_privacy_consent") {
+    const decision = resolveConsentReply(safeText, {
+      accept: getPrompt("privacy_accept_label", lang, "CONTINUE"),
+      decline: getPrompt("privacy_decline_label", lang, "EXIT")
+    });
+
+    if (decision === "unclear") {
+      // Not consent, and not an error to scold her for. Ask again.
+      return privacyNoticeReply(lang);
+    }
+
+    // Written BEFORE she is let through, and awaited. If it fails she stays on
+    // the gate: an onboarded participant with no record that she ever agreed
+    // is the exact outcome this feature exists to prevent.
+    const written = await deps.recordConsent({
+      userId: session.userId,
+      decision,
+      noticeVersion: deps.noticeVersion(),
+      language: lang
+    });
+    if (!written) {
+      return {
+        state: "awaiting_privacy_consent",
+        reply: getPrompt(
+          "privacy_erase_failed",
+          lang,
+          "Something went wrong. Please try again in a few minutes."
+        )
+      };
+    }
+
+    if (decision === "declined") {
+      session.lastUpdatedAt = nowIso();
+      // She stays on this step: writing back shows the notice again rather
+      // than dropping her into a flow she just refused.
+      return {
+        state: "awaiting_privacy_consent",
+        reply: getPrompt(
+          "privacy_declined",
+          lang,
+          "No problem. We have not collected anything else about you. If you change your mind, send us a message any time and we will start again."
+        )
+      };
+    }
+
+    session.state = "awaiting_name";
+    session.namePrompted = true;
+    session.lastUpdatedAt = nowIso();
     return {
       state: session.state,
-      reply: stateList.reply,
-      list: stateList.list
+      reply: getRuntimeText(
+        "bot.awaiting_name.prompt",
+        `Welcome to ${getRuntimeBranding().organisationName}. Please reply with your full name to begin.`
+      )
+    };
+  }
+
+  if (session.state === "privacy_menu") {
+    const wantsErase = resolveConsentReply(safeText, {
+      // Reusing the consent resolver deliberately: "delete my info" is the
+      // accept side of THIS question, and the same rule applies — an
+      // unrecognised answer must not be read as agreement to anything.
+      accept: getPrompt("privacy_erase_button", lang, "Delete my info"),
+      decline: getPrompt("privacy_keep_button", lang, "No, keep it")
+    });
+
+    if (wantsErase === "accepted") {
+      session.state = "awaiting_erase_confirm";
+      session.lastUpdatedAt = nowIso();
+      return {
+        state: session.state,
+        reply: getPrompt(
+          "privacy_erase_confirm",
+          lang,
+          "Are you sure? This cannot be undone."
+        ),
+        buttons: [
+          clip(getPrompt("privacy_erase_confirm_button", lang, "Yes, delete it"), WHATSAPP_LIMITS.buttonTitle),
+          clip(getPrompt("privacy_erase_cancel_button", lang, "Cancel"), WHATSAPP_LIMITS.buttonTitle)
+        ]
+      };
+    }
+
+    // "No, keep it", or anything unclear: back to the menu, nothing touched.
+    session.state = "main_menu";
+    session.lastUpdatedAt = nowIso();
+    const keepMenu = buildMainMenuReply(session.name ?? "", lang, await showCertificateRow(session, deps));
+    return { state: session.state, reply: keepMenu.reply, list: keepMenu.list };
+  }
+
+  if (session.state === "awaiting_erase_confirm") {
+    const confirmed = resolveConsentReply(safeText, {
+      accept: getPrompt("privacy_erase_confirm_button", lang, "Yes, delete it"),
+      decline: getPrompt("privacy_erase_cancel_button", lang, "Cancel")
+    });
+
+    if (confirmed !== "accepted") {
+      // Cancel, or anything the bot could not read. On an irreversible action
+      // the unclear answer must resolve to NOT doing it.
+      session.state = "main_menu";
+      session.lastUpdatedAt = nowIso();
+      return {
+        state: session.state,
+        reply: getPrompt("privacy_erase_cancelled", lang, "Nothing has been deleted. Your progress is safe.")
+      };
+    }
+
+    const outcome = await deps.erase({ phone: session.phone });
+    if (outcome.status !== "erased") {
+      session.state = "main_menu";
+      session.lastUpdatedAt = nowIso();
+      return {
+        state: session.state,
+        reply: getPrompt(
+          "privacy_erase_failed",
+          lang,
+          "Something went wrong and nothing has been deleted. Please try again in a few minutes."
+        )
+      };
+    }
+
+    // Her row is gone. The session object is still in memory and the caller
+    // will try to save it, so mark the turn as terminal — see saveSession.
+    session._erased = true;
+    return {
+      state: "awaiting_language",
+      reply: getPrompt(
+        "privacy_erase_done",
+        lang,
+        "Your information has been deleted.\n\nYour reference is {ref}."
+      ).replace("{ref}", outcome.requestRef ?? "")
     };
   }
 
@@ -1853,6 +2125,28 @@ async function transition(
   }
 
   if (session.state === "main_menu") {
+    // My data and privacy. Matched on the row id and on the plain words rather
+    // than a position number, because the row's position shifts depending on
+    // whether the certificate row is showing.
+    if (
+      ["menu-privacy", "privacy", "my data", "my data and privacy", "delete", "delete my data"].includes(normalized)
+    ) {
+      session.state = "privacy_menu";
+      session.lastUpdatedAt = nowIso();
+      return {
+        state: session.state,
+        reply: getPrompt(
+          "privacy_data_summary",
+          lang,
+          "We hold your WhatsApp number, the name you gave us, your language, your location, and your progress through the lessons."
+        ),
+        buttons: [
+          clip(getPrompt("privacy_erase_button", lang, "Delete my info"), WHATSAPP_LIMITS.buttonTitle),
+          clip(getPrompt("privacy_keep_button", lang, "No, keep it"), WHATSAPP_LIMITS.buttonTitle)
+        ]
+      };
+    }
+
     // Option 6: My Certificate. The row only renders once earned (or
     // earnable), so this branch is reachable exactly when it can do something.
     if (["6", "certificate", "my certificate", "6. my certificate", "menu-certificate"].includes(normalized)) {

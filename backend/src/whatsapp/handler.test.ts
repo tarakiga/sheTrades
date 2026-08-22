@@ -544,12 +544,12 @@ const FAQ_FIXTURES = [
   { id: "faq_is_free", value: "faq_is_free", label: "Is it free?", metadata: { question: "Is it free?", answer: "Yes. There is no fee." } }
 ];
 
-test("main menu is a list with five rows including FAQs and Resources", () => {
+test("main menu lists FAQs, Resources and the privacy row", () => {
   const menu = buildMainMenuReply("Ada", "en");
   const rows = menu.list.sections[0]?.rows ?? [];
   assert.deepEqual(
     rows.map((r) => r.id),
-    ["menu-learn", "menu-progress", "menu-language", "menu-faq", "menu-resources"]
+    ["menu-learn", "menu-progress", "menu-language", "menu-faq", "menu-resources", "menu-privacy"]
   );
   // Numbered body text stays as the typed-reply fallback reference.
   assert.match(menu.reply, /1\. Start Learning/);
@@ -697,7 +697,10 @@ function certDeps(overrides: Partial<CertificateDeps> = {}) {
     resend: async (input) => {
       resends.push(input.publicId);
       return true;
-    }
+    },
+    noticeVersion: () => 1,
+    recordConsent: async () => true,
+    erase: async () => ({ status: "erased", requestRef: "TEST-REF1" })
   };
   return { deps: { ...base, ...overrides }, issued, resends };
 }
@@ -705,7 +708,8 @@ function certDeps(overrides: Partial<CertificateDeps> = {}) {
 test("main menu HIDES the certificate row until it is earned", () => {
   const menu = buildMainMenuReply("Ada", "en");
   const rows = menu.list.sections[0]?.rows ?? [];
-  assert.equal(rows.length, 5);
+  // learn, progress, language, faq, resources, privacy — no certificate.
+  assert.equal(rows.length, 6);
   assert.equal(rows.some((r) => r.id === "menu-certificate"), false);
   // A line in the body text would be just as misleading as the row itself.
   assert.doesNotMatch(menu.reply, /Certificate/i);
@@ -714,8 +718,11 @@ test("main menu HIDES the certificate row until it is earned", () => {
 test("main menu SHOWS the certificate row once it is earned", () => {
   const menu = buildMainMenuReply("Ada", "en", true);
   const rows = menu.list.sections[0]?.rows ?? [];
-  assert.equal(rows.length, 6);
+  assert.equal(rows.length, 7);
   assert.equal(rows[5]?.id, "menu-certificate");
+  // The privacy row sits BELOW the certificate, never above it: the
+  // certificate is what she worked for, a housekeeping row is not.
+  assert.equal(rows[6]?.id, "menu-privacy");
   assert.match(menu.reply, /6\. My Certificate/);
   for (const row of rows) {
     assert.ok(row.title.length <= 24, `row title too long: ${row.title}`);

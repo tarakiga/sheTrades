@@ -289,6 +289,90 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
   },
   certificate_not_ready: {
     en: "Your certificate is not ready yet. Finish every module and it will come to you right here."
+  },
+
+  // --- Privacy notice and consent -----------------------------------------
+  //
+  // The notice below is the CLIENT'S DRAFT, in as a placeholder until they
+  // supply the final wording. It is published as a config document, so
+  // replacing it is an edit under Content with draft, publish and rollback --
+  // no deploy and no developer.
+  //
+  // Two constraints on whoever edits it. It is sent as an interactive message,
+  // so the body must stay under 1024 characters or WhatsApp REJECTS the whole
+  // message and her very first interaction fails silently. And the two button
+  // labels below must stay under 20 characters, or WhatsApp truncates them.
+  //
+  // English only on purpose: Pidgin and Igbo are still shown to learners as
+  // coming soon, and getPrompt falls back to `en`, so a half-translated notice
+  // cannot reach anybody. It goes through the translation workflow with the
+  // rest of the content when those languages are enabled.
+  privacy_notice: {
+    en: [
+      "Before we begin, a quick note about your privacy.",
+      "",
+      "To provide this learning programme, TechHerNG will collect your WhatsApp number, name, preferred language, location and information about your learning progress.",
+      "",
+      "We use this information to register you, provide your lessons, track your progress, support you, provide incentives or rewards where you qualify, and prepare programme reports. We do not sell your personal information.",
+      "",
+      "You can ask to see or correct your information or request deletion where applicable. We may need to keep some records for programme reporting or legal requirements, but we will only keep information for as long as necessary.",
+      "",
+      "Read our full Privacy Notice: https://she-trades.vercel.app/privacy",
+      "",
+      "Would you like to continue?"
+    ].join("\n")
+  },
+  privacy_accept_label: {
+    en: "CONTINUE"
+  },
+  privacy_decline_label: {
+    en: "EXIT"
+  },
+  // Deliberately not a dead end. Consent that cannot be reconsidered is weaker
+  // than consent that can, and at this point the only thing held about her is
+  // her number and the language she picked.
+  privacy_declined: {
+    en: "No problem. We have not collected anything else about you. If you change your mind, send us a message any time and we will start again."
+  },
+
+  // --- Erasure on request --------------------------------------------------
+  privacy_menu_label: {
+    en: "My data and privacy"
+  },
+  privacy_menu_description: {
+    en: "See what we hold, or ask us to delete it"
+  },
+  privacy_data_summary: {
+    en: "We hold your WhatsApp number, the name you gave us, your language, your location, and your progress through the lessons.\n\nRead our full Privacy Notice: https://she-trades.vercel.app/privacy\n\nYou can ask us to delete all of it."
+  },
+  privacy_erase_button: {
+    en: "Delete my info"
+  },
+  privacy_keep_button: {
+    en: "No, keep it"
+  },
+  // Every irreversible consequence stated before she can confirm, not after.
+  // Losing a certificate is the one she is least likely to expect, so it is
+  // named rather than covered by "your information".
+  privacy_erase_confirm: {
+    en: "Are you sure?\n\nThis cannot be undone. We will delete your name, your number, your progress and your quiz results. If you have earned a certificate, it will be deleted too and its link will stop working for anyone you have shared it with.\n\nYou can start the programme again later, but you would begin from the first lesson."
+  },
+  privacy_erase_confirm_button: {
+    en: "Yes, delete it"
+  },
+  privacy_erase_cancel_button: {
+    en: "Cancel"
+  },
+  privacy_erase_cancelled: {
+    en: "Nothing has been deleted. Your progress is safe."
+  },
+  // She is given the reference because it is the only thing that connects her
+  // to the record that the erasure happened, and it points only one way.
+  privacy_erase_done: {
+    en: "Your information has been deleted.\n\nYour reference is {ref}. Keep it if you ever need to ask us whether your request was carried out.\n\nThank you for being part of the programme."
+  },
+  privacy_erase_failed: {
+    en: "Something went wrong and nothing has been deleted. Please try again in a few minutes, or contact us if it keeps happening."
   }
 };
 
@@ -344,5 +428,20 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   certificate_send_failed: "Bot · Certificate send failed",
   certificate_menu_label: "Bot · Certificate menu label",
   certificate_menu_description: "Bot · Certificate menu description",
-  certificate_not_ready: "Bot · Certificate not ready"
+  certificate_not_ready: "Bot · Certificate not ready",
+  privacy_notice: "Bot · Privacy notice (shown before anything is collected)",
+  privacy_accept_label: "Bot · Privacy notice continue button",
+  privacy_decline_label: "Bot · Privacy notice exit button",
+  privacy_declined: "Bot · Privacy notice declined",
+  privacy_menu_label: "Bot · Privacy menu label",
+  privacy_menu_description: "Bot · Privacy menu description",
+  privacy_data_summary: "Bot · What we hold about you",
+  privacy_erase_button: "Bot · Delete my information button",
+  privacy_keep_button: "Bot · Keep my information button",
+  privacy_erase_confirm: "Bot · Delete confirmation warning",
+  privacy_erase_confirm_button: "Bot · Delete confirm button",
+  privacy_erase_cancel_button: "Bot · Delete cancel button",
+  privacy_erase_cancelled: "Bot · Delete cancelled",
+  privacy_erase_done: "Bot · Delete completed (use {ref} for the reference)",
+  privacy_erase_failed: "Bot · Delete failed"
 };
