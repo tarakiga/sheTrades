@@ -2014,7 +2014,7 @@ learners were erased afterwards; staging is back to its original three.
   that is about to change. `docs/handoff/source/capture.mjs` re-takes all twenty
   in one run when it is time.
 
-## Public / admin hostname split (implemented 2026-08-22, NOT yet cut over)
+## Public / admin hostname split (CUT OVER 2026-08-22)
 
 The console and the public documents were sharing a hostname, and the bot mails
 the privacy policy URL to every participant - so the console's address, and an
@@ -2055,13 +2055,31 @@ is the tool: dry run by default, idempotent, and it REFUSES a document with an
 unpublished draft unless forced, because overwriting somebody's work in progress
 would be a silent loss.
 
-### Still to do, in this order
+### Cutover, completed
 
-DNS and the Vercel domain first, then `ADMIN_HOSTS`, then deploy, then the Cloud
-Run env, then `--group admin-host`. Deploying before the admin domain resolves
-takes the console off `www` while its replacement does not exist yet.
+Dashboard commit `37cb2c9`; backend revision `00124-w25`. Verified against
+production: the full host/path matrix, the apex 308 chain following through to a
+404 rather than around the split, both privacy footers, the certificate proxy
+reaching the backend, and a CORS preflight from the new console origin.
 
-Two things this did NOT fix: `/handbook.html` is off the public host but still
-not auth-gated on the admin host, and `ADMIN_DASHBOARD_URL` was never set on
-Cloud Run - admin invite emails have been falling back to the first CORS origin,
-which is why the CORS list is now ordered with the admin host first.
+`ADMIN_DASHBOARD_URL` had NEVER been set on Cloud Run, so `resolveAdminLoginUrl()`
+was falling back to the first CORS origin - which the deploy turned into a 404.
+Admin invite emails carried a dead link for about half an hour. Fixed by
+publishing `admin.invite.login_url` and setting the env var, and the CORS list is
+now ordered with the admin host first so the fallback is also correct.
+
+Update those two keys INDIVIDUALLY, never with `--env-vars-file`: that replaces
+the whole set, and four of this service's variables are Secret Manager
+references the yaml does not carry.
+
+### Still open
+
+`/handbook.html` is off the public host but still not auth-gated on the admin
+host - a static file in `public/`, containing console screenshots. Same shape as
+the component workshop, without the option of not shipping it, since operators
+reach it from the Help link.
+
+`www.shetrades.digital` remains in the CORS allowlist. Nothing on the public host
+calls the admin API any more, so it could come out; it was left in because the
+privacy page's own config reads are server-side and untested against a tighter
+list. Not urgent - the JWT is the boundary, not CORS.

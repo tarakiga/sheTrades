@@ -1,5 +1,11 @@
 # Public / admin hostname split
 
+> **Cut over 2026-08-22.** Dashboard commit `37cb2c9`, backend revision
+> `00124-w25`. The full host/path matrix, the apex redirect chain, both
+> privacy footers, and the certificate proxy were verified against
+> production. The steps below are kept as the record of what was done and
+> what to repeat if the domain ever moves again.
+
 The dashboard app serves two audiences from one deployment. This document
 records why they were separated, what enforces the separation, and the order the
 cutover has to happen in.
@@ -120,7 +126,20 @@ exist - not a lockout, since `she-trades.vercel.app` still works, but disruptive
    Confirm `admin.shetrades.digital/login` renders and
    `www.shetrades.digital/login` 404s.
 4. **Apply the Cloud Run env changes** (`ADMIN_DASHBOARD_URL` and the reordered
-   CORS list).
+   CORS list). Update the two keys individually, **not** with
+   `--env-vars-file cloudrun-staging-env.yaml`: that flag replaces the whole set,
+   and four of this service's variables (`POSTGRES_URL`, `PAYOUTS_WORKER_TOKEN`,
+   `WHATSAPP_SANDBOX_TOKEN`, `TOTP_ENCRYPTION_KEY`) are Secret Manager
+   references that the yaml does not carry. The CORS value contains commas, so
+   it needs gcloud's custom-delimiter form:
+
+   ```
+   gcloud run services update shetrades-backend-staging --region us-central1 \
+     --update-env-vars "^@^ADMIN_DASHBOARD_URL=https://admin.shetrades.digital@BACKEND_CORS_ALLOWED_ORIGINS=<list>"
+   ```
+
+   Afterwards, confirm the secret-backed variables are still present before
+   trusting the revision.
 5. **Publish the invite URL change:**
    `npm run ops:retarget-config-urls -w @shetrades/backend -- --group admin-host --apply`
    (drop `--apply` first for a dry run).
