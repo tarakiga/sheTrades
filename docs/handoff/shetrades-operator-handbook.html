@@ -816,6 +816,84 @@
         <figcaption><b>Fig 8.1</b><span>The Content workspace. The counts at the top right tell you how much is live and how much is sitting in draft.</span></figcaption>
       </figure>
 
+      <h3>Things you will change most often</h3>
+      <p>
+        Not everything lives on this page. Start here, find the row for what you want to change, and
+        go where it sends you.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>What you want to change</th><th>Where it lives</th><th>Search for</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>The privacy notice the bot shows</strong><br>
+                Before anything is collected, after she picks a language.</td>
+              <td>Content</td>
+              <td><code>privacy</code></td>
+            </tr>
+            <tr>
+              <td><strong>The full privacy policy</strong><br>
+                The web page the notice links to.</td>
+              <td>Settings &rarr; Legal</td>
+              <td>Privacy policy</td>
+            </tr>
+            <tr>
+              <td><strong>FAQ questions and answers</strong><br>
+                The entries themselves, not the wording around them.</td>
+              <td>Settings &rarr; Options</td>
+              <td>FAQs</td>
+            </tr>
+            <tr>
+              <td><strong>The resources menu</strong><br>
+                Links and guidance offered to learners.</td>
+              <td>Settings &rarr; Options</td>
+              <td>Resources</td>
+            </tr>
+            <tr>
+              <td><strong>Lesson text and quiz questions</strong></td>
+              <td>Content</td>
+              <td>The lesson title</td>
+            </tr>
+            <tr>
+              <td><strong>What the bot says around all of it</strong><br>
+                Welcome, menus, buttons, congratulations, error messages.</td>
+              <td>Content</td>
+              <td>Filter to <strong>Chatbot Prompts</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Reward amounts and when they are paid</strong></td>
+              <td>Settings &rarr; Rewards</td>
+              <td>No search needed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        The pattern worth learning: <strong>Content</strong> holds words the bot says.
+        <strong>Settings &rarr; Options</strong> holds lists it offers, where each entry can be
+        switched on or off. FAQs and resources appear in both, and the difference matters: the
+        wording around them is in Content, the entries themselves are in Options.
+      </p>
+
+      <div class="call">
+        <span class="call__label">Resources needs your content before it is useful</span>
+        <p>
+          <strong>Resources</strong> already appears on the bot's main menu, and learners can tap it
+          today. It ships with two sample entries, both switched off, so nobody is shown placeholder
+          text; what they get instead is a short message saying resources are not available yet.
+        </p>
+        <p>
+          To turn it on: <strong>Settings &rarr; Options &rarr; Resources</strong>, replace the two
+          samples with your own, switch each one on, and publish. It starts working the moment one
+          enabled entry is live. Nothing else needs changing, and there is no switch to flip
+          elsewhere.
+        </p>
+      </div>
+
       <h3>What lives here</h3>
       <p>
         Two kinds of thing, in one table:
@@ -824,7 +902,8 @@
         <li><strong>Lessons</strong>: the teaching material, each with its text, an optional audio
           version, and the quiz at the end.</li>
         <li><strong>Bot messages</strong>: everything else the bot says: the welcome, the main menu,
-          the prompt that asks for a name, the congratulations at the end of a module, the FAQs.</li>
+          the prompt that asks for a name, the privacy notice, the congratulations at the end of a
+          module, and the wording that frames the FAQ and resource menus.</li>
       </ul>
 
       <p>

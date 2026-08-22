@@ -2207,3 +2207,25 @@ characters of headroom, and translations run longer than English.
 Task 2's fourth checkbox in
 `docs/superpowers/plans/2026-08-19-onboarding-privacy-consent.md` claimed this
 was implemented. It was not. Corrected there.
+
+### Handbook: "Things you will change most often" (2026-08-22)
+
+Added to the top of the Content section: a seven-row table mapping what an
+operator wants to change to where it actually lives, plus the rule behind it -
+Content holds the words the bot says, Settings → Options holds the lists it
+offers. FAQs and resources appear in both, and the difference is the point: the
+wording around them is in Content, the entries are in Options. That ambiguity
+was the reason the section needed this.
+
+It also covers the privacy notice, which the handbook did not mention at all
+because it shipped afterwards.
+
+TEXT ONLY, so the twenty screenshots stay deferred until the client's notice
+wording is final. `node build.mjs` in `docs/handoff/source` rebuilds both copies
+and enforces the no-em-dash and 4 MB guards.
+
+**Resources is documented as needing content.** Worth knowing: the Resources row
+is on the bot's main menu ALWAYS, not conditionally, so learners can tap it today
+and get "resources are not available right now". The two shipped entries are
+samples and disabled. Replacing them under Settings → Options → Resources,
+enabling one, and publishing is all that is needed - there is no separate switch.
