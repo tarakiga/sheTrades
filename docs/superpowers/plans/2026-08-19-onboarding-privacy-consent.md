@@ -53,10 +53,11 @@ gate.
    the notice again. A one-way door would be worse for her and harder to defend
    than a reversible choice.
 
-2. **Existing participants.** They onboarded before this notice existed.
-   Recommendation: anyone with no consent record sees the notice at her next
-   message, before anything else. The alternative is grandfathering, which means
-   the programme knowingly holds data from people who were never shown a notice.
+2. ~~**Existing participants.**~~ **Settled:** there is no real participant data
+   on the platform yet, so there is nobody to grandfather. The gate applies to
+   everyone, and Task 5 is dropped. Any test records still present should be
+   cleared with `npm run ops:reset-learner-data` before launch rather than
+   carried across.
 
 3. **Re-consent when the notice changes.** Recommendation for this phase: record
    the version, and give admins a deliberate "require everyone to accept again"
@@ -148,15 +149,10 @@ enforced at publish time, not discovered at send time.
 - [ ] The gate must sit **in front of every other state handler**, so no path
       into the flow bypasses it.
 
-## Task 5: Participants who onboarded before this existed
+## Task 5: ~~Participants who onboarded before this existed~~
 
-**Files:** `backend/src/whatsapp/handler.ts`.
-
-- [ ] On any inbound message, if the participant has no consent record, show the
-      notice before continuing, whatever state she is in. Her progress is
-      untouched; she resumes exactly where she was on CONTINUE.
-- [ ] Because her language is already known, the notice appears in it
-      immediately, with no language step.
+Dropped. There is no real participant data on the platform, so there is nobody
+to catch up. The gate applies to everyone from first contact.
 
 ## Task 6: Make consent visible to operators
 
