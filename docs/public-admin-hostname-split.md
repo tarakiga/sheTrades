@@ -154,17 +154,36 @@ in again once. Tell the team before, not after.
 ## Certificate URLs
 
 `next.config.ts` proxies `/c/:path*` to the backend so a learner's certificate
-link can read `shetrades.digital/c/<id>` rather than naming the Cloud Run
-service. The rewrite is live and verifiable now, but **`PUBLIC_BASE_URL` still
-points at the backend directly**, so issued certificates keep the old URL shape
-until it is flipped.
+link reads `shetrades.digital/c/<id>` rather than naming the Cloud Run service.
 
-That flip is deliberately separate. The `.png` is the URL **Meta fetches** when
-sending a certificate, so the proxy sits in the delivery path; put a real
-certificate through it end to end before making it the address of record. Zero
-certificates have been issued so far, which is what makes this the free moment
-to change the shape at all - once one is issued, its link is in someone's hands
-permanently.
+**`PUBLIC_BASE_URL` was flipped to `https://www.shetrades.digital` on
+2026-08-22**, backend revision `00126-zbg`, after the first real certificate was
+issued and fetched through the proxy byte-identically. The flip was deliberately
+held until that test existed: the `.png` is the URL **Meta fetches** when sending
+a certificate, so the proxy sits in the delivery path and a synthetic check would
+not have proved it.
+
+Links issued before the flip keep resolving - the backend still serves `/c/` on
+its own hostname - so nothing already in a learner's hands breaks.
+
+### Two consequences worth knowing
+
+**The QR is baked into the rendered image, and the render is cached by
+`(publicId, template)` - not by the base URL.** Changing the base does not
+rewrite QR codes on images already rendered. Verified: after the flip the fresh
+render was 780,802 bytes against the cached 780,860, the difference being the
+shorter URL inside the QR. Harmless here because the only certificate predating
+the flip is a test one, but a domain change made after real certificates exist
+would leave their QR codes pointing at the old host until the cache turns over.
+
+**Vercel's edge now caches certificate responses**, honouring the headers the
+backend already sets: 5 minutes on the verification page, 24 hours on the PNG.
+That split is deliberate and documented in `routes-public.ts` - revocation has to
+reach a reader quickly, so the page carries the short cache and the heavy artefact
+carries the long one. The CDN respects it, so revocation still surfaces within
+five minutes. What changed is that the cache is now SHARED rather than
+per-browser: the first reader after a revocation can now get up to five minutes
+of staleness where previously a new reader always got a fresh response.
 
 ## Rollback
 

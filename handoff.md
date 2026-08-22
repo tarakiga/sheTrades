@@ -2123,3 +2123,40 @@ workshop's login preview already showed the footer without it - the two now agre
 **Still on the old host:** `PUBLIC_BASE_URL`, so certificate links still name the
 Cloud Run service. That flip is deliberately pending a real certificate fetched
 through the `/c/` proxy end to end.
+
+## Certificates: first real issue, and the URL flip (2026-08-22)
+
+The first certificate was issued end to end during live testing: all 43 lessons,
+all five modules, `vjhr26h56yvhalvv2ygmx67tx564jsev`, issued 11:59:57. The image
+renders with the name, date, QR and all three partner logos; the verification
+page resolves.
+
+That unblocked `PUBLIC_BASE_URL`, which was flipped to
+`https://www.shetrades.digital` on backend revision `00126-zbg`. The flip was
+held until a REAL certificate could be fetched through the Vercel `/c/` proxy,
+because the `.png` is the URL Meta fetches when delivering one - a synthetic
+check would not have proved the delivery path. Both copies came back
+byte-identical, so it went ahead. Pre-flip links still resolve on the Cloud Run
+hostname.
+
+Details and the two caching consequences are in
+`docs/public-admin-hostname-split.md`.
+
+### The rewards failed, and the payout path is still unproven
+
+Both milestone rewards (500 NGN each) came back `Failed Destination Not
+Supported` from Africa's Talking, after 3 and 2 retries. The cause is the test
+handset: it is an Oman number (+968), and Africa's Talking sends airtime to
+African networks. Not a defect - the pipeline called the provider, got a real
+rejection, retried, and recorded the reason against each reward, which is
+correct behaviour.
+
+But it means **the airtime path has never succeeded end to end**. Everything up
+to the provider is exercised; the step where money reaches a handset is not.
+That needs a Nigerian number and a funded wallet.
+
+### Deferred at the client's request
+
+The WhatsApp delivery retry and failure visibility (from the #131056 pair rate
+limit found the same day) are designed but NOT built - see the diagnosis below.
+Bot replies still fail silently.
