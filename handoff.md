@@ -2092,3 +2092,34 @@ capped at 4.5 MB, and base64 PNGs do not compress. `build.mjs` now fails above
 `/privacy` makes no browser request to the backend at all - its config reads are
 server-side - so `www.shetrades.digital` and the apex came out. A future public
 page that reads config from the BROWSER would need them put back.
+
+### Link audit (2026-08-22)
+
+Every URL the platform emits was checked after the hostname split, not just the
+ones that were changed:
+
+- **Published config, all six namespaces.** Only `content` carries URLs:
+  `bot.prompt.privacy_notice` and `bot.prompt.privacy_data_summary` point at
+  `www.shetrades.digital/privacy`, `admin.invite.login_url` at
+  `admin.shetrades.digital/login`. `legal.privacy.policy` contains no URL at all.
+- **The onboarding flow**, walked in the sandbox against the deployed bot:
+  language, notice, consent, name, location, menu, and the privacy menu. Both
+  screens that carry a link emit the public host, and that URL returns 200 and
+  the participant-facing footer.
+- **Backend and dashboard source.** No stale hostnames. The only literals are the
+  seed default, the bot prompts, and the substitution table in
+  `ops/retarget-config-urls.ts`.
+- **Outbound email.** The admin invite is the only message with a link, and it is
+  built from `resolveAdminLoginUrl()`.
+- **The handbook** names no URL anywhere; it describes the console generically,
+  so it did not drift.
+
+The privacy policy link is gone from the login page. The policy is a
+participant-facing document; linking it from the console only sent operators to a
+page written for someone else. `auth.login.privacyLink` had never been published
+as a copy token, so removing the usage removed it entirely, and the component
+workshop's login preview already showed the footer without it - the two now agree.
+
+**Still on the old host:** `PUBLIC_BASE_URL`, so certificate links still name the
+Cloud Run service. That flip is deliberately pending a real certificate fetched
+through the `/c/` proxy end to end.

@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { headers } from "next/headers";
 import { getPublicConfigNamespace } from "../../lib/config/api";
 import { getBranding } from "../../lib/branding";
-import { parseAdminHosts, surfaceForHost } from "../../lib/hosts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { organisationName } = await getBranding();
@@ -136,16 +133,10 @@ function paragraphsFrom(text: string): string[] {
 }
 
 export default async function PrivacyPolicyPage() {
-  // This page is served on BOTH surfaces and needs a different footer on each:
-  // an admin arrives from the sign-in form and wants to get back to it, while a
-  // participant arrives from a WhatsApp message and must never be shown a staff
-  // login she cannot use. Reading the host costs static rendering, which is a
-  // fair trade - the expensive part (the config fetch) keeps its own cache.
-  const requestHeaders = await headers();
-  const surface = surfaceForHost(
-    requestHeaders.get("host"),
-    parseAdminHosts(process.env.ADMIN_HOSTS)
-  );
+  // One audience now: a participant who followed the link in a WhatsApp
+  // message. The console's sign-in form no longer points here, so there is no
+  // reader to offer a way back to it - which also means this page stopped
+  // needing the request host, and goes back to being statically rendered.
 
   // Organisation name is a global branding value (Settings → Branding) - the
   // single source of truth. Contact email, effective date, and body live in
@@ -231,19 +222,13 @@ export default async function PrivacyPolicyPage() {
         )}
 
         <footer className="legal-page__footer">
-          {surface === "admin" ? (
-            <Link href="/login" className="legal-page__link">
-              &larr; Back to sign in
-            </Link>
-          ) : (
-            <p className="legal-page__paragraph">
-              Questions about your information? Email{" "}
-              <a href={`mailto:${contactEmail}`} className="legal-page__link">
-                {contactEmail}
-              </a>
-              .
-            </p>
-          )}
+          <p className="legal-page__paragraph">
+            Questions about your information? Email{" "}
+            <a href={`mailto:${contactEmail}`} className="legal-page__link">
+              {contactEmail}
+            </a>
+            .
+          </p>
         </footer>
       </article>
     </main>

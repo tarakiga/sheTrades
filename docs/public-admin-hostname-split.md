@@ -25,7 +25,10 @@ Three specific defects:
    as a SheTrades link, which is exactly the habit that makes a phishing page
    work.
 2. **The footer's only call to action was a staff sign-in**, shown to an audience
-   that cannot use it.
+   that cannot use it. Resolved in both directions: the policy's footer is now a
+   contact address, and the console's sign-in form no longer links to the policy
+   at all. With no admin entry point left, `/privacy` stopped needing to read the
+   request host and went back to being statically rendered.
 3. **`/previews/components` was fully public.** The component workshop sits
    outside the `(admin)` route group, so it never inherited that group's auth
    gate; it rendered every admin workspace to anyone who knew the URL. The
