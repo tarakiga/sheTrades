@@ -9,6 +9,7 @@ import {
   type ReactElement
 } from "react";
 import { eraseLearner, getLearnerDetail } from "../../lib/admin/api";
+import { eraseConfirmationCopy } from "../../lib/admin/erase-confirmation";
 import { formatNgn, formatRelativeTime } from "../../lib/format";
 import type { LearnerDetail } from "../../lib/admin/contracts";
 import { certificateVerifyUrl } from "../../lib/admin/certificates";
@@ -185,6 +186,13 @@ export function LearnerDetailDrawer(
     }
   }
 
+  // Prefer the identity the drawer is actually showing over the phone prop, so
+  // the dialog can never name a different learner from the one on screen.
+  const eraseCopy = eraseConfirmationCopy(
+    drawerState.detail?.identity.name,
+    drawerState.detail?.identity.phone ?? phone
+  );
+
   return (
     <div className="learner-detail-drawer" aria-hidden={!open}>
       <button
@@ -254,8 +262,8 @@ export function LearnerDetailDrawer(
 
         <ConfirmationModal
           open={erasing}
-          title="Delete everything about this learner?"
-          description="This cannot be undone. Her name, number, progress and quiz results will be deleted, along with any certificate and its public verification link. Records of airtime already paid are kept without her name or number, because they have to stay reconcilable with the airtime provider."
+          title={eraseCopy.title}
+          description={eraseCopy.description}
           confirmLabel="Delete permanently"
           tone="danger"
           loading={eraseRunning}
