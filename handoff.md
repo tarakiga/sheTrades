@@ -2142,18 +2142,26 @@ hostname.
 Details and the two caching consequences are in
 `docs/public-admin-hostname-split.md`.
 
-### The rewards failed, and the payout path is still unproven
+### The rewards failed, deliberately - the NEGATIVE path is now proven
 
 Both milestone rewards (500 NGN each) came back `Failed Destination Not
-Supported` from Africa's Talking, after 3 and 2 retries. The cause is the test
-handset: it is an Oman number (+968), and Africa's Talking sends airtime to
-African networks. Not a defect - the pipeline called the provider, got a real
-rejection, retried, and recorded the reason against each reward, which is
-correct behaviour.
+Supported` from Africa's Talking, after 3 and 2 retries. The handset is an Oman
+number (+968) and Africa's Talking sends airtime to African networks, so this was
+an INTENTIONAL negative test, and it passed: the pipeline called the provider,
+got a genuine rejection, retried, and recorded the reason against each reward.
+The unsupported-destination path is now known to behave correctly against a live
+provider rather than only in tests.
 
-But it means **the airtime path has never succeeded end to end**. Everything up
-to the provider is exercised; the step where money reaches a handset is not.
-That needs a Nigerian number and a funded wallet.
+**The positive path is still unproven.** Everything up to the provider is
+exercised; the step where money actually reaches a handset is not. That needs a
+Nigerian number and a funded wallet.
+
+Worth knowing before that run: `verifyCredentials` in the Africa's Talking
+adapter calls `/version1/user`, which returns the ACCOUNT BALANCE, and then
+throws the body away - it reports only "Account reachable". So the in-product
+"test connection" button goes green on an empty wallet, and every payout would
+still fail for insufficient funds. Surfacing the balance there is a small change
+with real diagnostic value.
 
 ### Deferred at the client's request
 
