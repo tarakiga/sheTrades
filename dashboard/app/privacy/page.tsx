@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getPublicConfigNamespace } from "../../lib/config/api";
 import { getBranding } from "../../lib/branding";
+import { parseAdminHosts, surfaceForHost } from "../../lib/hosts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { organisationName } = await getBranding();
@@ -134,6 +136,17 @@ function paragraphsFrom(text: string): string[] {
 }
 
 export default async function PrivacyPolicyPage() {
+  // This page is served on BOTH surfaces and needs a different footer on each:
+  // an admin arrives from the sign-in form and wants to get back to it, while a
+  // participant arrives from a WhatsApp message and must never be shown a staff
+  // login she cannot use. Reading the host costs static rendering, which is a
+  // fair trade - the expensive part (the config fetch) keeps its own cache.
+  const requestHeaders = await headers();
+  const surface = surfaceForHost(
+    requestHeaders.get("host"),
+    parseAdminHosts(process.env.ADMIN_HOSTS)
+  );
+
   // Organisation name is a global branding value (Settings → Branding) - the
   // single source of truth. Contact email, effective date, and body live in
   // Legal. Start from the safe fallbacks, then layer published config on top.
@@ -218,9 +231,19 @@ export default async function PrivacyPolicyPage() {
         )}
 
         <footer className="legal-page__footer">
-          <Link href="/login" className="legal-page__link">
-            &larr; Back to sign in
-          </Link>
+          {surface === "admin" ? (
+            <Link href="/login" className="legal-page__link">
+              &larr; Back to sign in
+            </Link>
+          ) : (
+            <p className="legal-page__paragraph">
+              Questions about your information? Email{" "}
+              <a href={`mailto:${contactEmail}`} className="legal-page__link">
+                {contactEmail}
+              </a>
+              .
+            </p>
+          )}
         </footer>
       </article>
     </main>

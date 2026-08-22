@@ -34,7 +34,10 @@ const SEED_ENTRIES: SeedEntry[] = [
     key: "admin.invite.login_url",
     title: "Admin invite login URL",
     payload: {
-      en: process.env.BRANDING_SEED_LOGIN_URL ?? "https://www.shetrades.digital/login"
+      // The console lives on its own hostname. www.shetrades.digital serves the
+      // public documents only, and its middleware 404s /login - an invite
+      // pointing there would send a new operator to a dead page.
+      en: process.env.BRANDING_SEED_LOGIN_URL ?? "https://admin.shetrades.digital/login"
     }
   }
 ];

@@ -2013,3 +2013,55 @@ learners were erased afterwards; staging is back to its original three.
   replacing the notice wording, so the screenshots would be re-shot against copy
   that is about to change. `docs/handoff/source/capture.mjs` re-takes all twenty
   in one run when it is time.
+
+## Public / admin hostname split (implemented 2026-08-22, NOT yet cut over)
+
+The console and the public documents were sharing a hostname, and the bot mails
+the privacy policy URL to every participant - so the console's address, and an
+invitation into its sign-in form, was being published to the whole programme.
+
+Full write-up and the cutover runbook: `docs/public-admin-hostname-split.md`.
+
+### What changed in the code
+
+- `dashboard/lib/hosts.ts` + `lib/hosts.test.ts` - the pure host/path decision,
+  17 tests. Unrecognised hosts resolve to PUBLIC, so a missing `ADMIN_HOSTS`
+  degrades to "the split still holds" rather than "the console is open again".
+- `dashboard/middleware.ts` - applies it. Blocked paths get a plain 404, never a
+  redirect: a redirect would name the admin hostname in its `Location` header.
+- `/previews` is now ABSENT from deployed builds - middleware 404s it on every
+  host unless `ENABLE_COMPONENT_PREVIEWS` is set, which defaults off whenever
+  NODE_ENV is production. An auth gate alone was not enough and the reason is
+  worth keeping: the real admin pages authenticate before fetching, so their
+  server-rendered shell is empty and a client gate suffices. The workshop's
+  content is static and inline, so it lands in the RSC payload regardless of
+  what the gate displays - curl read the entire component library out of a page
+  that showed a sign-in prompt in the browser. `app/previews/layout.tsx` keeps
+  the gate anyway, for a dev server on a shared network.
+- `dashboard/app/privacy/page.tsx` - footer now depends on the surface. Reading
+  the host costs this page static rendering; the config fetch keeps its own cache.
+- `dashboard/next.config.ts` - `/c/:path*` proxied to the backend. Live but NOT
+  yet the address of record; `PUBLIC_BASE_URL` is unchanged on purpose.
+
+### Already done on staging
+
+The two participant-facing URLs were republished through the normal
+draft/publish path and verified through the bot: the consent notice now sends
+`https://www.shetrades.digital/privacy` (756 chars, unchanged length - both
+hostnames happen to be 21 characters). `bot.prompt.privacy_notice` is now at v2.
+
+`backend/src/ops/retarget-config-urls.ts` (`npm run ops:retarget-config-urls`)
+is the tool: dry run by default, idempotent, and it REFUSES a document with an
+unpublished draft unless forced, because overwriting somebody's work in progress
+would be a silent loss.
+
+### Still to do, in this order
+
+DNS and the Vercel domain first, then `ADMIN_HOSTS`, then deploy, then the Cloud
+Run env, then `--group admin-host`. Deploying before the admin domain resolves
+takes the console off `www` while its replacement does not exist yet.
+
+Two things this did NOT fix: `/handbook.html` is off the public host but still
+not auth-gated on the admin host, and `ADMIN_DASHBOARD_URL` was never set on
+Cloud Run - admin invite emails have been falling back to the first CORS origin,
+which is why the CORS list is now ordered with the admin host first.

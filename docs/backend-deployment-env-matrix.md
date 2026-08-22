@@ -20,6 +20,20 @@ This document defines the runtime environment variables for deploying the backen
 | `ADMIN_DATA_PROVIDER` | All              | `hybrid`      | Selects provider strategy: `postgres \| firestore \| hybrid`.        |
 | `NODE_ENV`            | All              | `development` | Use `production` for strict provider behavior (no fixture fallback). |
 | `PUBLIC_BASE_URL`     | All              | none          | Public origin of this service, no trailing slash. **Certificates cannot be issued without it** — see below. |
+| `ADMIN_DASHBOARD_URL` | All              | first CORS origin | Origin of the operator console, no path. Used to build the sign-in link in admin invite emails — see below. |
+
+### `ADMIN_DASHBOARD_URL`
+
+The console lives on its own hostname (`admin.shetrades.digital`); the customer
+domains serve the public documents and **404 `/login`**. An invite email pointing
+at the wrong one sends a new operator to a dead page.
+
+This was never set, so `resolveAdminLoginUrl()` has been falling back to the
+first entry in `BACKEND_CORS_ALLOWED_ORIGINS`. Set it explicitly, and keep the
+admin host first in the CORS list anyway so the fallback is also correct.
+
+See `docs/public-admin-hostname-split.md` for the full topology and the cutover
+order.
 
 ### `PUBLIC_BASE_URL`
 

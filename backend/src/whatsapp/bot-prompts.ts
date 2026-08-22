@@ -317,7 +317,7 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
       "",
       "You can ask to see or correct your information or request deletion where applicable. We may need to keep some records for programme reporting or legal requirements, but we will only keep information for as long as necessary.",
       "",
-      "Read our full Privacy Notice: https://she-trades.vercel.app/privacy",
+      "Read our full Privacy Notice: https://www.shetrades.digital/privacy",
       "",
       "Would you like to continue?"
     ].join("\n")
@@ -343,7 +343,7 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
     en: "See what we hold, or ask us to delete it"
   },
   privacy_data_summary: {
-    en: "We hold your WhatsApp number, the name you gave us, your language, your location, and your progress through the lessons.\n\nRead our full Privacy Notice: https://she-trades.vercel.app/privacy\n\nYou can ask us to delete all of it."
+    en: "We hold your WhatsApp number, the name you gave us, your language, your location, and your progress through the lessons.\n\nRead our full Privacy Notice: https://www.shetrades.digital/privacy\n\nYou can ask us to delete all of it."
   },
   privacy_erase_button: {
     en: "Delete my info"

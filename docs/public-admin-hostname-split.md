@@ -1,0 +1,164 @@
+# Public / admin hostname split
+
+The dashboard app serves two audiences from one deployment. This document
+records why they were separated, what enforces the separation, and the order the
+cutover has to happen in.
+
+## The problem
+
+The privacy policy lived at `/privacy` on the same hostname as the operator
+console, and its footer linked to `/login`. The bot sends that policy URL to
+**every participant** in the consent notice, so the console's address was being
+published to the entire programme, with an invitation into its sign-in form
+attached.
+
+Three specific defects:
+
+1. **The notice pointed at `she-trades.vercel.app/privacy`.** That both disclosed
+   the console's hostname and trained participants to treat a `.vercel.app` link
+   as a SheTrades link, which is exactly the habit that makes a phishing page
+   work.
+2. **The footer's only call to action was a staff sign-in**, shown to an audience
+   that cannot use it.
+3. **`/previews/components` was fully public.** The component workshop sits
+   outside the `(admin)` route group, so it never inherited that group's auth
+   gate; it rendered every admin workspace to anyone who knew the URL. The
+   sample data in it is fabricated - the phone-shaped strings are SVG
+   coordinates - so nothing leaked, but a pixel-accurate copy of the console is a
+   ready-made template for a convincing fake login page. Nothing linked to it,
+   which is why it went unnoticed.
+
+None of this was an authorisation hole. The console's login was always
+auth-gated and always would have been reachable at its own address. What changed
+is that the address stopped being advertised to thousands of people.
+
+## The topology
+
+| Hostname                    | Surface | Serves                                      |
+| --------------------------- | ------- | ------------------------------------------- |
+| `admin.shetrades.digital`   | admin   | The whole console                           |
+| `www.shetrades.digital`     | public  | `/privacy`, `/c/...`; everything else 404s   |
+| `shetrades.digital`         | public  | Same (the apex 308s to `www`)                |
+| `*.vercel.app`              | admin   | The whole console - see below                |
+| `localhost`, `127.0.0.1`    | admin   | Local development                            |
+
+`*.vercel.app` stays admin deliberately. Vercel serves every project on those
+hostnames and they cannot be removed, so classifying them as public would only
+mean the console is reachable at an address the middleware does not know about.
+Treating them as admin also means a DNS mistake on the custom domain cannot lock
+the team out of their own console. They are simply never advertised.
+
+## What enforces it
+
+**`dashboard/middleware.ts`** classifies each request by its `Host` header and,
+on the public surface, allows only an explicit path allowlist. Everything else
+gets a plain-text **404, never a redirect** - a redirect would name the admin
+hostname in its `Location` header, which is the disclosure being prevented.
+
+The decision itself is in **`dashboard/lib/hosts.ts`**, which is pure and unit
+tested (`lib/hosts.test.ts`). Two properties worth keeping:
+
+- **An unrecognised host is public.** An unset or wrong `ADMIN_HOSTS` degrades to
+  "the split still holds", never to "the console is open again".
+- **`ADMIN_HOSTS` entries may be bare hosts or full origins.** The neighbouring
+  `BACKEND_CORS_ALLOWED_ORIGINS` takes origins, so somebody will paste
+  `https://admin.shetrades.digital` here; unstripped that would parse to the host
+  `https` and quietly publish the console on its own domain.
+
+**The component workshop is absent from deployed builds.** Middleware 404s
+`/previews` on every host unless `ENABLE_COMPONENT_PREVIEWS` says otherwise, and
+that flag defaults off whenever `NODE_ENV` is `production` - which on Vercel is
+every deployment.
+
+An auth gate alone was not enough, and it is worth recording why. The real admin
+pages authenticate before fetching anything, so their server-rendered shell is
+empty and a client-side gate is sufficient. The workshop's content is static and
+inline, so it lands in the RSC payload whatever the gate chooses to display:
+`curl` read the whole component library out of a page that showed a sign-in
+prompt in a browser. Nothing on the client can fix that. Not serving the route is
+the only complete answer.
+
+**`dashboard/app/previews/layout.tsx`** still adds the gate the workshop never
+had. It covers the case the flag deliberately allows: a dev server running on a
+shared network, where the route is enabled by design.
+
+**The public path allowlist is deliberately not admin-editable config**, unlike
+the content this platform manages. A route allowlist operators can extend is one
+mis-click away from republishing the console. Adding a public document is a code
+change and a review.
+
+## Settings
+
+| Variable               | Where          | Value                                |
+| ---------------------- | -------------- | ------------------------------------ |
+| `ADMIN_HOSTS`          | Vercel project | `admin.shetrades.digital`            |
+| `ENABLE_COMPONENT_PREVIEWS` | Vercel project | Unset. `true` re-enables the workshop for a design review |
+| `ADMIN_DASHBOARD_URL`  | Cloud Run      | `https://admin.shetrades.digital`    |
+| `BACKEND_CORS_ALLOWED_ORIGINS` | Cloud Run | Admin host listed **first**       |
+
+Both dashboard variables are read by Next.js middleware, which inlines them at
+**build** time. Changing either in Vercel needs a redeploy, not just a save.
+
+The admin host must be **first** in the CORS list because
+`resolveAdminLoginUrl()` falls back to the first entry when
+`ADMIN_DASHBOARD_URL` is unset, and an invite pointing at the public host would
+land on a 404.
+
+## Cutover order
+
+The order matters. Deploying the dashboard before the admin domain resolves
+takes the console off `www.shetrades.digital` while its replacement does not yet
+exist - not a lockout, since `she-trades.vercel.app` still works, but disruptive.
+
+1. **Add `admin.shetrades.digital` to the Vercel project** and create the DNS
+   record it asks for. DNS for this domain is at Hostinger (nameservers
+   `hermes.dns-parking.com` / `artemis.dns-parking.com`), so the record is
+   created there, not in Vercel.
+2. **Set `ADMIN_HOSTS=admin.shetrades.digital`** in the Vercel project settings,
+   for every environment.
+3. **Deploy the dashboard.** This is the moment `www` stops serving the console.
+   Confirm `admin.shetrades.digital/login` renders and
+   `www.shetrades.digital/login` 404s.
+4. **Apply the Cloud Run env changes** (`ADMIN_DASHBOARD_URL` and the reordered
+   CORS list).
+5. **Publish the invite URL change:**
+   `npm run ops:retarget-config-urls -w @shetrades/backend -- --group admin-host --apply`
+   (drop `--apply` first for a dry run).
+
+**Operators will be signed out.** The session token lives in `localStorage`,
+which is per-origin, so moving the console to a new hostname means everyone signs
+in again once. Tell the team before, not after.
+
+## Certificate URLs
+
+`next.config.ts` proxies `/c/:path*` to the backend so a learner's certificate
+link can read `shetrades.digital/c/<id>` rather than naming the Cloud Run
+service. The rewrite is live and verifiable now, but **`PUBLIC_BASE_URL` still
+points at the backend directly**, so issued certificates keep the old URL shape
+until it is flipped.
+
+That flip is deliberately separate. The `.png` is the URL **Meta fetches** when
+sending a certificate, so the proxy sits in the delivery path; put a real
+certificate through it end to end before making it the address of record. Zero
+certificates have been issued so far, which is what makes this the free moment
+to change the shape at all - once one is issued, its link is in someone's hands
+permanently.
+
+## Rollback
+
+Remove `ADMIN_HOSTS` and redeploy: every custom domain reverts to public, the
+console stays reachable on `*.vercel.app`. To restore the old behaviour
+completely, delete `dashboard/middleware.ts`. The config publishes roll back
+through the normal version history, like any other document.
+
+## Not covered
+
+- **`/handbook.html` is still not auth-gated.** The split keeps it off the public
+  host, but on the admin host it is a static file in `public/` and anyone with
+  the URL can read it. It contains screenshots of the console. Gating it properly
+  means serving it through a route handler rather than as a static asset - the
+  same shape of problem as the component workshop, without the option of simply
+  not shipping it, since operators reach it from the Help link.
+- **The public root has nowhere to go.** `www.shetrades.digital/` redirects to
+  `/privacy` because the policy is the only public document. When there is a
+  landing page, it takes that slot.
