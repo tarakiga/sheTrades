@@ -125,10 +125,17 @@ enforced at publish time, not discovered at send time.
 - [x] Seed the two button labels and the EXIT acknowledgement the same way.
 - [x] The published **version number** of that document is what gets written to
       `consent_events.noticeVersion`.
-- [x] Add a publish-time length check against `WHATSAPP_LIMITS.interactiveBody`
-      for this key specifically, so an over-long translation is refused at
-      publish rather than failing at send. The translation workspace already
-      enforces per-field limits; this extends the same idea to the notice.
+- [ ] **NOT DONE - marked complete in error, corrected 2026-08-22.** Add a
+      publish-time length check against `WHATSAPP_LIMITS.interactiveBody` for
+      this key, so an over-long notice is refused at publish rather than failing
+      at send. Verified absent: `validatePayloadForType` in
+      `config-platform/postgres-service.ts` switches on document type and
+      `ui_copy` falls through to `default: return payload`, unvalidated. The
+      editor shows no character counter either. So an admin can publish a
+      1,500-character notice, WhatsApp will reject the whole first message to
+      every new learner, and - because the sender swallows failures - nobody
+      will be told. The translation workspace enforces per-field limits; this
+      still needs to extend the same idea to the notice.
 
 ## Task 3: Language first
 

@@ -2168,3 +2168,42 @@ with real diagnostic value.
 The WhatsApp delivery retry and failure visibility (from the #131056 pair rate
 limit found the same day) are designed but NOT built - see the diagnosis below.
 Bot replies still fail silently.
+
+## Privacy copy IS editable in the dashboard - verified 2026-08-22
+
+Walked it in the browser as a signed-in admin, not just checked the API.
+
+**The onboarding notice**: Content → search "privacy" → 16 results, 15 of them
+the privacy bot prompts, each badged "Chatbot Prompts" and "Visible". Opening
+"Bot · Privacy notice (shown before anything is collected)"
+(`bot.prompt.privacy_notice`, published v2) gives View History / Move To Trash /
+Edit, and Edit opens the full workflow: Visual Wizard or Raw JSON, steps
+Info → Content → Preview, then Publish / History / Restore / Trash. The Content
+step holds the live 756-character notice, editable. Closed without saving and
+confirmed no stray draft was left on the document.
+
+`/content` renders `ConfigAdminManager` for the whole `content` namespace and
+pages through every document (100 at a time, backstop 5,000), so nothing is
+truncated at 226. Search matches title OR key, and any `bot.*` key is
+categorised "Chatbot Prompts".
+
+**The policy page body**: `legal.privacy.policy`, published v4, under
+Settings → Legal (`/config/legal` redirects there). `legal.privacy.contact_email`
+is v4 and live; `legal.privacy.org_name` is inactive by design - the org name
+comes from Branding, which is the single source of truth.
+
+### But there is no length guard, and I had marked that done
+
+`validatePayloadForType` in `config-platform/postgres-service.ts` switches on
+document type; `ui_copy` falls through to `default: return payload` with NO
+validation. The editor shows no character counter either.
+
+WhatsApp caps an interactive body at 1,024 characters and REJECTS the whole
+message over it. So an admin can publish a 1,500-character notice, every new
+learner's first message fails, and - because `sendWhatsAppMessage` swallows
+failures - nobody is told. The notice sits at 756 today, so there is roughly 270
+characters of headroom, and translations run longer than English.
+
+Task 2's fourth checkbox in
+`docs/superpowers/plans/2026-08-19-onboarding-privacy-consent.md` claimed this
+was implemented. It was not. Corrected there.
