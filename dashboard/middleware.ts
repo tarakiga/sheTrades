@@ -53,6 +53,14 @@ export function middleware(request: NextRequest): NextResponse {
     return NextResponse.redirect(destination);
   }
 
+  if (verdict.action === "rewrite") {
+    // The browser keeps the URL it asked for; only the content changes. This is
+    // what lets the bare domain be the link people share and preview.
+    const destination = request.nextUrl.clone();
+    destination.pathname = verdict.to;
+    return NextResponse.rewrite(destination);
+  }
+
   return notFound();
 }
 

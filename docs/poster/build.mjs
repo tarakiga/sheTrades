@@ -14,6 +14,11 @@
  *   shetrades-whatsapp-poster-<number>.png        A4 at ~288 dpi, for print
  *   shetrades-whatsapp-poster-<number>-share.png  1080 wide, for sending on WhatsApp
  *   shetrades-whatsapp-poster-<number>.html       the rendered page, printable from a browser
+ *
+ * It also renders the link-preview image for the public landing page straight
+ * into the dashboard, where Next serves it as og:image by file convention:
+ *
+ *   dashboard/app/start/opengraph-image.png       1200x630, kept under 300 KB
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -85,11 +90,38 @@ try {
   const share = await sharp(png).resize({ width: 1080 }).png().toBuffer();
   await writeFile(`${base}-share.png`, share);
 
+  // The Open Graph card. 1200x630 exactly, and small: WhatsApp drops the image
+  // from the preview entirely above a few hundred KB, silently. Rendered at 1x
+  // because the card is already its display size, then quantised - a flat
+  // design loses nothing to a palette and halves the bytes.
+  const ogTemplate = await readFile(join(here, "og.html"), "utf8");
+  const ogHtml = ogTemplate
+    .replace("{{LOGO}}", await dataUri(join(here, "../logo/SHE TRADES DIGITAL LOGO.png"), "image/png"))
+    .replace("{{NUMBER}}", pretty(raw));
+  const ogPage = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
+  await ogPage.setContent(ogHtml, { waitUntil: "networkidle" });
+  await ogPage.evaluate(() => document.fonts.ready);
+  const ogRaw = await ogPage.locator(".card").screenshot({ type: "png" });
+  const ogPng = await sharp(ogRaw).png({ palette: true, quality: 90, compressionLevel: 9 }).toBuffer();
+  const ogOut = join(here, "../../dashboard/app/start/opengraph-image.png");
+  await writeFile(ogOut, ogPng);
+  await writeFile(
+    join(here, "../../dashboard/app/start/opengraph-image.alt.txt"),
+    "SheTrades Digital: learn digital and business skills on WhatsApp. Send hi to " + pretty(raw) + "."
+  );
+  const ogMeta = await sharp(ogPng).metadata();
+  const ogKb = Math.round(ogPng.length / 1024);
+  if (ogPng.length > 300 * 1024) {
+    console.error(`og image is ${ogKb} KB - over the ~300 KB WhatsApp will render. Simplify og.html.`);
+    process.exitCode = 1;
+  }
+
   const meta = await sharp(png).metadata();
   console.log(`link:  ${waLink}`);
   console.log(`print: ${base}.png  (${meta.width}x${meta.height})`);
   console.log(`share: ${base}-share.png  (1080 wide)`);
   console.log(`html:  ${base}.html`);
+  console.log(`og:    ${ogOut}  (${ogMeta.width}x${ogMeta.height}, ${ogKb} KB)`);
 } finally {
   await browser.close();
 }

@@ -127,14 +127,10 @@ test("a blocked path is never redirected", () => {
   }
 });
 
-test("the public root lands on the policy rather than a dead end", () => {
-  assert.deepEqual(verdictForPublicRequest("/"), { action: "redirect", to: "/privacy" });
-});
-
-test("the public root redirect cannot loop", () => {
+test("the public root rewrite cannot loop", () => {
   const root = verdictForPublicRequest("/");
-  assert.equal(root.action, "redirect");
-  if (root.action === "redirect") {
+  assert.equal(root.action, "rewrite");
+  if (root.action === "rewrite") {
     assert.deepEqual(verdictForPublicRequest(root.to), { action: "allow" });
   }
 });
@@ -173,4 +169,24 @@ test("the explicit flag wins in both directions", () => {
 test("an unparseable flag falls back to the build mode, not to on", () => {
   assert.equal(developmentOnlyRoutesEnabled({ nodeEnv: "production", flag: "yes" }), false);
   assert.equal(developmentOnlyRoutesEnabled({ nodeEnv: "production", flag: "  " }), false);
+});
+
+test("the public root is REWRITTEN to the landing page, never redirected", () => {
+  // A rewrite keeps the shared URL as the bare domain, which is what people
+  // will actually paste into WhatsApp. A redirect would also work for humans,
+  // but the point of the landing page is its link preview, and a preview is
+  // only as good as the URL people share.
+  assert.deepEqual(verdictForPublicRequest("/"), { action: "rewrite", to: "/start" });
+});
+
+test("the landing page and its Open Graph image are public", () => {
+  assert.deepEqual(verdictForPublicRequest("/start"), { action: "allow" });
+  assert.deepEqual(verdictForPublicRequest("/start/"), { action: "allow" });
+  // Next.js serves the file-convention image under the page's path, with a
+  // cache-busting query the middleware never sees.
+  assert.deepEqual(verdictForPublicRequest("/start/opengraph-image.png"), { action: "allow" });
+});
+
+test("a path that merely starts with 'start' is still blocked", () => {
+  assert.deepEqual(verdictForPublicRequest("/startup-admin"), { action: "notFound" });
 });

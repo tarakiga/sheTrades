@@ -2266,3 +2266,42 @@ was submitted. If the review declines it, that page is the appeal.
 Still open: payment method on the new WABA (sends fail silently once the free
 allowance is spent), the display-name review outcome, clearing test learners,
 the QR poster, and keeping the test number as the one-minute rollback.
+
+## Public landing page with WhatsApp link preview (2026-09-12)
+
+`www.shetrades.digital` is now a front door rather than a redirect to the
+policy. The bare domain is REWRITTEN to `/start`: a page with Open Graph tags
+(so sharing the link in WhatsApp shows a branded card), an Open WhatsApp button
+to `wa.me/<number>?text=hi`, the number written out, and a QR for scanning from
+another phone.
+
+Three decisions worth keeping:
+
+- **Rewrite, not redirect.** WhatsApp's crawler follows redirects and does not
+  run JavaScript. A redirect to `/start` would preview fine but report a
+  different URL from the one shared; a redirect to `wa.me` would show WhatsApp's
+  card, not ours. `lib/hosts.ts` gained a `rewrite` verdict for exactly this.
+- **The number lives in config**, as `branding.whatsapp_number` in the content
+  namespace, alongside `public.start.headline/lede/cta/og_description`. The
+  page reads them with the poster's copy as fallbacks. Changing the number is an
+  edit under Content, and the page cannot disagree with the poster script,
+  which takes the same digits.
+- **The QR is a PNG data URL in an `<img>`**, not inline SVG. The first draft
+  used `dangerouslySetInnerHTML` for a library-generated SVG; the security hook
+  objected, and it was right that a data URL is the same picture with no markup
+  injection at all.
+
+The page uses the brand tokens Settings → Branding overrides at runtime, so it
+follows whatever green and orange an admin sets rather than carrying a palette
+of its own. The OG image is 1200x630 and 43 KB, rendered by
+`docs/poster/build.mjs` alongside the poster so the two share type and colour.
+
+Verified on a production build before deploying: `/` on the public host
+returns 200 with the landing content and the full og:* set, absolute image
+URL and dimensions included; `/login` still 404s; the admin host's root is
+untouched; the button links to the right `wa.me` URL; no horizontal scroll at
+375px.
+
+**Still to prove:** the preview as WhatsApp itself renders it. Every crawler
+differs slightly, and WhatsApp caches previews hard, so the only real test is
+sharing `www.shetrades.digital` to yourself once deployed.

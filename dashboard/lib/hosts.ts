@@ -19,7 +19,8 @@ export type Surface = "admin" | "public";
 export type RouteVerdict =
   | { action: "allow" }
   | { action: "notFound" }
-  | { action: "redirect"; to: string };
+  | { action: "redirect"; to: string }
+  | { action: "rewrite"; to: string };
 
 /**
  * Hosts that are ALWAYS the console, whatever ADMIN_HOSTS says.
@@ -42,13 +43,24 @@ const ALWAYS_ADMIN_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
  * republishing the console. Adding a public document is a code change and a
  * review.
  */
-const PUBLIC_EXACT_PATHS = new Set(["/privacy"]);
+const PUBLIC_EXACT_PATHS = new Set(["/privacy", "/start"]);
 
-/** Certificate verification pages and their PNGs, proxied to the backend. */
-const PUBLIC_PATH_PREFIXES = ["/c/"];
+/**
+ * Certificate verification pages and their PNGs, proxied to the backend; and
+ * the landing page's Open Graph image, which Next serves beneath the page's
+ * own path by file convention.
+ */
+const PUBLIC_PATH_PREFIXES = ["/c/", "/start/"];
 
-/** Where the bare public root goes. The policy is the only public document. */
-const PUBLIC_ROOT_DESTINATION = "/privacy";
+/**
+ * The bare public root is REWRITTEN to the landing page, not redirected.
+ *
+ * The URL people paste into WhatsApp is the bare domain, and the landing page
+ * exists for its link preview. A rewrite keeps that URL as the one previewed
+ * and shared; a redirect would work for a human but would make the crawler
+ * report a different canonical address from the one that was typed.
+ */
+const PUBLIC_ROOT_DESTINATION = "/start";
 
 /**
  * Paths that must not exist in a deployed build at all.
@@ -175,7 +187,7 @@ function normalisePath(pathname: string): string {
 export function verdictForPublicRequest(pathname: string): RouteVerdict {
   const path = normalisePath(pathname);
   if (path === "/") {
-    return { action: "redirect", to: PUBLIC_ROOT_DESTINATION };
+    return { action: "rewrite", to: PUBLIC_ROOT_DESTINATION };
   }
   if (PUBLIC_EXACT_PATHS.has(path)) {
     return { action: "allow" };

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SheTrades Digital link preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orange: #eb5516;
+    --green: #0b675c;
+    --green-deep: #094f47;
+    --cream: #fbf6ee;
+    --muted: #5a5a5a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--cream); font-family: "Poppins", "Segoe UI", Arial, sans-serif; }
+
+  /* 1200x630 is the 1.91:1 that WhatsApp, Facebook and X all render as the
+     large card. Anything squarer collapses to a thumbnail. */
+  .card {
+    width: 1200px;
+    height: 630px;
+    position: relative;
+    overflow: hidden;
+    background: var(--cream);
+    display: grid;
+    grid-template-columns: 460px 1fr;
+    align-items: center;
+    padding: 0 72px 0 56px;
+    gap: 40px;
+  }
+  .bar { position: absolute; left: 0; right: 0; height: 16px; }
+  .bar--top { top: 0; background: var(--orange); }
+  .bar--bottom { bottom: 0; background: var(--green); }
+  .bar--top::after, .bar--bottom::after { content: ""; position: absolute; top: 0; bottom: 0; width: 34%; }
+  .bar--top::after { right: 0; background: var(--green); }
+  .bar--bottom::after { left: 0; background: var(--orange); }
+
+  .logo img { width: 440px; height: auto; display: block; }
+
+  .copy h1 {
+    font-size: 54px;
+    line-height: 1.1;
+    font-weight: 800;
+    color: var(--green-deep);
+    letter-spacing: -0.01em;
+  }
+  .copy h1 em { font-style: normal; color: var(--orange); }
+  .copy p {
+    margin-top: 18px;
+    font-size: 24px;
+    line-height: 1.4;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .copy .number {
+    margin-top: 26px;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--green-deep);
+    font-variant-numeric: tabular-nums;
+  }
+  .copy .number .pill {
+    font-size: 20px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--green);
+    padding: 6px 16px;
+    border-radius: 999px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="bar bar--top"></div>
+  <div class="logo"><img src="{{LOGO}}" alt=""></div>
+  <div class="copy">
+    <h1>Learn digital and business skills<br><em>on WhatsApp.</em></h1>
+    <p>Free lessons for women who trade. Finish five modules, earn a certificate.</p>
+    <div class="number">{{NUMBER}} <span class="pill">Send: hi</span></div>
+  </div>
+  <div class="bar bar--bottom"></div>
+</div>
+</body>
+</html>

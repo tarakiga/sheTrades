@@ -31,6 +31,17 @@ const SEED_ENTRIES: SeedEntry[] = [
     }
   },
   {
+    key: "branding.whatsapp_number",
+    title: "WhatsApp number learners message (digits only, e.g. 2348035125590)",
+    payload: {
+      // Read by the public landing page (/start) to build its wa.me link and QR.
+      // The bot itself does not need it - Meta routes inbound by phone number
+      // id - but the page and the poster must never disagree with the number
+      // learners are actually told to message, so it lives here, once.
+      en: process.env.BRANDING_SEED_WHATSAPP_NUMBER ?? ""
+    }
+  },
+  {
     key: "admin.invite.login_url",
     title: "Admin invite login URL",
     payload: {

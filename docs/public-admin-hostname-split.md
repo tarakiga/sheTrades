@@ -223,9 +223,16 @@ above 4 MB rather than letting an operator discover it by clicking Help.
 
 ## Not covered
 
-- **The public root has nowhere to go.** `www.shetrades.digital/` redirects to
-  `/privacy` because the policy is the only public document. When there is a
-  landing page, it takes that slot.
+- ~~The public root has nowhere to go.~~ **Resolved 2026-09-12:** the bare
+  public domain is now REWRITTEN (not redirected) to `/start`, the landing page
+  that carries the Open Graph tags for a rich WhatsApp preview and a button to
+  `wa.me`. A rewrite rather than a redirect because the crawler follows
+  redirects and would otherwise attach the preview to a different URL from the
+  one people share. The number and copy come from config
+  (`branding.whatsapp_number`, `public.start.*`), so this page, the poster and
+  the bot cannot disagree about which number to message. The OG image is
+  rendered by `docs/poster/build.mjs` into `dashboard/app/start/` and kept under
+  300 KB, which is roughly where WhatsApp stops rendering it.
 - **CORS no longer lists the public hosts.** Nothing on the public host calls the
   admin API - the privacy page reads its config server-side, verified against the
   live page - so `www.shetrades.digital` and the apex came out of
