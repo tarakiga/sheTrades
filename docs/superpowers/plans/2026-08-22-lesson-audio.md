@@ -27,7 +27,9 @@ can; audio and sticker cannot. So the word "Listen" cannot be attached to the
 audio itself - it must live on a button or in the text that precedes it.
 
 **Audio must not be pushed with every lesson.** A lesson currently costs one
-message. Sending audio alongside it doubles every learner's traffic into Meta's
+message - and from 1 October 2026 Meta charges $0.0067 per service message in
+Nigeria beyond 1,000 free a month, so every extra message is now money as well
+as rate-limit budget. Sending audio alongside it doubles every learner's traffic into Meta's
 per-pair rate limit, which this programme has already hit in testing (error
 `131056`, at roughly 10-15 messages per minute to one number). It also spends the
 learner's data without asking, and this audience is on limited bundles. A button

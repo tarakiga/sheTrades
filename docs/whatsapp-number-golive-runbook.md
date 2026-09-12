@@ -37,6 +37,30 @@ below are kept as the record of the reasoning.
 
 Messaging limit on the new number is TIER_250 business-initiated conversations per 24h. Learner-initiated conversations are unlimited, and learners always message first.
 
+### Cost model (checked against Meta's pricing page, updated 2026-09-10)
+
+**Until 30 September 2026:** the bot's replies are service messages inside the
+24-hour window and are not charged at all. No cap.
+
+**From 1 October 2026:** Meta charges for service messages. Free tier of
+**1,000 service messages per month per phone number**, then the Nigeria service
+rate of **$0.0067 per message** (same as utility). Marketing templates are
+$0.0516.
+
+**Measured, not estimated:** one learner completing all 43 lessons on
+2026-08-22 received **304 messages** from the bot, including onboarding, quiz
+retries, menus and the certificate. That is about **$2.04 per completion** at
+the full rate, and the free tier covers roughly three completions a month -
+gone in the first week of any real cohort. 500 completions is roughly $1,000;
+5,000 is roughly $10,000.
+
+Once the free tier is used, sends FAIL without a payment method, and the
+sender swallows failures, so the bot would simply appear to stop. The payment
+method is therefore not housekeeping; it is what keeps the bot alive past the
+first few learners in October.
+
+Lesson audio, if built, roughly doubles messages for a learner who taps Listen.
+
 ---
 
 ## 🛑 PHASE 0 — BUSINESS VERIFICATION (hard blocker, 2026-08-17)
