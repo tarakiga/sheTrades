@@ -48,6 +48,7 @@ test("getPostgresSslConfig defaults to strict TLS", async () => {
 test("getPostgresSslConfig supports escaped newline CA cert", async () => {
   await withEnv(
     {
+      PG_SSL_ENABLED: undefined, // CI sets this false for its TLS-less container
       PG_SSL_CA_CERT: "-----BEGIN CERT-----\\nabc123\\n-----END CERT-----"
     },
     () => {
@@ -61,6 +62,7 @@ test("getPostgresSslConfig supports escaped newline CA cert", async () => {
 test("getPostgresSslConfig supports escaped newline client cert and key", async () => {
   await withEnv(
     {
+      PG_SSL_ENABLED: undefined,
       PG_SSL_CLIENT_CERT: "-----BEGIN CERT-----\\ncert123\\n-----END CERT-----",
       PG_SSL_CLIENT_KEY: "-----BEGIN KEY-----\\nkey123\\n-----END KEY-----"
     },
@@ -76,6 +78,7 @@ test("getPostgresSslConfig supports escaped newline client cert and key", async 
 test("getPostgresSslConfig allows non-production rejectUnauthorized override", async () => {
   await withEnv(
     {
+      PG_SSL_ENABLED: undefined,
       NODE_ENV: "development",
       PG_SSL_REJECT_UNAUTHORIZED: "false"
     },

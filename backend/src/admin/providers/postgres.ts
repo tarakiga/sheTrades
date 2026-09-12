@@ -39,6 +39,19 @@ function getPool(): Pool | null {
   return pool;
 }
 
+/**
+ * Tests only. The pool is built from POSTGRES_URL on first use and then kept
+ * for the life of the process, which is right in production and wrong for a
+ * test that swaps the URL to provoke a connection failure: it would be handed
+ * the pool an earlier test built from the real URL. Dropping the cache makes
+ * the next getPool() read the environment again.
+ */
+export async function resetAdminPostgresPoolForTests(): Promise<void> {
+  const current = pool;
+  pool = null;
+  if (current) await current.end().catch(() => undefined);
+}
+
 function isRetryablePostgresError(error: unknown) {
   if (typeof error !== "object" || !error || !("code" in error)) {
     return true;

@@ -195,6 +195,11 @@ const throttleEnv = (overrides: Record<string, string | undefined> = {}) =>
     ...overrides
   });
 
+// A wrong password that still passes loginRequestSchema's min(8). A shorter
+// string is rejected as a 400 by validation and never reaches the throttle,
+// which is what these tests are meant to exercise.
+const WRONG_PASSWORD = "not-the-password";
+
 async function attemptLogin(email: string, password: string) {
   return request(app).post("/api/admin/auth/login").send({ email, password });
 }
@@ -208,10 +213,10 @@ test("login locks out after the configured failures and answers 429 + Retry-Afte
     await resetThrottleForTests();
 
     for (let i = 0; i < 3; i++) {
-      assert.equal((await attemptLogin("admin@shetrades.test", "wrong")).status, 401, `attempt ${i + 1} should be a plain 401`);
+      assert.equal((await attemptLogin("admin@shetrades.test", WRONG_PASSWORD)).status, 401, `attempt ${i + 1} should be a plain 401`);
     }
 
-    const locked = await attemptLogin("admin@shetrades.test", "wrong");
+    const locked = await attemptLogin("admin@shetrades.test", WRONG_PASSWORD);
     assert.equal(locked.status, 429);
     assert.ok(Number(locked.headers["retry-after"]) > 0, "Retry-After must be set");
     assert.equal(typeof locked.body.retryAfterSeconds, "number");
@@ -233,11 +238,11 @@ test("a successful login clears the failure count", { concurrency: false, skip: 
 
     // Two failures, then success, then two more failures: still under the
     // threshold because the success wiped the slate.
-    await attemptLogin("admin@shetrades.test", "wrong");
-    await attemptLogin("admin@shetrades.test", "wrong");
+    await attemptLogin("admin@shetrades.test", WRONG_PASSWORD);
+    await attemptLogin("admin@shetrades.test", WRONG_PASSWORD);
     assert.equal((await attemptLogin("admin@shetrades.test", "Password123!")).status, 200);
-    assert.equal((await attemptLogin("admin@shetrades.test", "wrong")).status, 401);
-    assert.equal((await attemptLogin("admin@shetrades.test", "wrong")).status, 401, "counter did not reset on success");
+    assert.equal((await attemptLogin("admin@shetrades.test", WRONG_PASSWORD)).status, 401);
+    assert.equal((await attemptLogin("admin@shetrades.test", WRONG_PASSWORD)).status, 401, "counter did not reset on success");
   });
   await resetThrottleForTests();
 });
@@ -252,11 +257,11 @@ test("throttling does not leak whether an account exists", { concurrency: false,
     // An address that does not exist must throttle identically to one that
     // does; otherwise the 429 itself reveals which addresses are real.
     for (let i = 0; i < 3; i++) {
-      const response = await attemptLogin("nobody@shetrades.test", "wrong");
+      const response = await attemptLogin("nobody@shetrades.test", WRONG_PASSWORD);
       assert.equal(response.status, 401);
       assert.match(String(response.body.message), /invalid email or password/i);
     }
-    const locked = await attemptLogin("nobody@shetrades.test", "wrong");
+    const locked = await attemptLogin("nobody@shetrades.test", WRONG_PASSWORD);
     assert.equal(locked.status, 429, "unknown addresses must lock out too");
   });
   await resetThrottleForTests();
@@ -269,8 +274,8 @@ test("throttling is per-account: locking one admin does not lock another", { con
     assert.equal((await attemptLogin("admin@shetrades.test", "Password123!")).status, 200);
     await resetThrottleForTests();
 
-    for (let i = 0; i < 4; i++) await attemptLogin("someone-else@shetrades.test", "wrong");
-    assert.equal((await attemptLogin("someone-else@shetrades.test", "wrong")).status, 429);
+    for (let i = 0; i < 4; i++) await attemptLogin("someone-else@shetrades.test", WRONG_PASSWORD);
+    assert.equal((await attemptLogin("someone-else@shetrades.test", WRONG_PASSWORD)).status, 429);
 
     // The real admin must still be able to sign in.
     assert.equal((await attemptLogin("admin@shetrades.test", "Password123!")).status, 200);
@@ -287,10 +292,10 @@ test("the throttle key is case- and whitespace-insensitive", { concurrency: fals
 
     // Vary the casing each time - a naive key would treat these as four
     // separate buckets and never lock.
-    await attemptLogin("Admin@SheTrades.test", "wrong");
-    await attemptLogin("ADMIN@shetrades.TEST", "wrong");
-    await attemptLogin("admin@shetrades.test", "wrong");
-    const locked = await attemptLogin("AdMiN@sHeTrAdEs.tEsT", "wrong");
+    await attemptLogin("Admin@SheTrades.test", WRONG_PASSWORD);
+    await attemptLogin("ADMIN@shetrades.TEST", WRONG_PASSWORD);
+    await attemptLogin("admin@shetrades.test", WRONG_PASSWORD);
+    const locked = await attemptLogin("AdMiN@sHeTrAdEs.tEsT", WRONG_PASSWORD);
     assert.equal(locked.status, 429, "case variants must share one throttle bucket");
   });
   await resetThrottleForTests();

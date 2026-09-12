@@ -2,10 +2,22 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { createApp } from "../app.js";
+import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 import { resetRewardServiceState } from "../rewards/service.js";
 import { resetLearningEngineState } from "../learning/engine.js";
 
 const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
+
+// These routes went behind authenticateJwt in the August hardening. The
+// tests are database-only, so they were skipped on every developer machine
+// and never ran in CI - nobody saw them start failing. Sign the same kind of
+// token the console sends.
+process.env.ADMIN_CONFIG_JWT_SECRET = process.env.ADMIN_CONFIG_JWT_SECRET ?? "test-secret";
+const now = Math.floor(Date.now() / 1000);
+const BEARER = `Bearer ${signJwtHs256ForTests(
+  { sub: "test-operator", role: "admin", iat: now, exp: now + 3600 },
+  process.env.ADMIN_CONFIG_JWT_SECRET
+)}`;
 
 const app = createApp();
 
@@ -38,7 +50,7 @@ async function withEnv(
 test("POST /api/rewards/issue supports manual issuance", { skip: skipWithoutDb }, async () => {
   resetRewardServiceState();
   const response = await request(app)
-    .post("/api/rewards/issue")
+    .post("/api/rewards/issue").set("Authorization", BEARER)
     .send({
       issueId: "manual-1",
       phone: "+234800001201",
@@ -66,8 +78,8 @@ test("POST /api/rewards/issue is idempotent by issue id", { skip: skipWithoutDb 
     channel: "airtime_api"
   };
 
-  const first = await request(app).post("/api/rewards/issue").send(payload).expect(200);
-  const second = await request(app).post("/api/rewards/issue").send(payload).expect(200);
+  const first = await request(app).post("/api/rewards/issue").set("Authorization", BEARER).send(payload).expect(200);
+  const second = await request(app).post("/api/rewards/issue").set("Authorization", BEARER).send(payload).expect(200);
 
   assert.equal(first.body.status, "issued");
   assert.equal(second.body.status, "duplicate");
@@ -78,7 +90,7 @@ test("POST /api/rewards/issue retries transient provider failure", { skip: skipW
   resetRewardServiceState();
   await withEnv({ REWARD_PROVIDER_MODE: "flaky_once", REWARD_RETRY_ATTEMPTS: "3" }, async () => {
     const response = await request(app)
-      .post("/api/rewards/issue")
+      .post("/api/rewards/issue").set("Authorization", BEARER)
       .send({
         issueId: "manual-3",
         phone: "+234800001203",
@@ -97,7 +109,7 @@ test("POST /api/rewards/issue returns failed status with audit trail on persiste
   resetRewardServiceState();
   await withEnv({ REWARD_PROVIDER_MODE: "always_fail", REWARD_RETRY_ATTEMPTS: "2" }, async () => {
     const response = await request(app)
-      .post("/api/rewards/issue")
+      .post("/api/rewards/issue").set("Authorization", BEARER)
       .send({
         issueId: "manual-4",
         phone: "+234800001204",
@@ -112,7 +124,7 @@ test("POST /api/rewards/issue returns failed status with audit trail on persiste
     assert.equal(response.body.reward.attempts, 2);
 
     const audit = await request(app)
-      .get("/api/rewards/audit")
+      .get("/api/rewards/audit").set("Authorization", BEARER)
       .query({ phone: "+234800001204" })
       .expect(200);
     assert.ok(Array.isArray(audit.body.audit));
@@ -126,7 +138,7 @@ test("POST /api/progress triggers automated reward issuance on module pass", { s
   const phone = "+234800001205";
 
   await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone,
       updateId: "auto-1",
@@ -134,7 +146,7 @@ test("POST /api/progress triggers automated reward issuance on module pass", { s
     })
     .expect(200);
   await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone,
       updateId: "auto-2",
@@ -142,7 +154,7 @@ test("POST /api/progress triggers automated reward issuance on module pass", { s
     })
     .expect(200);
   await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone,
       updateId: "auto-3",
@@ -150,7 +162,7 @@ test("POST /api/progress triggers automated reward issuance on module pass", { s
     })
     .expect(200);
   await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone,
       updateId: "auto-4",
@@ -165,6 +177,7 @@ test("POST /api/progress triggers automated reward issuance on module pass", { s
 
   const rewards = await request(app)
     .get(`/api/rewards/${encodeURIComponent(phone)}`)
+    .set("Authorization", BEARER)
     .expect(200);
   assert.ok(Array.isArray(rewards.body.rewards));
   assert.ok(

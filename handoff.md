@@ -2383,3 +2383,45 @@ tolerate being unset.
 None of this touched runtime code. The bot's live revision (00127-m5t) predates
 both CI commits and has logged no errors; the dashboard commit contains no
 dashboard files.
+
+### Later still: the backend suite passes against Postgres - 733/733
+
+Tar brought the backend-tests log, which I read as the go-ahead. Every one of
+the 24 was a test that had never executed (all `skipWithoutDb`, and the job
+had never got past setup), not a defect in the code under test:
+
+- **Login throttle x5** - the tests sent `"wrong"` as the password;
+  `loginRequestSchema` has `min(8)`, so validation answered 400 before the
+  throttle ever saw an attempt. With a valid-length wrong password all five
+  pass: 3 failures -> 429 with Retry-After, the correct password is still
+  refused while locked, success clears the count, unknown addresses throttle
+  identically, per-account, case-insensitive. The lockout was always fine.
+- **`pg-tls.test.ts` x3** - the job's `PG_SSL_ENABLED=false` leaked in. Each
+  test now pins it unset, as the first test in the file already did.
+- **Admin provider "expected 500, got 200" x1** - the postgres provider caches
+  its `Pool` from the first `POSTGRES_URL` it sees. With a real database an
+  earlier test had built it, so swapping the env var to a bogus URL changed
+  nothing. New `resetAdminPostgresPoolForTests()` (the only non-test line of
+  this change; called from nowhere but the test) drops the cache before and
+  after. Not a production concern: the URL never changes mid-process there.
+- **`learning.test.ts` + `rewards.test.ts` x11** - no bearer token to routes
+  behind `authenticateJwt`. They now sign an admin token the way
+  `admin.test.ts` always has.
+- **`webhook.test.ts` x4** - NOT a token problem as first recorded: the log
+  said `signature_invalid`. The four conversation-flow tests predate the
+  GAP-A8 hardening and posted unsigned. They now go through the sandbox path
+  (token-authenticated, never delivers) via a `postSandbox` helper, as the
+  dashboard simulator does. Two of them were also out of date with the
+  product: one pinned the literal words "Choose language" (content-managed
+  copy), the other expected `main_menu` straight after the language choice,
+  which has not been true since the 19 August consent step. They now assert
+  on state and on the persisted language, and defer the wording and the
+  consent step to `privacy-flow.test.ts`, which owns them.
+
+Verified: 733 pass / 0 fail against fresh `postgres:16` with CI's env; the
+no-database run unchanged at 685 pass / 48 skipped; lint 0 errors; typecheck
+clean. `db:setup:test` is what gets the schema onto the empty database.
+
+What this buys: the erasure transaction, the reward ledger, the webhook auth
+and the login lockout now have automated coverage that actually runs, on
+every push.

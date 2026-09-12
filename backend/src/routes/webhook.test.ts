@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import request from "supertest";
 import { createApp } from "../app.js";
 import { getConfigPlatformService } from "../config-platform/service.js";
-import { resetWhatsAppState } from "../whatsapp/handler.js";
+import { getWhatsAppSession, resetWhatsAppState } from "../whatsapp/handler.js";
 import { refreshRuntimeConfigCache, setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
 
 const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
@@ -66,6 +66,23 @@ function makeWebhookPayload(messageId: string, from: string, body: string) {
       }
     ]
   };
+}
+
+const TEST_APP_SECRET = "test-app-secret";
+const TEST_SANDBOX_TOKEN = "test-sandbox-token";
+
+/**
+ * Drive the bot through the SANDBOX path: token-authenticated (GAP-A8) and
+ * never delivering to Meta, which is what a test of the conversation engine
+ * wants. Callers set WHATSAPP_SANDBOX_TOKEN via withEnv; with it unset the
+ * path is disabled outright (403), and that is tested below too.
+ */
+function postSandbox(payload: object) {
+  return request(app)
+    .post("/webhook/whatsapp")
+    .set("X-SheTrades-Source", "sandbox")
+    .set("X-SheTrades-Sandbox-Token", TEST_SANDBOX_TOKEN)
+    .send(payload);
 }
 
 test("GET /webhook/whatsapp verifies webhook challenge", { concurrency: false }, async () => {
@@ -136,63 +153,64 @@ test(
   }
 );
 
+// --- Conversation flow (through the sandbox path) ---------------------------
+// These predate the GAP-A8 hardening and used to post unsigned. The webhook now
+// fails closed, so they authenticate as the dashboard simulator does.
+
 test("POST /webhook/whatsapp transitions onboarding to language step", { skip: skipWithoutDb }, async () => {
   if (!skipWithoutDb) void resetWhatsAppState();
   await configService.resetForTests();
-  const response = await request(app)
-    .post("/webhook/whatsapp")
-    .send(makeWebhookPayload("m1", "+234800000001", "Amaka Obi"))
-    .expect(200);
+  await withEnv({ WHATSAPP_SANDBOX_TOKEN: TEST_SANDBOX_TOKEN }, async () => {
+    const response = await postSandbox(makeWebhookPayload("m1", "+234800000001", "Amaka Obi")).expect(200);
 
-  assert.equal(response.body.status, "processed");
-  assert.equal(response.body.state, "awaiting_language");
-  assert.match(String(response.body.reply), /Choose language/i);
+    assert.equal(response.body.status, "processed");
+    assert.equal(response.body.state, "awaiting_language");
+    // The wording is content-managed (bot.* prompts) and free to change; the
+    // state is the contract. privacy-flow.test.ts covers what the question says.
+    assert.ok(String(response.body.reply).trim().length > 0, "the language question must not be empty");
+  });
 });
 
-test("POST /webhook/whatsapp applies language and routes to main menu", { skip: skipWithoutDb }, async () => {
+test("POST /webhook/whatsapp applies the chosen language and moves on to the privacy notice", { skip: skipWithoutDb }, async () => {
   if (!skipWithoutDb) void resetWhatsAppState();
   await configService.resetForTests();
-  await request(app)
-    .post("/webhook/whatsapp")
-    .send(makeWebhookPayload("m1", "+234800000002", "Ruth Okon"))
-    .expect(200);
+  await withEnv({ WHATSAPP_SANDBOX_TOKEN: TEST_SANDBOX_TOKEN }, async () => {
+    await postSandbox(makeWebhookPayload("m1", "+234800000002", "Ruth Okon")).expect(200);
 
-  const response = await request(app)
-    .post("/webhook/whatsapp")
-    .send(makeWebhookPayload("m2", "+234800000002", "2"))
-    .expect(200);
+    // Option 2 is Pidgin. Since the 19 August consent work the next stop is
+    // the privacy notice, not the main menu; privacy-flow.test.ts owns what
+    // happens from there.
+    const response = await postSandbox(makeWebhookPayload("m2", "+234800000002", "2")).expect(200);
 
-  assert.equal(response.body.status, "processed");
-  assert.equal(response.body.state, "main_menu");
-  assert.match(String(response.body.reply), /Main Menu/i);
-  assert.match(String(response.body.reply), /Language set: Pidgin/i);
+    assert.equal(response.body.status, "processed");
+    assert.equal(response.body.state, "awaiting_privacy_consent");
+    assert.ok(String(response.body.reply).trim().length > 0, "the privacy notice must not be empty");
+
+    const session = await getWhatsAppSession("+234800000002");
+    assert.equal(session?.language, "pcm", "the choice must be persisted, not just echoed");
+  });
 });
 
 test("POST /webhook/whatsapp ignores duplicate message ids", { skip: skipWithoutDb }, async () => {
   if (!skipWithoutDb) void resetWhatsAppState();
   await configService.resetForTests();
-  await request(app)
-    .post("/webhook/whatsapp")
-    .send(makeWebhookPayload("dup-1", "+234800000003", "Ifeoma"))
-    .expect(200);
+  await withEnv({ WHATSAPP_SANDBOX_TOKEN: TEST_SANDBOX_TOKEN }, async () => {
+    await postSandbox(makeWebhookPayload("dup-1", "+234800000003", "Ifeoma")).expect(200);
 
-  const duplicate = await request(app)
-    .post("/webhook/whatsapp")
-    .send(makeWebhookPayload("dup-1", "+234800000003", "3"))
-    .expect(200);
+    const duplicate = await postSandbox(makeWebhookPayload("dup-1", "+234800000003", "3")).expect(200);
 
-  assert.equal(duplicate.body.status, "duplicate");
-  assert.equal(duplicate.body.state, "awaiting_language");
+    assert.equal(duplicate.body.status, "duplicate");
+    assert.equal(duplicate.body.state, "awaiting_language");
+  });
 });
 
 test("POST /webhook/whatsapp returns ignored for unsupported payload", { skip: skipWithoutDb }, async () => {
   if (!skipWithoutDb) void resetWhatsAppState();
   await configService.resetForTests();
-  const response = await request(app)
-    .post("/webhook/whatsapp")
-    .send({ object: "whatsapp" })
-    .expect(200);
-  assert.equal(response.body.status, "ignored");
+  await withEnv({ WHATSAPP_SANDBOX_TOKEN: TEST_SANDBOX_TOKEN }, async () => {
+    const response = await postSandbox({ object: "whatsapp" }).expect(200);
+    assert.equal(response.body.status, "ignored");
+  });
 });
 
 // --- Inbound webhook authentication (GAP-A8 hardening 2026-08-17) -----------
@@ -200,9 +218,6 @@ test("POST /webhook/whatsapp returns ignored for unsupported payload", { skip: s
 // sandbox call. The sandbox path used to be claimed by a header any caller
 // could set; because sandbox requests still write learners and reward rows,
 // that was an anonymous route to minting real airtime payouts.
-
-const TEST_APP_SECRET = "test-app-secret";
-const TEST_SANDBOX_TOKEN = "test-sandbox-token";
 
 /** Send a body with an explicit signature over the exact bytes transmitted. */
 function postSigned(payload: unknown, secret: string | null) {

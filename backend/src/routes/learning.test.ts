@@ -2,15 +2,27 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { createApp } from "../app.js";
+import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 import { resetLearningEngineState } from "../learning/engine.js";
 
 const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
+
+// These routes went behind authenticateJwt in the August hardening. The
+// tests are database-only, so they were skipped on every developer machine
+// and never ran in CI - nobody saw them start failing. Sign the same kind of
+// token the console sends.
+process.env.ADMIN_CONFIG_JWT_SECRET = process.env.ADMIN_CONFIG_JWT_SECRET ?? "test-secret";
+const now = Math.floor(Date.now() / 1000);
+const BEARER = `Bearer ${signJwtHs256ForTests(
+  { sub: "test-operator", role: "admin", iat: now, exp: now + 3600 },
+  process.env.ADMIN_CONFIG_JWT_SECRET
+)}`;
 
 const app = createApp();
 
 test("GET /api/users/:phone returns default user learning state", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
-  const response = await request(app).get("/api/users/+234800000101").expect(200);
+  const response = await request(app).get("/api/users/+234800000101").set("Authorization", BEARER).expect(200);
 
   assert.equal(response.body.phone, "+234800000101");
   assert.deepEqual(response.body.progress, {});
@@ -21,7 +33,7 @@ test("GET /api/users/:phone returns default user learning state", { skip: skipWi
 test("POST /api/progress applies lesson completion in sequence", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
   const response = await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone: "+234800000102",
       updateId: "u-1",
@@ -41,7 +53,7 @@ test("POST /api/progress applies lesson completion in sequence", { skip: skipWit
 test("POST /api/progress rejects out-of-order lesson transitions", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
   const response = await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone: "+234800000103",
       updateId: "u-2",
@@ -61,7 +73,7 @@ test("POST /api/progress rejects out-of-order lesson transitions", { skip: skipW
 test("POST /api/progress enforces quiz submission only after lessons are complete", { skip: skipWithoutDb }, async () => {
   resetLearningEngineState();
   const response = await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone: "+234800000104",
       updateId: "u-3",
@@ -86,7 +98,7 @@ test("POST /api/progress applies quiz scoring and module completion", { skip: sk
   const phone = "+234800000105";
 
   await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone,
       updateId: "u-4-1",
@@ -94,7 +106,7 @@ test("POST /api/progress applies quiz scoring and module completion", { skip: sk
     })
     .expect(200);
   await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone,
       updateId: "u-4-2",
@@ -102,7 +114,7 @@ test("POST /api/progress applies quiz scoring and module completion", { skip: sk
     })
     .expect(200);
   await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone,
       updateId: "u-4-3",
@@ -111,7 +123,7 @@ test("POST /api/progress applies quiz scoring and module completion", { skip: sk
     .expect(200);
 
   const quizResponse = await request(app)
-    .post("/api/progress")
+    .post("/api/progress").set("Authorization", BEARER)
     .send({
       phone,
       updateId: "u-4-4",
@@ -140,8 +152,8 @@ test("POST /api/progress handles idempotent update ids", { skip: skipWithoutDb }
     event: { type: "lesson_completed", moduleId: 1, lessonId: 1 }
   };
 
-  const first = await request(app).post("/api/progress").send(payload).expect(200);
-  const second = await request(app).post("/api/progress").send(payload).expect(200);
+  const first = await request(app).post("/api/progress").set("Authorization", BEARER).send(payload).expect(200);
+  const second = await request(app).post("/api/progress").set("Authorization", BEARER).send(payload).expect(200);
 
   assert.equal(first.body.status, "applied");
   assert.equal(second.body.status, "duplicate");

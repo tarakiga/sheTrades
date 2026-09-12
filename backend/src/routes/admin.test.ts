@@ -4,6 +4,7 @@ import request from "supertest";
 import { createApp } from "../app.js";
 import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 import { setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
+import { resetAdminPostgresPoolForTests } from "../admin/providers/postgres.js";
 
 const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
 
@@ -242,19 +243,29 @@ test(
   "returns 500 on provider connection error in production mode",
   { concurrency: false },
   async () => {
-    await withEnv(
-      {
-        NODE_ENV: "production",
-        ADMIN_DATA_PROVIDER: "postgres",
-        POSTGRES_URL: "postgres://invalid:invalid@127.0.0.1:1/invalid"
-      },
-      async () => {
-        await request(app)
-          .get("/api/admin/users")
-          .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
-          .expect(500);
-      }
-    );
+    // The provider caches its pool from the first POSTGRES_URL it sees. When
+    // the suite runs against a real database an earlier test has already built
+    // that pool, so swapping the env var alone would still hit the real
+    // database and answer 200. Drop the cache going in, and again coming out
+    // so the pool built from the bogus URL does not leak into later tests.
+    await resetAdminPostgresPoolForTests();
+    try {
+      await withEnv(
+        {
+          NODE_ENV: "production",
+          ADMIN_DATA_PROVIDER: "postgres",
+          POSTGRES_URL: "postgres://invalid:invalid@127.0.0.1:1/invalid"
+        },
+        async () => {
+          await request(app)
+            .get("/api/admin/users")
+            .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+            .expect(500);
+        }
+      );
+    } finally {
+      await resetAdminPostgresPoolForTests();
+    }
   }
 );
 
