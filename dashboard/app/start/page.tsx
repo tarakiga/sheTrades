@@ -37,13 +37,24 @@ const KEY_HEADLINE = "public.start.headline";
 const KEY_LEDE = "public.start.lede";
 const KEY_CTA = "public.start.cta";
 const KEY_OG_DESCRIPTION = "public.start.og_description";
+/**
+ * For Meta's display-name reviewers as much as for learners. The chain they
+ * check is verified legal name -> brand -> programme; techherng.com states
+ * the first two links, and this footer states the same facts from the
+ * programme's side and points back, so the relationship is evident from
+ * whichever end a reviewer starts.
+ */
+const KEY_LEGAL_ENTITY = "public.start.legal_entity";
+const KEY_OPERATOR_URL = "public.start.operator_url";
 
 const FALLBACK = {
   headline: "Learn digital and business skills on WhatsApp.",
   lede: "Short lessons for women who trade. Free, at your own pace, on the phone you already have. Finish all five modules and earn a certificate.",
   cta: "Open WhatsApp",
   ogDescription:
-    "Free WhatsApp lessons for women traders in Nigeria: digital safety, selling online, financial tools and more. Send hi to start."
+    "Free WhatsApp lessons for women traders in Nigeria: digital safety, selling online, financial tools and more. Send hi to start.",
+  legalEntity: "Tech Project Women Initiative Ltd/Gte, RC 1469563",
+  operatorUrl: "https://techherng.com"
 };
 
 type PublicCopy = {
@@ -52,6 +63,8 @@ type PublicCopy = {
   lede: string;
   cta: string;
   ogDescription: string;
+  legalEntity: string;
+  operatorUrl: string;
 };
 
 async function readPublicCopy(): Promise<PublicCopy> {
@@ -68,6 +81,8 @@ async function readPublicCopy(): Promise<PublicCopy> {
     copy.lede = en(KEY_LEDE) ?? copy.lede;
     copy.cta = en(KEY_CTA) ?? copy.cta;
     copy.ogDescription = en(KEY_OG_DESCRIPTION) ?? copy.ogDescription;
+    copy.legalEntity = en(KEY_LEGAL_ENTITY) ?? copy.legalEntity;
+    copy.operatorUrl = en(KEY_OPERATOR_URL) ?? copy.operatorUrl;
   } catch {
     // Config unavailable: the page still renders with its fallbacks. The one
     // thing it cannot invent is the number, which is why that stays null.
@@ -179,6 +194,13 @@ export default async function StartPage() {
           In partnership with She Connects Digital Accelerator Africa
           <br />
           With support from CARE
+        </p>
+        <p className="start-page__operator">
+          SheTrades Digital is operated by{" "}
+          <a href={copy.operatorUrl} rel="noopener">
+            TechHer
+          </a>
+          , a programme of {copy.legalEntity}.
         </p>
         <a className="start-page__policy" href="/privacy">
           Privacy policy
