@@ -5,8 +5,7 @@ import {
   canOverwrite,
   upsertMachineDraft,
   getDraft,
-  setStatus,
-  type DraftStatus
+  setStatus
 } from "./draft-store.js";
 
 const skipWithoutDb = process.env.POSTGRES_URL

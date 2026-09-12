@@ -1,10 +1,4 @@
-import type {
-  ConnectionResult,
-  DispatchResult,
-  PayoutProvider,
-  PayoutsIntegrationPayload,
-  RewardDispatchInput
-} from "./contracts.js";
+import type { DispatchResult, PayoutProvider, PayoutsIntegrationPayload } from "./contracts.js";
 import { isRetryableStatus } from "./contracts.js";
 
 const AUTH_URL = "https://auth.reloadly.com/oauth/token";

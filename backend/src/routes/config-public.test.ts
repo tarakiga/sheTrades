@@ -79,7 +79,7 @@ test(
   "public bundle returns empty payload when no documents are published",
   { concurrency: false },
   async () => {
-    configService.resetForTests();
+    await configService.resetForTests();
     const response = await request(app).get("/api/config/public/bundle").expect(200);
 
     assert.equal(response.body.versionTag, "empty");
@@ -97,7 +97,7 @@ test(
   "public namespace endpoint returns published documents only",
   { concurrency: false },
   async () => {
-    configService.resetForTests();
+    await configService.resetForTests();
     await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
       await seedPublishedContentDocument();
     });
@@ -110,12 +110,12 @@ test(
 );
 
 test("public key endpoint returns 404 when key is missing", { concurrency: false }, async () => {
-  configService.resetForTests();
+  await configService.resetForTests();
   await request(app).get("/api/config/public/content/missing.key").expect(404);
 });
 
 test("public endpoints support etag with 304 responses", { concurrency: false }, async () => {
-  configService.resetForTests();
+  await configService.resetForTests();
   await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
     await seedPublishedContentDocument();
   });

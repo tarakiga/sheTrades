@@ -18,14 +18,12 @@ async function main() {
   await ensurePrismaTables();
   await initializeAdminViews();
   await runMigrations();
-  // eslint-disable-next-line no-console
   console.log("Test database schema is ready.");
 }
 
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    // eslint-disable-next-line no-console
-    console.error("Failed to set up the test database:", error);
+      console.error("Failed to set up the test database:", error);
     process.exit(1);
   });

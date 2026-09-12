@@ -1,6 +1,7 @@
 import { getConfigPlatformService } from "../config-platform/service.js";
 import { getDraft, setStatus, type DraftStatus } from "./draft-store.js";
 import { hashSource, type DraftPayload } from "./extract.js";
+import { isRecord, type LessonLike, type QuizItemLike } from "../config-platform/lesson-shape.js";
 
 type LangVariants = { en?: string; pcm?: string; ig?: string };
 type LocalizedValue = string | LangVariants;
@@ -20,26 +21,30 @@ function setLangKey(value: LocalizedValue | undefined, lang: "pcm" | "ig", trans
  * would misalign the answer. The question text may still translate.
  */
 export function mergeTranslationIntoPayload(
-  live: any,
+  live: LessonLike,
   language: "pcm" | "ig",
   draft: DraftPayload
-): any {
-  const merged = structuredClone(live);
+): LessonLike {
+  const merged: LessonLike = structuredClone(live);
 
   if (typeof draft.title === "string" && draft.title.length > 0) {
-    merged.title = setLangKey(merged.title, language, draft.title);
+    merged.title = setLangKey(merged.title as LocalizedValue | undefined, language, draft.title);
   }
   if (typeof draft.body === "string" && draft.body.length > 0) {
     merged.languages = { ...(merged.languages ?? {}), [language]: draft.body };
   }
 
   const draftQuiz = Array.isArray(draft.quiz) ? draft.quiz : [];
-  const liveQuiz = Array.isArray(merged.quiz) ? merged.quiz : [];
-  liveQuiz.forEach((q: any, qi: number) => {
+  const liveQuiz: unknown[] = Array.isArray(merged.quiz) ? merged.quiz : [];
+  liveQuiz.forEach((raw, qi) => {
+    // A non-object entry has nothing to merge into. Skipped, rather than the
+    // TypeError that assigning to null used to throw.
+    if (!isRecord(raw)) return;
+    const q = raw as QuizItemLike;
     const dq = draftQuiz[qi];
     if (!dq) return;
     if (typeof dq.question === "string" && dq.question.length > 0) {
-      q.question = setLangKey(q.question, language, dq.question);
+      q.question = setLangKey(q.question as LocalizedValue | undefined, language, dq.question);
     }
     const draftOptions = Array.isArray(dq.options) ? dq.options : [];
     const liveOptions = Array.isArray(q.options) ? q.options : [];

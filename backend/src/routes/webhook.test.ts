@@ -70,7 +70,7 @@ function makeWebhookPayload(messageId: string, from: string, body: string) {
 
 test("GET /webhook/whatsapp verifies webhook challenge", { concurrency: false }, async () => {
   if (!skipWithoutDb) void resetWhatsAppState();
-  configService.resetForTests();
+  await configService.resetForTests();
   await withEnv({ WHATSAPP_VERIFY_TOKEN: "abc123" }, async () => {
     const response = await request(app)
       .get("/webhook/whatsapp")
@@ -90,7 +90,7 @@ test(
   { concurrency: false },
   async () => {
     if (!skipWithoutDb) void resetWhatsAppState();
-    configService.resetForTests();
+    await configService.resetForTests();
 
     const created = await configService.createDocument(
       { id: "admin-1", role: "admin" },
@@ -138,7 +138,7 @@ test(
 
 test("POST /webhook/whatsapp transitions onboarding to language step", { skip: skipWithoutDb }, async () => {
   if (!skipWithoutDb) void resetWhatsAppState();
-  configService.resetForTests();
+  await configService.resetForTests();
   const response = await request(app)
     .post("/webhook/whatsapp")
     .send(makeWebhookPayload("m1", "+234800000001", "Amaka Obi"))
@@ -151,7 +151,7 @@ test("POST /webhook/whatsapp transitions onboarding to language step", { skip: s
 
 test("POST /webhook/whatsapp applies language and routes to main menu", { skip: skipWithoutDb }, async () => {
   if (!skipWithoutDb) void resetWhatsAppState();
-  configService.resetForTests();
+  await configService.resetForTests();
   await request(app)
     .post("/webhook/whatsapp")
     .send(makeWebhookPayload("m1", "+234800000002", "Ruth Okon"))
@@ -170,7 +170,7 @@ test("POST /webhook/whatsapp applies language and routes to main menu", { skip: 
 
 test("POST /webhook/whatsapp ignores duplicate message ids", { skip: skipWithoutDb }, async () => {
   if (!skipWithoutDb) void resetWhatsAppState();
-  configService.resetForTests();
+  await configService.resetForTests();
   await request(app)
     .post("/webhook/whatsapp")
     .send(makeWebhookPayload("dup-1", "+234800000003", "Ifeoma"))
@@ -187,7 +187,7 @@ test("POST /webhook/whatsapp ignores duplicate message ids", { skip: skipWithout
 
 test("POST /webhook/whatsapp returns ignored for unsupported payload", { skip: skipWithoutDb }, async () => {
   if (!skipWithoutDb) void resetWhatsAppState();
-  configService.resetForTests();
+  await configService.resetForTests();
   const response = await request(app)
     .post("/webhook/whatsapp")
     .send({ object: "whatsapp" })

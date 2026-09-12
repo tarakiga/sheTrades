@@ -1,7 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mergeTranslationIntoPayload, promoteDraft } from "./promote.js";
-import { hashSource } from "./extract.js";
+import { hashSource, type DraftPayload } from "./extract.js";
+
+/**
+ * The merge returns a LessonLike, whose fields are `unknown` on purpose. The
+ * tests below built LIVE themselves and know exactly what shape comes back, so
+ * they cast once, here, to the shape they assert against.
+ */
+type MergedLesson = {
+  title: Record<string, string>;
+  languages: Record<string, string>;
+  quiz: Array<{ question: Record<string, string>; options: Array<Record<string, string>>; answerIndex: number }>;
+};
+const merge = (live: Parameters<typeof mergeTranslationIntoPayload>[0], language: "pcm" | "ig", draft: DraftPayload) =>
+  mergeTranslationIntoPayload(live, language, draft) as MergedLesson;
 
 const LIVE = {
   title: { en: "Shop" },
@@ -14,51 +27,51 @@ const LIVE = {
 
 test("merge sets only the target language, preserving English", () => {
   const draft = { title: "Ahia", body: "Igbo body", quiz: [{ question: "Q-ig", options: ["A-ig", "B-ig", "C-ig"] }] };
-  const merged = mergeTranslationIntoPayload(LIVE, "ig", draft);
+  const merged = merge(LIVE, "ig", draft);
   assert.deepEqual(merged.title, { en: "Shop", ig: "Ahia" });
   assert.equal(merged.languages.ig, "Igbo body");
   assert.equal(merged.languages.en, "English body"); // untouched
-  assert.deepEqual(merged.quiz[0].question, { en: "Q?", ig: "Q-ig" });
-  assert.deepEqual(merged.quiz[0].options[0], { en: "A", ig: "A-ig" });
-  assert.equal(merged.quiz[0].answerIndex, 0); // never touched
+  assert.deepEqual(merged.quiz[0]!.question, { en: "Q?", ig: "Q-ig" });
+  assert.deepEqual(merged.quiz[0]!.options[0]!, { en: "A", ig: "A-ig" });
+  assert.equal(merged.quiz[0]!.answerIndex, 0); // never touched
 });
 
 test("a question with any null option keeps ALL its options English", () => {
   const draft = { quiz: [{ question: "Q-ig", options: ["A-ig", null, "C-ig"] }] };
-  const merged = mergeTranslationIntoPayload(LIVE, "ig", draft);
-  assert.equal("ig" in (merged.quiz[0].options[0] as object), false);
-  assert.equal("ig" in (merged.quiz[0].options[1] as object), false);
-  assert.equal("ig" in (merged.quiz[0].options[2] as object), false);
+  const merged = merge(LIVE, "ig", draft);
+  assert.equal("ig" in (merged.quiz[0]!.options[0]! as object), false);
+  assert.equal("ig" in (merged.quiz[0]!.options[1]! as object), false);
+  assert.equal("ig" in (merged.quiz[0]!.options[2]! as object), false);
   // The question itself still translates — only the OPTIONS are held back.
-  assert.deepEqual(merged.quiz[0].question, { en: "Q?", ig: "Q-ig" });
+  assert.deepEqual(merged.quiz[0]!.question, { en: "Q?", ig: "Q-ig" });
 });
 
 test("merge never changes the option array length or order", () => {
   const draft = { quiz: [{ options: ["A-ig", "B-ig", "C-ig"] }] };
-  const merged = mergeTranslationIntoPayload(LIVE, "ig", draft);
-  assert.equal(merged.quiz[0].options.length, 3);
+  const merged = merge(LIVE, "ig", draft);
+  assert.equal(merged.quiz[0]!.options.length, 3);
 });
 
 test("a draft with FEWER options than live translates none of them", () => {
   const draft = { quiz: [{ options: ["A-ig", "B-ig"] }] }; // live has 3
-  const merged = mergeTranslationIntoPayload(LIVE, "ig", draft);
-  assert.equal("ig" in (merged.quiz[0].options[0] as object), false);
-  assert.equal(merged.quiz[0].options.length, 3);        // length preserved
-  assert.equal(merged.quiz[0].answerIndex, 0);           // intact
+  const merged = merge(LIVE, "ig", draft);
+  assert.equal("ig" in (merged.quiz[0]!.options[0]! as object), false);
+  assert.equal(merged.quiz[0]!.options.length, 3);        // length preserved
+  assert.equal(merged.quiz[0]!.answerIndex, 0);           // intact
 });
 
 test("a draft with MORE options than live translates none of them", () => {
   const draft = { quiz: [{ options: ["A-ig", "B-ig", "C-ig", "D-ig"] }] }; // live has 3
-  const merged = mergeTranslationIntoPayload(LIVE, "ig", draft);
-  assert.equal("ig" in (merged.quiz[0].options[0] as object), false);
-  assert.equal(merged.quiz[0].options.length, 3);
+  const merged = merge(LIVE, "ig", draft);
+  assert.equal("ig" in (merged.quiz[0]!.options[0]! as object), false);
+  assert.equal(merged.quiz[0]!.options.length, 3);
 });
 
 test("merge does not mutate the input live payload", () => {
   // Promotion must be pure — a caller may reuse the live payload.
   const draft = { title: "Ahia", quiz: [] };
   const before = JSON.stringify(LIVE);
-  mergeTranslationIntoPayload(LIVE, "ig", draft);
+  merge(LIVE, "ig", draft);
   assert.equal(JSON.stringify(LIVE), before);
 });
 
@@ -75,11 +88,11 @@ test("promoting ig leaves an existing pcm translation untouched", () => {
     quiz: [{ question: { en: "Q?", pcm: "Q-pcm" }, options: [{ en: "A", pcm: "A-pcm" }, { en: "B", pcm: "B-pcm" }], answerIndex: 0 }]
   };
   const draft = { title: "Ahia", body: "Igbo body", quiz: [{ question: "Q-ig", options: ["A-ig", "B-ig"] }] };
-  const merged = mergeTranslationIntoPayload(live, "ig", draft);
+  const merged = merge(live, "ig", draft);
   assert.deepEqual(merged.title, { en: "Shop", pcm: "Shop-pcm", ig: "Ahia" });
   assert.equal(merged.languages.pcm, "Pidgin body");
   assert.equal(merged.languages.ig, "Igbo body");
-  assert.deepEqual(merged.quiz[0].options[0], { en: "A", pcm: "A-pcm", ig: "A-ig" });
+  assert.deepEqual(merged.quiz[0]!.options[0]!, { en: "A", pcm: "A-pcm", ig: "A-ig" });
 });
 
 // ---- Orchestration: conflict guard + happy path (no DB) ----
@@ -152,7 +165,7 @@ test("promote publishes the merged payload and marks the draft promoted", async 
     setStatusFn: async (_d: string, _l: string, to: string) => { promotedTo = to; return APPROVED_DRAFT as never; }
   });
   // updateDraft got the MERGED payload — Igbo set, English preserved.
-  const updateInput = calls.updateDraft[0] as { payload: any };
+  const updateInput = calls.updateDraft[0] as { payload: MergedLesson };
   assert.equal(updateInput.payload.languages.ig, "Igbo body");
   assert.equal(updateInput.payload.languages.en, "English body");
   // publishDocument used the draft id updateDraft returned (the atomic guard).

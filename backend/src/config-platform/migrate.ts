@@ -16,12 +16,6 @@
 import { Pool } from "pg";
 import { getPostgresSslConfig } from "../admin/pg-tls.js";
 
-function getEnv(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback;
-  if (!value) throw new Error(`Missing required env variable: ${name}`);
-  return value;
-}
-
 const DDL = `
 CREATE TABLE IF NOT EXISTS config_documents (
   id            TEXT        PRIMARY KEY,

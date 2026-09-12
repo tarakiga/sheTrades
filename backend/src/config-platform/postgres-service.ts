@@ -636,8 +636,17 @@ export class PostgresConfigPlatformService {
     return { purgedCount: purgedKeys.length, purgedKeys };
   }
 
-  // Used only in tests — no-op for Postgres (drop/recreate tables instead)
-  resetForTests() {
-    throw new Error("resetForTests() is not supported on PostgresConfigPlatformService. Use a test schema.");
+  /**
+   * Empties the config tables. Tests only, and refused outside NODE_ENV=test
+   * so a misconfigured process cannot truncate a real database: the guard is
+   * the environment, not the caller's intent.
+   */
+  async resetForTests() {
+    if (process.env.NODE_ENV !== "test") {
+      throw new Error("resetForTests() is only available when NODE_ENV=test.");
+    }
+    await getConfigPgPool().query(
+      "TRUNCATE config_audit_log, config_versions, config_documents CASCADE"
+    );
   }
 }

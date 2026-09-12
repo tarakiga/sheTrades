@@ -62,6 +62,20 @@ export async function ensurePrismaTables() {
   try {
     logger.info("Ensuring Prisma-managed tables exist...");
 
+    // BASE SKELETONS FIRST. Column blocks further down ALTER these tables,
+    // and some of those blocks were added near the feature they belong to
+    // rather than after the table's own CREATE - the TOTP columns on
+    // admin_accounts and the consent columns on users both sat above the
+    // CREATE that makes them possible. On staging every table already
+    // existed, so nothing noticed. On a FRESH database - which is what CI
+    // is - the first ALTER threw "relation does not exist" and the whole
+    // bootstrap aborted. Creating the skeletons here makes every later
+    // CREATE a no-op and every ALTER safe, whatever order the blocks are
+    // in. prisma.bootstrap-order.test.ts scans this file for the statements
+    // literally, which is why these are two plain lines and not a loop.
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);`);
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS admin_accounts (id TEXT PRIMARY KEY);`);
+
     // Some staging Postgres instances carry legacy versions of the
     // analytics tables (quiz_attempts, user_progress, rewards) from
     // earlier schema iterations. Those tables don't have an `id` column

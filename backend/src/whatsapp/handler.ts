@@ -32,6 +32,9 @@ function quizAnswerButtons(options: string[]): string[] {
   return options.length < WHATSAPP_LIMITS.maxButtons ? [...options, "MENU"] : options;
 }
 
+/** The languages a session can be in. The DB stores a plain string; these casts are where we trust it. */
+export type SessionLanguage = "en" | "pcm" | "ig";
+
 export type ConversationState = "awaiting_name" | "awaiting_language" | "awaiting_privacy_consent" | "awaiting_state" | "awaiting_custom_state" | "main_menu" | "module_menu" | "lesson_menu" | "faq_menu" | "resources_menu" | "awaiting_certificate_confirm" | "awaiting_certificate_name" | "privacy_menu" | "awaiting_erase_confirm";
 
 type AnalyticsEvent =
@@ -66,7 +69,7 @@ type UserSession = {
   phone: string;
   userId: string;
   name?: string;
-  language?: "en" | "pcm" | "ig";
+  language?: SessionLanguage;
   location?: string;
   state: ConversationState;
   namePrompted?: boolean;
@@ -496,7 +499,7 @@ function buildModuleListReply(
 }
 
 function mainMenuText(name: string): string {
-  let text = getRuntimeText("bot.main_menu", `Hello {name}! Main Menu:`);
+  const text = getRuntimeText("bot.main_menu", `Hello {name}! Main Menu:`);
   return text.replace("{name}", name);
 }
 
@@ -707,7 +710,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
       selectedModuleId: user.session.selectedModuleId || null
     };
     if (user.name) s.name = user.name;
-    if (user.language) s.language = user.language as any;
+    if (user.language) s.language = user.language as SessionLanguage;
     if (user.location) s.location = user.location;
     if (user.session.namePrompted) s.namePrompted = user.session.namePrompted;
     return s;
@@ -728,7 +731,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
       completedLessons: []
     };
     if (user.name) s.name = user.name;
-    if (user.language) s.language = user.language as any;
+    if (user.language) s.language = user.language as SessionLanguage;
     if (user.location) s.location = user.location;
     return s;
   }
@@ -753,7 +756,7 @@ async function getOrCreateSession(phone: string): Promise<UserSession> {
     completedLessons: []
   };
   if (createdUser.name) s2.name = createdUser.name;
-  if (createdUser.language) s2.language = createdUser.language as any;
+  if (createdUser.language) s2.language = createdUser.language as SessionLanguage;
   if (createdUser.location) s2.location = createdUser.location;
   return s2;
 }
@@ -2990,7 +2993,7 @@ export async function getWhatsAppSession(phone: string) {
   return {
     phone: user.phone,
     name: user.name || undefined,
-    language: (user.language as any) || undefined,
+    language: (user.language as SessionLanguage | null) ?? undefined,
     location: user.location || undefined,
     state: user.session.state as ConversationState,
     // R3-F5/6/9: the stored state stays "module_menu" while a learner reads a

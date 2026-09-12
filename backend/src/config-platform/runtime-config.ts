@@ -1,3 +1,5 @@
+import type { PublishedConfigDocument } from "./contracts.js";
+import type { LessonLike } from "./lesson-shape.js";
 import { getConfigPlatformService } from "./service.js";
 import type {
   NotificationIntegrationPayload,
@@ -24,8 +26,8 @@ type OptionItem = {
 };
 
 // Write-through in-memory cache
-const cachedPublicConfigs = new Map<string, { versionTag: string; documents: any[] }>();
-const cachedIntegrationConfigs = new Map<string, any>();
+const cachedPublicConfigs = new Map<string, { versionTag: string; documents: PublishedConfigDocument[] }>();
+const cachedIntegrationConfigs = new Map<string, unknown>();
 // Published version number per integration document, kept in a SEPARATE map so
 // getRuntimeIntegrationConfig's cached value stays the bare payload — several
 // callers destructure it directly and would break if it were wrapped.
@@ -309,14 +311,15 @@ export function pickLocalized(value: LocalizedValue | undefined | null, lang: st
 }
 
 /** Normalize raw config JSON into a LocalizedValue, preserving legacy strings. */
-function normalizeLocalized(raw: any): LocalizedValue {
+function normalizeLocalized(raw: unknown): LocalizedValue {
   if (raw == null) return "";
   if (typeof raw === "string") return raw;
   if (typeof raw === "object") {
+    const value = raw as { en?: unknown; pcm?: unknown; ig?: unknown };
     return {
-      en: String(raw.en ?? ""),
-      ...(raw.pcm ? { pcm: String(raw.pcm) } : {}),
-      ...(raw.ig ? { ig: String(raw.ig) } : {})
+      en: String(value.en ?? ""),
+      ...(value.pcm ? { pcm: String(value.pcm) } : {}),
+      ...(value.ig ? { ig: String(value.ig) } : {})
     };
   }
   return String(raw);
@@ -372,11 +375,17 @@ export function resetQuizWarningsForTests(): void {
   warnedQuizItems.clear();
 }
 
-export function normalizeQuizItem(raw: any): RuntimeQuizItem {
-  const kind: QuizItemKind = raw?.kind === "reflection" ? "reflection" : "scored";
-  const options = Array.isArray(raw?.options) ? raw.options.map(normalizeLocalized) : [];
+export function normalizeQuizItem(input: unknown): RuntimeQuizItem {
+  // Content published before validation existed is still in the database, so
+  // every field is read defensively. Narrow once; the reads below stay simple.
+  const raw: Record<string, unknown> =
+    input !== null && typeof input === "object" && !Array.isArray(input)
+      ? (input as Record<string, unknown>)
+      : {};
+  const kind: QuizItemKind = raw.kind === "reflection" ? "reflection" : "scored";
+  const options = Array.isArray(raw.options) ? raw.options.map(normalizeLocalized) : [];
 
-  const rawHelp = raw?.helpOptionIndex;
+  const rawHelp = raw.helpOptionIndex;
   const helpOptionIndex =
     kind === "reflection" &&
     typeof rawHelp === "number" &&
@@ -386,7 +395,7 @@ export function normalizeQuizItem(raw: any): RuntimeQuizItem {
       ? rawHelp
       : undefined;
 
-  const answerIndex = typeof raw?.answerIndex === "number" ? raw.answerIndex : 0;
+  const answerIndex = typeof raw.answerIndex === "number" ? raw.answerIndex : 0;
 
   // The publish path now rejects an out-of-range answerIndex, but content
   // published BEFORE that validation existed is still in the database. Such a
@@ -395,7 +404,7 @@ export function normalizeQuizItem(raw: any): RuntimeQuizItem {
   // Deliberately NOT clamped: picking a "correct" answer on the learner's
   // behalf would invent an assessment result nobody authored.
   if (kind === "scored") {
-    const rawAnswer = raw?.answerIndex;
+    const rawAnswer = raw.answerIndex;
     const unanswerable =
       options.length === 0 ||
       typeof rawAnswer !== "number" ||
@@ -403,7 +412,7 @@ export function normalizeQuizItem(raw: any): RuntimeQuizItem {
       rawAnswer < 0 ||
       rawAnswer >= options.length;
     if (unanswerable) {
-      const label = pickLocalized(normalizeLocalized(raw?.question), "en").slice(0, 80);
+      const label = pickLocalized(normalizeLocalized(raw.question), "en").slice(0, 80);
       // Deduped: getRuntimeLessons() re-normalises the whole bundle on every
       // inbound WhatsApp message, so an unguarded warn would log once per
       // message forever for a single bad row.
@@ -423,7 +432,7 @@ export function normalizeQuizItem(raw: any): RuntimeQuizItem {
   }
 
   return {
-    question: normalizeLocalized(raw?.question),
+    question: normalizeLocalized(raw.question),
     options,
     answerIndex,
     kind,
@@ -437,7 +446,9 @@ export function getRuntimeLessons(): RuntimeLesson[] {
   return bundle.documents
     .filter((doc) => doc.key.startsWith("content.lesson."))
     .map((doc) => {
-      const payload = doc.data || {};
+      // A lesson document's payload, read defensively: content published
+      // before validation existed is still in the database.
+      const payload = (doc.data ?? {}) as LessonLike;
       return {
         key: doc.key,
         title: normalizeLocalized(payload.title),

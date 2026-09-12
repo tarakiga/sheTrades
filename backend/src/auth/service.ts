@@ -16,7 +16,6 @@ import {
   clearLoginFailures,
   recordLoginFailure
 } from "./throttle-store.js";
-import { TWO_FACTOR_CHALLENGE_TYP } from "./jwt-rbac.js";
 import { verifyTwoFactorCode } from "./two-factor.js";
 import {
   issueTwoFactorChallenge,

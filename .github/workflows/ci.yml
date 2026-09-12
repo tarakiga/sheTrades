@@ -51,6 +51,10 @@ jobs:
           --health-retries 5
     env:
       POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/shetrades_test
+      # The postgres service container has no TLS. The backend defaults
+      # PG_SSL_ENABLED to true (right for Cloud SQL), so the config-platform
+      # migrator would otherwise fail with "The server does not support SSL".
+      PG_SSL_ENABLED: "false"
       ADMIN_CONFIG_JWT_SECRET: ci-test-secret
       ADMIN_REPORTS_API_TOKEN: ci-test-reports-token
       NODE_ENV: test

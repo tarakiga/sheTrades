@@ -6,6 +6,7 @@ import type {
 } from "./providers/contracts.js";
 import { adapterForLanguage } from "./providers/index.js";
 import { assembleDraftPayload, extractUnits, hashSource } from "./extract.js";
+import type { LessonLike } from "../config-platform/lesson-shape.js";
 import { getDraft, upsertMachineDraft } from "./draft-store.js";
 
 export type BudgetInput = { dailyLimit: number; spentToday: number; perLesson: number; lessons: number };
@@ -27,7 +28,7 @@ export function planBudget(input: BudgetInput): BudgetPlan {
 }
 
 /** Requests one lesson costs for a provider: unit count x requestsPerUnit (rounded up). */
-export function estimateLessonCost(lesson: any, language: TranslationLanguage, requestsPerUnit: number): number {
+export function estimateLessonCost(lesson: LessonLike, language: TranslationLanguage, requestsPerUnit: number): number {
   return Math.ceil(extractUnits(lesson, language).length * requestsPerUnit);
 }
 
@@ -39,7 +40,7 @@ export type RunInput = {
   spentToday?: number;
 };
 
-export type LoadedLesson = { id: string; key: string; payload: any };
+export type LoadedLesson = { id: string; key: string; payload: LessonLike };
 
 export type RunDependencies = {
   /** Injectable so orchestration is testable without the config service. */

@@ -65,7 +65,7 @@ configPublicRouter.get("/:namespace/:key", async (req, res, next) => {
     const namespace = publicConfigNamespaceSchema.parse(req.params.namespace);
     const key = keySchema.parse(req.params.key);
     const bundle = await service.getPublishedConfig(namespace);
-    const item = bundle.documents.find((document: any) => document.key === key);
+    const item = bundle.documents.find((document) => document.key === key);
     if (!item) {
       res.status(404).json({ message: "Published config not found." });
       return;

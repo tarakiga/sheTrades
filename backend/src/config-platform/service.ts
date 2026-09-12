@@ -5,6 +5,7 @@ import type {
   ConfigDocument,
   ConfigDocumentType,
   ConfigPayload,
+  PublishedConfigDocument,
   ConfigState,
   ConfigVersion
 } from "./contracts.js";
@@ -410,13 +411,7 @@ export class ConfigPlatformService {
       })
       .filter(Boolean);
 
-    const documents = rows as Array<{
-      namespace: ConfigNamespace;
-      key: string;
-      versionTag: string;
-      data: ConfigPayload;
-      updatedAt: string;
-    }>;
+    const documents = rows as PublishedConfigDocument[];
 
     const versionTag = documents.map((item) => item.versionTag).join("|") || "empty";
     return { versionTag, documents };

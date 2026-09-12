@@ -48,7 +48,7 @@ function createToken(role: "admin" | "editor" | "viewer", secret: string) {
 }
 
 test("config admin route returns 401 without bearer token", { concurrency: false }, async () => {
-  configService.resetForTests();
+  await configService.resetForTests();
   await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
     const response = await request(app).get("/api/config/admin/session").expect(401);
     assert.match(String(response.body.message), /Authorization bearer token/i);
@@ -59,7 +59,7 @@ test(
   "config admin route returns 403 when role is insufficient",
   { concurrency: false },
   async () => {
-    configService.resetForTests();
+    await configService.resetForTests();
     await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
       const token = createToken("viewer", "test-secret");
       const response = await request(app)
@@ -82,7 +82,7 @@ test(
 );
 
 test("config admin route returns actor session for valid JWT", { concurrency: false }, async () => {
-  configService.resetForTests();
+  await configService.resetForTests();
   await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
     const token = createToken("editor", "test-secret");
     const response = await request(app)
@@ -96,7 +96,7 @@ test("config admin route returns actor session for valid JWT", { concurrency: fa
 });
 
 test("config admin route validates payload and returns 400", { concurrency: false }, async () => {
-  configService.resetForTests();
+  await configService.resetForTests();
   await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
     const token = createToken("admin", "test-secret");
     const response = await request(app)
@@ -123,7 +123,7 @@ test(
   "config admin route supports create -> draft update -> publish -> rollback workflow",
   { concurrency: false },
   async () => {
-    configService.resetForTests();
+    await configService.resetForTests();
     await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
       const editorToken = createToken("editor", "test-secret");
       const adminToken = createToken("admin", "test-secret");
@@ -199,7 +199,7 @@ test(
 );
 
 test("domain endpoint enforces namespace/type compatibility", { concurrency: false }, async () => {
-  configService.resetForTests();
+  await configService.resetForTests();
   await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
     const editorToken = createToken("editor", "test-secret");
     const response = await request(app)
@@ -221,7 +221,7 @@ test("domain endpoint enforces namespace/type compatibility", { concurrency: fal
 });
 
 test("integration namespace is restricted to admins", { concurrency: false }, async () => {
-  configService.resetForTests();
+  await configService.resetForTests();
   await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
     const editorToken = createToken("editor", "test-secret");
     const response = await request(app)
@@ -234,7 +234,7 @@ test("integration namespace is restricted to admins", { concurrency: false }, as
 });
 
 test("admin can create and publish integration config documents", { concurrency: false }, async () => {
-  configService.resetForTests();
+  await configService.resetForTests();
   await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
     const adminToken = createToken("admin", "test-secret");
     const created = await request(app)
@@ -279,7 +279,7 @@ test(
   "domain endpoint supports history lookup by namespace and key",
   { concurrency: false },
   async () => {
-    configService.resetForTests();
+    await configService.resetForTests();
     await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
       const editorToken = createToken("editor", "test-secret");
       const adminToken = createToken("admin", "test-secret");
@@ -321,7 +321,7 @@ test(
 );
 
 test("domain endpoint supports hide then show again workflow", { concurrency: false }, async () => {
-  configService.resetForTests();
+  await configService.resetForTests();
   await withEnv({ ADMIN_CONFIG_JWT_SECRET: "test-secret" }, async () => {
     const editorToken = createToken("editor", "test-secret");
     const adminToken = createToken("admin", "test-secret");

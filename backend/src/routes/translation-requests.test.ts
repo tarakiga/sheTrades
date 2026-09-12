@@ -156,7 +156,7 @@ test(
   "translation request bootstrap returns managed content items and option sets",
   { skip: skipWithoutDb, concurrency: false },
   async () => {
-    configService.resetForTests();
+    await configService.resetForTests();
     await translationRequestService.resetForTests();
 
     const { lessonContentDocumentId } = await seedTranslationConfig();
@@ -204,7 +204,7 @@ test(
   "translation request create route rejects viewer role and invalid option values",
   { skip: skipWithoutDb, concurrency: false },
   async () => {
-    configService.resetForTests();
+    await configService.resetForTests();
     await translationRequestService.resetForTests();
 
     const { lessonContentDocumentId } = await seedTranslationConfig();
@@ -243,7 +243,7 @@ test(
   "translation request create route queues integration jobs with method-aware status",
   { skip: skipWithoutDb, concurrency: false },
   async () => {
-    configService.resetForTests();
+    await configService.resetForTests();
     await translationRequestService.resetForTests();
 
     const { lessonContentDocumentId } = await seedTranslationConfig();
@@ -273,7 +273,7 @@ test(
   "translation completion writes lesson translations into a review draft and updates queue status",
   { skip: skipWithoutDb, concurrency: false },
   async () => {
-    configService.resetForTests();
+    await configService.resetForTests();
     await translationRequestService.resetForTests();
 
     const { lessonContentDocumentId } = await seedTranslationConfig();
@@ -314,7 +314,7 @@ test(
   "translation completion writes ui copy translations into the draft payload root",
   { skip: skipWithoutDb, concurrency: false },
   async () => {
-    configService.resetForTests();
+    await configService.resetForTests();
     await translationRequestService.resetForTests();
 
     const { uiCopyContentDocumentId } = await seedTranslationConfig();

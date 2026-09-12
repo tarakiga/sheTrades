@@ -89,7 +89,7 @@ test("dispatchTick marks Failed after the third retryable attempt", { skip: skip
 
 test("dispatchTick does not pick up rows whose nextAttemptAt is in the future", { skip: skipWithoutDb }, async () => {
   const reward = await seedReward({ nextAttemptAt: new Date(Date.now() + 60 * 60_000) });
-  const summary = await dispatchTick({ providerOverrideForTests: makeProvider("ok"), configOverrideForTests: baseConfig });
+  await dispatchTick({ providerOverrideForTests: makeProvider("ok"), configOverrideForTests: baseConfig });
   const updated = await prisma.reward.findUniqueOrThrow({ where: { id: reward.id } });
   assert.equal(updated.status, "Pending");
   assert.equal(updated.providerTxnId, null);

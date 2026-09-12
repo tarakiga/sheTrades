@@ -2305,3 +2305,48 @@ untouched; the button links to the right `wa.me` URL; no horizontal scroll at
 **Still to prove:** the preview as WhatsApp itself renders it. Every crawler
 differs slightly, and WhatsApp caches previews hard, so the only real test is
 sharing `www.shetrades.digital` to yourself once deployed.
+
+## CI: quality job fixed; backend-tests job runs for the first time (2026-09-12)
+
+**Lint** had 40 errors and had been red since at least 22 August. All fixed:
+no `any` left in the backend (the translation module now has a `LessonLike`
+type - "shape expected, contents untrusted" - and the lesson loader reads the
+same type, which the compiler immediately used to catch a real union mismatch
+`any[]` had been hiding), dead imports removed, and the `_`-prefix convention
+for deliberately unused parameters encoded in `eslint.config.mjs` rather than
+fought. `npm run lint` at the root is 0 errors.
+
+**The backend-tests job has never passed since it was added on 6 June.**
+`db:setup:test` died on "The server does not support SSL connections" every
+run: `PG_SSL_ENABLED` defaults to true and the job never set it, while the
+`postgres:16` service container has no TLS. Behind that, `ensurePrismaTables`
+ALTERed `admin_accounts` and `users` before creating them - the TOTP block from
+18 August and my consent block from 22 August, both placed near their feature
+rather than after the table's CREATE, both invisible on staging where the
+tables already existed. Fixed with base skeletons at the top of the bootstrap
+and `prisma.bootstrap-order.test.ts`, a static scan that fails the moment any
+ALTER precedes its CREATE. Reproduced against a fresh `postgres:16` locally:
+setup now completes.
+
+That exposes what was always behind it. **24 tests fail against a real
+database**, none of them new, all in tests that have never executed anywhere:
+
+- **15 x 401** - `learning.test.ts`, `webhook.test.ts`, rewards routes: the
+  tests send no bearer token, and the routes went behind `authenticateJwt` in
+  the August hardening. The tests are DB-only, so they were skipped locally and
+  never ran in CI, and nobody updated them. Fix is mechanical: sign a token in
+  each test's setup.
+- **5 x auth throttle** - login lockout tests; cause not yet traced.
+- **3 x `getPostgresSslConfig`** - the job-level `PG_SSL_ENABLED=false` leaks
+  into tests that expect the default. They should save and restore the env.
+- **1 x misc** - a 500 expected where a 200 arrives.
+
+`resetForTests()` on the Postgres config service was a hard refusal ("use a
+test schema"); it now truncates the three config tables, guarded so it refuses
+outside `NODE_ENV=test`, and every caller awaits it. That alone took 46 -> 24.
+
+The no-database run developers use is unchanged: 685 pass, 48 skipped.
+
+Decision needed: whether to spend the half-day making the suite Postgres-clean.
+Until then the backend-tests job stays red - but for the real reasons, for the
+first time.

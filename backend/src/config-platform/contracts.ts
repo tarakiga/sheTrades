@@ -285,6 +285,15 @@ export const configPayloadSchema = z.union([
 ]);
 export type ConfigPayload = z.infer<typeof configPayloadSchema>;
 
+/** One document as the public read API returns it: the published payload only. */
+export type PublishedConfigDocument = {
+  namespace: ConfigNamespace;
+  key: string;
+  versionTag: string;
+  data: ConfigPayload;
+  updatedAt: string;
+};
+
 export const configDocumentSchema = z.object({
   id: z.string().uuid(),
   namespace: configNamespaceSchema,
