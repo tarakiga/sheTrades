@@ -395,13 +395,17 @@ the Techherng WABA, not to move the number into the test one.
 - `[ ]` Phase 5: prove end-to-end from a real handset while the allowlist still protects you.
 - `[ ]` Phase 6: payment method on the Techherng WABA, clear test data, regenerate the QR poster with the real number.
 
-## 🛑 LAUNCH BLOCKER: Meta business verification (discovered 2026-08-17)
+## ✅ RESOLVED 2026-09-12: Meta business verification and real-number go-live
+
+- `[x]` GO-LIVE: business verified (`business_verification_status: verified`); real number +234 803 512 5590 registered on Cloud API as `1305193106015778` on a new WABA `1727580908454655` ("SheTrades Digital by TechHer"); app subscribed for webhooks (was missing - the silent failure the runbook predicted); config published v9; bot replied through the new number. Display name chosen after checking Meta's guidelines against the CAC name TECH PROJECT WOMEN INITIATIVE LTD/GTE - techherng.com footer and Digital Literacy page updated so the brand-to-legal-name chain is public. OPEN: payment method on the new WABA, display-name review outcome, reset test learners, regenerate QR, keep the test number as rollback. Full record at the top of `docs/whatsapp-number-golive-runbook.md`.
+
+### (superseded) LAUNCH BLOCKER as recorded 2026-08-17
 The WhatsApp account is RESTRICTED until the SheTrades Digital Project portfolio is
 verified: cannot start conversations, cannot respond to customers, CANNOT ADD PHONE
 NUMBERS. Not a violation and nothing to appeal - it is Meta's standard unverified-portfolio
 restriction ("Permanent" = until verified). API confirms the account is otherwise healthy
 (ACTIVE / APPROVED / business_verification_status: not_verified).
-- `[ ]` TECHHER: complete business verification (Business portfolio -> WhatsApp account -> Start Verification). Needs CAC certificate + proof of address + utility bill/bank statement matching the registered name. THIS NOW BLOCKS EVERYTHING - number registration, display name, and higher messaging limits all depend on it.
+- `[x]` TECHHER: complete business verification (done - see GO-LIVE above) (Business portfolio -> WhatsApp account -> Start Verification). Needs CAC certificate + proof of address + utility bill/bank statement matching the registered name. THIS NOW BLOCKS EVERYTHING - number registration, display name, and higher messaging limits all depend on it.
 - Verified 2026-08-17 that the TEST number still sends and receives normally (real inbound traffic reached the platform), so client UAT can continue meanwhile. Only launch is blocked.
 - Note: the Techherng WABA (1105900442606502) disappeared when the client deleted the WhatsApp Business App account, so the plan simplifies - register the real number into the EXISTING test WABA (991712293855596), which the app is already webhook-subscribed to. Only `phoneNumberId` changes in config, not `businessAccountId`, and the app-subscription step is no longer needed.
 

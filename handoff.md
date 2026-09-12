@@ -2229,3 +2229,40 @@ is on the bot's main menu ALWAYS, not conditionally, so learners can tap it toda
 and get "resources are not available right now". The two shipped entries are
 samples and disabled. Replacing them under Settings → Options → Resources,
 enabling one, and publishing is all that is needed - there is no separate switch.
+
+## Real WhatsApp number live (2026-09-12)
+
+Business verification completed by TechHer. The real number +234 803 512 5590
+is registered on the Cloud API and serving the bot. Full account of what
+happened versus the plan is at the top of `docs/whatsapp-number-golive-runbook.md`.
+
+The IDs that are now real, all in `integration.whatsapp.primary` v9:
+
+- WABA `1727580908454655` - "SheTrades Digital by TechHer". Created by Meta's
+  Production Setup wizard, not the Techherng account the runbook planned to
+  reuse; that one became invisible to our token when the number was released
+  from the Business App.
+- Phone Number ID `1305193106015778`. The old ON_PREMISE id is dead.
+- Display name "SheTrades Digital by TechHer", `AVAILABLE_WITHOUT_REVIEW`.
+
+Two things worth keeping from the day:
+
+**The app subscription was missing, exactly as the runbook predicted.** The new
+WABA had `subscribed_apps: []`. Pointed at it in that state, the bot would have
+sent fine and never heard a word, with no error anywhere. Checked and fixed via
+API before the config was touched. Verify `subscribed_apps` on any new WABA
+before anything else.
+
+**The display name needed the website changed first.** Meta's current
+guidelines are principle-based, and the deciding test is a clear relationship
+between the display name and the verified LEGAL name - here TECH PROJECT WOMEN
+INITIATIVE LTD/GTE, which nothing public connected to "TechHer". Meta's own
+"Not accepted" example is a name not mentioned on any external website. Fixed
+by adding the legal entity and RC number to the techherng.com footer, and a
+SheTrades Digital section to the Digital Literacy page naming it as TechHer's
+programme with a link to shetrades.digital. Both verified live before the name
+was submitted. If the review declines it, that page is the appeal.
+
+Still open: payment method on the new WABA (sends fail silently once the free
+allowance is spent), the display-name review outcome, clearing test learners,
+the QR poster, and keeping the test number as the one-minute rollback.

@@ -10,6 +10,35 @@ to a couple of days).
 
 ---
 
+## ✅ COMPLETED 2026-09-12 — the real number is live
+
+Everything below this banner is the plan as written on 2026-08-17. This is what
+actually happened, with the IDs that are now real. Read this first; the phases
+below are kept as the record of the reasoning.
+
+| | Planned | Actual |
+|---|---|---|
+| Business verification | Blocker, owned by TechHer | **Done.** `business_verification_status: verified` |
+| Target WABA | Reuse "Techherng" `1105900442606502` | **New account created by Meta's Production Setup wizard:** `1727580908454655`, named "SheTrades Digital by TechHer", APPROVED. The Techherng WABA became invisible to our token during the release and was not needed. |
+| Number | `+234 803 512 5590`, id `1092983957237129` (ON_PREMISE) | Same number, **new id `1305193106015778`**, CLOUD_API, CONNECTED, code VERIFIED |
+| Phase 1 (release from Business App) | If blocked | Was needed and was done by Tar |
+| Display name | "Techherng" if it matched CAC | **"SheTrades Digital by TechHer"** - the CAC name is TECH PROJECT WOMEN INITIATIVE LTD/GTE, so the brand needed external support. Added to techherng.com before submission: the footer now names the legal entity and RC 1469563, and the Digital Literacy page names SheTrades Digital as TechHer's programme with a link to shetrades.digital. Status `AVAILABLE_WITHOUT_REVIEW`; formal review begins when the messaging tier rises. |
+| Phase 3 (app subscription) | The step most likely to be missed | **Was missing** - `subscribed_apps` on the new WABA was empty. Subscribed via API, confirmed `SheTrades Bot (1343120591357878)`. |
+| Phase 4 (config) | Two fields | Published as `integration.whatsapp.primary` v9 by the admin account |
+| Phase 5 (proof) | Message the number | Inbound `hi` delivered through the new WABA; bot replied from the new number at 13:20 UTC. Display name shows on the handset. |
+
+**Still to do before real learners:**
+
+- [ ] **Payment method on WABA `1727580908454655`** - Business settings → WhatsApp accounts → SheTrades Digital by TechHer → Payment settings. Testing works without one; sends fail silently once the free allowance is spent.
+- [ ] Watch `name_status` on `1305193106015778` - currently `AVAILABLE_WITHOUT_REVIEW`, will move to `PENDING_REVIEW` then `APPROVED` or `DECLINED`. If declined, appeal via Developer Support citing techherng.com/digital-literacy.
+- [ ] `npm run ops:reset-learner-data -w @shetrades/backend -- --confirm` to clear test learners before launch.
+- [ ] Regenerate the QR / wa.me poster with `+234 803 512 5590`.
+- [ ] **Keep the test number** `1234106906450551` on the test WABA until the real one has served real learners for a while. It is the rollback: point `phoneNumberId` back at it and the bot is serving again in a minute.
+
+Messaging limit on the new number is TIER_250 business-initiated conversations per 24h. Learner-initiated conversations are unlimited, and learners always message first.
+
+---
+
 ## 🛑 PHASE 0 — BUSINESS VERIFICATION (hard blocker, 2026-08-17)
 
 **Nothing below this line can proceed until the SheTrades Digital Project
