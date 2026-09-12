@@ -31,8 +31,8 @@ below are kept as the record of the reasoning.
 
 - [ ] **Payment method on WABA `1727580908454655`** - Business settings → WhatsApp accounts → SheTrades Digital by TechHer → Payment settings. Testing works without one; sends fail silently once the free allowance is spent.
 - [ ] Watch `name_status` on `1305193106015778` - currently `AVAILABLE_WITHOUT_REVIEW`, will move to `PENDING_REVIEW` then `APPROVED` or `DECLINED`. If declined, appeal via Developer Support citing techherng.com/digital-literacy.
-- [ ] `npm run ops:reset-learner-data -w @shetrades/backend -- --confirm` to clear test learners before launch.
-- [ ] Regenerate the QR / wa.me poster with `+234 803 512 5590`.
+- [x] Test learners cleared 2026-09-12 via `ops:reset-learner-data --confirm` over the Cloud SQL Auth Proxy (326 rows; all config, admin accounts, translation drafts and certificate artwork verified unchanged). The script needs a direct `POSTGRES_URL`; from a workstation that means `cloud-sql-proxy --port 5433 shetrades-staging-12345:us-central1:shetrades-pg-staging` and the secret's credentials pointed at `127.0.0.1:5433`.
+- [x] Poster generated 2026-09-12: `docs/poster/` holds the source (`poster.html` + `build.mjs`) and the outputs for `+234 803 512 5590` - A4 print PNG at 2382x3369, a 1080-wide share PNG for WhatsApp, and the rendered HTML. The QR encodes `https://wa.me/2348035125590?text=hi` and was decoded back from the print file, the share file, and a downscaled-and-blurred copy to make sure it survives a phone photo. Rebuild with `WA_NUMBER=<digits> node build.mjs` in `docs/poster`; the number is required, never defaulted, so a stale one cannot be printed by accident.
 - [ ] **Keep the test number** `1234106906450551` on the test WABA until the real one has served real learners for a while. It is the rollback: point `phoneNumberId` back at it and the bot is serving again in a minute.
 
 Messaging limit on the new number is TIER_250 business-initiated conversations per 24h. Learner-initiated conversations are unlimited, and learners always message first.

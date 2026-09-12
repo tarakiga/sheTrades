@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SheTrades Digital poster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Brand tokens, sampled from the SheTrades Digital logo so the poster and the
+     certificate a learner eventually receives read as one family. */
+  :root {
+    --orange: #eb5516;
+    --green: #0b675c;
+    --green-deep: #094f47;
+    --cream: #fbf6ee;
+    --ink: #1f1f1f;
+    --muted: #5a5a5a;
+    --white: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--cream); }
+  body {
+    font-family: "Poppins", "Segoe UI", Arial, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* A4 portrait at CSS 96dpi. The build renders at 3x for print. */
+  .poster {
+    width: 794px;
+    height: 1123px;
+    position: relative;
+    overflow: hidden;
+    background: var(--cream);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Two brand bars, echoing the certificate's patterned edges without
+     trying to reproduce them. */
+  .bar { position: absolute; left: 0; right: 0; height: 18px; }
+  .bar--top { top: 0; background: var(--orange); }
+  .bar--bottom { bottom: 0; background: var(--green); }
+  .bar--top::after, .bar--bottom::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 34%;
+  }
+  .bar--top::after { right: 0; background: var(--green); }
+  .bar--bottom::after { left: 0; background: var(--orange); }
+
+  .head {
+    padding: 46px 64px 0;
+    display: flex;
+    justify-content: center;
+  }
+  .head img { width: 300px; height: auto; display: block; }
+
+  .lede {
+    padding: 24px 72px 0;
+    text-align: center;
+  }
+  .lede h1 {
+    font-size: 34px;
+    line-height: 1.12;
+    font-weight: 800;
+    color: var(--green-deep);
+    letter-spacing: -0.01em;
+  }
+  .lede h1 em { font-style: normal; color: var(--orange); }
+  .lede p {
+    margin-top: 12px;
+    font-size: 17px;
+    line-height: 1.45;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .scan {
+    margin: 24px auto 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .qr {
+    width: 292px;
+    height: 292px;
+    padding: 16px;
+    background: var(--white);
+    border: 6px solid var(--green);
+    border-radius: 22px;
+    box-shadow: 0 18px 40px rgba(11, 103, 92, 0.16);
+  }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .scan .label {
+    margin-top: 14px;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--green-deep);
+    letter-spacing: 0.01em;
+  }
+
+  .or {
+    margin: 18px 72px 0;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 14px;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+  .or::before, .or::after { content: ""; height: 2px; background: #e3d9c8; }
+
+  .manual {
+    margin-top: 12px;
+    text-align: center;
+  }
+  .manual .hint { font-size: 16px; color: var(--muted); font-weight: 500; }
+  .manual .number {
+    margin-top: 4px;
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--orange);
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .manual .word {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 5px 16px;
+    border-radius: 999px;
+    background: var(--green);
+    color: var(--white);
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .foot {
+    margin-top: auto;
+    padding: 0 64px 38px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .foot img { width: 76px; height: auto; display: block; }
+  .foot .partners {
+    text-align: right;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+  .foot .partners strong { color: var(--green-deep); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="bar bar--top"></div>
+
+  <header class="head">
+    <img src="{{LOGO}}" alt="SheTrades Digital, by TechHer">
+  </header>
+
+  <section class="lede">
+    <h1>Learn digital and business skills<br><em>on WhatsApp.</em></h1>
+    <p>Short lessons for women who trade. Free, at your own pace, on the phone you already have. Finish all five modules and earn a certificate.</p>
+  </section>
+
+  <section class="scan">
+    <div class="qr">{{QR}}</div>
+    <div class="label">Scan to start</div>
+  </section>
+
+  <div class="or">or</div>
+
+  <section class="manual">
+    <div class="hint">Save this number and send us a message on WhatsApp</div>
+    <div class="number">{{NUMBER}}</div>
+    <div class="word">Just type: hi</div>
+  </section>
+
+  <footer class="foot">
+    <img src="{{BADGE}}" alt="SheTrades Digital seal">
+    <div class="partners">
+      <strong>A TechHer programme</strong><br>
+      In partnership with She Connects Digital Accelerator Africa<br>
+      With support from CARE
+    </div>
+  </footer>
+
+  <div class="bar bar--bottom"></div>
+</div>
+</body>
+</html>
