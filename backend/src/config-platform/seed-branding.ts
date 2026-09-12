@@ -42,6 +42,16 @@ const SEED_ENTRIES: SeedEntry[] = [
     }
   },
   {
+    key: "branding.whatsapp_prefill",
+    title: "First message WhatsApp pre-fills for a new learner (from the poster QR and the website button)",
+    payload: {
+      // The bot treats any first message that is not a language choice as an
+      // opening, so this is free to change. It is the first thing she sees
+      // herself "say" in the chat.
+      en: process.env.BRANDING_SEED_WHATSAPP_PREFILL ?? "hi"
+    }
+  },
+  {
     key: "admin.invite.login_url",
     title: "Admin invite login URL",
     payload: {

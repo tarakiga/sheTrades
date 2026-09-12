@@ -33,6 +33,14 @@ const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_ORIGIN ?? "https://www.shetrade
 
 /** Content keys. Fallbacks are the poster's copy, so the two cannot drift. */
 const KEY_NUMBER = "branding.whatsapp_number";
+/**
+ * The message WhatsApp pre-fills when she taps the button or scans the QR, so
+ * she only has to press send. The bot treats ANY first message that is not a
+ * language choice as an opening, so this can be changed freely - it is what
+ * she sees in her own chat as the first thing she "said", so it is worth
+ * choosing with care.
+ */
+const KEY_PREFILL = "branding.whatsapp_prefill";
 const KEY_HEADLINE = "public.start.headline";
 const KEY_LEDE = "public.start.lede";
 const KEY_CTA = "public.start.cta";
@@ -54,7 +62,8 @@ const FALLBACK = {
   ogDescription:
     "Free WhatsApp lessons for women traders in Nigeria: digital safety, selling online, financial tools and more. Send hi to start.",
   legalEntity: "Tech Project Women Initiative Ltd/Gte, RC 1469563",
-  operatorUrl: "https://techherng.com"
+  operatorUrl: "https://techherng.com",
+  prefill: "hi"
 };
 
 type PublicCopy = {
@@ -65,6 +74,7 @@ type PublicCopy = {
   ogDescription: string;
   legalEntity: string;
   operatorUrl: string;
+  prefill: string;
 };
 
 async function readPublicCopy(): Promise<PublicCopy> {
@@ -83,6 +93,7 @@ async function readPublicCopy(): Promise<PublicCopy> {
     copy.ogDescription = en(KEY_OG_DESCRIPTION) ?? copy.ogDescription;
     copy.legalEntity = en(KEY_LEGAL_ENTITY) ?? copy.legalEntity;
     copy.operatorUrl = en(KEY_OPERATOR_URL) ?? copy.operatorUrl;
+    copy.prefill = en(KEY_PREFILL) ?? copy.prefill;
   } catch {
     // Config unavailable: the page still renders with its fallbacks. The one
     // thing it cannot invent is the number, which is why that stays null.
@@ -90,9 +101,8 @@ async function readPublicCopy(): Promise<PublicCopy> {
   return copy;
 }
 
-/** "hi" is what the bot's opening branch answers with the language question. */
-function waLink(number: string): string {
-  return `https://wa.me/${number}?text=hi`;
+function waLink(number: string, prefill: string): string {
+  return `https://wa.me/${number}?text=${encodeURIComponent(prefill)}`;
 }
 
 /** +234 803 512 5590, grouped the way a Nigerian number is read aloud. */
@@ -135,7 +145,7 @@ export default async function StartPage() {
   // correction, like the poster - this may be scanned by another phone across
   // a market stall from a cracked screen.
   const qrDataUrl = copy.number
-    ? await QRCode.toDataURL(waLink(copy.number), {
+    ? await QRCode.toDataURL(waLink(copy.number, copy.prefill), {
         type: "image/png",
         errorCorrectionLevel: "H",
         margin: 1,
@@ -159,12 +169,12 @@ export default async function StartPage() {
 
       {copy.number ? (
         <section className="start-page__cta">
-          <a className="start-page__button" href={waLink(copy.number)} rel="noopener">
+          <a className="start-page__button" href={waLink(copy.number, copy.prefill)} rel="noopener">
             {copy.cta}
           </a>
           <p className="start-page__hint">
             Or save <strong className="start-page__number">{prettyNumber(copy.number)}</strong> and
-            send <strong>hi</strong> on WhatsApp.
+            send <strong>{copy.prefill}</strong> on WhatsApp.
           </p>
           {qrDataUrl ? (
             <figure className="start-page__qr">

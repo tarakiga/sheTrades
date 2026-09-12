@@ -74,6 +74,41 @@ test("an opening hello is answered with the language question", async () => {
   assert.doesNotMatch(reply.reply, /name/i, "there is no name yet to greet her by");
 });
 
+test("a stranger's first message is never an error, whatever she typed", async () => {
+  // The landing page and the poster pre-fill her first message, and that text
+  // is an admin setting. The bot must not depend on it: any first message that
+  // is not a language choice is an opening, and gets the welcome. "Invalid
+  // language option" as a woman's very first experience of the programme is
+  // the outcome this exists to prevent.
+  for (const opening of ["Good morning", "I want to learn", "Abeg I wan join", "👋"]) {
+    const s = session();
+    const { deps: d } = deps();
+    const reply = await transition(s, opening, d);
+    assert.equal(reply.state, "awaiting_language", opening);
+    assert.doesNotMatch(reply.reply, /invalid/i, `"${opening}" must not be treated as a wrong answer`);
+    assert.ok((reply.buttons?.length ?? 0) > 0, `"${opening}" should be answered with the language choices`);
+  }
+});
+
+test("a first message that IS a language choice still selects it", async () => {
+  // Somebody told her "just send English" - that has to keep working, which
+  // is why the opening branch cannot simply swallow every first message.
+  const s = session();
+  const { deps: d } = deps();
+  const reply = await transition(s, "English", d);
+  assert.equal(reply.state, "awaiting_privacy_consent");
+});
+
+test("a wrong answer AFTER the language question was shown is still corrected", async () => {
+  // The leniency is for the first message only. Once she has seen the
+  // choices, a non-choice is a mistake and the bot should say so.
+  const s = session({ namePrompted: true });
+  const { deps: d } = deps();
+  const reply = await transition(s, "Good morning", d);
+  assert.equal(reply.state, "awaiting_language");
+  assert.match(reply.reply, /invalid/i);
+});
+
 test("choosing a language shows the notice, and asks for nothing else", async () => {
   const s = session();
   const { deps: d } = deps();

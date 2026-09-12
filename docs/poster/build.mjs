@@ -1,12 +1,18 @@
 /**
  * Builds the "scan to start" poster for the bot's WhatsApp number.
  *
- * The number is REQUIRED and taken from the environment, with no default on
- * purpose: a default that is right today is wrong the day the number changes,
- * and a poster with a stale number is worse than no poster. Pass the number
- * in E.164 digits as it is registered with Meta.
+ * The number and the pre-filled first message are read from the PUBLISHED
+ * config by default - the same documents the landing page reads
+ * (branding.whatsapp_number, branding.whatsapp_prefill) - so the poster, the
+ * website and the bot cannot disagree about what a learner is told to send.
+ * A poster with a stale number is worse than no poster, and the live config is
+ * the one place that is never stale.
  *
- *   WA_NUMBER=2348035125590 node build.mjs
+ *   node build.mjs
+ *
+ * Override either for a one-off (a different number for a pilot, say):
+ *
+ *   WA_NUMBER=2348035125590 WA_PREFILL=hi CONFIG_BASE_URL=https://... node build.mjs
  *
  * Renders through the same Chrome/Playwright route as the handbook screenshots
  * so Poppins is real rather than a local fallback, at 3x for print. Outputs:
@@ -32,15 +38,32 @@ const sharp = require("../../backend/node_modules/sharp");
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const raw = (process.env.WA_NUMBER ?? "").replace(/[^\d]/g, "");
+const CONFIG_BASE_URL = (
+  process.env.CONFIG_BASE_URL ?? "https://shetrades-backend-staging-214511840103.us-central1.run.app"
+).replace(/\/+$/, "");
+
+/** Reads the published `en` value of one content document, or null. */
+async function publishedEn(key) {
+  const response = await fetch(`${CONFIG_BASE_URL}/api/config/public/content`);
+  if (!response.ok) throw new Error(`config read failed: HTTP ${response.status}`);
+  const { documents } = await response.json();
+  const value = documents.find((d) => d.key === key)?.data?.en;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+const raw = (process.env.WA_NUMBER ?? (await publishedEn("branding.whatsapp_number")) ?? "").replace(/[^\d]/g, "");
 if (!/^\d{10,15}$/.test(raw)) {
-  console.error("WA_NUMBER is required: the bot's number in E.164 digits, e.g. WA_NUMBER=2348035125590");
+  console.error(
+    "No usable number. Publish branding.whatsapp_number under Content (digits only, e.g. 2348035125590), or pass WA_NUMBER=... to override."
+  );
   process.exit(1);
 }
 
-// "hi" is what the bot's opening branch expects; it answers with the language
-// question. Pre-filling it means a learner who scans only has to press send.
-const waLink = `https://wa.me/${raw}?text=hi`;
+// Pre-filled so a learner who scans only has to press send. The bot treats any
+// first message that is not a language choice as an opening, so the wording is
+// free - but it is the first thing she sees herself say in the chat.
+const prefill = (process.env.WA_PREFILL ?? (await publishedEn("branding.whatsapp_prefill")) ?? "hi").trim();
+const waLink = `https://wa.me/${raw}?text=${encodeURIComponent(prefill)}`;
 
 // +234 803 512 5590 - grouped the way a Nigerian number is read aloud.
 function pretty(digits) {
@@ -69,7 +92,8 @@ const html = template
   .replace("{{LOGO}}", await dataUri(join(here, "../logo/SHE TRADES DIGITAL LOGO.png"), "image/png"))
   .replace("{{BADGE}}", await dataUri(join(here, "../logo/badge.png"), "image/png"))
   .replace("{{QR}}", qrSvg)
-  .replace("{{NUMBER}}", pretty(raw));
+  .replace("{{NUMBER}}", pretty(raw))
+  .replace("{{PREFILL}}", prefill);
 
 const base = join(here, `shetrades-whatsapp-poster-${raw}`);
 await writeFile(`${base}.html`, html, "utf8");
@@ -97,7 +121,8 @@ try {
   const ogTemplate = await readFile(join(here, "og.html"), "utf8");
   const ogHtml = ogTemplate
     .replace("{{LOGO}}", await dataUri(join(here, "../logo/SHE TRADES DIGITAL LOGO.png"), "image/png"))
-    .replace("{{NUMBER}}", pretty(raw));
+    .replace("{{NUMBER}}", pretty(raw))
+    .replace("{{PREFILL}}", prefill);
   const ogPage = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
   await ogPage.setContent(ogHtml, { waitUntil: "networkidle" });
   await ogPage.evaluate(() => document.fonts.ready);
@@ -107,7 +132,7 @@ try {
   await writeFile(ogOut, ogPng);
   await writeFile(
     join(here, "../../dashboard/app/start/opengraph-image.alt.txt"),
-    "SheTrades Digital: learn digital and business skills on WhatsApp. Send hi to " + pretty(raw) + "."
+    `SheTrades Digital: learn digital and business skills on WhatsApp. Send ${prefill} to ${pretty(raw)}.`
   );
   const ogMeta = await sharp(ogPng).metadata();
   const ogKb = Math.round(ogPng.length / 1024);
@@ -117,6 +142,8 @@ try {
   }
 
   const meta = await sharp(png).metadata();
+  console.log(`number: ${raw} (${process.env.WA_NUMBER ? "from WA_NUMBER" : "from published config"})`);
+  console.log(`prefill: "${prefill}" (${process.env.WA_PREFILL ? "from WA_PREFILL" : "from published config"})`);
   console.log(`link:  ${waLink}`);
   console.log(`print: ${base}.png  (${meta.width}x${meta.height})`);
   console.log(`share: ${base}-share.png  (1080 wide)`);

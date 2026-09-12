@@ -1780,13 +1780,21 @@ export async function transition(
 
   if (session.state === "awaiting_language") {
     // First contact. This is now the FIRST thing a stranger sees, so it cannot
-    // greet her by name — there is no name yet — and an opening "hi" has to be
-    // answered with the language question rather than treated as an answer to
-    // it.
-    const greetings = ["hi", "hello", "hey", "start", "menu", "yo", "hola", "begin", "ping", "test", "shetrades"];
-    const cleanText = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "");
-    const isGreeting = cleanText.split(/\s+/).some((w) => greetings.includes(w));
-    if (!safeText || (isGreeting && !session.namePrompted)) {
+    // greet her by name — there is no name yet.
+    //
+    // Her first message can only be one of two things: a language choice, or
+    // an opening. There is no third case, because she has not yet been asked
+    // anything she could answer wrongly. So anything that is not a language
+    // choice IS an opening - "hi", "Good morning", a wave emoji, or whatever
+    // the landing page and poster pre-fill, which is an admin setting the bot
+    // must not depend on. The old fixed list of greetings sent every other
+    // first message to "Invalid language option", as a woman's first
+    // experience of the programme.
+    //
+    // Once the choices have been shown (namePrompted), a non-choice is a
+    // genuine mistake and is corrected below.
+    const firstContact = !session.namePrompted && !resolveLanguageChoice(normalized);
+    if (!safeText || firstContact) {
       session.namePrompted = true;
       session.lastUpdatedAt = nowIso();
       return {
