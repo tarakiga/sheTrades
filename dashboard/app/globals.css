@@ -9459,6 +9459,21 @@ button.needs-attention-panel__item:focus {
 }
 .start-page__operator a { color: var(--color-brand-500); font-weight: 600; }
 .start-page__policy { font-size: var(--font-size-sm); color: var(--color-brand-500); }
+/* Who built it: the quietest line on the page, but the names are still links. */
+.start-page__credits {
+  max-width: 30rem;
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  color: var(--color-neutral-500);
+}
+.start-page__credits a {
+  color: inherit;
+  text-decoration: underline;
+}
+.start-page__credits a:hover,
+.start-page__credits a:focus-visible {
+  color: var(--color-brand-500);
+}
 
 @media (max-width: 480px) {
   .start-page { padding-top: var(--space-10); }

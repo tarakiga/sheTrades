@@ -3,6 +3,7 @@ import Image from "next/image";
 import QRCode from "qrcode";
 import { getPublicConfigNamespace } from "../../lib/config/api";
 import { getBranding } from "../../lib/branding";
+import { parseInlineLinks } from "../../lib/inline-links";
 import logo from "../../assets/brand/shetrades-digital-logo.png";
 import badge from "../../assets/brand/shetrades-digital-badge.png";
 
@@ -54,6 +55,12 @@ const KEY_OG_DESCRIPTION = "public.start.og_description";
  */
 const KEY_LEGAL_ENTITY = "public.start.legal_entity";
 const KEY_OPERATOR_URL = "public.start.operator_url";
+/**
+ * Who built the product. One string with markdown-style links, so the firms,
+ * their URLs and the wording are all editable in the console together: add a
+ * firm, drop one, rephrase. Only http(s) links are honoured (see inline-links).
+ */
+const KEY_CREDITS = "public.start.credits";
 
 const FALLBACK = {
   headline: "Learn digital and business skills on WhatsApp.",
@@ -63,6 +70,7 @@ const FALLBACK = {
     "Free WhatsApp lessons for women traders in Nigeria: digital safety, selling online, financial tools and more. Send hi to start.",
   legalEntity: "Tech Project Women Initiative Ltd/Gte, RC 1469563",
   operatorUrl: "https://techherng.com",
+  credits: "Developed by [Decy4](https://decy4.com/) and [Virtumultimedia](https://virtumultimedia.com/).",
   prefill: "hi"
 };
 
@@ -74,6 +82,7 @@ type PublicCopy = {
   ogDescription: string;
   legalEntity: string;
   operatorUrl: string;
+  credits: string;
   prefill: string;
 };
 
@@ -93,6 +102,7 @@ async function readPublicCopy(): Promise<PublicCopy> {
     copy.ogDescription = en(KEY_OG_DESCRIPTION) ?? copy.ogDescription;
     copy.legalEntity = en(KEY_LEGAL_ENTITY) ?? copy.legalEntity;
     copy.operatorUrl = en(KEY_OPERATOR_URL) ?? copy.operatorUrl;
+    copy.credits = en(KEY_CREDITS) ?? copy.credits;
     copy.prefill = en(KEY_PREFILL) ?? copy.prefill;
   } catch {
     // Config unavailable: the page still renders with its fallbacks. The one
@@ -215,6 +225,17 @@ export default async function StartPage() {
         <a className="start-page__policy" href="/privacy">
           Privacy policy
         </a>
+        <p className="start-page__credits">
+          {parseInlineLinks(copy.credits).map((segment, index) =>
+            segment.kind === "link" ? (
+              <a key={index} href={segment.href} rel="noopener">
+                {segment.text}
+              </a>
+            ) : (
+              <span key={index}>{segment.text}</span>
+            )
+          )}
+        </p>
       </footer>
 
       <div className="start-page__bar start-page__bar--bottom" aria-hidden="true" />
