@@ -441,6 +441,7 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[x]` DASH-3b: first live export truncated by a view-swap race on instance start; view swap made transactional, export built whole (500 on failure, never a short 200), summary query one grouped pass. Rev 00129.
 - `[ ]` OPS-1: 87 OOM kills at 512 MiB in 48 h since the surge began; 647 pool connect timeouts in 24 h. Levers with cost: memory 1Gi, lower concurrency, pool sizing vs Cloud SQL's ~100 connections. Tar's decision.
 - `[ ]` DASH-4: polish - Users actions row wraps at ~1360px because the search field carries its label.
+- `[ ]` DASH-6: index users("createdAt", id) for the keyset walk; the export is 48 s for 34k rows, ~1.4 s a page, most of it the sort.
 - `[ ]` DASH-5: the rewards export still caps at 10,000 rows (`buildRewardsFilters(req, 10000)`); 9,042 today. Stream it like the users export before it bites.
 - `[ ]` META-1: from 1 October Meta charges per message; at the current volume that is real money. Budget it.
 

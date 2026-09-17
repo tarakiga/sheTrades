@@ -2532,7 +2532,10 @@ race (the DROP has been there since the flaggedForFollowUp column), but a
 30-second walk is what gets caught by it, and under autoscaling instances
 start all the time.
 
-Fix (rev 00129, this evening):
+Fix (rev 00129-9k9, deployed 12:5x UTC; live re-check: analytics 34,315
+registered, cursor walk clean, search 1,410, rewards 10,141 issued /
+NGN 5,070,500, export 34,536 rows in 48 s - whole, the directory grew ~200
+while it ran):
 - The view swap is one transaction (`prisma.$transaction` with both
   statements). Postgres DDL is transactional: other sessions see the old view
   until commit, the new one after, never nothing. The view also computes
