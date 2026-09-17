@@ -2761,4 +2761,10 @@ database): five cards, badges, no horizontal scroll at 1440 or 900 px (two
 rows at 900), Generate on a card -> history 0 -> 1 with the confirmation
 note, split layout with the chips. Typecheck, lint, 74 dashboard tests,
 production build. Backend route tests 48/48 (no db).
+Deployed as rev 00134-sdn; audience/personalData stamped onto all five live
+presets (Donor=donor, Ops=internal, Finance=internal, Learner journey=donor,
+M&E=internal+personalData). Live: jobs list carries retentionDays=30; a
+generated job lists; owner shows "unknown" for a bare minted JWT (no admin
+account behind it) and the logged-in user's fullName for console sessions.
+The dashboard deploys itself from d7edea3.
 
