@@ -7,6 +7,8 @@
 --   cloud-sql-proxy shetrades-staging-12345:us-central1:shetrades-pg-staging --port 15433
 --   psql "$PGLOCAL" -X -q --csv -o rewards-report.csv -f docs/ops/rewards-report.sql
 -- The output carries personal data (phone numbers). Keep it out of the repo.
+-- Phones are emitted as ="digits" so Excel keeps them as text instead of
+-- collapsing them to scientific notation.
 SET default_transaction_read_only = on;
 SET TIME ZONE 'UTC';
 WITH p AS (SELECT (SELECT MAX("issuedAt") FROM rewards) AS wallet_empty_at)
@@ -48,7 +50,7 @@ SELECT section, line_item, rewards, amount_ngn, learners, phone, reason, module,
   FROM (SELECT status, COUNT(*) AS rows, SUM(amount) AS ngn FROM rewards GROUP BY 1
         UNION ALL SELECT status, COUNT(*), SUM(amount) FROM reward_archive GROUP BY 1) t GROUP BY status
 
-  UNION ALL SELECT 7,'failed_other_detail','reward','1', amount::bigint::text,'', "learnerPhone", COALESCE("failureReason",''), module,
+  UNION ALL SELECT 7,'failed_other_detail','reward','1', amount::bigint::text,'', '="' || "learnerPhone" || '"', COALESCE("failureReason",''), module,
          to_char("createdAt",'YYYY-MM-DD HH24:MI:SS'), to_char("updatedAt",'YYYY-MM-DD HH24:MI:SS'), "retryCount"::text,
          CASE WHEN "learnerPhone" !~ '^\+?234[0-9]{10}$' THEN 'Not a Nigerian mobile number in +234 format' ELSE 'Number format looks valid' END
   FROM rewards WHERE status='Failed' AND COALESCE("failureReason",'') NOT ILIKE '%Insufficient Credit%' AND COALESCE("failureReason",'') NOT ILIKE '%duplicate request%'
