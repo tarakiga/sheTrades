@@ -449,5 +449,6 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[x]` RPT-4: export jobs persisted in Postgres (report_exports, 30-day retention); any instance lists and serves them; failed downloads now say so in the console.
 - `[ ]` RPT-5: ADMIN_REPORTS_API_TOKEN is unset on staging, so /api/reports/* answers 403 to all. The console does not use it. Set it or remove the router.
 - `[x]` RPT-6: "M&E participant report" (internal): name, phone, state, status per module, course status, WAT timestamps. Donor report unchanged and still pseudonymous.
+- `[x]` RPT-7: free-text fields (name, typed state) collapsed to one line in both per-learner reports; live M&E report re-parsed: 0 line breaks, 0 misaligned rows. Rev 00133-9nv.
 - `[ ]` RPT-3: the rewards_issuance_log report still takes only the latest 5,000 rewards (`take: 5000`); 12,857 today. Walk it fully like the users export.
 
