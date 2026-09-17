@@ -2613,3 +2613,26 @@ learner with consent, two modules (one at 100%), a certificate and a reward,
 generates the real report and asserts every cell in WAT and that no phone
 number appears anywhere in the file.
 
+Deployed as rev 00130-dng and the "Learner journey" preset published into the
+live reports.presets option set (draft -> publish via the config API; the
+public set now lists Donor, Ops, Finance, Learner journey). Live generation
+through the console's JWT route: learner_journey - 36,855 learners, 21
+columns (5 modules x start/completed), 6.1 s; enrolled 30,627; course
+completed 6,856; 89 rows already carry a module start (the new column, live
+since the deploy); zero phone-number-like cells; every ref well-formed.
+Donor summary v3 for 2026-09: 9,038 recipients, 12,008 rewards issued,
+NGN 6,004,000, 30,629 enrolled, 6,856 completed, median 0.1 days (about
+2-3 hours) from enrolment to certificate.
+
+Two things found on the way, neither changed:
+- Export jobs live in each instance's memory (export-service.ts Maps). With
+  2-8 instances serving, a generate and its download can land on different
+  instances: the console's Export History can miss a job, and a download can
+  404. The verification retried the download until it found the instance
+  (it took 1 attempt this time). Fix: persist jobs (id, type, status, content
+  or a GCS pointer) in Postgres.
+- ADMIN_REPORTS_API_TOKEN is not set on the service, so the x-admin-token
+  reports router (/api/reports/*) answers 403 to everyone on staging. The
+  console does not use it; nothing user-facing is affected. Either set it or
+  remove the router.
+

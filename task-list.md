@@ -445,6 +445,8 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[ ]` DASH-5: the rewards export still caps at 10,000 rows (`buildRewardsFilters(req, 10000)`); 9,042 today. Stream it like the users export before it bites.
 - `[ ]` META-1: from 1 October Meta charges per message; at the current volume that is real money. Budget it.
 - `[x]` RPT-1: "Learner journey" donor report (one row per learner, WAT, pseudonymous refs) + Donor summary v3 (enrolled / completed / median days per month). user_progress.startedAt recorded from now on.
-- `[ ]` RPT-2: add the Learner journey preset to the PUBLISHED reports.presets option set on staging (seed updated; live set predates it).
+- `[x]` RPT-2: Learner journey preset published into the live reports.presets option set; rev 00130-dng live and verified (36,855 learners, 21 columns, no phone numbers).
+- `[ ]` RPT-4: export jobs are per-instance memory; with several instances the console's Export History can miss a job and a download can 404. Persist jobs in Postgres.
+- `[ ]` RPT-5: ADMIN_REPORTS_API_TOKEN is unset on staging, so /api/reports/* answers 403 to all. The console does not use it. Set it or remove the router.
 - `[ ]` RPT-3: the rewards_issuance_log report still takes only the latest 5,000 rewards (`take: 5000`); 12,857 today. Walk it fully like the users export.
 
