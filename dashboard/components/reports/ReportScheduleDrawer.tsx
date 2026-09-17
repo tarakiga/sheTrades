@@ -8,7 +8,7 @@ import {
   type ScheduleRecipient
 } from "../../lib/admin/api";
 import { fetchPublicOptionSet } from "../../lib/config/options";
-import type { GeneratablePreset } from "./GenerateReportDrawer";
+import type { GeneratablePreset } from "./presets";
 
 export type CadenceOption = { value: string; label: string };
 

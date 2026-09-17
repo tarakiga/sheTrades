@@ -2722,3 +2722,43 @@ anywhere else. Free-text fields (name, state) are now collapsed to one line
 with single spaces in both per-learner reports (clean() in
 learner-journey.ts, tested). Rev 00133.
 
+## Reports page reimagined (2026-09-17, night)
+
+Tar: the preset tabs needed a horizontal scroll to reach the fourth and fifth
+presets; "use your UX skills to reimagine the way this looks". Design shown
+as a mockup, approved: drawer removed, audience badges.
+
+The real problem was that the presets panel did nothing: the tabs only showed
+a description, while generation lived behind a header button and a drawer
+with a dropdown of the same presets - the list shown twice, the read-only
+copy given a third of the width and then overflowed.
+
+Now:
+- Presets are the page's primary action, full width: one `ActionCard` per
+  preset (new in components/ui, composes Card; story in the preview page),
+  laid out in `.report-preset-grid` (auto-fit, wraps, never scrolls), each
+  with its own Generate button, an audience badge ("For donors" / "Internal")
+  and, for reports carrying names or phones, a "Contains personal data" note.
+  Cards are equal height with the button pinned to the bottom.
+- Audience and personalData come from the option set (metadata.audience,
+  metadata.personalData; seeded, and stamped onto the live set after deploy
+  with publish-preset-audience.mjs), with fallbacks by preset id.
+- The header "Generate Report" button and GenerateReportDrawer are gone
+  (its preview too); GeneratablePreset lives in components/reports/presets.ts.
+- Below: `.admin-review-split` - Export History (2/3) beside Scheduled Jobs
+  (1/3), stacking under 1100px. The "Export governance" panel is gone; its
+  chips ("N ready · N queued · Kept N days") sit in the history header. The
+  retention comes from the API (`retentionDays` on the jobs list) so the page
+  never claims a number the backend does not.
+- Metrics: Presets · Exports ready · Queued · Active schedules (x of y).
+- Times in the history and on schedules are WAT (`lib/admin/wat.ts`, tested).
+- Owner column: the backend now records fullName (else email, else id) as
+  requestedBy, so history shows a name, not a UUID.
+- Handbook: "press Generate on the preset" replaces the old drawer wording.
+
+Verified on the local stack (local backend + dashboard over a seeded throwaway
+database): five cards, badges, no horizontal scroll at 1440 or 900 px (two
+rows at 900), Generate on a card -> history 0 -> 1 with the confirmation
+note, split layout with the chips. Typecheck, lint, 74 dashboard tests,
+production build. Backend route tests 48/48 (no db).
+

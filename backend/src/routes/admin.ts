@@ -16,7 +16,8 @@ import {
   getReportExportById,
   listReportExports,
   listReportSchemas,
-  requestReportExport
+  requestReportExport,
+  reportExportRetentionDays
 } from "../reports/export-service.js";
 import {
   createSchedule,
@@ -635,7 +636,8 @@ adminRouter.post("/reports/generate", requireWriteAccess, async (req, res, next)
       reportType: body.reportType,
       format: "csv",
       schemaVersion: schema.schemaVersion,
-      requestedBy: req.authUser?.id ?? "unknown"
+      // A name the team recognises in the history, not an account id.
+      requestedBy: req.authUser?.fullName || req.authUser?.email || req.authUser?.id || "unknown"
     });
     console.log(
       JSON.stringify({
@@ -784,7 +786,9 @@ adminRouter.post("/reports/schedules/:id/run", requireWriteAccess, async (req, r
 
 adminRouter.get("/reports/exports", async (_req, res, next) => {
   try {
-    res.status(200).json({ jobs: (await listReportExports()).map(toJobSummary) });
+    res
+      .status(200)
+      .json({ jobs: (await listReportExports()).map(toJobSummary), retentionDays: reportExportRetentionDays() });
   } catch (error) {
     next(error);
   }

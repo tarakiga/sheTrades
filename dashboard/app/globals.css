@@ -1620,6 +1620,74 @@ body {
   overflow-y: hidden;
 }
 
+/* Action card: description, caveat and the single action, with the action
+   pinned to the bottom so a row of cards lines its buttons up. */
+.ui-action-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+}
+.ui-action-card__description {
+  margin: 0;
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+.ui-action-card__note {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  color: var(--color-neutral-500);
+}
+.ui-action-card__action {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: auto;
+}
+
+/* Report presets: a wrapping grid, never a strip that scrolls. */
+.report-presets {
+  display: grid;
+  gap: var(--space-4);
+}
+.report-preset-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: stretch;
+}
+/* Equal-height cards whose content column reaches the bottom, and a badge that stays on one line. */
+.report-preset-grid > .ui-card {
+  display: flex;
+  flex-direction: column;
+}
+.report-preset-grid > .ui-card > .ui-card__content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.report-preset-grid .ui-badge {
+  white-space: nowrap;
+}
+/* A card header's action must not break across lines in a narrow column. */
+.admin-review-split .ui-card__header .ui-button {
+  white-space: nowrap;
+}
+
+/* A wide primary surface beside a narrower secondary one; stacks when narrow. */
+.admin-review-split {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+@media (min-width: 1100px) {
+  .admin-review-split {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+
 /* Footer of a paged table: how much of the whole is on screen, and how to get more. */
 .ui-load-more {
   display: flex;

@@ -70,7 +70,8 @@ const SEED_ENTRIES: SeedEntry[] = [
           metadata: {
             description: "Impact metrics, completion funnel, reward totals.",
             // Which export-service dataset this preset generates (CS-6).
-            reportType: "donor_summary"
+            reportType: "donor_summary",
+            audience: "donor"
           }
         },
         {
@@ -81,7 +82,8 @@ const SEED_ENTRIES: SeedEntry[] = [
           sortOrder: 2,
           metadata: {
             description: "Daily completion deltas, drop-off list, exceptions.",
-            reportType: "module_completion_detail"
+            reportType: "module_completion_detail",
+            audience: "internal"
           }
         },
         {
@@ -92,7 +94,8 @@ const SEED_ENTRIES: SeedEntry[] = [
           sortOrder: 3,
           metadata: {
             description: "Reward issuance ledger and reconciliations.",
-            reportType: "rewards_issuance_log"
+            reportType: "rewards_issuance_log",
+            audience: "internal"
           }
         },
         {
@@ -104,7 +107,8 @@ const SEED_ENTRIES: SeedEntry[] = [
           metadata: {
             description:
               "One row per learner: enrolment, each module's start and completion, course completion, days to complete, certificate and airtime, in West Africa Time, under a pseudonymous reference.",
-            reportType: "learner_journey"
+            reportType: "learner_journey",
+            audience: "donor"
           }
         },
         {
@@ -116,7 +120,9 @@ const SEED_ENTRIES: SeedEntry[] = [
           metadata: {
             description:
               "Internal only. One row per participant with name and phone, state, a status per module, course status, and start/completion times (WAT). Contains personal data.",
-            reportType: "me_participants"
+            reportType: "me_participants",
+            audience: "internal",
+            personalData: true
           }
         }
       ]

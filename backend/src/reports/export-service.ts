@@ -106,6 +106,10 @@ const exportJobsById = new Map<string, ExportJob>();
 const exportJobsByRequestId = new Map<string, ExportJob>();
 
 /** Generated reports are kept this long; older rows are pruned on each new export. */
+export function reportExportRetentionDays() {
+  return retentionDays();
+}
+
 function retentionDays() {
   const n = Number(process.env.REPORT_EXPORT_RETENTION_DAYS ?? "30");
   return Number.isFinite(n) && n > 0 ? n : 30;

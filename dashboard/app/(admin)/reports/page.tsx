@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   deleteReportSchedule,
   downloadAdminCsv,
+  generateReport,
   getReportJobs,
   getReportSchedules,
   getReportsPageData,
@@ -14,10 +15,12 @@ import {
   type ReportScheduleRow
 } from "../../../lib/admin/api";
 import type { ApiResult, ReportsPageData } from "../../../lib/admin/contracts";
+import { formatWat } from "../../../lib/admin/wat";
 import { fetchPublicOptionSet } from "../../../lib/config/options";
-import { GenerateReportDrawer } from "../../../components/reports/GenerateReportDrawer";
 import { ReportScheduleDrawer } from "../../../components/reports/ReportScheduleDrawer";
+import type { GeneratablePreset, PresetAudience } from "../../../components/reports/presets";
 import {
+  ActionCard,
   AdminReviewTableShell,
   AdminReviewWorkspace,
   Badge,
@@ -25,15 +28,21 @@ import {
   Card,
   ConfirmationModal,
   EmptyState,
-  Table,
-  Tabs
+  SectionHeader,
+  Table
 } from "../../../components/ui";
 
-type ReportPreset = { id: string; label: string; content: string; reportType?: string };
+type ReportPreset = {
+  id: string;
+  label: string;
+  content: string;
+  reportType?: string;
+  audience?: PresetAudience;
+  personalData?: boolean;
+};
 
-// Fallback dataset mapping for the three built-in presets, used when a
-// published preset predates metadata.reportType. New presets should carry
-// metadata.reportType in the option set instead.
+// Fallbacks for presets published before metadata.reportType / metadata.audience
+// existed. New presets should carry both in the option set instead.
 const KNOWN_PRESET_REPORT_TYPES: Record<string, string> = {
   donor: "donor_summary",
   journey: "learner_journey",
@@ -41,6 +50,14 @@ const KNOWN_PRESET_REPORT_TYPES: Record<string, string> = {
   ops: "module_completion_detail",
   finance: "rewards_issuance_log"
 };
+const KNOWN_PRESET_AUDIENCE: Record<string, PresetAudience> = {
+  donor: "donor",
+  journey: "donor",
+  me: "internal",
+  ops: "internal",
+  finance: "internal"
+};
+const KNOWN_PRESET_PERSONAL_DATA: Record<string, boolean> = { me: true };
 
 // Built-in defaults; overridden by the published `reports.presets` option set.
 const DEFAULT_PRESETS: ReportPreset[] = [
@@ -48,35 +65,47 @@ const DEFAULT_PRESETS: ReportPreset[] = [
     id: "donor",
     label: "Donor",
     content: "Impact metrics, completion funnel, reward totals.",
-    reportType: "donor_summary"
+    reportType: "donor_summary",
+    audience: "donor"
   },
   {
     id: "ops",
     label: "Ops",
     content: "Daily completion deltas, drop-off list, exceptions.",
-    reportType: "module_completion_detail"
+    reportType: "module_completion_detail",
+    audience: "internal"
   },
   {
     id: "finance",
     label: "Finance",
     content: "Reward issuance ledger and reconciliations.",
-    reportType: "rewards_issuance_log"
+    reportType: "rewards_issuance_log",
+    audience: "internal"
   },
   {
     id: "journey",
     label: "Learner journey",
     content:
       "One row per learner: enrolment, module and course completion times (WAT), days to complete, certificate, airtime. Pseudonymous refs, no phone numbers.",
-    reportType: "learner_journey"
+    reportType: "learner_journey",
+    audience: "donor"
   },
   {
     id: "me",
     label: "M&E participant report",
     content:
-      "Internal only. One row per participant with name and phone, state, a status per module, course status, and start/completion times (WAT). Contains personal data.",
-    reportType: "me_participants"
+      "One row per participant with name and phone, state, a status per module, course status, and start/completion times (WAT).",
+    reportType: "me_participants",
+    audience: "internal",
+    personalData: true
   }
 ];
+
+function audienceBadge(preset: ReportPreset): { label: string; variant: "teal" | "warning" } | undefined {
+  if (preset.audience === "donor") return { label: "For donors", variant: "teal" };
+  if (preset.audience === "internal") return { label: "Internal", variant: "warning" };
+  return undefined;
+}
 
 export default function ReportsPage() {
   const [result, setResult] = useState<ApiResult<ReportsPageData> | null>(null);
@@ -84,6 +113,9 @@ export default function ReportsPage() {
   const [presets, setPresets] = useState<ReportPreset[]>(DEFAULT_PRESETS);
   // A download that fails used to fail silently (a floating promise). Say so.
   const [downloadNote, setDownloadNote] = useState<string | null>(null);
+  // One card is generating at a time; its button shows the wait.
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [generateNote, setGenerateNote] = useState<string | null>(null);
 
   // Report presets are config-driven (admin-editable) with the defaults above
   // as the safe fallback.
@@ -93,17 +125,29 @@ export default function ReportsPage() {
       .then((items) => {
         if (cancelled || items.length === 0) return;
         setPresets(
-          items.map((item) => ({
-            id: item.value,
-            label: item.label,
-            content:
-              typeof item.metadata.description === "string" ? item.metadata.description : item.label,
-            ...(typeof item.metadata.reportType === "string"
-              ? { reportType: item.metadata.reportType }
-              : KNOWN_PRESET_REPORT_TYPES[item.value]
-                ? { reportType: KNOWN_PRESET_REPORT_TYPES[item.value] }
-                : {})
-          }))
+          items.map((item) => {
+            const audience =
+              item.metadata.audience === "donor" || item.metadata.audience === "internal"
+                ? item.metadata.audience
+                : KNOWN_PRESET_AUDIENCE[item.value];
+            const personalData =
+              typeof item.metadata.personalData === "boolean"
+                ? item.metadata.personalData
+                : KNOWN_PRESET_PERSONAL_DATA[item.value];
+            return {
+              id: item.value,
+              label: item.label,
+              content:
+                typeof item.metadata.description === "string" ? item.metadata.description : item.label,
+              ...(typeof item.metadata.reportType === "string"
+                ? { reportType: item.metadata.reportType }
+                : KNOWN_PRESET_REPORT_TYPES[item.value]
+                  ? { reportType: KNOWN_PRESET_REPORT_TYPES[item.value] }
+                  : {}),
+              ...(audience ? { audience } : {}),
+              ...(personalData ? { personalData } : {})
+            };
+          })
         );
       })
       .catch(() => {
@@ -132,18 +176,19 @@ export default function ReportsPage() {
   const data = result?.data ?? { exports: [] };
   const meta = result?.meta ?? { source: "fallback" as const };
 
-  // Real generated jobs (CS-6), merged ahead of the provider's export history.
+  // Generated jobs, kept by the backend and listed ahead of the provider's history.
   const [jobs, setJobs] = useState<ReportJobRow[]>([]);
-  const [generateOpen, setGenerateOpen] = useState(false);
+  const [retentionDays, setRetentionDays] = useState<number | null>(null);
   const loadJobs = useCallback(async () => {
     const jobsResult = await getReportJobs();
     setJobs(jobsResult.data.jobs);
+    setRetentionDays(jobsResult.data.retentionDays ?? null);
   }, []);
   useEffect(() => {
     void loadJobs();
   }, [loadJobs]);
 
-  // Standing schedules (CS-7).
+  // Standing schedules.
   const [schedules, setSchedules] = useState<ReportScheduleRow[]>([]);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleBusyId, setScheduleBusyId] = useState<string | null>(null);
@@ -171,6 +216,31 @@ export default function ReportsPage() {
     }
   }
 
+  const generatablePresets = useMemo(
+    () =>
+      presets.filter(
+        (preset): preset is ReportPreset & { reportType: string } => Boolean(preset.reportType)
+      ) as GeneratablePreset[],
+    [presets]
+  );
+
+  async function handleGenerate(preset: ReportPreset & { reportType: string }) {
+    setGeneratingId(preset.id);
+    setGenerateNote(null);
+    setDownloadNote(null);
+    try {
+      await generateReport(preset.reportType);
+      setGenerateNote(`${preset.label} is ready. Download it from the history below.`);
+      await loadJobs();
+    } catch (error) {
+      setGenerateNote(
+        `${preset.label} could not be generated: ${error instanceof Error ? error.message : "unknown error"}`
+      );
+    } finally {
+      setGeneratingId(null);
+    }
+  }
+
   const presetLabelByReportType = useMemo(() => {
     const map: Record<string, string> = {};
     for (const preset of presets) {
@@ -183,300 +253,297 @@ export default function ReportsPage() {
     () => [
       ...jobs.map((job) => ({
         report: presetLabelByReportType[job.reportType] ?? job.reportType,
-        format: job.format.toUpperCase(),
-        generatedAt: new Date(job.createdAt).toLocaleString(),
+        generatedAt: formatWat(job.createdAt) || job.createdAt,
         owner: job.requestedBy,
         status: job.status,
         exportId: job.exportId,
         fileName: job.fileName ?? ""
       })),
-      ...data.exports.map((row) => ({ ...row, exportId: "", fileName: "" }))
+      ...data.exports.map((row) => ({
+        report: row.report,
+        generatedAt: formatWat(row.generatedAt) || row.generatedAt,
+        owner: row.owner,
+        status: row.status,
+        exportId: "",
+        fileName: ""
+      }))
     ],
     [jobs, presetLabelByReportType, data.exports]
   );
 
   const readyRows = historyRows.filter((row) => row.status === "Ready");
   const queuedRows = historyRows.filter((row) => row.status === "Queued");
-  const formatCount = new Set(historyRows.map((row) => row.format)).size;
-
-  const generatablePresets = presets.filter(
-    (preset): preset is ReportPreset & { reportType: string } => Boolean(preset.reportType)
-  );
+  const activeSchedules = schedules.filter((schedule) => schedule.enabled).length;
+  const feedback = generateNote ?? downloadNote ?? meta.message;
 
   return (
     <>
-    <AdminReviewWorkspace
-      title="Reports"
-      description="Generate donor-ready exports and monitor report pipeline health."
-      actions={
-        <div className="preview-row">
+      <AdminReviewWorkspace
+        title="Reports"
+        description="Generate an export, or let a schedule send it for you."
+        actions={
           <Badge variant={meta.source === "live" ? "success" : "warning"}>
             {meta.source === "live" ? "Live Data" : "Fallback Data"}
           </Badge>
-          <Button onClick={() => setGenerateOpen(true)}>Generate Report</Button>
-        </div>
-      }
-      {...(downloadNote || meta.message
-        ? { feedback: <p className="admin-inline-note">{downloadNote ?? meta.message}</p> }
-        : {})}
-      metricsAriaLabel="Reports metrics"
-      metrics={[
-        {
-          label: "Total Exports",
-          value: String(historyRows.length),
-          trend: "Visible export history",
-          status: (
-            <Badge variant={historyRows.length > 0 ? "success" : "warning"}>Coverage</Badge>
-          )
-        },
-        {
-          label: "Ready",
-          value: String(readyRows.length),
-          trend: "Completed and available for download",
-          status: <Badge variant="success">Completed</Badge>
-        },
-        {
-          label: "Queued",
-          value: String(queuedRows.length),
-          trend: "Still processing in the pipeline",
-          status: (
-            <Badge variant={queuedRows.length > 0 ? "warning" : "neutral"}>Processing</Badge>
-          )
-        },
-        {
-          label: "Formats",
-          value: String(formatCount),
-          trend: "Distinct export outputs in view",
-          status: <Badge variant="info">Dynamic</Badge>
         }
-      ]}
-      primary={
-        <AdminReviewTableShell
-          title="Export History"
-          description="Recent report exports and generation status."
-        >
-          <Table
-            wrapperClassName="admin-review-table-wrap"
-            tableClassName="admin-review-table"
-            emptyMessage={
-              loading ? "Loading export history…" : "No export history is available yet."
-            }
-            columns={[
-              { key: "report", header: "Report" },
-              { key: "format", header: "Format" },
-              { key: "generatedAt", header: "Generated At" },
-              { key: "owner", header: "Owner" },
-              {
-                key: "status",
-                header: "Status",
-                render: (value) => (
-                  <Badge
-                    variant={
-                      value === "Ready" ? "success" : value === "Failed" ? "danger" : "warning"
-                    }
-                  >
-                    {String(value)}
-                  </Badge>
-                )
-              },
-              {
-                key: "exportId",
-                header: "",
-                render: (_value, row) =>
-                  row.exportId && row.status === "Ready" ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setDownloadNote(null);
-                        downloadAdminCsv(
-                          reportDownloadEndpoint(String(row.exportId)),
-                          String(row.fileName || "report.csv")
-                        ).catch((error: unknown) => {
-                          setDownloadNote(
-                            `Download failed: ${error instanceof Error ? error.message : "unknown error"}. Generate the report again if it has expired.`
-                          );
-                        });
-                      }}
-                    >
-                      Download
-                    </Button>
-                  ) : null
-              }
-            ]}
-            rows={historyRows}
-          />
-        </AdminReviewTableShell>
-      }
-      secondary={
-        <div className="admin-review-support-grid">
-          <Card
-            title="Report Presets"
-            description="Configured export presets by stakeholder profile."
-          >
-            <Tabs
-              label="Report types"
-              activeId={presets[0]?.id ?? "donor"}
-              items={presets.map((preset) => ({
-                id: preset.id,
-                label: preset.label,
-                content: preset.content
-              }))}
-            />
-          </Card>
+        {...(feedback ? { feedback: <p className="admin-inline-note">{feedback}</p> } : {})}
+        metricsAriaLabel="Reports metrics"
+        metrics={[
+          {
+            label: "Presets",
+            value: String(generatablePresets.length),
+            trend: "Ready to generate",
+            status: <Badge variant="info">Config-driven</Badge>
+          },
+          {
+            label: "Exports ready",
+            value: String(readyRows.length),
+            trend: "Available for download",
+            status: <Badge variant={readyRows.length > 0 ? "success" : "neutral"}>Completed</Badge>
+          },
+          {
+            label: "Queued",
+            value: String(queuedRows.length),
+            trend: "Still processing",
+            status: <Badge variant={queuedRows.length > 0 ? "warning" : "neutral"}>Processing</Badge>
+          },
+          {
+            label: "Active schedules",
+            value: `${activeSchedules} of ${schedules.length}`,
+            trend: activeSchedules === schedules.length ? "All schedules running" : "Some schedules paused",
+            status: (
+              <Badge variant={schedules.length === 0 ? "neutral" : activeSchedules === schedules.length ? "success" : "warning"}>
+                Schedules
+              </Badge>
+            )
+          }
+        ]}
+        primary={
+          <>
+            <section className="report-presets" aria-labelledby="report-presets-title">
+              <SectionHeader
+                title="Generate a report"
+                description="Each preset is one click. The file lands in the history below."
+              />
+              {generatablePresets.length === 0 ? (
+                <EmptyState
+                  title="No report presets are configured"
+                  description="Add presets with a reportType under Settings → Options (reports.presets)."
+                />
+              ) : (
+                <div className="report-preset-grid">
+                  {generatablePresets.map((preset) => {
+                    const busy = generatingId === preset.id;
+                    const badge = audienceBadge(preset);
+                    return (
+                      <ActionCard
+                        key={preset.id}
+                        title={preset.label}
+                        description={preset.content}
+                        {...(badge ? { badge } : {})}
+                        {...(preset.personalData
+                          ? { note: "Contains personal data. For the team only; not for sharing outside the organisation." }
+                          : {})}
+                        action={
+                          <Button
+                            variant="secondary"
+                            loading={busy}
+                            disabled={generatingId !== null && !busy}
+                            onClick={() => void handleGenerate(preset)}
+                          >
+                            {busy ? "Generating" : "Generate"}
+                          </Button>
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </section>
 
-          <Card
-            title="Scheduled Jobs"
-            description="Standing schedules that generate a report and email it automatically."
-          >
-            {schedules.length === 0 ? (
-              <EmptyState
-                title="No scheduled report jobs"
-                description="Create a schedule to generate and email partner or operations reports automatically."
-                action={
-                  <Button variant="secondary" onClick={() => setScheduleOpen(true)}>
+            <div className="admin-review-split">
+              <AdminReviewTableShell
+                title="Export History"
+                description="Generated reports, newest first. Times are West Africa Time."
+                actions={
+                  <div className="preview-row">
+                    <Badge variant={readyRows.length > 0 ? "success" : "neutral"}>{readyRows.length} ready</Badge>
+                    <Badge variant={queuedRows.length > 0 ? "warning" : "neutral"}>{queuedRows.length} queued</Badge>
+                    {retentionDays !== null ? <Badge variant="info">Kept {retentionDays} days</Badge> : null}
+                  </div>
+                }
+              >
+                <Table
+                  wrapperClassName="admin-review-table-wrap"
+                  tableClassName="admin-review-table"
+                  emptyMessage={
+                    loading ? "Loading export history…" : "Nothing generated yet. Pick a preset above."
+                  }
+                  columns={[
+                    { key: "report", header: "Report" },
+                    { key: "generatedAt", header: "Generated (WAT)" },
+                    { key: "owner", header: "Owner" },
+                    {
+                      key: "status",
+                      header: "Status",
+                      render: (value) => (
+                        <Badge
+                          variant={
+                            value === "Ready" ? "success" : value === "Failed" ? "danger" : "warning"
+                          }
+                        >
+                          {String(value)}
+                        </Badge>
+                      )
+                    },
+                    {
+                      key: "exportId",
+                      header: "",
+                      render: (_value, row) =>
+                        row.exportId && row.status === "Ready" ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setDownloadNote(null);
+                              downloadAdminCsv(
+                                reportDownloadEndpoint(String(row.exportId)),
+                                String(row.fileName || "report.csv")
+                              ).catch((error: unknown) => {
+                                setDownloadNote(
+                                  `Download failed: ${error instanceof Error ? error.message : "unknown error"}. Generate the report again if it has expired.`
+                                );
+                              });
+                            }}
+                          >
+                            Download
+                          </Button>
+                        ) : null
+                    }
+                  ]}
+                  rows={historyRows}
+                />
+              </AdminReviewTableShell>
+
+              <Card
+                title="Scheduled Jobs"
+                description="Standing schedules that generate a report and email it automatically."
+                actions={
+                  <Button variant="secondary" size="sm" onClick={() => setScheduleOpen(true)}>
                     Create Schedule
                   </Button>
                 }
-              />
-            ) : (
-              <div className="schedule-list">
-                <ul className="schedule-list__items">
-                  {schedules.map((schedule) => {
-                    const busy = scheduleBusyId === schedule.id;
-                    return (
-                      <li key={schedule.id} className="schedule-list__item">
-                        <div className="schedule-list__head">
-                          <span className="schedule-list__name">{schedule.presetLabel}</span>
-                          <Badge variant={schedule.enabled ? "success" : "neutral"}>
-                            {schedule.enabled ? "Active" : "Paused"}
-                          </Badge>
-                        </div>
-                        <p className="schedule-list__meta">
-                          {schedule.cadenceLabel} · {schedule.recipients.length}{" "}
-                          {schedule.recipients.length === 1 ? "recipient" : "recipients"}
-                        </p>
-                        <p className="schedule-list__meta">
-                          Next run: {new Date(schedule.nextRunAt).toLocaleString()}
-                          {schedule.lastRunAt
-                            ? ` · Last run ${schedule.lastRunStatus ?? "unknown"} (${new Date(schedule.lastRunAt).toLocaleString()})`
-                            : " · Never run"}
-                        </p>
-                        <div className="schedule-list__actions">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() =>
-                              void withScheduleBusy(schedule.id, async () => {
-                                const result = await runReportScheduleNow(schedule.id);
-                                return result.outcome.detail;
-                              })
-                            }
-                          >
-                            Run Now
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() =>
-                              void withScheduleBusy(schedule.id, async () => {
-                                await updateReportSchedule(schedule.id, {
-                                  enabled: !schedule.enabled
-                                });
-                                return null;
-                              })
-                            }
-                          >
-                            {schedule.enabled ? "Pause" : "Resume"}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => setScheduleToDelete(schedule)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {scheduleNote ? <p className="schedule-list__note">{scheduleNote}</p> : null}
-                <Button variant="secondary" onClick={() => setScheduleOpen(true)}>
-                  Create Schedule
-                </Button>
-              </div>
-            )}
-          </Card>
-
-          <Card
-            title="Export Governance"
-            description="Keep source and operational readiness visible without competing with export history."
-          >
-            <div className="admin-review-support-stack">
-              <div className="admin-review-support-badges">
-                <Badge variant={readyRows.length > 0 ? "success" : "neutral"}>
-                  {readyRows.length} ready
-                </Badge>
-                <Badge variant={queuedRows.length > 0 ? "warning" : "neutral"}>
-                  {queuedRows.length} queued
-                </Badge>
-                <Badge variant={meta.source === "live" ? "info" : "warning"}>
-                  {meta.source === "live" ? "Live Data" : "Fallback Data"}
-                </Badge>
-              </div>
-              <p className="admin-review-support-note">
-                {`The current export history includes ${String(formatCount)} visible output formats for stakeholder reporting.`}
-              </p>
+              >
+                {schedules.length === 0 ? (
+                  <EmptyState
+                    title="No scheduled report jobs"
+                    description="Create a schedule to generate and email partner or operations reports automatically."
+                  />
+                ) : (
+                  <div className="schedule-list">
+                    <ul className="schedule-list__items">
+                      {schedules.map((schedule) => {
+                        const busy = scheduleBusyId === schedule.id;
+                        return (
+                          <li key={schedule.id} className="schedule-list__item">
+                            <div className="schedule-list__head">
+                              <span className="schedule-list__name">{schedule.presetLabel}</span>
+                              <Badge variant={schedule.enabled ? "success" : "neutral"}>
+                                {schedule.enabled ? "Active" : "Paused"}
+                              </Badge>
+                            </div>
+                            <p className="schedule-list__meta">
+                              {schedule.cadenceLabel} · {schedule.recipients.length}{" "}
+                              {schedule.recipients.length === 1 ? "recipient" : "recipients"}
+                            </p>
+                            <p className="schedule-list__meta">
+                              Next run: {formatWat(schedule.nextRunAt) || schedule.nextRunAt} WAT
+                              {schedule.lastRunAt
+                                ? ` · Last run ${schedule.lastRunStatus ?? "unknown"} (${formatWat(schedule.lastRunAt) || schedule.lastRunAt})`
+                                : " · Never run"}
+                            </p>
+                            <div className="schedule-list__actions">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={busy}
+                                onClick={() =>
+                                  void withScheduleBusy(schedule.id, async () => {
+                                    const result = await runReportScheduleNow(schedule.id);
+                                    return result.outcome.detail;
+                                  })
+                                }
+                              >
+                                Run Now
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={busy}
+                                onClick={() =>
+                                  void withScheduleBusy(schedule.id, async () => {
+                                    await updateReportSchedule(schedule.id, {
+                                      enabled: !schedule.enabled
+                                    });
+                                    return null;
+                                  })
+                                }
+                              >
+                                {schedule.enabled ? "Pause" : "Resume"}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => setScheduleToDelete(schedule)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {scheduleNote ? <p className="schedule-list__note">{scheduleNote}</p> : null}
+                  </div>
+                )}
+              </Card>
             </div>
-          </Card>
-        </div>
-      }
-    />
+          </>
+        }
+      />
 
-    <GenerateReportDrawer
-      open={generateOpen}
-      onClose={() => setGenerateOpen(false)}
-      presets={generatablePresets}
-      onGenerated={() => {
-        void loadJobs();
-      }}
-    />
+      <ReportScheduleDrawer
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        presets={generatablePresets}
+        onCreated={() => {
+          void loadSchedules();
+        }}
+      />
 
-    <ReportScheduleDrawer
-      open={scheduleOpen}
-      onClose={() => setScheduleOpen(false)}
-      presets={generatablePresets}
-      onCreated={() => {
-        void loadSchedules();
-      }}
-    />
-
-    <ConfirmationModal
-      open={scheduleToDelete !== null}
-      title="Delete schedule?"
-      description={
-        scheduleToDelete
-          ? `The ${scheduleToDelete.presetLabel} schedule (${scheduleToDelete.cadenceLabel}) will stop running and its recipient list will be removed. This cannot be undone.`
-          : ""
-      }
-      confirmLabel="Delete Schedule"
-      tone="danger"
-      loading={scheduleBusyId === scheduleToDelete?.id}
-      onCancel={() => setScheduleToDelete(null)}
-      onConfirm={() => {
-        if (!scheduleToDelete) return;
-        const target = scheduleToDelete;
-        void withScheduleBusy(target.id, async () => {
-          await deleteReportSchedule(target.id);
-          setScheduleToDelete(null);
-          return null;
-        });
-      }}
-    />
+      <ConfirmationModal
+        open={scheduleToDelete !== null}
+        title="Delete schedule?"
+        description={
+          scheduleToDelete
+            ? `The ${scheduleToDelete.presetLabel} schedule (${scheduleToDelete.cadenceLabel}) will stop running and its recipient list will be removed. This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete Schedule"
+        tone="danger"
+        loading={scheduleBusyId === scheduleToDelete?.id}
+        onCancel={() => setScheduleToDelete(null)}
+        onConfirm={() => {
+          if (!scheduleToDelete) return;
+          const target = scheduleToDelete;
+          void withScheduleBusy(target.id, async () => {
+            await deleteReportSchedule(target.id);
+            setScheduleToDelete(null);
+            return null;
+          });
+        }}
+      />
     </>
   );
 }

@@ -1,3 +1,5 @@
+export { ActionCard } from "./ActionCard";
+export type { ActionCardProps } from "./ActionCard";
 export { Badge } from "./Badge";
 export type { BadgeProps } from "./Badge";
 export { AdminInsightPanel } from "./AdminInsightPanel";

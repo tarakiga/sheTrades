@@ -362,7 +362,11 @@ export function generateReport(reportType: string) {
 }
 
 export function getReportJobs() {
-  return fetchWithFallback<{ jobs: ReportJobRow[] }>(`/api/admin/reports/exports`, { jobs: [] });
+  // retentionDays arrives from a backend that knows its own retention; an
+  // older one omits it and the page simply does not claim a number.
+  return fetchWithFallback<{ jobs: ReportJobRow[]; retentionDays?: number }>(`/api/admin/reports/exports`, {
+    jobs: []
+  });
 }
 
 export function reportDownloadEndpoint(exportId: string): string {

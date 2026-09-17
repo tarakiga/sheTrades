@@ -32,7 +32,7 @@ import { TranslationReviewPreview } from "./TranslationReviewPreview";
 import { AdminTeamWorkspacePreview } from "./AdminTeamWorkspacePreview";
 import { BrandingEditorPreview } from "./BrandingEditorPreview";
 import { ContactLearnerPreview } from "./ContactLearnerPreview";
-import { GenerateReportPreview } from "./GenerateReportPreview";
+import { ActionCardPreview } from "./ActionCardPreview";
 import { ReportSchedulePreview } from "./ReportSchedulePreview";
 import { FunnelBarsPreview } from "./FunnelBarsPreview";
 import { GuidedTourPreview } from "./GuidedTourPreview";
@@ -533,13 +533,13 @@ export default async function ComponentsPreviewPage() {
         </Card>
 
         <Card
-          title={t("preview.generateReport.title", "Generate Report - on-demand exports")}
+          title={t("preview.actionCard.title", "Action Card - one choice, one action")}
           description={t(
-            "preview.generateReport.description",
-            "Preview the report-generation drawer: config-driven preset picker with dataset descriptions, generate action, and the immediate download offer (error state shown on generate here - the gallery has no backend)."
+            "preview.actionCard.description",
+            "A title, a line of description, an audience badge, an optional caveat, and exactly one action. The Reports page lays its presets out in this grid so they wrap instead of scrolling."
           )}
         >
-          <GenerateReportPreview />
+          <ActionCardPreview />
         </Card>
 
         <Card
