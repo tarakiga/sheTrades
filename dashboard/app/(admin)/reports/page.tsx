@@ -74,6 +74,8 @@ export default function ReportsPage() {
   const [result, setResult] = useState<ApiResult<ReportsPageData> | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [presets, setPresets] = useState<ReportPreset[]>(DEFAULT_PRESETS);
+  // A download that fails used to fail silently (a floating promise). Say so.
+  const [downloadNote, setDownloadNote] = useState<string | null>(null);
 
   // Report presets are config-driven (admin-editable) with the defaults above
   // as the safe fallback.
@@ -206,7 +208,9 @@ export default function ReportsPage() {
           <Button onClick={() => setGenerateOpen(true)}>Generate Report</Button>
         </div>
       }
-      {...(meta.message ? { feedback: <p className="admin-inline-note">{meta.message}</p> } : {})}
+      {...(downloadNote || meta.message
+        ? { feedback: <p className="admin-inline-note">{downloadNote ?? meta.message}</p> }
+        : {})}
       metricsAriaLabel="Reports metrics"
       metrics={[
         {
@@ -276,10 +280,15 @@ export default function ReportsPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        void downloadAdminCsv(
+                        setDownloadNote(null);
+                        downloadAdminCsv(
                           reportDownloadEndpoint(String(row.exportId)),
                           String(row.fileName || "report.csv")
-                        );
+                        ).catch((error: unknown) => {
+                          setDownloadNote(
+                            `Download failed: ${error instanceof Error ? error.message : "unknown error"}. Generate the report again if it has expired.`
+                          );
+                        });
                       }}
                     >
                       Download

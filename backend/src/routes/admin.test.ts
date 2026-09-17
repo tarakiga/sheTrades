@@ -6,6 +6,7 @@ import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 import { setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
 import { resetAdminPostgresPoolForTests } from "../admin/providers/postgres.js";
 import { prisma } from "../admin/prisma.js";
+import { clearReportExportMemoryForTests, resetReportExportState } from "../reports/export-service.js";
 
 const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
 
@@ -653,3 +654,38 @@ test("POST /api/admin/users/:phone/flag with a viewer token returns 403", async 
     .send({ flagged: true })
     .expect(403);
 });
+
+test(
+  "a generated report can be listed and downloaded by an instance that never rendered it",
+  { concurrency: false, skip: process.env.POSTGRES_URL ? false : "requires POSTGRES_URL" },
+  async () => {
+    // Tar's report: generate on one Cloud Run instance, click Download, nothing
+    // happens; refresh, the history is empty. Jobs lived in per-instance memory.
+    await resetReportExportState();
+    const generated = await request(app)
+      .post("/api/admin/reports/generate")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .send({ reportType: "module_completion_detail" })
+      .expect(201);
+    const exportId = String(generated.body.job.exportId);
+
+    // Another instance: same table, empty memory.
+    clearReportExportMemoryForTests();
+
+    const listed = await request(app)
+      .get("/api/admin/reports/exports")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .expect(200);
+    assert.ok(
+      (listed.body.jobs as Array<{ exportId: string }>).some((j) => j.exportId === exportId),
+      "history must show the job from the table"
+    );
+
+    const download = await request(app)
+      .get(`/api/admin/reports/exports/${exportId}/download`)
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .expect(200);
+    assert.match(download.headers["content-type"] ?? "", /text\/csv/);
+    assert.match(download.text.split("\n")[0] ?? "", /^"module","enrolled","completed"/);
+  }
+);

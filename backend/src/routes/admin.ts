@@ -782,18 +782,25 @@ adminRouter.post("/reports/schedules/:id/run", requireWriteAccess, async (req, r
   }
 });
 
-adminRouter.get("/reports/exports", (_req, res) => {
-  // NOTE: jobs live in memory (GAP-D1: regenerable artifacts) - history resets
-  // when the instance recycles. Reports can simply be generated again.
-  res.status(200).json({ jobs: listReportExports().map(toJobSummary) });
+adminRouter.get("/reports/exports", async (_req, res, next) => {
+  try {
+    res.status(200).json({ jobs: (await listReportExports()).map(toJobSummary) });
+  } catch (error) {
+    next(error);
+  }
 });
 
-adminRouter.get("/reports/exports/:id/download", (req, res) => {
-  const job = getReportExportById(String(req.params.id));
+adminRouter.get("/reports/exports/:id/download", async (req, res, next) => {
+  let job: Awaited<ReturnType<typeof getReportExportById>>;
+  try {
+    job = await getReportExportById(String(req.params.id));
+  } catch (error) {
+    next(error);
+    return;
+  }
   if (!job || job.status !== "Ready" || !job.content) {
     res.status(404).json({
-      message:
-        "Export not found. Generated reports are kept in memory only - if the service restarted, generate the report again."
+      message: "Export not found. Generated reports are kept for 30 days; if this one has expired, generate it again."
     });
     return;
   }

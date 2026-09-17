@@ -2636,3 +2636,32 @@ Two things found on the way, neither changed:
   console does not use it; nothing user-facing is affected. Either set it or
   remove the router.
 
+## Report exports persisted (2026-09-17, late)
+
+Tar: "generated a learner journey, tried downloading and nothing happens;
+refresh, Export History clears." Exactly the per-instance memory limitation
+noted an hour earlier, now hit by the user: the job rendered on one Cloud Run
+instance, the download landed on another (404, and the page swallowed it -
+a floating promise), the refresh listed a third instance's empty memory.
+
+Fix:
+- `report_exports` table (Prisma model ReportExport; migration
+  20260917180000; ensurePrismaTables skeleton + ALTERs + unique requestId +
+  createdAt index). Rows: id, requestId, type, format, schemaVersion,
+  requestedBy, status, fileName, content (TEXT - a 36k-row journey is ~5 MB),
+  error, timestamps. Pruned to REPORT_EXPORT_RETENTION_DAYS (default 30) on
+  each new export.
+- export-service: memory stays as a per-instance cache; the table is the
+  record. persistJob writes through; getReportExportById and
+  listReportExports fall back from cache to table; requestReportExport's
+  idempotency check consults the table too. Only when POSTGRES_URL is set -
+  tests and local runs without a database behave exactly as before.
+  resetReportExportState() also empties the table under NODE_ENV=test;
+  clearReportExportMemoryForTests() forgets the cache only.
+- admin + token routers: list/download are async; the 404 message no longer
+  says "kept in memory only".
+- Dashboard: a failed download now shows "Download failed: ..." in the page
+  feedback instead of nothing.
+- Test (admin.test.ts, DB-backed): generate, clear the cache (= another
+  instance), list must show the job, download must be 200 with the CSV.
+

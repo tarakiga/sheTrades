@@ -311,6 +311,27 @@ model ReportSchedule {
   @@map("report_schedules")
 }
 
+/// A generated report, kept so that ANY instance can list and serve it. The
+/// jobs used to live in each instance's memory; with several instances
+/// serving, a download landed on one that had never heard of the job.
+model ReportExport {
+  id            String   @id
+  requestId     String   @unique
+  reportType    String
+  format        String
+  schemaVersion String
+  requestedBy   String
+  status        String
+  fileName      String?
+  content       String?
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("report_exports")
+}
+
 /// Login throttling state. Persisted (not in-memory) for the same reason as
 /// AdminSession: Cloud Run runs several replicas, and an in-memory counter
 /// would let an attacker spread guesses across instances and reset on every

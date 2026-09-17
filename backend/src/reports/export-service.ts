@@ -78,8 +78,101 @@ const exportRequestSchema = z.object({
   requestedBy: z.string().min(1)
 });
 
+// Per-instance cache of jobs this instance has seen. The record of truth is
+// the report_exports table: with several instances serving, a job rendered
+// on one instance must be listable and downloadable from every other.
 const exportJobsById = new Map<string, ExportJob>();
 const exportJobsByRequestId = new Map<string, ExportJob>();
+
+/** Generated reports are kept this long; older rows are pruned on each new export. */
+function retentionDays() {
+  const n = Number(process.env.REPORT_EXPORT_RETENTION_DAYS ?? "30");
+  return Number.isFinite(n) && n > 0 ? n : 30;
+}
+
+/** The table is only consulted when a database is configured; tests and local runs without one use memory alone. */
+function exportStoreEnabled() {
+  return Boolean(process.env.POSTGRES_URL);
+}
+
+function remember(job: ExportJob) {
+  exportJobsById.set(job.exportId, job);
+  exportJobsByRequestId.set(job.requestId, job);
+}
+
+type ExportRow = {
+  id: string;
+  requestId: string;
+  reportType: string;
+  format: string;
+  schemaVersion: string;
+  requestedBy: string;
+  status: string;
+  fileName: string | null;
+  content: string | null;
+  error: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function jobFromRow(row: ExportRow): ExportJob {
+  const job: ExportJob = {
+    exportId: row.id,
+    requestId: row.requestId,
+    reportType: row.reportType as ReportType,
+    format: row.format as ExportFormat,
+    schemaVersion: row.schemaVersion,
+    requestedBy: row.requestedBy,
+    status: row.status === "Ready" ? "Ready" : "Failed",
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  };
+  if (row.fileName) job.fileName = row.fileName;
+  if (row.content !== null) job.content = row.content;
+  if (row.error) job.error = row.error;
+  return job;
+}
+
+/** Cache, then write through. A failed write is logged and the job still serves from this instance. */
+async function persistJob(job: ExportJob): Promise<void> {
+  remember(job);
+  if (!exportStoreEnabled()) return;
+  const data = {
+    requestId: job.requestId,
+    reportType: job.reportType,
+    format: job.format,
+    schemaVersion: job.schemaVersion,
+    requestedBy: job.requestedBy,
+    status: job.status,
+    fileName: job.fileName ?? null,
+    content: job.content ?? null,
+    error: job.error ?? null
+  };
+  try {
+    await prisma.reportExport.upsert({ where: { id: job.exportId }, create: { id: job.exportId, ...data }, update: data });
+    await prisma.reportExport.deleteMany({
+      where: { createdAt: { lt: new Date(Date.now() - retentionDays() * 86_400_000) } }
+    });
+  } catch (error) {
+    logger.error("reports.export.persist_failed", error, { exportId: job.exportId });
+  }
+}
+
+async function findJobByRequestId(requestId: string): Promise<ExportJob | null> {
+  const cached = exportJobsByRequestId.get(requestId);
+  if (cached) return cached;
+  if (!exportStoreEnabled()) return null;
+  try {
+    const row = await prisma.reportExport.findUnique({ where: { requestId } });
+    if (!row) return null;
+    const job = jobFromRow(row);
+    remember(job);
+    return job;
+  } catch (error) {
+    logger.error("reports.export.lookup_failed", error, { requestId });
+    return null;
+  }
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -391,7 +484,7 @@ export function listReportSchemas() {
 
 export async function requestReportExport(rawInput: unknown) {
   const input = exportRequestSchema.parse(rawInput);
-  const existing = exportJobsByRequestId.get(input.requestId);
+  const existing = await findJobByRequestId(input.requestId);
   if (existing) {
     return { status: "duplicate" as const, job: existing };
   }
@@ -426,8 +519,7 @@ export async function requestReportExport(rawInput: unknown) {
     job.fileName = rendered.fileName;
     job.content = rendered.content;
     job.updatedAt = nowIso();
-    exportJobsById.set(job.exportId, job);
-    exportJobsByRequestId.set(job.requestId, job);
+    await persistJob(job);
     logger.info("reports.export.ready", {
       exportId: job.exportId,
       requestId: job.requestId,
@@ -440,8 +532,7 @@ export async function requestReportExport(rawInput: unknown) {
     job.status = "Failed";
     job.error = error instanceof Error ? error.message : String(error);
     job.updatedAt = nowIso();
-    exportJobsById.set(job.exportId, job);
-    exportJobsByRequestId.set(job.requestId, job);
+    await persistJob(job);
     logger.error("reports.export.failed", error, {
       requestId: job.requestId,
       reportType: job.reportType,
@@ -451,16 +542,66 @@ export async function requestReportExport(rawInput: unknown) {
   }
 }
 
-export function listReportExports() {
+/** Newest first, without content. From the table when there is one, so every instance shows the same history. */
+export async function listReportExports(): Promise<ExportJob[]> {
+  if (exportStoreEnabled()) {
+    try {
+      const rows = await prisma.reportExport.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        select: {
+          id: true,
+          requestId: true,
+          reportType: true,
+          format: true,
+          schemaVersion: true,
+          requestedBy: true,
+          status: true,
+          fileName: true,
+          error: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+      return rows.map((row) => jobFromRow({ ...row, content: null }));
+    } catch (error) {
+      logger.error("reports.export.list_failed", error);
+    }
+  }
   return Array.from(exportJobsById.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export function getReportExportById(exportId: string) {
-  return exportJobsById.get(exportId) ?? null;
+/** With content. This instance's cache first, then the table. */
+export async function getReportExportById(exportId: string): Promise<ExportJob | null> {
+  const cached = exportJobsById.get(exportId);
+  if (cached) return cached;
+  if (!exportStoreEnabled()) return null;
+  try {
+    const row = await prisma.reportExport.findUnique({ where: { id: exportId } });
+    if (!row) return null;
+    const job = jobFromRow(row);
+    remember(job);
+    return job;
+  } catch (error) {
+    logger.error("reports.export.lookup_failed", error, { exportId });
+    return null;
+  }
 }
 
-export function resetReportExportState() {
+/** Tests only: forget everything this instance knows, and (under NODE_ENV=test) empty the table. */
+export function resetReportExportState(): Promise<void> {
   exportJobsById.clear();
   exportJobsByRequestId.clear();
   renderAttemptsByRequestId.clear();
+  if (!exportStoreEnabled() || process.env.NODE_ENV !== "test") return Promise.resolve();
+  return prisma.reportExport.deleteMany({}).then(
+    () => undefined,
+    () => undefined
+  );
+}
+
+/** Tests only: forget the cache but keep the table - what a request landing on another instance sees. */
+export function clearReportExportMemoryForTests(): void {
+  exportJobsById.clear();
+  exportJobsByRequestId.clear();
 }

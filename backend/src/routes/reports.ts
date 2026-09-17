@@ -25,14 +25,14 @@ reportsRouter.get("/reports/schemas", (req, res) => {
   res.status(200).json({ schemas: listReportSchemas() });
 });
 
-reportsRouter.get("/reports/exports", (req, res) => {
+reportsRouter.get("/reports/exports", async (req, res) => {
   if (!ensureAccess(req, res)) return;
-  res.status(200).json({ exports: listReportExports() });
+  res.status(200).json({ exports: await listReportExports() });
 });
 
-reportsRouter.get("/reports/exports/:id", (req, res) => {
+reportsRouter.get("/reports/exports/:id", async (req, res) => {
   if (!ensureAccess(req, res)) return;
-  const job = getReportExportById(req.params.id);
+  const job = await getReportExportById(req.params.id);
   if (!job) {
     res.status(404).json({ message: "Export job not found." });
     return;

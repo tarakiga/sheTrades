@@ -420,6 +420,31 @@ export async function ensurePrismaTables() {
       `CREATE INDEX IF NOT EXISTS "report_schedules_enabled_nextRunAt_idx" ON report_schedules ("enabled", "nextRunAt");`
     );
 
+    // report_exports - generated reports, persisted so any instance can list
+    // and serve them (2026-09-17). Keep in sync with ReportExport in schema.prisma.
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS report_exports (id TEXT PRIMARY KEY);`);
+    for (const [column, type] of [
+      ["requestId", "TEXT NOT NULL DEFAULT ''"],
+      ["reportType", "TEXT NOT NULL DEFAULT ''"],
+      ["format", "TEXT NOT NULL DEFAULT 'csv'"],
+      ["schemaVersion", "TEXT NOT NULL DEFAULT ''"],
+      ["requestedBy", "TEXT NOT NULL DEFAULT ''"],
+      ["status", "TEXT NOT NULL DEFAULT 'Failed'"],
+      ["fileName", "TEXT"],
+      ["content", "TEXT"],
+      ["error", "TEXT"],
+      ["createdAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"],
+      ["updatedAt", "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP"]
+    ] as const) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE report_exports ADD COLUMN IF NOT EXISTS "${column}" ${type};`);
+    }
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "report_exports_requestId_key" ON report_exports ("requestId");`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "report_exports_createdAt_idx" ON report_exports ("createdAt");`
+    );
+
     // users
     await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);
