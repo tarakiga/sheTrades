@@ -148,29 +148,43 @@ export async function fetchUsersFromPostgres(filters: UsersDataFilters = {}): Pr
     const last = page[page.length - 1];
     const nextCursor = hasMore && last ? encodeUsersCursor({ createdAt: last.createdAt, id: last.id }) : null;
 
-    const [summaryRow] = await queryWithPolicy<{
-      total: string;
-      active: string;
-      atRisk: string;
-      flagged: string;
-      averageCompletionPct: string;
-    }>(
-      `SELECT COUNT(*)::text AS total,
-              COUNT(*) FILTER (WHERE status = 'Active')::text AS active,
-              COUNT(*) FILTER (WHERE status = 'At Risk')::text AS "atRisk",
-              COUNT(*) FILTER (WHERE "flaggedForFollowUp")::text AS flagged,
-              COALESCE(AVG("completionPct"), 0)::text AS "averageCompletionPct"
-       FROM ${mappings.usersView}
-       WHERE ${where.join(" AND ")}`,
-      params
-    );
+    // One grouped pass over progress rather than one lookup per learner:
+    // the view's per-row subquery is right for a page of 50 and wrong for a
+    // count over 34,000.
+    const summary =
+      filters.includeSummary === false
+        ? undefined
+        : summarizeUsersRow(
+            (
+              await queryWithPolicy<{
+                total: string;
+                active: string;
+                atRisk: string;
+                flagged: string;
+                averageCompletionPct: string;
+              }>(
+                `SELECT COUNT(*)::text AS total,
+                        COUNT(*) FILTER (WHERE status = 'Active')::text AS active,
+                        COUNT(*) FILTER (WHERE status = 'At Risk')::text AS "atRisk",
+                        COUNT(*) FILTER (WHERE COALESCE("flaggedForFollowUp", false))::text AS flagged,
+                        COALESCE(AVG(COALESCE(p.pct, 0)), 0)::text AS "averageCompletionPct"
+                 FROM ${mappings.usersTable} u
+                 LEFT JOIN (
+                   SELECT "userId", MAX("completionPercentage") AS pct
+                   FROM ${mappings.progressTable} GROUP BY "userId"
+                 ) p ON p."userId" = u.id
+                 WHERE ${where.join(" AND ")}`,
+                params
+              )
+            )[0]
+          );
 
     return {
       users: page.map(({ id: _id, createdAt: _createdAt, ...r }) => ({
         ...r,
         flaggedForFollowUp: Boolean(r.flaggedForFollowUp)
       })),
-      meta: { nextCursor, summary: summarizeUsersRow(summaryRow) }
+      meta: { nextCursor, ...(summary ? { summary } : {}) }
     };
   } catch (error) {
     logger.error("admin.postgres.users_failed", error, { view: mappings.usersView });

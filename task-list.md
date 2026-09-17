@@ -427,3 +427,20 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[x]` 2FA-5: DASHBOARD UI shipped - login code step (accepts TOTP or recovery code), profile Two-factor card (client-side QR, manual key, one-time recovery codes, regenerate/turn-off), Admins tab Reset 2FA action. Browser-verified end to end against staging on a throwaway account.
 - `[x]` 2FA-6: suite 490/0, rev 00117-hn4, 12/12 live checks on a throwaway admin.
 - `[ ]` Enforcement policy (require 2FA for the admin role) - config-driven, currently opt-in per account.
+
+## OPS: First week live - payouts, CI, dashboard truth (2026-09-12 to 2026-09-17)
+- `[x]` CI-1: quality job green for the first time (40 lint errors -> 0; Prisma client generated before typecheck; Prettier gate removed, it had never passed).
+- `[x]` CI-2: backend-tests job green for the first time since June: 733/733 against Postgres (24 tests that had never run, all test-side).
+- `[x]` PUB-1: landing page footer credits the developers from one config key (`public.start.credits`), markdown links, http(s) only.
+- `[x]` PAY-1: payouts to 2026-09-17 read straight from the database: 7,322 issued / NGN 3,661,000; 869 pending; 851 failed (607 wallet empty, 239 provider duplicate).
+- `[ ]` PAY-2: decision - pause `shetrades-payouts-dispatcher-staging` while the 239 "duplicate" rows are reconciled against Africa's Talking and the wallet policy is set. Not done; Tar's call.
+- `[ ]` PAY-3: retry the 607 "Insufficient Credit" rewards once the wallet has credit (they will NOT retry themselves).
+- `[x]` DASH-1: Overview, Users and Rewards headline numbers come from whole-table aggregates, not the loaded page (they showed 200 with 30,689 learners).
+- `[x]` DASH-2: learner directory paged by keyset (createdAt, id), search/flagged/status in SQL, summary tiles, streamed export, shared LoadMoreBar on Users AND Rewards; "null" names fixed.
+- `[x]` DASH-3: rev 00128-4rb deployed and live payloads confirmed (34,078 learners; cursor walk clean; rewards summary present).
+- `[x]` DASH-3b: first live export truncated by a view-swap race on instance start; view swap made transactional, export built whole (500 on failure, never a short 200), summary query one grouped pass. Rev 00129.
+- `[ ]` OPS-1: 87 OOM kills at 512 MiB in 48 h since the surge began; 647 pool connect timeouts in 24 h. Levers with cost: memory 1Gi, lower concurrency, pool sizing vs Cloud SQL's ~100 connections. Tar's decision.
+- `[ ]` DASH-4: polish - Users actions row wraps at ~1360px because the search field carries its label.
+- `[ ]` DASH-5: the rewards export still caps at 10,000 rows (`buildRewardsFilters(req, 10000)`); 9,042 today. Stream it like the users export before it bites.
+- `[ ]` META-1: from 1 October Meta charges per message; at the current volume that is real money. Budget it.
+

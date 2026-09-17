@@ -191,10 +191,15 @@ adminRouter.get("/users/help-requests", async (req, res, next) => {
   }
 });
 
-// The export walks the whole directory page by page and streams each page as
-// it arrives. It used to reuse the list fetch, which was capped at 200 rows,
-// so an "export" of 30,000 learners was 200 learners that looked complete.
-// Search and filters from the query string apply; cursor and limit do not.
+// The export walks the whole directory page by page, then sends the file in
+// one piece. It is NOT streamed on purpose: once rows have started flowing
+// there is no way to signal a failed page, and the first live run proved the
+// point - a view swap on a starting instance failed page 25 and the client
+// received 24,341 of 34,078 rows with a 200. Held in memory the file is a
+// few megabytes at most; a failed page is a 500 and nothing else. It used
+// to reuse the list fetch, capped at 200 rows, so an "export" of 30,000
+// learners was 200 that looked complete. Search and filters apply; cursor
+// and limit do not.
 const USERS_EXPORT_PAGE = 1000;
 
 adminRouter.get("/users/export", async (req, res, next) => {
@@ -209,25 +214,26 @@ adminRouter.get("/users/export", async (req, res, next) => {
       .join(",");
   try {
     const { cursor: _cursor, limit: _limit, ...base } = buildUsersFilters(req);
-    const filename = `users-${new Date().toISOString().slice(0, 10)}.csv`;
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.status(200);
-    res.write("Name,Phone,Location,Language,Completion,Status,Flagged,Follow-up Note\n");
+    const lines = ["Name,Phone,Location,Language,Completion,Status,Flagged,Follow-up Note"];
     let cursor: string | undefined;
     do {
-      const data = await getUsersData({ ...base, limit: USERS_EXPORT_PAGE, ...(cursor ? { cursor } : {}) });
-      if (data.users.length > 0) res.write(data.users.map(toLine).join("\n") + "\n");
+      const data = await getUsersData({
+        ...base,
+        limit: USERS_EXPORT_PAGE,
+        includeSummary: false,
+        ...(cursor ? { cursor } : {})
+      });
+      for (const user of data.users) lines.push(toLine(user));
       // A provider with no paging (Firestore, fixtures) returns no meta and
       // therefore one page, which is all it has.
       cursor = data.meta?.nextCursor ?? undefined;
-    } while (cursor && !req.destroyed);
-    res.end();
+    } while (cursor);
+    const filename = `users-${new Date().toISOString().slice(0, 10)}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.status(200).send(lines.join("\n"));
   } catch (error) {
-    // Once rows have started flowing there is no 500 to send; close the
-    // stream so the client sees a truncated file rather than a hung download.
-    if (res.headersSent) res.end();
-    else next(error);
+    next(error);
   }
 });
 

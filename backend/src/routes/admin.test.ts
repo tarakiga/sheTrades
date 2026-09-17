@@ -119,6 +119,33 @@ test(
   }
 );
 
+test(
+  "GET /api/admin/users/export walks every page and carries each matching learner exactly once",
+  { concurrency: false, skip: process.env.POSTGRES_URL ? false : "requires POSTGRES_URL" },
+  async () => {
+    const seeded = [
+      { phone: "+234700000911", name: "Exportee A", createdAt: new Date("2026-01-02T00:00:00.000Z") },
+      { phone: "+234700000912", name: "Exportee B", createdAt: new Date("2026-01-02T00:00:00.000Z") },
+      { phone: "+234700000913", name: "Exportee C", createdAt: new Date("2026-01-01T00:00:00.000Z") }
+    ];
+    const phones = seeded.map((u) => u.phone);
+    await prisma.user.deleteMany({ where: { phone: { in: phones } } });
+    await prisma.user.createMany({ data: seeded });
+    try {
+      const res = await request(app)
+        .get("/api/admin/users/export?q=Exportee")
+        .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+        .expect(200);
+      const lines = res.text.split("\n").filter((line) => line.length > 0);
+      assert.equal(lines.length, 1 + seeded.length, "header plus one line per seeded learner");
+      const exported = lines.slice(1).map((line) => line.split(",")[1]);
+      assert.deepEqual([...exported].sort(), [...phones].sort());
+    } finally {
+      await prisma.user.deleteMany({ where: { phone: { in: phones } } });
+    }
+  }
+);
+
 test("GET /api/admin/users ignores a garbage cursor rather than failing", { concurrency: false }, async () => {
   await request(app)
     .get("/api/admin/users?cursor=not-a-cursor")

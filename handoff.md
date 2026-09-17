@@ -2517,7 +2517,47 @@ zero duplicate phones and the first page intact, search "Seed Learner 3" ->
 11 of 11 from the database, flagged only -> 21 of 21. Screenshots in the
 session scratchpad only.
 
-Next: deploy the backend (this plus the aggregate change from earlier today
-in one revision), then confirm the live payloads with a token that stays in
-the environment. Small polish left: the Users actions row wraps at ~1360px
-because the search field carries its label; not wrong, just not tidy.
+Deployed as rev 00128-4rb (12:20 UTC). Live checks with a token held only in
+the shell: analytics.overall.registered 34,078; users page + cursor walk with
+no repeats; names all strings; search q=CONTINUE 1,410; rewards summary
+9,959 issued / NGN 4,979,500, 1,848 pending, 844 failed.
+
+**The export failed on its first live run** - 61 s, 24,341 of 34,078 rows,
+HTTP 200. Log at 12:22:49: `relation "admin_users_view" does not exist`.
+Cause: every instance start ran DROP VIEW then CREATE VIEW as two separate
+statements, and my deploy had just started instances; one instance's boot
+dropped the view for a few milliseconds while another was serving page 25 of
+the export. The export caught the error and ended the stream. Pre-existing
+race (the DROP has been there since the flaggedForFollowUp column), but a
+30-second walk is what gets caught by it, and under autoscaling instances
+start all the time.
+
+Fix (rev 00129, this evening):
+- The view swap is one transaction (`prisma.$transaction` with both
+  statements). Postgres DDL is transactional: other sessions see the old view
+  until commit, the new one after, never nothing. The view also computes
+  completion once per row via LATERAL instead of twice.
+- The export is no longer streamed. It walks every page (1000 per query,
+  `includeSummary: false` so the totals are not recomputed 35 times), then
+  sends the whole file: a failed page is a 500, never a short 200. The file
+  is ~35 bytes a row; 34k rows is 1.2 MB.
+- The directory summary is one grouped pass over user_progress joined to
+  users, not a per-learner subquery over 34,000 rows.
+- DB-backed test: seeds three learners, exports with `?q=`, asserts header +
+  exactly those three lines.
+
+**Reliability findings that are NOT dashboard work (Tar's decision, billing):**
+- 87 OOM kills (512 MiB) in 48 h, the first at 15:38 UTC on 16 Sep - forty
+  minutes into the surge. Each kill drops the in-flight requests on that
+  instance (webhooks included; Meta retries, learners wait).
+- 647 "timeout exceeded when trying to connect" in 24 h (config pool, max 5,
+  5 s connect timeout): the periodic config refresh mostly fails under load,
+  so config changes may not propagate until a refresh succeeds.
+- Service: 512Mi / 1 vCPU / concurrency 80 / max 20 instances / no minimum.
+  Cloud SQL db-custom-1-3840 (~100 connections); pools per instance are
+  10 (Prisma) + 10 (admin) + 5 (config) = 25, so 4+ instances can exhaust it.
+- Levers, cheapest first: memory 512Mi -> 1Gi (one `gcloud run services
+  update --memory 1Gi`; ~doubles the memory component of Cloud Run cost while
+  instances run), concurrency 80 -> 20-40 (more instances, each calmer),
+  then pool sizing against the 100-connection ceiling. Not done: sizing with
+  a bill attached is Tar's call; presented with the numbers.

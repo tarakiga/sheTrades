@@ -650,24 +650,37 @@ export async function initializeAdminViews() {
     // which then made `SELECT "flaggedForFollowUp" FROM admin_users_view`
     // throw and the directory fall back to an empty list. DROP first so the
     // column set can change freely; this is a leaf view with no dependents.
-    await prisma.$executeRawUnsafe(`DROP VIEW IF EXISTS admin_users_view;`);
-    await prisma.$executeRawUnsafe(`
-      CREATE VIEW admin_users_view AS
-      SELECT
-        id,
-        name,
-        phone,
-        location,
-        language,
-        status,
-        COALESCE("flaggedForFollowUp", false) AS "flaggedForFollowUp",
-        (SELECT COALESCE(MAX("completionPercentage"), 0) FROM user_progress WHERE "userId" = users.id)::text || '%' as completion,
-        -- The directory pages by keyset on (createdAt, id) and averages
-        -- completion server-side; both need the raw values, not the label.
-        (SELECT COALESCE(MAX("completionPercentage"), 0) FROM user_progress WHERE "userId" = users.id) AS "completionPct",
-        "createdAt"
-      FROM users;
-    `);
+    // DROP and CREATE in ONE transaction. Postgres DDL is transactional, so
+    // every other session sees the old view until the commit and the new one
+    // after it - never nothing. As two separate statements, each instance
+    // start left a gap of a few milliseconds in which any query on any other
+    // instance failed with "relation admin_users_view does not exist"; under
+    // autoscaling instances start constantly, and the directory export (a
+    // 30-second walk) was caught by it on its first live run and truncated.
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`DROP VIEW IF EXISTS admin_users_view;`);
+      await tx.$executeRawUnsafe(`
+        CREATE VIEW admin_users_view AS
+        SELECT
+          u.id,
+          u.name,
+          u.phone,
+          u.location,
+          u.language,
+          u.status,
+          COALESCE(u."flaggedForFollowUp", false) AS "flaggedForFollowUp",
+          p.pct::text || '%' AS completion,
+          -- The directory pages by keyset on (createdAt, id) and averages
+          -- completion server-side; both need the raw values, not the label.
+          p.pct AS "completionPct",
+          u."createdAt"
+        FROM users u
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(MAX("completionPercentage"), 0) AS pct
+          FROM user_progress WHERE "userId" = u.id
+        ) p ON TRUE;
+      `);
+    });
 
     // admin_content_view (Stub for now since content is driven by config files)
     await prisma.$executeRawUnsafe(`

@@ -15,6 +15,12 @@ export type UsersDataFilters = {
   limit?: number;
   flagged?: boolean;
   status?: "Active" | "At Risk";
+  /**
+   * Internal, never read from a query string. The export walks every page
+   * and needs no totals; computing them on each of its pages was most of
+   * the export's time.
+   */
+  includeSummary?: boolean;
 };
 
 /** Whole-directory counts for the same search and filters as the page (not the cursor). */
