@@ -209,3 +209,29 @@ test("participantRow carries name, phone, a status per module and the course sta
   assert.ok(!donor.includes("Amaka Obi") && !donor.includes("+234800000001"));
   assert.equal(donor.length, expandJourneyColumns(JOURNEY_COLUMNS, modules).length);
 });
+
+test("names and typed-in states are one line with single spaces, however WhatsApp delivered them", () => {
+  const modules = ["module1"];
+  const LF = String.fromCharCode(10);
+  const CRLF = String.fromCharCode(13, 10);
+  const input = {
+    id: "user-3",
+    name: "  Amaka" + LF + "Obi ",
+    phone: "+234800000003",
+    location: "Akwa" + CRLF + "  Ibom",
+    language: "en",
+    firstContactAt: "2026-01-01T09:30:00Z",
+    enrolledAt: null,
+    lastActiveAt: null,
+    certificateId: null,
+    courseCompletedAt: null,
+    rewardsIssuedNgn: null,
+    modules: []
+  };
+  const columns = expandJourneyColumns(ME_PARTICIPANT_COLUMNS, modules);
+  const row = participantRow(input, modules);
+  assert.equal(row[columns.indexOf("name")], "Amaka Obi");
+  assert.equal(row[columns.indexOf("state")], "Akwa Ibom");
+  const donorColumns = expandJourneyColumns(JOURNEY_COLUMNS, modules);
+  assert.equal(journeyRow(input, modules)[donorColumns.indexOf("state")], "Akwa Ibom");
+});

@@ -190,6 +190,16 @@ export const ME_PARTICIPANT_COLUMNS = [
 
 type RowVariant = "journey" | "participants";
 
+/**
+ * Free text a learner typed - her name, a state she wrote herself - can carry
+ * line breaks and runs of spaces from WhatsApp. Quoted CSV allows them, but
+ * a cell with a line break in it is a nuisance in every tool that is not a
+ * spreadsheet. One line, single spaces.
+ */
+function clean(value: string | null | undefined): string {
+  return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
 function buildRow(input: JourneyInput, moduleKeys: string[], variant: RowVariant): string[] {
   const byStem = new Map(input.modules.map((m) => [moduleStem(m.module), m]));
   const perModule = moduleKeys.flatMap((key) => {
@@ -200,10 +210,10 @@ function buildRow(input: JourneyInput, moduleKeys: string[], variant: RowVariant
   const modulesCompleted = input.modules.filter((m) => moduleStatus(m) === "Completed").length;
   const days = daysBetween(input.enrolledAt, input.courseCompletedAt);
   const ngn = Number(input.rewardsIssuedNgn ?? 0);
-  const identity = variant === "participants" ? [learnerRef(input.id), input.name ?? "", input.phone ?? ""] : [learnerRef(input.id)];
+  const identity = variant === "participants" ? [learnerRef(input.id), clean(input.name), input.phone ?? ""] : [learnerRef(input.id)];
   return [
     ...identity,
-    input.location ?? "",
+    clean(input.location),
     input.language ?? "",
     formatWat(input.firstContactAt),
     formatWat(input.enrolledAt),

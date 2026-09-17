@@ -2707,3 +2707,18 @@ greeting ("CONTINUE", "Hi") from re-taps at the name prompt during the surge;
 phone is the reliable identifier for those. And module start times do not
 exist for the first week - the column was added on 17 Sep.
 
+Deployed as rev 00132-9x9; "M&E participant report" published into the live
+reports.presets set (Donor, Ops, Finance, Learner journey, M&E participant
+report). Live generation: 37,356 participants, 29 columns, 9.6 MB, ~10 s.
+Parsed with a real CSV reader (quoted commas, doubled quotes, line breaks):
+0 rows misaligned. courseStatus: In progress 14,235 / Enrolled 9,732 /
+Completed 7,182 / Registered 6,207. Completed module 1: 11,888; module 3:
+8,357; all modules: 7,182. Every participant has a phone; 29,441 a name;
+27,023 a state. 3,198 names are a button label or greeting.
+
+Found on the way: 84 names and some typed-in states carried line breaks
+from WhatsApp - legal in quoted CSV, fine in Excel and Sheets, a nuisance
+anywhere else. Free-text fields (name, state) are now collapsed to one line
+with single spaces in both per-learner reports (clean() in
+learner-journey.ts, tested). Rev 00133.
+
