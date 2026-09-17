@@ -12,6 +12,7 @@ import { getDataAccessPolicy } from "../config.js";
 import { logger } from "../../lib/logging.js";
 import { withRetry } from "../../lib/retry.js";
 import { getPostgresSslConfig } from "../pg-tls.js";
+import { summarizeRewardStatusRows } from "../rewards-summary.js";
 import {
   normalizeOverallCounts,
   normalizeStateCounts,
@@ -302,6 +303,39 @@ export async function fetchRewardsFromPostgres(
     const lastRow = trimmed[trimmed.length - 1];
     const nextCursor = hasMore && lastRow ? lastRow.createdAt.toISOString() : null;
 
+    // Whole-table totals for the same period and search, broken down by
+    // status. The page above is one page; every figure that used to be added
+    // up from it (the hero's "paid", the Overview's automation rate) was
+    // really describing the latest 25 rows. Status and cursor are left out on
+    // purpose: the summary is what the status filter is applied TO.
+    const summaryWhere: string[] = [`r."status" IS NOT NULL`];
+    const summaryParams: unknown[] = [];
+    if (filters.from) {
+      summaryParams.push(filters.from);
+      summaryWhere.push(`r."createdAt" >= $${summaryParams.length}`);
+    }
+    if (filters.to) {
+      summaryParams.push(filters.to);
+      summaryWhere.push(`r."createdAt" <= $${summaryParams.length}`);
+    }
+    if (filters.q) {
+      summaryParams.push(`%${filters.q}%`);
+      summaryWhere.push(
+        `(COALESCE(u."name", '') ILIKE $${summaryParams.length} OR r."learnerPhone" ILIKE $${summaryParams.length} OR r."module" ILIKE $${summaryParams.length})`
+      );
+    }
+    const summaryRows = await queryWithPolicy<{ status: string; count: string; amount: string }>(
+      `
+      SELECT r."status", COUNT(*)::text AS "count", COALESCE(SUM(r."amount"), 0)::text AS "amount"
+      FROM rewards r
+      LEFT JOIN users u ON u."id" = r."userId"
+      WHERE ${summaryWhere.join(" AND ")}
+      GROUP BY r."status"
+      `,
+      summaryParams
+    );
+    const summary = summarizeRewardStatusRows(summaryRows);
+
     return {
       rewards: trimmed.map((row) => ({
         id: row.id,
@@ -319,7 +353,7 @@ export async function fetchRewardsFromPostgres(
         retryCount: row.retryCount,
         noteFromActor: row.noteFromActor
       })),
-      meta: { activeProvider: null, nextCursor }
+      meta: { activeProvider: null, nextCursor, summary }
     };
   } catch (error) {
     logger.error("admin.postgres.rewards_failed", error);

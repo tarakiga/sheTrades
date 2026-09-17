@@ -19,6 +19,7 @@ import {
   getUsersPageData
 } from "../../../lib/admin/api";
 import { buildCsv, downloadCsvText } from "../../../lib/admin/csv";
+import { summaryCount } from "../../../lib/admin/rewards-summary";
 import { HelpRequestsPanel } from "../../../components/users/HelpRequestsPanel";
 import type {
   AnalyticsPageData,
@@ -141,12 +142,24 @@ export default function AdminDashboardOverviewPage() {
       : "fallback";
   }, [usersResult, rewardsResult, analyticsResult]);
 
+  // Whole-table figures from the payload's summary. The list this page loads
+  // is the first 25 rewards; a rate computed over it described those 25, and
+  // "Registered Learners" was the length of a list the backend caps at 200.
+  const rewardsSummary = rewardsData.meta.summary;
   const issuedCount = useMemo(
-    () => rewardsData.rewards.filter((row) => row.status === "Issued").length,
-    [rewardsData.rewards]
+    () =>
+      rewardsSummary
+        ? summaryCount(rewardsSummary, "Issued")
+        : rewardsData.rewards.filter((row) => row.status === "Issued").length,
+    [rewardsSummary, rewardsData.rewards]
   );
 
-  const totalRewards = useMemo(() => rewardsData.rewards.length, [rewardsData.rewards]);
+  const totalRewards = useMemo(
+    () => (rewardsSummary ? rewardsSummary.total.count : rewardsData.rewards.length),
+    [rewardsSummary, rewardsData.rewards]
+  );
+
+  const registeredLearners: number | null = analyticsData.overall?.registered ?? null;
 
   const automationRate = useMemo(
     () =>
@@ -293,14 +306,14 @@ export default function AdminDashboardOverviewPage() {
       metrics={[
         {
           label: "Registered Learners",
-          value: String(usersData.users.length),
+          value: registeredLearners === null ? "n/a" : registeredLearners.toLocaleString(),
           trend:
-            usersResult?.meta.source === "live"
-              ? "Synced from admin users API"
-              : "Fallback: no users loaded",
+            registeredLearners === null
+              ? "Count unavailable: analytics aggregate not loaded"
+              : "Counted across every learner",
           status: (
-            <Badge variant={usersData.users.length > 0 ? "success" : "warning"}>
-              Coverage
+            <Badge variant={registeredLearners !== null ? "success" : "warning"}>
+              {registeredLearners !== null ? "Live count" : "Unknown"}
             </Badge>
           )
         },
@@ -319,7 +332,9 @@ export default function AdminDashboardOverviewPage() {
         {
           label: "Rewards Automation",
           value: automationRate,
-          trend: "Issued / total rewards",
+          trend: rewardsSummary
+            ? `Issued share of all ${totalRewards.toLocaleString()} rewards`
+            : `Issued share of the ${totalRewards} most recent rewards loaded`,
           status: (
             <Badge variant={issuedCount > 0 ? "success" : "warning"}>
               Dynamic

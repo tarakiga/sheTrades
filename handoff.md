@@ -2425,3 +2425,42 @@ clean. `db:setup:test` is what gets the schema onto the empty database.
 What this buys: the erasure transaction, the reward ledger, the webhook auth
 and the login lockout now have automated coverage that actually runs, on
 every push.
+
+## Dashboard totals were the length of a capped list (2026-09-17)
+
+Five days after go-live, with 30,689 learners, the Overview said "Registered
+Learners: 200" and the Users page agreed. Three pages, five numbers, all
+computed client-side over whatever list happened to be loaded:
+
+- Overview "Registered Learners" = `users.length` -> the users API caps at
+  200 rows (`fetchUsersFromPostgres`, hardcoded LIMIT, no ORDER BY, no total).
+- Overview "Rewards Automation" = issued/total over the first rewards page (25).
+- Users "Total Learners" = the same 200.
+- Rewards hero: issued / pending / failed / "paid" all summed over the loaded
+  page. With 7,322 paid rewards it showed whatever 25 were on screen.
+- The users CSV export reuses the capped fetch: 200 rows, looks complete.
+
+Invisible at 326 test learners; false at scale. Fix, additive on both sides:
+
+- `AnalyticsPageData.overall` - the five funnel counts as numbers, from the
+  live aggregate that already computed them (it had only stringified them
+  into the funnel sentence). Absent from snapshots/fixtures on purpose.
+- `RewardsListMeta.summary` - `GROUP BY status` counts and amounts over the
+  whole table for the list's period and search (not its status filter, not
+  its cursor), folded by the pure `rewards-summary.ts` (tested). The route
+  test asserts it is present whenever a database is.
+- Overview, Users and Rewards read those; each falls back to its old
+  page-based figure with an honest label ("of the 25 most recent loaded",
+  "n/a", "Directory below shows 200 of 30,689") when the backend is older.
+
+Verified: backend typecheck, 8 unit + 35 route tests (no DB); dashboard
+typecheck, lint, 72 tests, production build. The DB-backed assertion runs in
+CI's backend-tests job.
+
+NOT yet deployed to Cloud Run at the time of writing: deploying the backend
+means a new revision while the bot is under a 30k-learner surge, so it waits
+for Tar's word. The dashboard deploys itself from main and is safe against
+the old backend.
+
+STILL TO DO (next piece): page the Users list by cursor like Rewards, search
+against the database rather than the loaded rows, stream the export.

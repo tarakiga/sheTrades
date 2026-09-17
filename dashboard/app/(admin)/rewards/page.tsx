@@ -17,6 +17,7 @@ import {
 import type { NeedsAttentionItem } from "../../../components/rewards/NeedsAttentionPanel";
 import { Badge, Button, SectionHeader } from "../../../components/ui";
 import { fetchPublicOptionSet } from "../../../lib/config/options";
+import { summaryAmount, summaryCount } from "../../../lib/admin/rewards-summary";
 import {
   createManualReward,
   downloadAdminCsv,
@@ -239,24 +240,31 @@ export default function RewardsPage() {
   const manualAmount = meta.defaults?.amount ?? DEFAULT_MANUAL_AMOUNT;
   const manualChannel = meta.defaults?.channel ?? DEFAULT_MANUAL_CHANNEL;
 
+  // Whole-period totals come from the payload's summary. The loaded list is
+  // one page (25 rows), and adding it up is how the hero came to report a
+  // fraction of what had actually been paid. The page-based sums remain only
+  // as the fallback for a backend that sends no summary.
+  const summary = meta.summary;
   const issued = useMemo(
-    () => rewards.filter((row) => row.status === "Issued").length,
-    [rewards]
+    () => (summary ? summaryCount(summary, "Issued") : rewards.filter((row) => row.status === "Issued").length),
+    [summary, rewards]
   );
   const pending = useMemo(
-    () => rewards.filter((row) => row.status === "Pending").length,
-    [rewards]
+    () => (summary ? summaryCount(summary, "Pending") : rewards.filter((row) => row.status === "Pending").length),
+    [summary, rewards]
   );
   const failed = useMemo(
-    () => rewards.filter((row) => row.status === "Failed").length,
-    [rewards]
+    () => (summary ? summaryCount(summary, "Failed") : rewards.filter((row) => row.status === "Failed").length),
+    [summary, rewards]
   );
   const totalPaidAmount = useMemo(
     () =>
-      rewards
-        .filter((row) => row.status === "Issued")
-        .reduce((sum, row) => sum + (Number.isFinite(row.amount) ? row.amount : 0), 0),
-    [rewards]
+      summary
+        ? summaryAmount(summary, "Issued")
+        : rewards
+            .filter((row) => row.status === "Issued")
+            .reduce((sum, row) => sum + (Number.isFinite(row.amount) ? row.amount : 0), 0),
+    [summary, rewards]
   );
   const attentionItems = useMemo(() => buildAttentionItems(rewards), [rewards]);
   const lastIssuedAt = useMemo(() => findLastIssuedAt(rewards), [rewards]);

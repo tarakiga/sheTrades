@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { downloadAdminCsv, flagLearner, getUsersPageData, usersExportEndpoint } from "../../../lib/admin/api";
-import type { ApiResult, UsersPageData, UserRow } from "../../../lib/admin/contracts";
+import { downloadAdminCsv, flagLearner, getAnalyticsPageData, getUsersPageData, usersExportEndpoint } from "../../../lib/admin/api";
+import type { AnalyticsPageData, ApiResult, UsersPageData, UserRow } from "../../../lib/admin/contracts";
 import {
   AdminActionRail,
   AdminReviewTableShell,
@@ -23,6 +23,9 @@ function parsePercent(value: string) {
 
 export default function UsersPage() {
   const [result, setResult] = useState<ApiResult<UsersPageData> | null>(null);
+  // The directory the API returns is capped at 200 rows, so "Total Learners"
+  // cannot be its length. The true count comes from the analytics aggregate.
+  const [analytics, setAnalytics] = useState<ApiResult<AnalyticsPageData> | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [openPhone, setOpenPhone] = useState<string | null>(null);
   const [contact, setContact] = useState<{ phone: string; name: string } | null>(null);
@@ -40,6 +43,13 @@ export default function UsersPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    getAnalyticsPageData()
+      .then((next) => {
+        if (!cancelled) setAnalytics(next);
+      })
+      .catch(() => {
+        // The tile shows "n/a" without it; the directory still loads.
+      });
     getUsersPageData()
       .then((next) => {
         if (!cancelled) setResult(next);
@@ -69,6 +79,7 @@ export default function UsersPage() {
   }, []);
 
   const allUsers = result?.data.users ?? [];
+  const totalLearners: number | null = analytics?.data.overall?.registered ?? null;
   // Follow-up flags are raised automatically when a learner taps the help
   // option in a lesson check-in. Without a filter the only way to find them is
   // to scroll the whole directory hunting for badges, which does not scale.
@@ -195,10 +206,15 @@ export default function UsersPage() {
         metrics={[
           {
             label: "Total Learners",
-            value: String(users.length),
-            trend: "Current directory coverage",
+            value: totalLearners === null ? "n/a" : totalLearners.toLocaleString(),
+            trend:
+              totalLearners === null
+                ? `Directory below shows ${allUsers.length}; full count unavailable`
+                : `Directory below shows ${allUsers.length} of ${totalLearners.toLocaleString()}`,
             status: (
-              <Badge variant={users.length > 0 ? "success" : "warning"}>Coverage</Badge>
+              <Badge variant={totalLearners !== null ? "success" : "warning"}>
+                {totalLearners !== null ? "Live count" : "Partial"}
+              </Badge>
             )
           },
           {

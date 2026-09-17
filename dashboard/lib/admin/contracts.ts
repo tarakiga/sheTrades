@@ -74,11 +74,23 @@ export type StateFunnel = {
   passRate: string;
 };
 
+/** The five funnel counts as numbers, present only when they come from a live aggregate. */
+export type AnalyticsOverallCounts = {
+  registered: number;
+  started: number;
+  completed: number;
+  attempted: number;
+  passed: number;
+};
+
 export type AnalyticsPageData = {
   registrationRate: string;
   completionRate: string;
   passRate: string;
   funnelOverall: string;
+  // Absent from snapshots and fixtures. A tile shows "n/a" then, never the
+  // length of whatever list it happened to have loaded.
+  overall?: AnalyticsOverallCounts;
   stateFunnels: StateFunnel[];
 };
 
@@ -116,6 +128,14 @@ export type RewardsListMeta = {
   nextCursor: string | null;
   // Manual-reward defaults sourced from the published Reward Rule (admin-set).
   defaults?: { amount: number; channel: string } | null;
+  // Whole-table totals for the period and search, by status. The list is one
+  // page; anything that adds the page up is describing 25 rows.
+  summary?: RewardsSummary;
+};
+
+export type RewardsSummary = {
+  byStatus: Array<{ status: string; count: number; amount: number }>;
+  total: { count: number; amount: number };
 };
 
 export type RewardsPageData = {

@@ -84,6 +84,13 @@ export function toAnalyticsPageDataFromLiveAggregate(
     completionRate,
     passRate,
     funnelOverall,
+    overall: {
+      registered: aggregate.registeredCount,
+      started: aggregate.startedCount,
+      completed: aggregate.completedCount,
+      attempted: aggregate.attemptedCount,
+      passed: aggregate.passedCount
+    },
     stateFunnels: toStateFunnels(aggregate.stateCounts)
   };
 }

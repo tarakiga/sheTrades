@@ -54,6 +54,10 @@ test("toAnalyticsPageDataFromLiveAggregate returns overall + dynamic per-state f
     data.funnelOverall,
     "Registered 100 -> Started 80 -> Completed 55 -> Quiz Attempt 50 -> Passed 35"
   );
+  // The counts travel as numbers too. The Overview's "Registered Learners"
+  // tile used to show the length of the 200-row users list because this was
+  // the only place the true count existed, and it was a sentence.
+  assert.deepEqual(data.overall, { registered: 100, started: 80, completed: 55, attempted: 50, passed: 35 });
   assert.equal(data.stateFunnels.length, 3);
   assert.deepEqual(data.stateFunnels[0], {
     state: "Anambra",

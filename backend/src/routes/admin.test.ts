@@ -81,6 +81,23 @@ test("GET /api/admin/rewards returns rewards payload", { concurrency: false }, a
     .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
     .expect(200);
   assert.ok(Array.isArray(response.body.rewards));
+
+  // With a real database the payload carries whole-table totals next to the
+  // page, so no screen has to add up the rows it happened to load. The
+  // fixture path has no table to total, and says nothing rather than 0.
+  const summary = response.body.meta.summary;
+  if (process.env.POSTGRES_URL) {
+    assert.ok(summary, "a database-backed payload must carry meta.summary");
+    assert.ok(Array.isArray(summary.byStatus));
+    assert.equal(typeof summary.total.count, "number");
+    assert.equal(typeof summary.total.amount, "number");
+    assert.equal(
+      summary.total.count,
+      summary.byStatus.reduce((n: number, row: { count: number }) => n + row.count, 0)
+    );
+  } else {
+    assert.equal(summary, undefined);
+  }
 });
 
 test(
