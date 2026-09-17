@@ -2664,4 +2664,8 @@ Fix:
   feedback instead of nothing.
 - Test (admin.test.ts, DB-backed): generate, clear the cache (= another
   instance), list must show the job, download must be 200 with the CSV.
+Deployed as rev 00131-px8. Live: generated a Learner journey, then listed
+and downloaded it six times (each request free to land on any instance):
+listed 6/6, downloaded 6/6, 5.7 MB each. History shows only jobs generated
+from this revision on; the earlier ones lived in memory that is gone.
 
