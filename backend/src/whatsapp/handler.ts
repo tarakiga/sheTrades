@@ -2818,7 +2818,10 @@ async function recordAnalytics(
           create: {
             userId: session.userId,
             module: event.module,
-            completionPercentage: event.completionPercentage
+            completionPercentage: event.completionPercentage,
+            // The first lesson of a module is the earliest moment we know she
+            // was in it. Set once, on the row's creation, never touched again.
+            startedAt: new Date()
           }
         });
       } else if (event.type === "module_completed") {

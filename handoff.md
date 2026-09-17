@@ -2564,3 +2564,52 @@ while it ran):
   instances run), concurrency 80 -> 20-40 (more instances, each calmer),
   then pool sizing against the 100-connection ceiling. Not done: sizing with
   a bill attached is Tar's call; presented with the numbers.
+
+## Donor reports: learner start and end times (2026-09-17, evening)
+
+Tar asked for the date and time learners started and ended the course in the
+report to donors, chose: a per-learner preset AND three columns on the monthly
+Donor summary; pseudonymous references, not phone numbers; West Africa Time;
+"started" = accepted the privacy notice (enrolled).
+
+What the data records, and therefore what the report can say:
+- first contact = users.createdAt; enrolled = users.consentDecidedAt;
+  module finished = user_progress.updatedAt on the row that reached 100%;
+  course finished = certificates.issuedAt; last active = user_sessions.lastUpdatedAt.
+- Module START was never recorded. New nullable column user_progress.startedAt
+  (migration 20260917160000 + ensurePrismaTables ALTER), set once on the row's
+  creation by the WhatsApp handler's progress upsert. History stays blank in
+  the report rather than being invented.
+
+Backend (`reports/learner-journey.ts`, `reports/donor-summary.ts`, pure and
+tested; `export-service.ts` wires them):
+- New report type `learner_journey` v1. Columns: learnerRef, state, language,
+  firstContactAtWAT, enrolledAtWAT, module{n}StartedAtWAT, module{n}CompletedAtWAT
+  (one pair per module present, expanded at generation), modulesCompleted,
+  courseCompletedAtWAT, daysToComplete, lastActiveAtWAT, certificateId,
+  rewardsIssuedNgn. One SQL pass: users LEFT JOIN sessions, unrevoked
+  certificate, issued-reward sum, and progress aggregated to JSON with the
+  timestamps written as UTC ISO strings explicitly (naive TIMESTAMP columns
+  would otherwise serialise without a zone and JS would read them as local).
+- learnerRef = "L-" + 10 hex of sha256("learner-ref:" + userId): stable per
+  learner across reports, nothing recoverable from it.
+- donor_summary bumped to v3: + learnersEnrolled (consent in the month),
+  learnersCompleted (certificates issued in the month), medianDaysToComplete.
+  Months are WAT. Schedules resolve the version from the registry at run time
+  (schedule-service.ts:382, admin.ts:626), so the bump strands nothing.
+- Mock renderer updated for both; the mock journey expands module1/module2.
+
+Dashboard: "Learner journey" added to the built-in preset defaults and to the
+seed for the `reports.presets` option set (sortOrder 4, metadata.reportType).
+The PUBLISHED option set on staging predates this, so the preset must be added
+there too (done via the config API after deploy; see below) or it will not
+show in the console. Handbook: Reports section describes the new preset, WAT,
+and the pseudonymous reference.
+
+Tests: 15 pure (formatting, WAT month edges, ref stability, days, median,
+module stems/order, column expansion, row alignment); 4 donor-summary; route
+tests updated to v3; mock journey header test; a DB-backed test that seeds a
+learner with consent, two modules (one at 100%), a certificate and a reward,
+generates the real report and asserts every cell in WAT and that no phone
+number appears anywhere in the file.
+

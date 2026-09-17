@@ -94,6 +94,18 @@ const SEED_ENTRIES: SeedEntry[] = [
             description: "Reward issuance ledger and reconciliations.",
             reportType: "rewards_issuance_log"
           }
+        },
+        {
+          id: "journey",
+          value: "journey",
+          label: "Learner journey",
+          enabled: true,
+          sortOrder: 4,
+          metadata: {
+            description:
+              "One row per learner: enrolment, each module's start and completion, course completion, days to complete, certificate and airtime, in West Africa Time, under a pseudonymous reference.",
+            reportType: "learner_journey"
+          }
         }
       ]
     }

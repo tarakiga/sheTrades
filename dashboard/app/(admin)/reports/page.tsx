@@ -36,6 +36,7 @@ type ReportPreset = { id: string; label: string; content: string; reportType?: s
 // metadata.reportType in the option set instead.
 const KNOWN_PRESET_REPORT_TYPES: Record<string, string> = {
   donor: "donor_summary",
+  journey: "learner_journey",
   ops: "module_completion_detail",
   finance: "rewards_issuance_log"
 };
@@ -59,6 +60,13 @@ const DEFAULT_PRESETS: ReportPreset[] = [
     label: "Finance",
     content: "Reward issuance ledger and reconciliations.",
     reportType: "rewards_issuance_log"
+  },
+  {
+    id: "journey",
+    label: "Learner journey",
+    content:
+      "One row per learner: enrolment, module and course completion times (WAT), days to complete, certificate, airtime. Pseudonymous refs, no phone numbers.",
+    reportType: "learner_journey"
   }
 ];
 

@@ -3,8 +3,16 @@ import { z } from "zod";
 import { withRetry } from "../lib/retry.js";
 import { logger } from "../lib/logging.js";
 import { prisma } from "../admin/prisma.js";
+import { DONOR_SUMMARY_COLUMNS, buildDonorSummaryRows } from "./donor-summary.js";
+import {
+  JOURNEY_COLUMNS,
+  expandJourneyColumns,
+  journeyRow,
+  sortModuleKeys,
+  type ModuleProgress
+} from "./learner-journey.js";
 
-type ReportType = "donor_summary" | "module_completion_detail" | "rewards_issuance_log";
+type ReportType = "donor_summary" | "module_completion_detail" | "rewards_issuance_log" | "learner_journey";
 type ExportFormat = "csv" | "pdf";
 type ExportStatus = "Ready" | "Failed";
 
@@ -38,8 +46,19 @@ const reportSchemaRegistry: Record<ReportType, { schemaVersion: string; columns:
     // disbursements by month - but the v1 headers (totalDonors, newDonors,
     // retainedDonors, donationTotalNgn) claimed donor semantics the data never
     // had, which would mislead anyone reading the CSV cold.
-    schemaVersion: "v2",
-    columns: ["period", "recipients", "rewardsIssued", "totalNgnIssued"]
+    // v3: adds learnersEnrolled, learnersCompleted and medianDaysToComplete per
+    // month, and months are West Africa Time. Schedules resolve the version
+    // from this registry at run time, so a bump does not strand them.
+    schemaVersion: "v3",
+    columns: DONOR_SUMMARY_COLUMNS
+  },
+  learner_journey: {
+    // One row per learner: enrolment, each module's start and completion, the
+    // course completion, days to complete, certificate, airtime - in West
+    // Africa Time, under a pseudonymous reference. The two "module{n}" entries
+    // expand to one pair per module present when the report is generated.
+    schemaVersion: "v1",
+    columns: JOURNEY_COLUMNS
   },
   module_completion_detail: {
     schemaVersion: "v1",
@@ -53,7 +72,7 @@ const reportSchemaRegistry: Record<ReportType, { schemaVersion: string; columns:
 
 const exportRequestSchema = z.object({
   requestId: z.string().min(1),
-  reportType: z.enum(["donor_summary", "module_completion_detail", "rewards_issuance_log"]),
+  reportType: z.enum(["donor_summary", "module_completion_detail", "rewards_issuance_log", "learner_journey"]),
   format: z.enum(["csv", "pdf"]),
   schemaVersion: z.string().min(1),
   requestedBy: z.string().min(1)
@@ -83,23 +102,58 @@ function retryPolicy() {
 
 const renderAttemptsByRequestId = new Map<string, number>();
 
-function buildMockRows(reportType: ReportType) {
+type ReportData = { columns: string[]; rows: string[][] };
+
+function buildMockReport(reportType: ReportType): ReportData {
+  const columns = reportSchemaRegistry[reportType].columns;
   if (reportType === "donor_summary") {
-    return [
-      ["2026-05", "1240", "1054", "943000"],
-      ["2026-04", "1179", "1006", "889000"]
-    ];
+    return {
+      columns,
+      rows: [
+        ["2026-05", "1240", "1054", "943000", "1500", "980", "3.4"],
+        ["2026-04", "1179", "1006", "889000", "1420", "901", "3.9"]
+      ]
+    };
   }
   if (reportType === "module_completion_detail") {
-    return [
-      ["Module 1", "12000", "8120", "67.7%", "74.1%"],
-      ["Module 2", "9300", "5710", "61.4%", "70.3%"]
-    ];
+    return {
+      columns,
+      rows: [
+        ["Module 1", "12000", "8120", "67.7%", "74.1%"],
+        ["Module 2", "9300", "5710", "61.4%", "70.3%"]
+      ]
+    };
   }
-  return [
-    ["2026-05-05T09:10:00Z", "+234800000001", "Module 1", "200", "Airtime API", "Issued"],
-    ["2026-05-05T09:22:00Z", "+234800000003", "Module 2", "200", "Manual", "Pending"]
-  ];
+  if (reportType === "learner_journey") {
+    const modules = ["module1", "module2"];
+    const sample = (id: string, state: string, completed: boolean) =>
+      journeyRow(
+        {
+          id,
+          location: state,
+          language: "en",
+          firstContactAt: "2026-05-01T08:00:00Z",
+          enrolledAt: "2026-05-01T08:05:00Z",
+          lastActiveAt: "2026-05-03T10:00:00Z",
+          certificateId: completed ? "mockcertificate00000000000000001" : null,
+          courseCompletedAt: completed ? "2026-05-03T10:00:00Z" : null,
+          rewardsIssuedNgn: completed ? 1000 : 500,
+          modules: [
+            { module: "module1", startedAt: "2026-05-01T08:10:00Z", completedAt: "2026-05-01T09:00:00Z" },
+            { module: "module2", startedAt: "2026-05-02T08:00:00Z", completedAt: completed ? "2026-05-03T10:00:00Z" : null }
+          ]
+        },
+        modules
+      );
+    return { columns: expandJourneyColumns(columns, modules), rows: [sample("mock-1", "Lagos", true), sample("mock-2", "Kano", false)] };
+  }
+  return {
+    columns,
+    rows: [
+      ["2026-05-05T09:10:00Z", "+234800000001", "Module 1", "200", "Airtime API", "Issued"],
+      ["2026-05-05T09:22:00Z", "+234800000003", "Module 2", "200", "Manual", "Pending"]
+    ]
+  };
 }
 
 /**
@@ -108,11 +162,12 @@ function buildMockRows(reportType: ReportType) {
  * missing/unavailable DB yields a header-only export rather than a hard failure
  * (keeps the pipeline — and its unit tests — working without a live Postgres).
  */
-async function buildReportRows(reportType: ReportType): Promise<string[][]> {
+async function buildReport(reportType: ReportType): Promise<ReportData> {
+  const columns = reportSchemaRegistry[reportType].columns;
   try {
     if (reportType === "rewards_issuance_log") {
       const rewards = await prisma.reward.findMany({ orderBy: { createdAt: "desc" }, take: 5000 });
-      return rewards.map((r) => [
+      const rows = rewards.map((r) => [
         (r.issuedAt ?? r.createdAt).toISOString(),
         r.learnerPhone || "",
         r.module,
@@ -120,6 +175,7 @@ async function buildReportRows(reportType: ReportType): Promise<string[][]> {
         r.channel,
         r.status
       ]);
+      return { columns, rows };
     }
 
     if (reportType === "module_completion_detail") {
@@ -132,7 +188,7 @@ async function buildReportRows(reportType: ReportType): Promise<string[][]> {
         if (p.completionPercentage >= 100) agg.completed += 1;
         byModule.set(p.module, agg);
       }
-      return Array.from(byModule.entries())
+      const rows = Array.from(byModule.entries())
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([module, agg]) => [
           module,
@@ -141,34 +197,117 @@ async function buildReportRows(reportType: ReportType): Promise<string[][]> {
           agg.enrolled > 0 ? `${Math.round((agg.completed / agg.enrolled) * 100)}%` : "0%",
           agg.enrolled > 0 ? `${Math.round(agg.pctSum / agg.enrolled)}%` : "0%"
         ]);
+      return { columns, rows };
     }
 
-    // donor_summary — no donor entity exists, so summarise real disbursements
-    // from the rewards ledger by month (period, recipients, total NGN issued).
-    const rewards = await prisma.reward.findMany();
-    const byPeriod = new Map<string, { recipients: Set<string>; issued: number; total: number }>();
-    for (const r of rewards) {
-      const period = (r.issuedAt ?? r.createdAt).toISOString().slice(0, 7);
-      const agg = byPeriod.get(period) ?? { recipients: new Set<string>(), issued: 0, total: 0 };
-      agg.recipients.add(r.userId);
-      if (r.status === "Issued") {
-        agg.issued += 1;
-        agg.total += r.amount;
-      }
-      byPeriod.set(period, agg);
+    if (reportType === "learner_journey") {
+      // Awaited on purpose: a returned-but-unawaited promise rejects OUTSIDE
+      // this try, and the header-only fallback below would never apply.
+      return await buildLearnerJourney();
     }
-    return Array.from(byPeriod.entries())
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([period, agg]) => [
-        period,
-        String(agg.recipients.size),
-        String(agg.issued),
-        String(Math.round(agg.total))
-      ]);
+
+    // donor_summary v3 - no donor entity exists, so summarise real
+    // disbursements from the rewards ledger by month, and next to them how
+    // many learners enrolled (accepted the notice) and completed (certificate
+    // issued) that month, and the median days from enrolment to completion.
+    const [rewards, enrolments, completions] = await Promise.all([
+      prisma.reward.findMany({ select: { userId: true, status: true, amount: true, issuedAt: true, createdAt: true } }),
+      prisma.user.findMany({ where: { consentDecidedAt: { not: null } }, select: { consentDecidedAt: true } }),
+      prisma.certificate.findMany({
+        where: { revokedAt: null },
+        select: { issuedAt: true, user: { select: { consentDecidedAt: true } } }
+      })
+    ]);
+    return {
+      columns,
+      rows: buildDonorSummaryRows({
+        rewards,
+        enrolments: enrolments.map((e) => e.consentDecidedAt).filter((d): d is Date => d !== null),
+        completions: completions.map((c) => ({ issuedAt: c.issuedAt, enrolledAt: c.user.consentDecidedAt }))
+      })
+    };
   } catch (error) {
     logger.error("reports.export.query_failed", error, { reportType });
+    return { columns: reportType === "learner_journey" ? expandJourneyColumns(columns, []) : columns, rows: [] };
+  }
+}
+
+type JourneyRawRow = {
+  id: string;
+  location: string | null;
+  language: string | null;
+  firstContactAt: Date;
+  enrolledAt: Date | null;
+  lastActiveAt: Date | null;
+  certificateId: string | null;
+  courseCompletedAt: Date | null;
+  rewardsIssuedNgn: number | string | null;
+  modules: string | null;
+};
+
+function parseModules(raw: string | null): ModuleProgress[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((m): m is Record<string, unknown> => typeof m === "object" && m !== null)
+      .map((m) => ({
+        module: String(m.module ?? ""),
+        startedAt: typeof m.startedAt === "string" ? m.startedAt : null,
+        completedAt: typeof m.completedAt === "string" ? m.completedAt : null
+      }))
+      .filter((m) => m.module.length > 0);
+  } catch {
     return [];
   }
+}
+
+/**
+ * One query, one row per learner. The per-module part is aggregated to JSON
+ * in SQL so the whole directory is a single pass rather than a query per
+ * learner. Timestamps inside the JSON are written as UTC ISO strings
+ * explicitly: user_progress columns are naive TIMESTAMP(3) stored as UTC, and
+ * Postgres would otherwise serialise them without a zone, which JS reads as
+ * local time.
+ */
+async function buildLearnerJourney(): Promise<ReportData> {
+  const rows = await prisma.$queryRawUnsafe<JourneyRawRow[]>(`
+    SELECT u.id,
+           u.location,
+           u.language,
+           u."createdAt" AS "firstContactAt",
+           u."consentDecidedAt" AS "enrolledAt",
+           s."lastUpdatedAt" AS "lastActiveAt",
+           c."publicId" AS "certificateId",
+           c."issuedAt" AS "courseCompletedAt",
+           COALESCE(r.total, 0)::float AS "rewardsIssuedNgn",
+           p.modules::text AS modules
+    FROM users u
+    LEFT JOIN user_sessions s ON s."userId" = u.id
+    LEFT JOIN certificates c ON c."userId" = u.id AND c."revokedAt" IS NULL
+    LEFT JOIN (
+      SELECT "userId", SUM(amount) AS total FROM rewards WHERE status = 'Issued' GROUP BY "userId"
+    ) r ON r."userId" = u.id
+    LEFT JOIN (
+      SELECT "userId",
+             json_agg(json_build_object(
+               'module', module,
+               'startedAt', CASE WHEN "startedAt" IS NULL THEN NULL
+                            ELSE to_char("startedAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS') || 'Z' END,
+               'completedAt', CASE WHEN "completionPercentage" >= 100
+                              THEN to_char("updatedAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS') || 'Z' ELSE NULL END
+             )) AS modules
+      FROM user_progress GROUP BY "userId"
+    ) p ON p."userId" = u.id
+    ORDER BY u."createdAt" ASC, u.id ASC
+  `);
+  const learners = rows.map((r) => ({ ...r, modules: parseModules(r.modules) }));
+  const moduleKeys = sortModuleKeys(learners.flatMap((l) => l.modules.map((m) => m.module)));
+  return {
+    columns: expandJourneyColumns(JOURNEY_COLUMNS, moduleKeys),
+    rows: learners.map((l) => journeyRow(l, moduleKeys))
+  };
 }
 
 function toCsv(columns: string[], rows: string[][]) {
@@ -203,17 +342,14 @@ async function renderExportContent(
     throw new Error("Transient renderer failure.");
   }
 
-  const registry = reportSchemaRegistry[request.reportType];
-  const rows =
-    renderMode() === "mock"
-      ? buildMockRows(request.reportType)
-      : await buildReportRows(request.reportType);
+  const data =
+    renderMode() === "mock" ? buildMockReport(request.reportType) : await buildReport(request.reportType);
   const extension = request.format;
   const fileName = `${request.reportType}-${new Date().toISOString().slice(0, 10)}.${extension}`;
   const content =
     request.format === "csv"
-      ? toCsv(registry.columns, rows)
-      : toPdfLikeText(request.reportType, request.schemaVersion, registry.columns, rows);
+      ? toCsv(data.columns, data.rows)
+      : toPdfLikeText(request.reportType, request.schemaVersion, data.columns, data.rows);
 
   return { fileName, content };
 }

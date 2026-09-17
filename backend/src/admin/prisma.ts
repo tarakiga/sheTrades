@@ -474,6 +474,9 @@ export async function ensurePrismaTables() {
     await prisma.$executeRawUnsafe(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS module TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS "completionPercentage" DOUBLE PRECISION NOT NULL DEFAULT 0.0;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
+    // 2026-09-17: when she started the module (first lesson completed). The
+    // donor report shows both ends of each module; history stays blank.
+    await prisma.$executeRawUnsafe(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS "startedAt" TIMESTAMP(3);`);
     await prisma.$executeRawUnsafe(`
       DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_progress_user_module_unique') THEN

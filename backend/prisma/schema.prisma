@@ -139,6 +139,10 @@ model UserProgress {
   user                 User     @relation(fields: [userId], references: [id])
   module               String
   completionPercentage Float    @default(0.0)
+  /// When the first lesson of this module was completed: the earliest moment
+  /// the system knows she was in it. Null for rows written before 2026-09-17;
+  /// the donor report leaves those blank rather than guessing.
+  startedAt            DateTime?
   updatedAt            DateTime @updatedAt
 
   @@unique([userId, module])

@@ -444,4 +444,7 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[ ]` DASH-6: index users("createdAt", id) for the keyset walk; the export is 48 s for 34k rows, ~1.4 s a page, most of it the sort.
 - `[ ]` DASH-5: the rewards export still caps at 10,000 rows (`buildRewardsFilters(req, 10000)`); 9,042 today. Stream it like the users export before it bites.
 - `[ ]` META-1: from 1 October Meta charges per message; at the current volume that is real money. Budget it.
+- `[x]` RPT-1: "Learner journey" donor report (one row per learner, WAT, pseudonymous refs) + Donor summary v3 (enrolled / completed / median days per month). user_progress.startedAt recorded from now on.
+- `[ ]` RPT-2: add the Learner journey preset to the PUBLISHED reports.presets option set on staging (seed updated; live set predates it).
+- `[ ]` RPT-3: the rewards_issuance_log report still takes only the latest 5,000 rewards (`take: 5000`); 12,857 today. Walk it fully like the users export.
 
