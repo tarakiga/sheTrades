@@ -2669,3 +2669,41 @@ and downloaded it six times (each request free to land on any instance):
 listed 6/6, downloaded 6/6, 5.7 MB each. History shows only jobs generated
 from this revision on; the earlier ones lived in memory that is gone.
 
+## M&E participant report (2026-09-17, night)
+
+The team's email asked the backend to capture participant name and state,
+module start and end times, per-module progression (started / completed /
+yet to complete) and a participant-level report. Against what was live:
+captured yes (name after consent, state after name; 72% of 37,145 registered
+have a state); module END for everyone, module START only from 17 Sep; the
+donor report was pseudonymous by design and had no explicit status columns.
+Tar: name AND phone, build it.
+
+New report type `me_participants` v1 ("M&E participant report", internal):
+learnerRef, name, phone, state, language, firstContactAtWAT, enrolledAtWAT,
+per module {module{n}Status, module{n}StartedAtWAT, module{n}CompletedAtWAT},
+modulesCompleted, courseStatus, courseCompletedAtWAT, daysToComplete,
+lastActiveAtWAT, certificateId, rewardsIssuedNgn.
+- moduleStatus: Completed (row at 100% or a completedAt), In progress (a
+  recorded start or any percentage above 0), Not started. Needs
+  completionPercentage in the JSON aggregation, so a 40% module is no longer
+  indistinguishable from an untouched one.
+- courseStatus: Completed (certificate) > In progress (any module touched) >
+  Enrolled (consented) > Registered (first contact only).
+- Same row builder as the donor report with a variant switch; learner_journey
+  v1 is byte-for-byte unchanged, and both carry the same learnerRef so the
+  two files join.
+- Preset added to dashboard defaults, the option-set seed, the handbook (with
+  the "contains personal data, never send outside the organisation" line),
+  and published into the live reports.presets set after deploy.
+
+Tests: pure (moduleStatus, courseStatus, participantRow alignment, donor row
+still carries neither name nor phone); mock header; the seeded DB test now
+also generates the M&E report and asserts name, phone, module1 Completed,
+module2 In progress, courseStatus Completed; admin generate accepts both.
+
+Data-quality caveat to pass to the team: ~12% of names are a button label or
+greeting ("CONTINUE", "Hi") from re-taps at the name prompt during the surge;
+phone is the reliable identifier for those. And module start times do not
+exist for the first week - the column was added on 17 Sep.
+

@@ -6,13 +6,20 @@ import { prisma } from "../admin/prisma.js";
 import { DONOR_SUMMARY_COLUMNS, buildDonorSummaryRows } from "./donor-summary.js";
 import {
   JOURNEY_COLUMNS,
+  ME_PARTICIPANT_COLUMNS,
   expandJourneyColumns,
   journeyRow,
+  participantRow,
   sortModuleKeys,
   type ModuleProgress
 } from "./learner-journey.js";
 
-type ReportType = "donor_summary" | "module_completion_detail" | "rewards_issuance_log" | "learner_journey";
+type ReportType =
+  | "donor_summary"
+  | "module_completion_detail"
+  | "rewards_issuance_log"
+  | "learner_journey"
+  | "me_participants";
 type ExportFormat = "csv" | "pdf";
 type ExportStatus = "Ready" | "Failed";
 
@@ -60,6 +67,14 @@ const reportSchemaRegistry: Record<ReportType, { schemaVersion: string; columns:
     schemaVersion: "v1",
     columns: JOURNEY_COLUMNS
   },
+  me_participants: {
+    // Internal M&E: the journey plus name and phone, a status per module and
+    // a course status. Contains personal data - for the team, never for a
+    // file that leaves the organisation. The three "module{n}" entries expand
+    // as a group per module.
+    schemaVersion: "v1",
+    columns: ME_PARTICIPANT_COLUMNS
+  },
   module_completion_detail: {
     schemaVersion: "v1",
     columns: ["module", "enrolled", "completed", "completionRate", "avgScore"]
@@ -72,7 +87,13 @@ const reportSchemaRegistry: Record<ReportType, { schemaVersion: string; columns:
 
 const exportRequestSchema = z.object({
   requestId: z.string().min(1),
-  reportType: z.enum(["donor_summary", "module_completion_detail", "rewards_issuance_log", "learner_journey"]),
+  reportType: z.enum([
+    "donor_summary",
+    "module_completion_detail",
+    "rewards_issuance_log",
+    "learner_journey",
+    "me_participants"
+  ]),
   format: z.enum(["csv", "pdf"]),
   schemaVersion: z.string().min(1),
   requestedBy: z.string().min(1)
@@ -240,6 +261,34 @@ function buildMockReport(reportType: ReportType): ReportData {
       );
     return { columns: expandJourneyColumns(columns, modules), rows: [sample("mock-1", "Lagos", true), sample("mock-2", "Kano", false)] };
   }
+  if (reportType === "me_participants") {
+    const modules = ["module1", "module2"];
+    const sample = (id: string, name: string, phone: string, completed: boolean) =>
+      participantRow(
+        {
+          id,
+          name,
+          phone,
+          location: "Lagos",
+          language: "en",
+          firstContactAt: "2026-05-01T08:00:00Z",
+          enrolledAt: "2026-05-01T08:05:00Z",
+          lastActiveAt: "2026-05-03T10:00:00Z",
+          certificateId: completed ? "mockcertificate00000000000000001" : null,
+          courseCompletedAt: completed ? "2026-05-03T10:00:00Z" : null,
+          rewardsIssuedNgn: completed ? 1000 : 500,
+          modules: [
+            { module: "module1", startedAt: "2026-05-01T08:10:00Z", completedAt: "2026-05-01T09:00:00Z", pct: 100 },
+            { module: "module2", startedAt: "2026-05-02T08:00:00Z", completedAt: completed ? "2026-05-03T10:00:00Z" : null, pct: completed ? 100 : 40 }
+          ]
+        },
+        modules
+      );
+    return {
+      columns: expandJourneyColumns(columns, modules),
+      rows: [sample("mock-1", "Amaka Obi", "+234800000001", true), sample("mock-2", "Ruth Okon", "+234800000002", false)]
+    };
+  }
   return {
     columns,
     rows: [
@@ -293,10 +342,10 @@ async function buildReport(reportType: ReportType): Promise<ReportData> {
       return { columns, rows };
     }
 
-    if (reportType === "learner_journey") {
+    if (reportType === "learner_journey" || reportType === "me_participants") {
       // Awaited on purpose: a returned-but-unawaited promise rejects OUTSIDE
       // this try, and the header-only fallback below would never apply.
-      return await buildLearnerJourney();
+      return await buildLearnerJourney(reportType === "me_participants" ? "participants" : "journey");
     }
 
     // donor_summary v3 - no donor entity exists, so summarise real
@@ -321,12 +370,15 @@ async function buildReport(reportType: ReportType): Promise<ReportData> {
     };
   } catch (error) {
     logger.error("reports.export.query_failed", error, { reportType });
-    return { columns: reportType === "learner_journey" ? expandJourneyColumns(columns, []) : columns, rows: [] };
+    const perLearner = reportType === "learner_journey" || reportType === "me_participants";
+    return { columns: perLearner ? expandJourneyColumns(columns, []) : columns, rows: [] };
   }
 }
 
 type JourneyRawRow = {
   id: string;
+  name: string | null;
+  phone: string | null;
   location: string | null;
   language: string | null;
   firstContactAt: Date;
@@ -348,7 +400,8 @@ function parseModules(raw: string | null): ModuleProgress[] {
       .map((m) => ({
         module: String(m.module ?? ""),
         startedAt: typeof m.startedAt === "string" ? m.startedAt : null,
-        completedAt: typeof m.completedAt === "string" ? m.completedAt : null
+        completedAt: typeof m.completedAt === "string" ? m.completedAt : null,
+        pct: typeof m.pct === "number" ? m.pct : null
       }))
       .filter((m) => m.module.length > 0);
   } catch {
@@ -364,9 +417,11 @@ function parseModules(raw: string | null): ModuleProgress[] {
  * Postgres would otherwise serialise them without a zone, which JS reads as
  * local time.
  */
-async function buildLearnerJourney(): Promise<ReportData> {
+async function buildLearnerJourney(variant: "journey" | "participants"): Promise<ReportData> {
   const rows = await prisma.$queryRawUnsafe<JourneyRawRow[]>(`
     SELECT u.id,
+           u.name,
+           u.phone,
            u.location,
            u.language,
            u."createdAt" AS "firstContactAt",
@@ -386,6 +441,7 @@ async function buildLearnerJourney(): Promise<ReportData> {
       SELECT "userId",
              json_agg(json_build_object(
                'module', module,
+               'pct', "completionPercentage",
                'startedAt', CASE WHEN "startedAt" IS NULL THEN NULL
                             ELSE to_char("startedAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS') || 'Z' END,
                'completedAt', CASE WHEN "completionPercentage" >= 100
@@ -397,6 +453,12 @@ async function buildLearnerJourney(): Promise<ReportData> {
   `);
   const learners = rows.map((r) => ({ ...r, modules: parseModules(r.modules) }));
   const moduleKeys = sortModuleKeys(learners.flatMap((l) => l.modules.map((m) => m.module)));
+  if (variant === "participants") {
+    return {
+      columns: expandJourneyColumns(ME_PARTICIPANT_COLUMNS, moduleKeys),
+      rows: learners.map((l) => participantRow(l, moduleKeys))
+    };
+  }
   return {
     columns: expandJourneyColumns(JOURNEY_COLUMNS, moduleKeys),
     rows: learners.map((l) => journeyRow(l, moduleKeys))

@@ -286,6 +286,26 @@ test(
       assert.equal(cell("certificateId"), "journeyseedcertificate0000000001");
       assert.equal(cell("rewardsIssuedNgn"), "500");
       assert.ok(!lines.some((l) => l.includes(phone)), "no phone number anywhere in a donor-facing file");
+
+      // The internal M&E variant of the same learner: name, phone, statuses.
+      const me = await request(app)
+        .post("/api/reports/exports")
+        .set(authHeaders)
+        .send({ requestId: `req-me-db-${Date.now()}`, reportType: "me_participants", format: "csv", schemaVersion: "v1", requestedBy: "test" })
+        .expect(201);
+      const meLines = String(me.body.job.content).split("\n");
+      const meColumns = parse(meLines[0] ?? "");
+      const meRow = meLines.slice(1).map(parse).find((cells) => cells[0] === learnerRef(user.id));
+      assert.ok(meRow, "the seeded learner must appear in the M&E report under the same ref");
+      const meCell = (name: string) => meRow[meColumns.indexOf(name)];
+      assert.equal(meCell("name"), "Journey Seed");
+      assert.equal(meCell("phone"), phone);
+      assert.equal(meCell("state"), "Enugu");
+      assert.equal(meCell("module1Status"), "Completed");
+      assert.equal(meCell("module2Status"), "In progress", "40% is in progress, not blank");
+      assert.equal(meCell("module2StartedAtWAT"), "2026-01-02 09:00");
+      assert.equal(meCell("courseStatus"), "Completed");
+      assert.equal(meCell("certificateId"), "journeyseedcertificate0000000001");
     } finally {
       await prisma.reward.deleteMany({ where: { userId: user.id } });
       await prisma.certificate.deleteMany({ where: { userId: user.id } });
@@ -295,3 +315,17 @@ test(
     }
   }
 );
+
+test("POST /api/reports/exports me_participants (mock) carries name, phone and a status per module", async () => {
+  await withEnv({ REPORT_EXPORT_RENDER_MODE: "mock" }, async () => {
+    const response = await request(app)
+      .post("/api/reports/exports")
+      .set(authHeaders)
+      .send({ requestId: "req-me-mock", reportType: "me_participants", format: "csv", schemaVersion: "v1", requestedBy: "test" })
+      .expect(201);
+    const header = String(response.body.job.content).split("\n")[0] ?? "";
+    assert.match(header, /^"learnerRef","name","phone","state","language","firstContactAtWAT","enrolledAtWAT","module1Status","module1StartedAtWAT","module1CompletedAtWAT","module2Status"/);
+    assert.ok(header.includes('"modulesCompleted","courseStatus","courseCompletedAtWAT"'));
+    assert.ok(!header.includes("{n}"));
+  });
+});

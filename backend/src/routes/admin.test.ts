@@ -574,13 +574,15 @@ test("POST /api/admin/reports/generate without a token is 401", async () => {
 test("POST /api/admin/reports/generate accepts learner_journey (the console's path to the donor report)", { concurrency: false }, async () => {
   // The export service knew the type; this route kept its own list and would
   // have answered 400 to the console. Both lists must agree.
-  const response = await request(app)
-    .post("/api/admin/reports/generate")
-    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
-    .send({ reportType: "learner_journey" })
-    .expect(201);
-  assert.equal(response.body.job.reportType, "learner_journey");
-  assert.equal(response.body.job.status, "Ready");
+  for (const reportType of ["learner_journey", "me_participants"]) {
+    const response = await request(app)
+      .post("/api/admin/reports/generate")
+      .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+      .send({ reportType })
+      .expect(201);
+    assert.equal(response.body.job.reportType, reportType);
+    assert.equal(response.body.job.status, "Ready");
+  }
 });
 
 test("POST /api/admin/reports/generate rejects an unknown report type", async () => {

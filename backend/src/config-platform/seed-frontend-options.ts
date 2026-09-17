@@ -106,6 +106,18 @@ const SEED_ENTRIES: SeedEntry[] = [
               "One row per learner: enrolment, each module's start and completion, course completion, days to complete, certificate and airtime, in West Africa Time, under a pseudonymous reference.",
             reportType: "learner_journey"
           }
+        },
+        {
+          id: "me",
+          value: "me",
+          label: "M&E participant report",
+          enabled: true,
+          sortOrder: 5,
+          metadata: {
+            description:
+              "Internal only. One row per participant with name and phone, state, a status per module, course status, and start/completion times (WAT). Contains personal data.",
+            reportType: "me_participants"
+          }
         }
       ]
     }

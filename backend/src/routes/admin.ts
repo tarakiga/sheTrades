@@ -594,7 +594,7 @@ adminRouter.get("/reports", async (_req, res, next) => {
 // surface; these routes are for operators inside the admin app.
 
 const generateReportSchema = z.object({
-  reportType: z.enum(["donor_summary", "module_completion_detail", "rewards_issuance_log", "learner_journey"])
+  reportType: z.enum(["donor_summary", "module_completion_detail", "rewards_issuance_log", "learner_journey", "me_participants"])
 });
 
 /** Job shape for the UI - never includes the (potentially large) content. */

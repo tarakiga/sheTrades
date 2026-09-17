@@ -37,6 +37,7 @@ type ReportPreset = { id: string; label: string; content: string; reportType?: s
 const KNOWN_PRESET_REPORT_TYPES: Record<string, string> = {
   donor: "donor_summary",
   journey: "learner_journey",
+  me: "me_participants",
   ops: "module_completion_detail",
   finance: "rewards_issuance_log"
 };
@@ -67,6 +68,13 @@ const DEFAULT_PRESETS: ReportPreset[] = [
     content:
       "One row per learner: enrolment, module and course completion times (WAT), days to complete, certificate, airtime. Pseudonymous refs, no phone numbers.",
     reportType: "learner_journey"
+  },
+  {
+    id: "me",
+    label: "M&E participant report",
+    content:
+      "Internal only. One row per participant with name and phone, state, a status per module, course status, and start/completion times (WAT). Contains personal data.",
+    reportType: "me_participants"
   }
 ];
 

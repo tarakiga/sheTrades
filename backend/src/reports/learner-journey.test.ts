@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   JOURNEY_COLUMNS,
+  ME_PARTICIPANT_COLUMNS,
+  courseStatus,
   daysBetween,
+  moduleStatus,
+  participantRow,
   expandJourneyColumns,
   formatWat,
   journeyRow,
@@ -146,4 +150,62 @@ test("journeyRow for a learner who only said hello is mostly blank, never null",
     ["module1"]
   );
   assert.deepEqual(row, [learnerRef("user-2"), "", "", "2026-01-01 10:30", "", "", "", "0", "", "", "", "", "0"]);
+});
+
+test("moduleStatus tells not started, in progress and completed apart", () => {
+  assert.equal(moduleStatus(undefined), "Not started");
+  assert.equal(moduleStatus({ module: "module1", startedAt: null, completedAt: null, pct: 0 }), "Not started");
+  assert.equal(moduleStatus({ module: "module1", startedAt: null, completedAt: null, pct: 40 }), "In progress");
+  assert.equal(moduleStatus({ module: "module1", startedAt: "2026-01-01T00:00:00Z", completedAt: null }), "In progress", "a recorded start counts even before any percentage");
+  assert.equal(moduleStatus({ module: "module1", startedAt: null, completedAt: "2026-01-02T00:00:00Z" }), "Completed");
+  assert.equal(moduleStatus({ module: "module1", startedAt: null, completedAt: null, pct: 100 }), "Completed");
+});
+
+test("courseStatus walks the funnel: registered, enrolled, in progress, completed", () => {
+  const base = { id: "u", location: null, language: null, firstContactAt: "2026-01-01T09:00:00Z", enrolledAt: null, lastActiveAt: null, certificateId: null, courseCompletedAt: null, rewardsIssuedNgn: null, modules: [] };
+  assert.equal(courseStatus(base), "Registered");
+  assert.equal(courseStatus({ ...base, enrolledAt: "2026-01-01T10:00:00Z" }), "Enrolled");
+  assert.equal(courseStatus({ ...base, enrolledAt: "2026-01-01T10:00:00Z", modules: [{ module: "module1", startedAt: null, completedAt: null, pct: 20 }] }), "In progress");
+  assert.equal(courseStatus({ ...base, enrolledAt: "2026-01-01T10:00:00Z", courseCompletedAt: "2026-01-03T10:00:00Z" }), "Completed");
+});
+
+test("participantRow carries name, phone, a status per module and the course status, aligned with its columns", () => {
+  const modules = ["module1", "module2"];
+  const input = {
+    id: "user-1",
+    name: "Amaka Obi",
+    phone: "+234800000001",
+    location: "Lagos",
+    language: "pcm",
+    firstContactAt: "2026-01-01T09:30:00Z",
+    enrolledAt: "2026-01-01T10:00:00Z",
+    lastActiveAt: "2026-01-03T12:00:00Z",
+    certificateId: null,
+    courseCompletedAt: null,
+    rewardsIssuedNgn: 500,
+    modules: [
+      { module: "module1", startedAt: "2026-01-01T11:00:00Z", completedAt: "2026-01-02T07:00:00Z", pct: 100 },
+      { module: "module2", startedAt: "2026-01-02T08:00:00Z", completedAt: null, pct: 40 }
+    ]
+  };
+  const columns = expandJourneyColumns(ME_PARTICIPANT_COLUMNS, modules);
+  const row = participantRow(input, modules);
+  assert.equal(row.length, columns.length);
+  const cell = (name: string) => row[columns.indexOf(name)];
+  assert.equal(cell("learnerRef"), learnerRef("user-1"), "the same ref as the donor report, so the two can be joined");
+  assert.equal(cell("name"), "Amaka Obi");
+  assert.equal(cell("phone"), "+234800000001");
+  assert.equal(cell("module1Status"), "Completed");
+  assert.equal(cell("module2Status"), "In progress");
+  assert.equal(cell("module2StartedAtWAT"), "2026-01-02 09:00");
+  assert.equal(cell("module2CompletedAtWAT"), "");
+  assert.equal(cell("modulesCompleted"), "1");
+  assert.equal(cell("courseStatus"), "In progress");
+  assert.equal(cell("courseCompletedAtWAT"), "");
+  assert.equal(cell("daysToComplete"), "");
+
+  // The donor variant of the same learner still carries neither name nor phone.
+  const donor = journeyRow(input, modules);
+  assert.ok(!donor.includes("Amaka Obi") && !donor.includes("+234800000001"));
+  assert.equal(donor.length, expandJourneyColumns(JOURNEY_COLUMNS, modules).length);
 });
