@@ -2768,3 +2768,56 @@ generated job lists; owner shows "unknown" for a bare minted JWT (no admin
 account behind it) and the logged-in user's fullName for console sessions.
 The dashboard deploys itself from d7edea3.
 
+
+## 2026-09-17 evening (UTC) - rewards paused between campaigns
+
+Tar asked whether the bot could keep running with no rewards until the next
+campaign. It can, with the existing Reward Rule toggle; nothing was built.
+
+What happened, in order (all times UTC):
+- 16:10 the Africa's Talking wallet ran dry. From then on every dispatcher
+  tick took the 50 oldest queued rewards, got "Insufficient Credit" and, after
+  three tries each, marked them Failed. Nothing was paid after 16:10.
+- 19:01 Tar published Reward Rule v3 with `enabled: false` (milestones
+  unchanged: 2 modules = NGN 500, all modules = NGN 500). Verified from the
+  database: in the next 12 minutes 380 modules were completed, 69 learners
+  crossed the two-module line, and 3 reward rows were created, all inside the
+  first 38 seconds (the 60 s CONFIG_CACHE_REFRESH_SECONDS window on instances
+  that had not refreshed yet). 691 rows had been created in the hour before.
+  The bot itself is unchanged: lessons, completions, certificates continue.
+  `awardModuleRewards` in whatsapp/handler.ts returns early on
+  `rule.enabled === false`; the certificate offer still runs.
+- 19:19 the Cloud Scheduler job `shetrades-payouts-dispatcher-staging` was
+  PAUSED on Tar's instruction (`gcloud scheduler jobs pause ...`). The job is
+  the only caller of /internal/payouts/dispatch, so the queue is frozen:
+  nothing paid, nothing retried, nothing more burned into Failed. The console
+  Retry and Issue Manual Reward buttons only enqueue (status Pending) and will
+  wait; Mark as Issued still records without sending.
+
+Queue at 19:14 UTC (rewards table, read-only through the Cloud SQL proxy):
+Pending with retries left 4,007 / NGN 2,003,500; Failed with retries left 48 /
+NGN 24,000; Failed exhausted 1,410 / NGN 705,000 (1,086 "Insufficient
+Credit", 291 "duplicate request within 5 minutes", 5 destination not
+supported, 2 cross-country, 2 HTTP 504). Two Pending rows from 11:43 and
+12:02 are stuck with attemptInProgress=true (instance died mid-dispatch; the
+worker never resets a stale claim).
+
+To resume payouts, in this order: fund the wallet; decide whether the 4,007
+earned-but-unpaid rewards are honoured; then
+`gcloud scheduler jobs resume shetrades-payouts-dispatcher-staging --location us-central1 --project shetrades-staging-12345`.
+It clears about 600 an hour (50 per 5-minute tick), oldest first. The
+exhausted "Insufficient Credit" rows will NOT be picked up on resume; they need
+a per-row Retry in the console or a bulk requeue script.
+
+Re-enabling the rule later has a catch-up quirk: milestones are awarded by
+count (`completedModules >= threshold`), not by date, so a learner who reached
+two modules during the pause is paid the two-module milestone on her next
+completion after re-enable; one who finished everything during the pause and
+never returns is never paid. If the next campaign must only count completions
+after its start, add an `effectiveFrom` date to the reward rule and have
+countCompletedModules ignore earlier completions (small, not built).
+
+Published learner-facing text was scanned (config public bundle/content/
+options/legal): no prompt or lesson promises airtime; only the privacy policy
+mentions rewards "where you qualify". Disabling the rule leaves no dangling
+promise inside the bot.

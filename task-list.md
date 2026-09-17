@@ -433,8 +433,12 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[x]` CI-2: backend-tests job green for the first time since June: 733/733 against Postgres (24 tests that had never run, all test-side).
 - `[x]` PUB-1: landing page footer credits the developers from one config key (`public.start.credits`), markdown links, http(s) only.
 - `[x]` PAY-1: payouts to 2026-09-17 read straight from the database: 7,322 issued / NGN 3,661,000; 869 pending; 851 failed (607 wallet empty, 239 provider duplicate).
-- `[ ]` PAY-2: decision - pause `shetrades-payouts-dispatcher-staging` while the 239 "duplicate" rows are reconciled against Africa's Talking and the wallet policy is set. Not done; Tar's call.
-- `[ ]` PAY-3: retry the 607 "Insufficient Credit" rewards once the wallet has credit (they will NOT retry themselves).
+- `[x]` PAY-2: `shetrades-payouts-dispatcher-staging` PAUSED 2026-09-17 19:19 UTC on Tar's instruction (wallet empty since 16:10; ticks were burning the queue into Failed). Resume deliberately: fund wallet, decide on the 4,007 earned-but-unpaid rewards, then `gcloud scheduler jobs resume ...`.
+- `[x]` PAY-4: Reward Rule v3 published by Tar with `enabled: false` at 19:01 UTC - bot runs, no rewards created (verified: 380 completions, 0 rewards after the 60 s cache window). Re-enable in Settings > Rewards when the next campaign starts.
+- `[ ]` PAY-5: bulk requeue script for the exhausted "Insufficient Credit" rows (1,086 at 19:14 UTC) - they will not be retried on resume.
+- `[ ]` PAY-6: worker never resets a stale `attemptInProgress` claim; 2 rows stuck since 11:43/12:02 UTC. Add a stale-claim reset (e.g. older than 15 min) at the start of dispatchTick.
+- `[ ]` PAY-7: optional `effectiveFrom` on the reward rule so a new campaign only counts modules completed after its start (milestones are catch-up by count today).
+- `[ ]` PAY-3: retry the "Insufficient Credit" rewards once the wallet has credit (they will NOT retry themselves); 1,086 by 19:14 UTC on 17 Sep. See PAY-5.
 - `[x]` DASH-1: Overview, Users and Rewards headline numbers come from whole-table aggregates, not the loaded page (they showed 200 with 30,689 learners).
 - `[x]` DASH-2: learner directory paged by keyset (createdAt, id), search/flagged/status in SQL, summary tiles, streamed export, shared LoadMoreBar on Users AND Rewards; "null" names fixed.
 - `[x]` DASH-3: rev 00128-4rb deployed and live payloads confirmed (34,078 learners; cursor walk clean; rewards summary present).
