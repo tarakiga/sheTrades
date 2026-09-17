@@ -15,7 +15,7 @@ import {
   type LearnerOption
 } from "../../../components/rewards/ManualRewardDrawer";
 import type { NeedsAttentionItem } from "../../../components/rewards/NeedsAttentionPanel";
-import { Badge, Button, SectionHeader } from "../../../components/ui";
+import { Badge, Button, LoadMoreBar, SectionHeader } from "../../../components/ui";
 import { fetchPublicOptionSet } from "../../../lib/config/options";
 import { summaryAmount, summaryCount } from "../../../lib/admin/rewards-summary";
 import {
@@ -143,6 +143,7 @@ export default function RewardsPage() {
 
   const [result, setResult] = useState<ApiResult<RewardsPageData> | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState<boolean>(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -235,8 +236,25 @@ export default function RewardsPage() {
     };
   }, [params]);
 
-  const rewards = result?.data.rewards ?? [];
+  const rewards = useMemo(() => result?.data.rewards ?? [], [result]);
   const meta = result?.data.meta ?? { activeProvider: null, nextCursor: null, defaults: null };
+
+  // The API has always paged by cursor; the page never followed it, so the
+  // list stopped at 25 with nothing to say there were more.
+  const loadMore = useCallback(async () => {
+    if (!meta.nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const next = await getRewardsPageData({ ...params, cursor: meta.nextCursor });
+      setResult((previous) =>
+        previous
+          ? { ...next, data: { ...next.data, rewards: [...previous.data.rewards, ...next.data.rewards] } }
+          : next
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [meta.nextCursor, loadingMore, params]);
   const manualAmount = meta.defaults?.amount ?? DEFAULT_MANUAL_AMOUNT;
   const manualChannel = meta.defaults?.channel ?? DEFAULT_MANUAL_CHANNEL;
 
@@ -420,6 +438,14 @@ export default function RewardsPage() {
         onOpenRow={handleOpenRow}
         onRetry={handleRetry}
         onMarkIssued={handleMarkIssuedFromRow}
+      />
+      <LoadMoreBar
+        loaded={rewards.length}
+        total={summary ? (status === "All" ? summary.total.count : summaryCount(summary, status)) : null}
+        noun="reward"
+        hasMore={meta.nextCursor !== null}
+        loading={loadingMore}
+        onLoadMore={() => void loadMore()}
       />
 
       <RewardDetailDrawer

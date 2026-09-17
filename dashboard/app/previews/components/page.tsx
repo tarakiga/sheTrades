@@ -23,6 +23,7 @@ import { getAdminUiCopy } from "../../../lib/config/admin-ui-copy";
 import { AdminAuthPreview } from "./AdminAuthPreview";
 import { GuidedSettingsWorkspacePreview } from "./GuidedSettingsWorkspacePreview";
 import { IntegrationWorkspacePreview } from "./IntegrationWorkspacePreview";
+import { LoadMoreBarPreview } from "./LoadMoreBarPreview";
 import { OverlayPreviewDemo } from "./OverlayPreviewDemo";
 import { OverviewUsersWorkspacePreview } from "./OverviewUsersWorkspacePreview";
 import { PayoutsIntegrationPreview } from "./PayoutsIntegrationPreview";
@@ -374,6 +375,16 @@ export default async function ComponentsPreviewPage() {
               rows={learnerRows}
             />
           </div>
+        </Card>
+
+        <Card
+          title={t("preview.loadMore.title", "Load More Bar")}
+          description={t(
+            "preview.loadMore.description",
+            "Footer of every paged table: what is on screen out of the whole, and the way to get more. Never lets a partial list look complete."
+          )}
+        >
+          <LoadMoreBarPreview />
         </Card>
 
         <Card

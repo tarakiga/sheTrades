@@ -1,8 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { downloadAdminCsv, flagLearner, getAnalyticsPageData, getUsersPageData, usersExportEndpoint } from "../../../lib/admin/api";
-import type { AnalyticsPageData, ApiResult, UsersPageData, UserRow } from "../../../lib/admin/contracts";
+import {
+  downloadAdminCsv,
+  flagLearner,
+  getUsersPageData,
+  usersExportEndpoint,
+  type UsersListParams
+} from "../../../lib/admin/api";
+import type { ApiResult, UsersPageData, UserRow } from "../../../lib/admin/contracts";
 import {
   AdminActionRail,
   AdminReviewTableShell,
@@ -11,6 +17,8 @@ import {
   Button,
   Card,
   EmptyState,
+  Input,
+  LoadMoreBar,
   Table
 } from "../../../components/ui";
 import { LearnerDetailDrawer } from "../../../components/users/LearnerDetailDrawer";
@@ -23,34 +31,49 @@ function parsePercent(value: string) {
 
 export default function UsersPage() {
   const [result, setResult] = useState<ApiResult<UsersPageData> | null>(null);
-  // The directory the API returns is capped at 200 rows, so "Total Learners"
-  // cannot be its length. The true count comes from the analytics aggregate.
-  const [analytics, setAnalytics] = useState<ApiResult<AnalyticsPageData> | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [openPhone, setOpenPhone] = useState<string | null>(null);
   const [contact, setContact] = useState<{ phone: string; name: string } | null>(null);
 
+  // Search and the follow-up filter are applied by the database, not to the
+  // rows that happen to be loaded: the directory is paged, and a filter over
+  // one page would miss every match on the pages not yet fetched.
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [query]);
+  // Follow-up flags are raised automatically when a learner taps the help
+  // option in a lesson check-in. Without a filter the only way to find them is
+  // to scroll the whole directory hunting for badges, which does not scale.
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
+
+  const params = useMemo<UsersListParams>(
+    () => ({
+      ...(debouncedQuery ? { q: debouncedQuery } : {}),
+      ...(showFlaggedOnly ? { flagged: true } : {})
+    }),
+    [debouncedQuery, showFlaggedOnly]
+  );
+
+  // Reloads the first page. After a flag changes deep in a long list this
+  // drops the pages below it; correct and simple, and the summary tile moves.
   const refetch = useCallback(async () => {
     setLoading(true);
     try {
-      const next = await getUsersPageData();
+      const next = await getUsersPageData(params);
       setResult(next);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [params]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getAnalyticsPageData()
-      .then((next) => {
-        if (!cancelled) setAnalytics(next);
-      })
-      .catch(() => {
-        // The tile shows "n/a" without it; the directory still loads.
-      });
-    getUsersPageData()
+    getUsersPageData(params)
       .then((next) => {
         if (!cancelled) setResult(next);
       })
@@ -76,45 +99,53 @@ export default function UsersPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [params]);
 
-  const allUsers = result?.data.users ?? [];
-  const totalLearners: number | null = analytics?.data.overall?.registered ?? null;
-  // Follow-up flags are raised automatically when a learner taps the help
-  // option in a lesson check-in. Without a filter the only way to find them is
-  // to scroll the whole directory hunting for badges, which does not scale.
-  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
-  const flaggedCount = useMemo(
-    () => allUsers.filter((row) => row.flaggedForFollowUp).length,
-    [allUsers]
-  );
-  const users = useMemo(
-    () => (showFlaggedOnly ? allUsers.filter((row) => row.flaggedForFollowUp) : allUsers),
-    [allUsers, showFlaggedOnly]
-  );
+  const users = useMemo(() => result?.data.users ?? [], [result]);
+  const summary = result?.data.meta?.summary;
+  const nextCursor = result?.data.meta?.nextCursor ?? null;
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const next = await getUsersPageData({ ...params, cursor: nextCursor });
+      setResult((previous) =>
+        previous
+          ? { ...next, data: { ...next.data, users: [...previous.data.users, ...next.data.users] } }
+          : next
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [nextCursor, loadingMore, params]);
+
   const meta = result?.meta ?? { source: "fallback" as const };
   const dataMessage = result?.meta.message;
 
-  const activeCount = useMemo(
-    () => allUsers.filter((row) => row.status === "Active").length,
-    [allUsers]
-  );
-  const atRiskCount = useMemo(
-    () => allUsers.filter((row) => row.status === "At Risk").length,
-    [allUsers]
-  );
+  // The tiles describe every learner matching the search and filter, not the
+  // rows on screen. Without a summary (an older backend, or fallback data)
+  // they fall back to the loaded rows and say so.
+  const hasSummary = summary !== undefined;
+  const totalLearners = summary ? summary.total : users.length;
+  const activeCount = summary ? summary.active : users.filter((row) => row.status === "Active").length;
+  const atRiskCount = summary ? summary.atRisk : users.filter((row) => row.status === "At Risk").length;
+  const flaggedCount = summary ? summary.flagged : users.filter((row) => row.flaggedForFollowUp).length;
+  const scopeNote = hasSummary ? "Across every matching learner" : "Across loaded rows only";
   const uniqueLanguages = useMemo(
     () => new Set(users.map((row) => row.language)).size,
     [users]
   );
   const completionAverage = useMemo(
     () =>
-      users.length === 0
-        ? "0%"
-        : `${(
-            users.reduce((total, row) => total + parsePercent(row.completion), 0) / users.length
-          ).toFixed(1)}%`,
-    [users]
+      summary
+        ? `${summary.averageCompletionPct.toFixed(1)}%`
+        : users.length === 0
+          ? "0%"
+          : `${(
+              users.reduce((total, row) => total + parsePercent(row.completion), 0) / users.length
+            ).toFixed(1)}%`,
+    [summary, users]
   );
   const topLocations = useMemo(
     () =>
@@ -183,6 +214,14 @@ export default function UsersPage() {
             <Badge variant={meta.source === "live" ? "success" : "warning"}>
               {meta.source === "live" ? "Live Data" : "Fallback Data"}
             </Badge>
+            <Input
+              id="users-search"
+              label="Search learners"
+              placeholder="Name or phone"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
             <Button
               variant={showFlaggedOnly ? "primary" : "secondary"}
               aria-pressed={showFlaggedOnly}
@@ -192,7 +231,7 @@ export default function UsersPage() {
             </Button>
             <Button
               onClick={() => {
-                void downloadAdminCsv(usersExportEndpoint(), `users-${new Date().toISOString().slice(0, 10)}.csv`);
+                void downloadAdminCsv(usersExportEndpoint(params), `users-${new Date().toISOString().slice(0, 10)}.csv`);
               }}
             >
               Export Users
@@ -206,27 +245,26 @@ export default function UsersPage() {
         metrics={[
           {
             label: "Total Learners",
-            value: totalLearners === null ? "n/a" : totalLearners.toLocaleString(),
-            trend:
-              totalLearners === null
-                ? `Directory below shows ${allUsers.length}; full count unavailable`
-                : `Directory below shows ${allUsers.length} of ${totalLearners.toLocaleString()}`,
+            value: totalLearners.toLocaleString(),
+            trend: hasSummary
+              ? `Directory below shows ${users.length.toLocaleString()} of ${totalLearners.toLocaleString()}`
+              : "Loaded rows only; full count unavailable",
             status: (
-              <Badge variant={totalLearners !== null ? "success" : "warning"}>
-                {totalLearners !== null ? "Live count" : "Partial"}
+              <Badge variant={hasSummary ? "success" : "warning"}>
+                {hasSummary ? "Live count" : "Partial"}
               </Badge>
             )
           },
           {
             label: "Active Learners",
-            value: String(activeCount),
-            trend: "Healthy engagement status",
+            value: activeCount.toLocaleString(),
+            trend: scopeNote,
             status: <Badge variant="success">Healthy</Badge>
           },
           {
             label: "At-Risk Learners",
-            value: String(atRiskCount),
-            trend: "Needs follow-up attention",
+            value: atRiskCount.toLocaleString(),
+            trend: scopeNote,
             status: (
               <Badge variant={atRiskCount > 0 ? "warning" : "neutral"}>Follow-up</Badge>
             )
@@ -234,7 +272,7 @@ export default function UsersPage() {
           {
             label: "Average Completion",
             value: completionAverage,
-            trend: "Across visible learner records",
+            trend: scopeNote,
             status: <Badge variant="info">Dynamic</Badge>
           }
         ]}
@@ -249,9 +287,11 @@ export default function UsersPage() {
               emptyMessage={
                 loading
                   ? "Loading learner records…"
-                  : showFlaggedOnly
-                    ? "No learners are currently flagged for follow-up."
-                    : "No learner records are available yet."
+                  : debouncedQuery
+                    ? "No learners match that search."
+                    : showFlaggedOnly
+                      ? "No learners are currently flagged for follow-up."
+                      : "No learner records are available yet."
               }
               columns={[
                 {
@@ -259,7 +299,7 @@ export default function UsersPage() {
                   header: "Name",
                   render: (value, row) => (
                     <div className="users-directory__identity">
-                      <span className="users-directory__name">{String(value)}</span>
+                      <span className="users-directory__name">{value ? String(value) : "No name yet"}</span>
                       {row.flaggedForFollowUp && (
                         <Badge variant="warning">Flagged</Badge>
                       )}
@@ -267,8 +307,8 @@ export default function UsersPage() {
                     </div>
                   )
                 },
-                { key: "location", header: "Location" },
-                { key: "language", header: "Language" },
+                { key: "location", header: "Location", render: (value) => (value ? String(value) : "Not set") },
+                { key: "language", header: "Language", render: (value) => (value ? String(value) : "Not set") },
                 {
                   key: "completion",
                   header: "Completion",
@@ -299,6 +339,14 @@ export default function UsersPage() {
                 }
               ]}
               rows={users}
+            />
+            <LoadMoreBar
+              loaded={users.length}
+              total={summary ? summary.total : null}
+              noun="learner"
+              hasMore={nextCursor !== null}
+              loading={loadingMore}
+              onLoadMore={() => void loadMore()}
             />
           </AdminReviewTableShell>
         }

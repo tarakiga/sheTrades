@@ -2462,5 +2462,62 @@ means a new revision while the bot is under a 30k-learner surge, so it waits
 for Tar's word. The dashboard deploys itself from main and is safe against
 the old backend.
 
-STILL TO DO (next piece): page the Users list by cursor like Rewards, search
-against the database rather than the loaded rows, stream the export.
+DONE the same day, below.
+
+## The learner directory pages properly (2026-09-17, later)
+
+Tar: "page the users table before deploying the backend". Done, and one
+correction to what I had said: the Rewards API always paged by cursor, but
+the Rewards PAGE never followed the cursor - it showed the first 25 with no
+way to see more. So the load-more control is shared, and both tables use it.
+
+Backend:
+- `admin_users_view` now also exposes `"createdAt"` and a numeric
+  `completionPct` (DROP+CREATE at boot as before, so adding columns is safe).
+- `fetchUsersFromPostgres(filters)`: keyset paging on (createdAt DESC, id DESC)
+  with a row comparison, because 28,000 learners arrived in one afternoon and
+  TIMESTAMP(3) ties are real - a cursor on the timestamp alone would skip the
+  learner sharing the last row's instant. Default page 50, max 200. Search
+  (name/phone ILIKE), `flagged` and `status` filters run in SQL. A summary
+  query (total / active / at risk / flagged / average completion) runs over
+  the same WHERE minus the cursor, so the tiles describe every matching
+  learner, not the page. `users-directory.ts` holds the cursor codec and the
+  summary fold, both pure and tested. NULL name/location/language coalesce to
+  "" (the table had been printing the word "null" for every learner still
+  mid-onboarding - visible on the live page).
+- `GET /api/admin/users` takes q / cursor / limit / flagged / status through a
+  zod schema with the same drop-the-bad-field discipline as rewards.
+- `GET /api/admin/users/export` streams every page (1000 per query) with the
+  list's search and filters; it used to reuse the 200-row fetch, so an
+  "export" of 30,000 learners was 200 that looked complete.
+- Tests: cursor codec + summary fold (unit); filter schema; a DB-backed route
+  test that SEEDS two learners at the same instant and walks them one per
+  page, asserting each appears exactly once and the last page says so.
+
+Dashboard:
+- `LoadMoreBar` in components/ui ("Showing 100 of 30,689 learners" + Load
+  more), with a story in the component preview. Used by Users and Rewards.
+- Users page: search box (debounced 300 ms, server-side), flagged-only is a
+  server filter, tiles from the summary, list accumulates pages, export
+  carries the current search/filter. Names: "No name yet"; location and
+  language: "Not set".
+- Rewards page: follows `nextCursor` at last; the total shown is the summary
+  count for the selected status.
+- Overview "Registered Learners" now prefers the users summary total (which
+  counts the table whatever ADMIN_ANALYTICS_STRATEGY is) over the analytics
+  aggregate. Staging runs `live`; a local run defaulted to `snapshot` and
+  showed "n/a" until this change, which is how the gap was found.
+
+Verified: backend 748/748 against fresh postgres:16 (the view DDL under every
+test); no-database 699/0; dashboard typecheck, lint, 72/72, production build.
+End to end on a LOCAL backend + LOCAL dashboard over the throwaway database
+seeded with 230 learners in one-second bursts: logged in with a bootstrap
+admin, Overview tile 241, Users "Showing 50 of 241", load more -> 100 with
+zero duplicate phones and the first page intact, search "Seed Learner 3" ->
+11 of 11 from the database, flagged only -> 21 of 21. Screenshots in the
+session scratchpad only.
+
+Next: deploy the backend (this plus the aggregate change from earlier today
+in one revision), then confirm the live payloads with a token that stays in
+the environment. Small polish left: the Users actions row wraps at ~1360px
+because the search field carries its label; not wrong, just not tidy.

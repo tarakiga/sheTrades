@@ -35,6 +35,8 @@ export type { IconActionButtonProps } from "./IconActionButton";
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
 export { LoadingState } from "./LoadingState";
+export { LoadMoreBar } from "./LoadMoreBar";
+export type { LoadMoreBarProps } from "./LoadMoreBar";
 export type { LoadingStateProps } from "./LoadingState";
 export { Select } from "./Select";
 export type { SelectProps } from "./Select";

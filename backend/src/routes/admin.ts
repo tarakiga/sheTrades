@@ -9,6 +9,7 @@ import {
   getUsersData,
   type RewardsDataFilters
 } from "../admin/data.js";
+import type { UserRow, UsersDataFilters } from "../admin/contracts.js";
 import { getLearnerDetail } from "../admin/users-detail.js";
 import { prisma } from "../admin/prisma.js";
 import {
@@ -76,6 +77,34 @@ export const rewardsFilterQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().catch(undefined)
 });
 
+/**
+ * Learner directory filters. Same discipline as the reward filters: coerce,
+ * cap, and drop a single bad field rather than the whole query. `flagged`
+ * arrives as the strings "true"/"false" from a query string.
+ */
+export const usersFilterQuerySchema = z.object({
+  q: z.string().trim().min(1).max(200).optional().catch(undefined),
+  cursor: z.string().trim().min(1).max(300).optional().catch(undefined),
+  limit: z.coerce.number().int().min(1).max(200).optional().catch(undefined),
+  flagged: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional()
+    .catch(undefined),
+  status: z.enum(["Active", "At Risk"]).optional().catch(undefined)
+});
+
+function buildUsersFilters(req: Request): UsersDataFilters {
+  const query = usersFilterQuerySchema.parse(req.query ?? {});
+  const filters: UsersDataFilters = {};
+  if (query.q) filters.q = query.q;
+  if (query.cursor) filters.cursor = query.cursor;
+  if (query.limit !== undefined) filters.limit = query.limit;
+  if (query.flagged !== undefined) filters.flagged = query.flagged;
+  if (query.status) filters.status = query.status;
+  return filters;
+}
+
 function buildRewardsFilters(req: Request, limitOverride?: number): RewardsDataFilters {
   const query = rewardsFilterQuerySchema.parse(req.query ?? {});
   const filters: RewardsDataFilters = {};
@@ -115,9 +144,9 @@ const manualRewardBodySchema = z
     message: "Provide a learner (phone or userId) to receive this reward."
   });
 
-adminRouter.get("/users", async (_req, res, next) => {
+adminRouter.get("/users", async (req, res, next) => {
   try {
-    const payload = await getUsersData();
+    const payload = await getUsersData(buildUsersFilters(req));
     res.status(200).json(payload);
   } catch (error) {
     next(error);
@@ -162,26 +191,43 @@ adminRouter.get("/users/help-requests", async (req, res, next) => {
   }
 });
 
-adminRouter.get("/users/export", async (_req, res, next) => {
+// The export walks the whole directory page by page and streams each page as
+// it arrives. It used to reuse the list fetch, which was capped at 200 rows,
+// so an "export" of 30,000 learners was 200 learners that looked complete.
+// Search and filters from the query string apply; cursor and limit do not.
+const USERS_EXPORT_PAGE = 1000;
+
+adminRouter.get("/users/export", async (req, res, next) => {
+  const escape = (v: unknown) => {
+    if (v === null || v === undefined) return "";
+    const s = String(v).replace(/"/g, '""');
+    return /[",\n]/.test(s) ? `"${s}"` : s;
+  };
+  const toLine = (u: UserRow) =>
+    [u.name, u.phone, u.location, u.language, u.completion, u.status, u.flaggedForFollowUp ? "Yes" : "No", ""]
+      .map(escape)
+      .join(",");
   try {
-    const data = await getUsersData();
-    const escape = (v: unknown) => {
-      if (v === null || v === undefined) return "";
-      const s = String(v).replace(/"/g, '""');
-      return /[",\n]/.test(s) ? `"${s}"` : s;
-    };
-    const header = "Name,Phone,Location,Language,Completion,Status,Flagged,Follow-up Note";
-    const rows = data.users.map((u) =>
-      [u.name, u.phone, u.location, u.language, u.completion, u.status, u.flaggedForFollowUp ? "Yes" : "No", ""]
-        .map(escape)
-        .join(",")
-    );
+    const { cursor: _cursor, limit: _limit, ...base } = buildUsersFilters(req);
     const filename = `users-${new Date().toISOString().slice(0, 10)}.csv`;
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.status(200).send([header, ...rows].join("\n"));
+    res.status(200);
+    res.write("Name,Phone,Location,Language,Completion,Status,Flagged,Follow-up Note\n");
+    let cursor: string | undefined;
+    do {
+      const data = await getUsersData({ ...base, limit: USERS_EXPORT_PAGE, ...(cursor ? { cursor } : {}) });
+      if (data.users.length > 0) res.write(data.users.map(toLine).join("\n") + "\n");
+      // A provider with no paging (Firestore, fixtures) returns no meta and
+      // therefore one page, which is all it has.
+      cursor = data.meta?.nextCursor ?? undefined;
+    } while (cursor && !req.destroyed);
+    res.end();
   } catch (error) {
-    next(error);
+    // Once rows have started flowing there is no 500 to send; close the
+    // stream so the client sees a truncated file rather than a hung download.
+    if (res.headersSent) res.end();
+    else next(error);
   }
 });
 

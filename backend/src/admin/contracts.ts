@@ -8,8 +8,38 @@ export type UserRow = {
   flaggedForFollowUp: boolean;
 };
 
+/** Query for the learner directory. Every field optional; the route validates and caps them. */
+export type UsersDataFilters = {
+  q?: string;
+  cursor?: string;
+  limit?: number;
+  flagged?: boolean;
+  status?: "Active" | "At Risk";
+};
+
+/** Whole-directory counts for the same search and filters as the page (not the cursor). */
+export type UsersSummary = {
+  total: number;
+  active: number;
+  atRisk: number;
+  flagged: number;
+  averageCompletionPct: number;
+};
+
+export type UsersListMeta = {
+  nextCursor: string | null;
+  summary?: UsersSummary;
+};
+
 export type UsersPageData = {
   users: Array<UserRow>;
+  /**
+   * Absent from Firestore and fixtures. The directory used to be a single
+   * capped SELECT of 200 rows with nothing to say there were more; the page
+   * is now one page of a keyset-paged list, and this says where the next
+   * page starts and how many rows there are in all.
+   */
+  meta?: UsersListMeta;
 };
 
 export type StateFunnel = {

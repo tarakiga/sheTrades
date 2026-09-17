@@ -61,8 +61,25 @@ export type LearnerDetail = {
   };
 };
 
+/** Whole-directory counts for the same search and filters as the page (not the cursor). */
+export type UsersSummary = {
+  total: number;
+  active: number;
+  atRisk: number;
+  flagged: number;
+  averageCompletionPct: number;
+};
+
+export type UsersListMeta = {
+  nextCursor: string | null;
+  summary?: UsersSummary;
+};
+
 export type UsersPageData = {
   users: Array<UserRow>;
+  // Absent from an older backend or fallback data. The page then shows its
+  // loaded rows and says the count is of those rows only.
+  meta?: UsersListMeta;
 };
 
 export type StateFunnel = {

@@ -159,7 +159,11 @@ export default function AdminDashboardOverviewPage() {
     [rewardsSummary, rewardsData.rewards]
   );
 
-  const registeredLearners: number | null = analyticsData.overall?.registered ?? null;
+  // Whole-table count. Preferred source is the users endpoint's summary,
+  // which counts the table whatever analytics strategy is configured; the
+  // analytics aggregate is the fallback (the snapshot strategy has no counts).
+  const registeredLearners: number | null =
+    usersData.meta?.summary?.total ?? analyticsData.overall?.registered ?? null;
 
   const automationRate = useMemo(
     () =>

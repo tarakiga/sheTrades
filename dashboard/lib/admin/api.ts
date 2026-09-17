@@ -51,11 +51,20 @@ export function getHelpRequests(limit = 5) {
   );
 }
 
-export function getUsersPageData() {
+export type UsersListParams = {
+  q?: string;
+  cursor?: string;
+  limit?: number;
+  flagged?: boolean;
+  status?: "Active" | "At Risk";
+};
+
+export function getUsersPageData(params: UsersListParams = {}) {
   const fallback: UsersPageData = {
     users: []
   };
-  return fetchWithFallback<UsersPageData>("/api/admin/users", fallback);
+  const queryString = buildQuery(params);
+  return fetchWithFallback<UsersPageData>(`/api/admin/users${queryString ? `?${queryString}` : ""}`, fallback);
 }
 
 export function getAnalyticsPageData() {
@@ -134,7 +143,7 @@ export type RewardsListParams = {
   limit?: number;
 };
 
-function buildRewardsQuery(params: RewardsListParams): string {
+function buildQuery(params: Record<string, string | number | boolean | undefined | null>): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== "") {
@@ -149,7 +158,7 @@ export function getRewardsPageData(params: RewardsListParams = {}) {
     rewards: [],
     meta: { activeProvider: null, nextCursor: null }
   };
-  const queryString = buildRewardsQuery(params);
+  const queryString = buildQuery(params);
   const endpoint = `/api/admin/rewards${queryString ? `?${queryString}` : ""}`;
   return fetchWithFallback<RewardsPageData>(endpoint, fallback);
 }
@@ -220,7 +229,7 @@ export function createManualReward(body: {
 }
 
 export function rewardsExportEndpoint(params: RewardsListParams): string {
-  const queryString = buildRewardsQuery(params);
+  const queryString = buildQuery(params);
   return `/api/admin/rewards/export${queryString ? `?${queryString}` : ""}`;
 }
 
@@ -288,8 +297,10 @@ export function eraseLearner(phone: string) {
   );
 }
 
-export function usersExportEndpoint(): string {
-  return `/api/admin/users/export`;
+/** The export honours the same search and filter as the list; the server walks every page. */
+export function usersExportEndpoint(params: Pick<UsersListParams, "q" | "flagged" | "status"> = {}): string {
+  const queryString = buildQuery(params);
+  return `/api/admin/users/export${queryString ? `?${queryString}` : ""}`;
 }
 
 export function analyticsExportEndpoint(): string {

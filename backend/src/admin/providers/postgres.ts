@@ -5,14 +5,14 @@ import type {
   ContentPageData,
   ReportsPageData,
   RewardsPageData,
-  UsersPageData
-} from "../contracts.js";
+  UsersPageData, UsersDataFilters } from "../contracts.js";
 import { getAnalyticsStrategy, getPostgresMappings } from "../config.js";
 import { getDataAccessPolicy } from "../config.js";
 import { logger } from "../../lib/logging.js";
 import { withRetry } from "../../lib/retry.js";
 import { getPostgresSslConfig } from "../pg-tls.js";
 import { summarizeRewardStatusRows } from "../rewards-summary.js";
+import { decodeUsersCursor, encodeUsersCursor, summarizeUsersRow } from "../users-directory.js";
 import {
   normalizeOverallCounts,
   normalizeStateCounts,
@@ -83,13 +83,47 @@ async function queryWithPolicy<T extends QueryResultRow>(
   );
 }
 
-export async function fetchUsersFromPostgres(): Promise<UsersPageData | null> {
+/** Directory page size: what one screen shows by default, and the most a caller may ask for. */
+export const USERS_PAGE_LIMIT = 50;
+export const USERS_PAGE_MAX = 200;
+
+export async function fetchUsersFromPostgres(filters: UsersDataFilters = {}): Promise<UsersPageData | null> {
   const db = getPool();
   if (!db) return null;
   const mappings = getPostgresMappings();
+  const limit = Math.min(Math.max(filters.limit ?? USERS_PAGE_LIMIT, 1), USERS_PAGE_MAX);
+
+  // One WHERE serves the page and the summary, so the tiles describe exactly
+  // the rows the list is paging through. The cursor is added to the page only.
+  const where: string[] = ["TRUE"];
+  const params: unknown[] = [];
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    where.push(`(COALESCE(name, '') ILIKE $${params.length} OR phone ILIKE $${params.length})`);
+  }
+  if (filters.flagged !== undefined) {
+    params.push(filters.flagged);
+    where.push(`"flaggedForFollowUp" = $${params.length}`);
+  }
+  if (filters.status) {
+    params.push(filters.status);
+    where.push(`status = $${params.length}`);
+  }
+
+  const pageWhere = [...where];
+  const pageParams = [...params];
+  const cursor = decodeUsersCursor(filters.cursor);
+  if (cursor) {
+    pageParams.push(cursor.createdAt, cursor.id);
+    // Row comparison, so a learner sharing the last row's timestamp is still
+    // reached on the next page rather than skipped.
+    pageWhere.push(`("createdAt", id) < ($${pageParams.length - 1}, $${pageParams.length})`);
+  }
+  pageParams.push(limit + 1);
 
   try {
     const rows = await queryWithPolicy<{
+      id: string;
       name: string;
       phone: string;
       location: string;
@@ -97,10 +131,47 @@ export async function fetchUsersFromPostgres(): Promise<UsersPageData | null> {
       completion: string;
       status: "Active" | "At Risk";
       flaggedForFollowUp: boolean;
+      createdAt: Date;
     }>(
-      `SELECT name, phone, location, language, completion, status, "flaggedForFollowUp" FROM ${mappings.usersView} LIMIT 200`
+      // Learners mid-onboarding have no name, location or language yet. The
+      // contract says string, and a null here rendered as the word "null".
+      `SELECT id, COALESCE(name, '') AS name, phone, COALESCE(location, '') AS location,
+              COALESCE(language, '') AS language, completion, status, "flaggedForFollowUp", "createdAt"
+       FROM ${mappings.usersView}
+       WHERE ${pageWhere.join(" AND ")}
+       ORDER BY "createdAt" DESC, id DESC
+       LIMIT $${pageParams.length}`,
+      pageParams
     );
-    return { users: rows.map((r) => ({ ...r, flaggedForFollowUp: Boolean(r.flaggedForFollowUp) })) };
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const last = page[page.length - 1];
+    const nextCursor = hasMore && last ? encodeUsersCursor({ createdAt: last.createdAt, id: last.id }) : null;
+
+    const [summaryRow] = await queryWithPolicy<{
+      total: string;
+      active: string;
+      atRisk: string;
+      flagged: string;
+      averageCompletionPct: string;
+    }>(
+      `SELECT COUNT(*)::text AS total,
+              COUNT(*) FILTER (WHERE status = 'Active')::text AS active,
+              COUNT(*) FILTER (WHERE status = 'At Risk')::text AS "atRisk",
+              COUNT(*) FILTER (WHERE "flaggedForFollowUp")::text AS flagged,
+              COALESCE(AVG("completionPct"), 0)::text AS "averageCompletionPct"
+       FROM ${mappings.usersView}
+       WHERE ${where.join(" AND ")}`,
+      params
+    );
+
+    return {
+      users: page.map(({ id: _id, createdAt: _createdAt, ...r }) => ({
+        ...r,
+        flaggedForFollowUp: Boolean(r.flaggedForFollowUp)
+      })),
+      meta: { nextCursor, summary: summarizeUsersRow(summaryRow) }
+    };
   } catch (error) {
     logger.error("admin.postgres.users_failed", error, { view: mappings.usersView });
     throw error;

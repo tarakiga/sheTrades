@@ -3,8 +3,7 @@ import type {
   ContentPageData,
   ReportsPageData,
   RewardsPageData,
-  UsersPageData
-} from "./contracts.js";
+  UsersPageData, UsersDataFilters } from "./contracts.js";
 import { getProviderMode, isForcedEmptyDataMode, allowMockFallback } from "./config.js";
 import {
   fallbackAnalyticsData,
@@ -115,8 +114,8 @@ async function resolveData<T>(
   return fallback;
 }
 
-export async function getUsersData(): Promise<UsersPageData> {
-  return resolveData(fallbackUsersData, fetchUsersFromPostgres, fetchUsersFromFirestore);
+export async function getUsersData(filters: UsersDataFilters = {}): Promise<UsersPageData> {
+  return resolveData(fallbackUsersData, () => fetchUsersFromPostgres(filters), fetchUsersFromFirestore);
 }
 
 export async function getAnalyticsData(): Promise<AnalyticsPageData> {

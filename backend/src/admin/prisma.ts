@@ -661,7 +661,11 @@ export async function initializeAdminViews() {
         language,
         status,
         COALESCE("flaggedForFollowUp", false) AS "flaggedForFollowUp",
-        (SELECT COALESCE(MAX("completionPercentage"), 0) FROM user_progress WHERE "userId" = users.id)::text || '%' as completion
+        (SELECT COALESCE(MAX("completionPercentage"), 0) FROM user_progress WHERE "userId" = users.id)::text || '%' as completion,
+        -- The directory pages by keyset on (createdAt, id) and averages
+        -- completion server-side; both need the raw values, not the label.
+        (SELECT COALESCE(MAX("completionPercentage"), 0) FROM user_progress WHERE "userId" = users.id) AS "completionPct",
+        "createdAt"
       FROM users;
     `);
 

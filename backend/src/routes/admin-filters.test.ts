@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { rewardsFilterQuerySchema } from "./admin.js";
+import { rewardsFilterQuerySchema, usersFilterQuerySchema } from "./admin.js";
 
 // GAP-D2: reward list filters must be coerced/validated before reaching SQL.
 // Previously `Number("abc")` produced `LIMIT NaN` and `new Date("abc")` an
@@ -52,4 +52,36 @@ test("an invalid status does not discard the other valid filters", () => {
   assert.equal(parsed.status, undefined);
   assert.equal(parsed.limit, 10);
   assert.equal(parsed.q, "ada");
+});
+
+// The learner directory filters follow the same rules.
+
+test("users: valid filters are coerced, and flagged arrives as a real boolean", () => {
+  const parsed = usersFilterQuerySchema.parse({
+    q: "  ada ",
+    cursor: "2026-09-16T15:04:05.123Z~abc",
+    limit: "50",
+    flagged: "true",
+    status: "At Risk"
+  });
+  assert.equal(parsed.q, "ada");
+  assert.equal(parsed.cursor, "2026-09-16T15:04:05.123Z~abc");
+  assert.equal(parsed.limit, 50);
+  assert.equal(parsed.flagged, true);
+  assert.equal(parsed.status, "At Risk");
+  assert.equal(usersFilterQuerySchema.parse({ flagged: "false" }).flagged, false);
+});
+
+test("users: a bad field is dropped on its own and never discards the good ones", () => {
+  const parsed = usersFilterQuerySchema.parse({ limit: "5000", flagged: "yes", status: "Dormant", q: "ok" });
+  assert.equal(parsed.limit, undefined, "an out-of-range limit is dropped; the provider applies its default");
+  assert.equal(parsed.flagged, undefined);
+  assert.equal(parsed.status, undefined);
+  assert.equal(parsed.q, "ok");
+});
+
+test("users: over-long q and cursor are dropped (200 / 300 char caps)", () => {
+  const parsed = usersFilterQuerySchema.parse({ q: "a".repeat(201), cursor: "b".repeat(301) });
+  assert.equal(parsed.q, undefined);
+  assert.equal(parsed.cursor, undefined);
 });

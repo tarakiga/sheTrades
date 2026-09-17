@@ -5,6 +5,7 @@ import { createApp } from "../app.js";
 import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 import { setRuntimeIntegrationConfigForTests } from "../config-platform/runtime-config.js";
 import { resetAdminPostgresPoolForTests } from "../admin/providers/postgres.js";
+import { prisma } from "../admin/prisma.js";
 
 const skipWithoutDb = process.env.POSTGRES_URL ? false : "requires POSTGRES_URL";
 
@@ -55,6 +56,74 @@ test("GET /api/admin/users returns users payload", { concurrency: false }, async
     .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
     .expect(200);
   assert.ok(Array.isArray(response.body.users));
+  // A learner who has not given a name yet is an empty string, never null:
+  // the table used to print the word "null" for every learner mid-onboarding.
+  for (const user of response.body.users as Array<{ name: unknown; location: unknown; language: unknown }>) {
+    assert.equal(typeof user.name, "string");
+    assert.equal(typeof user.location, "string");
+    assert.equal(typeof user.language, "string");
+  }
+
+  // With a database the directory is one keyset page plus whole-directory
+  // counts; the fixture path has neither and says so by omitting meta.
+  const meta = response.body.meta;
+  if (process.env.POSTGRES_URL) {
+    assert.ok(meta, "a database-backed payload must carry meta");
+    assert.ok(meta.nextCursor === null || typeof meta.nextCursor === "string");
+    assert.equal(typeof meta.summary.total, "number");
+    assert.ok(meta.summary.total >= response.body.users.length);
+  } else {
+    assert.equal(meta, undefined);
+  }
+});
+
+test(
+  "GET /api/admin/users pages by keyset: every learner once, even two created at the same instant",
+  { concurrency: false, skip: process.env.POSTGRES_URL ? false : "requires POSTGRES_URL" },
+  async () => {
+    // 28,000 learners arrived in one afternoon; TIMESTAMP(3) ties are real. A
+    // cursor on createdAt alone would skip the learner sharing the last row's
+    // timestamp. Seed that exact situation and walk it one row at a time.
+    const stamp = new Date("2026-01-01T00:00:00.000Z");
+    const seeded = [
+      { phone: "+234700000901", name: "Keyset A", createdAt: stamp },
+      { phone: "+234700000902", name: "Keyset B", createdAt: stamp },
+      { phone: "+234700000903", name: "Keyset C", createdAt: new Date(stamp.getTime() - 1000) }
+    ];
+    const phones = seeded.map((u) => u.phone);
+    await prisma.user.deleteMany({ where: { phone: { in: phones } } });
+    await prisma.user.createMany({ data: seeded });
+    try {
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      let total: number | null = null;
+      for (let page = 0; page < 5; page++) {
+        const url: string = `/api/admin/users?q=Keyset&limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+        const response: request.Response = await request(app)
+          .get(url)
+          .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+          .expect(200);
+        for (const row of response.body.users as Array<{ phone: string }>) seen.push(row.phone);
+        // The summary describes every matching learner, on every page alike.
+        total = total ?? response.body.meta.summary.total;
+        assert.equal(response.body.meta.summary.total, total);
+        cursor = response.body.meta.nextCursor;
+        if (!cursor) break;
+      }
+      assert.equal(total, 3);
+      assert.deepEqual([...seen].sort(), [...phones].sort(), "each seeded learner exactly once, in three pages of one");
+      assert.equal(cursor, null, "the last page must say there is no more");
+    } finally {
+      await prisma.user.deleteMany({ where: { phone: { in: phones } } });
+    }
+  }
+);
+
+test("GET /api/admin/users ignores a garbage cursor rather than failing", { concurrency: false }, async () => {
+  await request(app)
+    .get("/api/admin/users?cursor=not-a-cursor")
+    .set("Authorization", `Bearer ${ADMIN_TOKEN}`)
+    .expect(200);
 });
 
 test("GET /api/admin/analytics returns analytics payload", { concurrency: false }, async () => {
