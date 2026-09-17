@@ -2821,3 +2821,22 @@ Published learner-facing text was scanned (config public bundle/content/
 options/legal): no prompt or lesson promises airtime; only the privacy policy
 mentions rewards "where you qualify". Disabling the rule leaves no dangling
 promise inside the bot.
+
+### 19:30 UTC snapshot for the client's pending-payments report
+Confirmed frozen: last dispatcher touch on any reward row 19:15:16 UTC (the
+tick before the pause); nothing paid, retried or failed since. Live ledger:
+Issued 11,967 / NGN 5,983,500; Pending 4,004 / NGN 2,002,000 owed to 2,677
+learners (2,152 two-module, 1,852 all-module); Failed 1,459 / NGN 729,500
+(1,085 wallet empty NGN 542,500; 365 "duplicate request within 5 minutes"
+NGN 182,500; 9 other). The only thing still moving the counts while paused is
+learners erasing their data from the bot (My data and privacy -> Delete my
+data -> confirm), which moves their rewards into reward_archive
+(de-identified): 437 Issued / 91 Pending / 27 Failed archived in total. The
+archived Pending rows (NGN 45,500) can never be paid - the phone is gone.
+Pattern worth a look: 306 erasures on 17 Sep (56 on 16 Sep, 3 before), 249 of
+them by learners who had completed everything and been paid. Nothing blocks
+the same phone re-registering and earning again, and the erasure log keeps a
+random requestRef, not a phone hash, so re-registration cannot be traced from
+data today. The live ledger shows 0 phones with more than one identity, which
+is expected either way (an erased identity leaves no phone behind). To make
+it checkable: record a keyed phone hash at erasure (task PAY-8).

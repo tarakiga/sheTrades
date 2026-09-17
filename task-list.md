@@ -438,6 +438,7 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[ ]` PAY-5: bulk requeue script for the exhausted "Insufficient Credit" rows (1,086 at 19:14 UTC) - they will not be retried on resume.
 - `[ ]` PAY-6: worker never resets a stale `attemptInProgress` claim; 2 rows stuck since 11:43/12:02 UTC. Add a stale-claim reset (e.g. older than 15 min) at the start of dispatchTick.
 - `[ ]` PAY-7: optional `effectiveFrom` on the reward rule so a new campaign only counts modules completed after its start (milestones are catch-up by count today).
+- `[ ]` PAY-8: 306 data-erasures on 17 Sep, 249 by paid completers. Store a keyed phone hash in erasure_log so re-registration after erasure (a re-earn vector) can be detected; consider a re-registration cooldown.
 - `[ ]` PAY-3: retry the "Insufficient Credit" rewards once the wallet has credit (they will NOT retry themselves); 1,086 by 19:14 UTC on 17 Sep. See PAY-5.
 - `[x]` DASH-1: Overview, Users and Rewards headline numbers come from whole-table aggregates, not the loaded page (they showed 200 with 30,689 learners).
 - `[x]` DASH-2: learner directory paged by keyset (createdAt, id), search/flagged/status in SQL, summary tiles, streamed export, shared LoadMoreBar on Users AND Rewards; "null" names fixed.
