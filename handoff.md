@@ -2840,3 +2840,23 @@ random requestRef, not a phone hash, so re-registration cannot be traced from
 data today. The live ledger shows 0 phones with more than one identity, which
 is expected either way (an erased identity leaves no phone behind). To make
 it checkable: record a keyed phone hash at erasure (task PAY-8).
+
+## 2026-09-22 11:47 UTC - backend memory raised to 1 GiB (rev 00135-j6j)
+
+Tar gave the go-ahead for the memory change parked on 17 Sep. Applied with
+`gcloud run services update shetrades-backend-staging --region us-central1
+--project shetrades-staging-12345 --memory 1Gi`: config-only revision
+00135-j6j, same image digest as 00134-sdn, same 21 env vars, CPU 1, concurrency
+80, max 20 instances, no min instances. Serving 100% within a minute;
+/health 200; first 15 minutes: 55 webhook requests all 200, public config
+bundle 200, zero error-severity lines, "Backend listening" at 11:47:29Z.
+Before the change: 146 out-of-memory kills in the previous 7 days (the surge
+week), 0 in the last 24 hours as traffic eased. Expected cost: about USD 3 a
+month at the surge week's instance-seconds (0.5 GiB extra x ~2.6M
+instance-seconds x USD 0.0000025); less at current traffic.
+Rollback if ever needed: the same command with `--memory 512Mi`.
+What to watch: the OOM count should stay at 0 through the next campaign
+surge (`textPayload:"Memory limit of"` in the service logs); pool connect
+timeouts are a separate lever (concurrency / pool size vs Cloud SQL's ~100
+connections) and were not touched.
+Rewards state unchanged: rule disabled, dispatcher PAUSED.

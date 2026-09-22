@@ -444,7 +444,8 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[x]` DASH-2: learner directory paged by keyset (createdAt, id), search/flagged/status in SQL, summary tiles, streamed export, shared LoadMoreBar on Users AND Rewards; "null" names fixed.
 - `[x]` DASH-3: rev 00128-4rb deployed and live payloads confirmed (34,078 learners; cursor walk clean; rewards summary present).
 - `[x]` DASH-3b: first live export truncated by a view-swap race on instance start; view swap made transactional, export built whole (500 on failure, never a short 200), summary query one grouped pass. Rev 00129.
-- `[ ]` OPS-1: 87 OOM kills at 512 MiB in 48 h since the surge began; 647 pool connect timeouts in 24 h. Levers with cost: memory 1Gi, lower concurrency, pool sizing vs Cloud SQL's ~100 connections. Tar's decision.
+- `[x]` OPS-1a: memory 512Mi -> 1Gi applied 2026-09-22 11:47 UTC (rev 00135-j6j, config-only, same image); 146 OOM kills in the surge week, 0 in the 24 h before the change. ~USD 3/month. Watch `Memory limit of` in the logs through the next surge.
+- `[ ]` OPS-1b: pool connect timeouts (647 in 24 h during the surge) - lever is concurrency / pool size vs Cloud SQL's ~100 connections. Not touched; revisit before the next campaign.
 - `[ ]` DASH-4: polish - Users actions row wraps at ~1360px because the search field carries its label.
 - `[ ]` DASH-6: index users("createdAt", id) for the keyset walk; the export is 48 s for 34k rows, ~1.4 s a page, most of it the sort.
 - `[ ]` DASH-5: the rewards export still caps at 10,000 rows (`buildRewardsFilters(req, 10000)`); 9,042 today. Stream it like the users export before it bites.
