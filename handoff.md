@@ -2860,3 +2860,47 @@ surge (`textPayload:"Memory limit of"` in the service logs); pool connect
 timeouts are a separate lever (concurrency / pool size vs Cloud SQL's ~100
 connections) and were not touched.
 Rewards state unchanged: rule disabled, dispatcher PAUSED.
+
+## BEFORE THE NEXT CAMPAIGN - do not forget (keep this list current)
+
+Everything here is deliberately undone as of 2026-09-22. Work through it in
+this order when Tar says a campaign is coming.
+
+1. **Connection pool / concurrency (OPS-1b) - the other half of the surge
+   fix.** Memory is now 1 GiB (rev 00135-j6j), which addresses the 146 OOM
+   kills. It does NOT address the 647 pool connect timeouts in 24 h seen at
+   the surge peak. Cloud SQL db-custom-1-3840 allows ~100 connections; with
+   up to 20 instances x concurrency 80 and one Prisma pool per instance, the
+   pool size x instance count must stay under that ceiling. Decide before
+   traffic returns: lower `containerConcurrency` and/or cap the pool
+   (`connection_limit` on POSTGRES_URL) and/or a bigger Cloud SQL tier.
+   Test the choice with a load run, not in the campaign.
+2. **Watch memory in the first hours of the surge.** Service logs,
+   `textPayload:"Memory limit of"` must stay at zero. If it does not, the
+   next step is 2 GiB, same command.
+3. **Fund the Africa's Talking wallet** before anything else in the payout
+   chain; an empty wallet makes the dispatcher burn the queue into Failed.
+4. **Decide the fate of the earned-but-unpaid rewards** (4,004 Pending, NGN
+   2,002,000 at 19:39 UTC 17 Sep, drifting down slowly as learners erase
+   their data): pay them, or not, on the record.
+5. **Requeue the failed rows that are in scope** (PAY-3/PAY-5): wallet-empty
+   1,085 and post-wallet duplicates 131 are unpaid; the 234 earlier duplicates
+   need reconciling against the AT transaction log first. I run the requeue
+   on instruction; it also clears the 2 rows stuck mid-attempt (PAY-6 fix
+   makes that automatic).
+6. **Resume the dispatcher**:
+   `gcloud scheduler jobs resume shetrades-payouts-dispatcher-staging --location us-central1 --project shetrades-staging-12345`
+   ~600 payouts/hour, oldest first. Watch the Rewards page for the first half
+   hour; if "Insufficient Credit" reappears, pause again immediately.
+7. **Re-enable the Reward Rule** (Settings > Rewards > Rule Enabled >
+   publish) only when the campaign actually starts. Decide first whether
+   completions made during the pause should count (they do today, by
+   catch-up); if not, build PAY-7 `effectiveFrom` before re-enabling.
+8. **Meta per-message pricing from 1 October (META-1)** - budget it; at
+   surge volume it is real money.
+9. **Erasure re-earn vector (PAY-8)** - 306 self-erasures on 17 Sep, 249 by
+   paid completers. Record a keyed phone hash at erasure so a re-registered
+   phone can be spotted, ideally before the next payout round.
+10. **Rewards export cap (DASH-5) and rewards_issuance_log cap (RPT-3)** -
+    both truncate above 10,000 / 5,000 rows; the ledger is already past
+    both. Fix before the client asks for a full export.
