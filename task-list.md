@@ -449,7 +449,9 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[ ]` DASH-4: polish - Users actions row wraps at ~1360px because the search field carries its label.
 - `[ ]` DASH-6: index users("createdAt", id) for the keyset walk; the export is 48 s for 34k rows, ~1.4 s a page, most of it the sort.
 - `[ ]` DASH-5: the rewards export still caps at 10,000 rows (`buildRewardsFilters(req, 10000)`); 9,042 today. Stream it like the users export before it bites.
-- `[ ]` META-1: from 1 October Meta charges per message; at the current volume that is real money. Budget it.
+- `[ ]` META-1: Meta charges per service message from 1 Oct 2026 (1,000 free a month). **BLOCKING since 30 Sep 22:00 UTC: no payment method on the WhatsApp account, so Meta is not delivering the bot's replies (health 141006).** Client must add a payment method in WhatsApp Manager; then verify with `docs/ops/whatsapp-health.py`. Budget ~300k messages/month at the Nigeria service rate.
+- `[ ]` META-2: log delivery-status webhooks with `failed` status and Meta's error code (no phone numbers) - an accepted-then-undelivered reply is invisible today. Overlaps the parked delivery-visibility work; needs Tar's go-ahead.
+- `[ ]` OPS-2: the 60 s background config refresh times out on CPU-throttled idle instances (30-50 warnings an hour, harmless). Silence it or refresh at request time.
 - `[x]` RPT-1: "Learner journey" donor report (one row per learner, WAT, pseudonymous refs) + Donor summary v3 (enrolled / completed / median days per month). user_progress.startedAt recorded from now on.
 - `[x]` RPT-2: Learner journey preset published into the live reports.presets option set; rev 00130-dng live and verified (36,855 learners, 21 columns, no phone numbers).
 - `[x]` RPT-4: export jobs persisted in Postgres (report_exports, 30-day retention); any instance lists and serves them; failed downloads now say so in the console.

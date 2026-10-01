@@ -2904,3 +2904,63 @@ this order when Tar says a campaign is coming.
 10. **Rewards export cap (DASH-5) and rewards_issuance_log cap (RPT-3)** -
     both truncate above 10,000 / 5,000 rows; the ledger is already past
     both. Fix before the client asks for a full export.
+
+## 2026-10-01 13:20 UTC - bot silent: Meta stopped delivering replies (no payment method on the WhatsApp account)
+
+Tar reported the chatbot unresponsive and asked whether Meta's 1 October
+pricing had kicked in. It has, and that is the cause. Nothing is wrong with
+the backend.
+
+Evidence, in the order it was found:
+- Backend healthy: /health 200, rev 00135-j6j Ready, GCP billing enabled,
+  database 13/100 connections, no locks, nothing slow.
+- Meta still calls the webhook and the bot still processes every inbound
+  message and hands a reply to the Cloud API, which answers 200
+  (`whatsapp.send.ok`). No `whatsapp.send.failed` since 30 Sep 20:00 UTC.
+- Meta's own analytics (`/{waba}?fields=analytics...granularity(HALF_HOUR)`):
+  hundreds sent and delivered every hour up to 30 Sep 21:00-22:00 UTC, then
+  1-2 per hour. The backend logged ~190 API-accepted replies in that period;
+  Meta delivered about 9.
+- Meta's health check (`/{phoneNumberId}?fields=health_status`): WABA
+  can_send_message BLOCKED, error 141006 "There is an error with the payment
+  method", fix "add a new payment method to the account". WABA currency is
+  null, which normally means no payment method was ever attached.
+- Meta's docs: from 1 October 2026 service (free-form, in-window) messages
+  are charged per message; they had been free since 1 July 2025. Third-party
+  summaries add 1,000 free service messages a month per account and that an
+  account with no payment method on file stops having service messages
+  delivered on 1 October. That is exactly what the numbers show.
+- Inbound learner messages fell from 300-900 an hour to 5-50 because a learner
+  who gets no reply stops writing. 9-11k messages a day before; ~190 since.
+
+Fix (client action, in Meta, not in our code): an admin of the business
+portfolio that owns the account "SheTrades Digital by TechHer" adds a valid
+payment method in WhatsApp Manager / Business settings > WhatsApp accounts >
+Payment settings. Nigerian naira cards are often declined by Meta; a card
+that can be charged in USD is the usual way through. Then re-run
+`ADMIN_TOKEN=... python docs/ops/whatsapp-health.py` (new, read-only): CAN
+SEND must read AVAILABLE and the hourly sent/delivered counts must climb.
+
+Cost to budget once it is paid (META-1): ~9-11k service messages a day is
+~300k a month, minus 1,000 free, at Meta's per-message service rate for
+Nigeria's market (same as the utility rate on Meta's rate card; not read from
+here - check the rate card before quoting a number to the client).
+
+Side findings:
+- The bot ignores delivery-status webhooks entirely (extractInboundMessage
+  returns null for anything without `messages[0]`), so an accepted-then-failed
+  reply is invisible in our logs. Logging `failed` statuses with Meta's error
+  code would have shown this in a minute (task META-2; overlaps the parked
+  delivery-visibility work - Tar's call).
+- Learners who wrote during the outage had their session advanced but never
+  saw the reply; on their next message the bot continues from the advanced
+  state. Minor, ~190 messages.
+- "Periodic config cache refresh failed ... timeout exceeded when trying to
+  connect" (30-50 an hour) is noise, not this incident: the 60 s background
+  refresh runs on idle instances whose CPU Cloud Run has throttled, so the
+  connect times out and the last good cache is kept. It rises when traffic
+  falls. Worth silencing or moving to request time, not urgent.
+- Also on the account: display name not approved (name_status NON_EXISTS),
+  messaging tier 250 (business-initiated only), one template (hello_world).
+- Session tooling: the Bash tool started without /usr/bin on PATH today;
+  prefix commands with an explicit PATH export.
