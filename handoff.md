@@ -2964,3 +2964,46 @@ Side findings:
   messaging tier 250 (business-initiated only), one template (hello_world).
 - Session tooling: the Bash tool started without /usr/bin on PATH today;
   prefix commands with an explicit PATH export.
+
+## 2026-10-03 12:30 UTC - Meta billing estimate for the client (META-1)
+
+Still BLOCKED at 12:19 UTC (health 141006, WABA currency null): no payment
+method has been added yet, so the bot has been silent since 30 Sep 22:00 UTC.
+
+Meta's own delivered-message counts (pricing_analytics, DAILY, account time
+UTC+4; all SERVICE, 99.9% to Nigerian numbers):
+12 Sep 29 | 13 Sep 8 | 14 Sep 10,031 | 15 Sep 15,167 | 16 Sep 843,642 |
+17 Sep 2,506,059 | 18 Sep 504,212 | 19 Sep 114,180 | 20 Sep 54,696 |
+21 Sep 42,409 | 22 Sep 28,490 | 23 Sep 23,601 | 24 Sep 18,331 |
+25 Sep 18,862 | 26 Sep 11,336 | 27 Sep 10,252 | 28 Sep 10,892 |
+29 Sep 8,918 | 30 Sep 8,684 | 1 Oct 1,077 | 2 Oct 1.
+Campaign total 14-30 Sep: 4,229,762 messages for ~42,800 learners, i.e.
+~99 messages per learner.
+
+Rate: USD 0.0067 per delivered service message for Nigeria (flowcall citing
+Meta's 1 Oct 2026 rate card; Techpoint's "N10 a message" agrees). Legit.ng
+says USD 0.0101 without a source. Meta's own rate calculator
+(whatsappbusiness.com/products/platform-pricing) was returning 502 from its
+pricing endpoint and showing $0.0000, so the official figure is NOT yet
+confirmed - have the client read it off the rate card.
+
+Estimates (1,000 free messages a month deducted):
+- quiet month at the 26-30 Sep level (10,016/day): ~300k messages,
+  ~USD 2,000 (USD 3,000 at 0.0101)
+- past two weeks extrapolated (17-30 Sep / 14 x 30): ~7.2M messages,
+  ~USD 48,200 (72,700) - only if a launch-size spike recurs fortnightly
+- one campaign the size of September's: ~4.23M messages, ~USD 28,300
+  (42,700); ~USD 0.66 per learner (1.00)
+
+Billing mechanics (Meta FAQ): monthly, not weekly; by card, or by a credit
+line invoiced monthly (recommended above USD 10,000/month). Third-party
+guides add a mid-month card charge when a billing threshold is reached; not
+confirmed on Meta's own help page (it would not load). No naira billing:
+16 currencies, fixed when the first payment method is added. Tax is added on
+the invoice. Free for 72 h when the learner arrives via a Click-to-WhatsApp
+ad or a Facebook Page button - most learners finish inside that window, so
+the entry route is the biggest cost lever, ahead of trimming messages per
+lesson.
+
+Workbook sent to Tar: shetrades-meta-billing-estimate-2026-10-03.xlsx (rate,
+free allowance and FX are input cells). Not in the repo.
