@@ -3114,3 +3114,19 @@ After deploy:
   longer renamable from the chat, so a fuller name needs a dashboard rename.
 - Open: CERT-NAME-2 (notify the 793), OPS-3 (seed filter).
 - 29 Oct: Tar decided NOT to message the 793 (no paid template); they self-correct via My Certificate. CERT-NAME-2 closed.
+
+## 2026-10-29 - CERT-PHONE: phone on the certificates page
+Why: an admin correcting a learner's name could not find her certificate - the
+page showed no phone and search only matched the printed name (searching
+"CONTINUE" returns hundreds). Tar chose: show the full number + search by it,
+same as the Users page (reverses the old "no phone on this page" note).
+- backend certificates/routes-admin.ts: LIST_SELECT joins user.phone; toListRow
+  flattens it to `learnerPhone` on list / get / rename / revoke / unrevoke.
+  certificateSearchWhere: name OR phone; digits stripped of leading zeros so
+  0803..., +234 803... and 2348031... all match; <4 digits = name only (so a
+  search for a printed "3" does not hit every phone).
+- dashboard: CertificateRow.learnerPhone, "Phone" column, search label
+  "Search by printed name or phone", .certificates-table__phone (tabular nums).
+- Tests: backend 792 / 740 pass / 0 fail / 52 skip; dashboard 74/74; tsc + lint clean.
+Rollout: deploy backend first (additive field, old dashboard ignores it); the
+dashboard ships on push to main (Vercel).

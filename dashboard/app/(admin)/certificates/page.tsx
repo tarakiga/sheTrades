@@ -83,9 +83,9 @@ export default function CertificatesPage() {
       <div className="certificates-page__toolbar">
         <Input
           id="certificates-search"
-          label="Search by printed name"
+          label="Search by printed name or phone"
           value={search}
-          placeholder="e.g. Adaeze"
+          placeholder="e.g. Adaeze or 0803 123 4567"
           onChange={(event) => setSearch(event.target.value)}
         />
         <div className="certificates-page__filters" role="group" aria-label="Filter by status">

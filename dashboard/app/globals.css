@@ -8717,6 +8717,12 @@ button.needs-attention-panel__item:focus {
   font-weight: var(--font-weight-semibold);
 }
 
+/* Tabular figures so numbers line up down the column for scanning. */
+.certificates-table__phone {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* A revoked row stays legible rather than being greyed into illegibility:
    an operator still needs to read it to understand what happened. */
 .certificates-table__row--revoked td {

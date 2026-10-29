@@ -73,6 +73,7 @@ export function CertificatesTable({
         <thead>
           <tr>
             <th scope="col">Printed name</th>
+            <th scope="col">Phone</th>
             <th scope="col">Programme</th>
             <th scope="col">Issued</th>
             <th scope="col">Status</th>
@@ -89,6 +90,7 @@ export function CertificatesTable({
             return (
               <tr key={row.id} className={revoked ? "certificates-table__row--revoked" : undefined}>
                 <td className="certificates-table__name">{row.learnerName}</td>
+                <td className="certificates-table__phone">{row.learnerPhone}</td>
                 <td>{row.programmeName}</td>
                 <td>{formatIssued(row.issuedAt)}</td>
                 <td>

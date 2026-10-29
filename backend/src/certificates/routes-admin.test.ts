@@ -4,7 +4,11 @@ import express from "express";
 import request from "supertest";
 import { signJwtHs256ForTests } from "../auth/jwt-rbac.js";
 import { disconnectPrismaForTests } from "../admin/prisma.js";
-import { createCertificateAdminRouter, type CertificateAdminDeps } from "./routes-admin.js";
+import {
+  certificateSearchWhere,
+  createCertificateAdminRouter,
+  type CertificateAdminDeps
+} from "./routes-admin.js";
 
 process.env.ADMIN_CONFIG_JWT_SECRET = process.env.ADMIN_CONFIG_JWT_SECRET ?? "test-secret";
 process.env.PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL ?? "https://example.test";
@@ -132,4 +136,23 @@ test("a failed send is reported rather than swallowed", async () => {
     .send({});
   assert.equal(response.status, 502);
   assert.match(response.body.message, /Meta rejected/);
+});
+
+test("search finds a certificate by the phone number she writes in from", () => {
+  // A certificate printing "CONTINUE" can only be found by her number, and she
+  // will give it in local or international form; it is stored as 234...
+  for (const typed of ["08031234567", "+234 803 123 4567", "803-123-4567", "2348031234567"]) {
+    const where = certificateSearchWhere(typed) as { OR?: Array<Record<string, unknown>> };
+    const byPhone = where.OR?.find((clause) => "user" in clause);
+    const wanted = typed.startsWith("0") || typed.startsWith("8") ? "8031234567" : "2348031234567";
+    assert.deepEqual(byPhone, { user: { phone: { contains: wanted } } }, typed);
+  }
+});
+
+test("a short or digit-free search is a name search only", () => {
+  // A printed "3" is one of the bad names an operator will look for; it must
+  // not also match every phone number containing a 3.
+  assert.deepEqual(certificateSearchWhere("3"), { learnerName: { contains: "3", mode: "insensitive" } });
+  assert.deepEqual(certificateSearchWhere("Adaeze"), { learnerName: { contains: "Adaeze", mode: "insensitive" } });
+  assert.deepEqual(certificateSearchWhere(undefined), {});
 });

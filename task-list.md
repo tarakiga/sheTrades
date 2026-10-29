@@ -466,3 +466,4 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[x]` CERT-NAME: 793 of 10,496 certificates printed a non-name ("CONTINUE", "Hi", "EXIT", "3", phone numbers). Fixed in 8aff391, deployed as rev 00136-j2k (29 Oct). 4 new prompt keys published (only those). 9 phone-number certificates renamed; 2 that are only a number wait for the learner to send her name via My Certificate.
 - `[-]` CERT-NAME-2: Won't do (Tar, 29 Oct): no paid template to the 793. Learners correct their name in their own time when they open My Certificate.
 - `[ ]` OPS-3: `seed:bot-prompts` republishes EVERY bot prompt from code defaults, wiping admin edits; add a SEED_ONLY_KEYS filter like the other seeds.
+- `[~]` CERT-PHONE: certificates page shows the learner's phone and search matches name OR phone (Tar's choice: full number, like Users page). Coded + tested; backend deploy + push pending Tar's OK.

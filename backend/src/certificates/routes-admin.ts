@@ -30,10 +30,12 @@ import {
 const requireWriteAccess = requireRoles(["editor", "admin"]);
 
 /**
- * The operator-facing shape. Deliberately NOT the whole row: an operator
- * needs to know whose certificate this is and whether it is valid, and
- * nothing here needs her phone number. Enforced by this select rather than by
- * remembering to strip fields at each call site.
+ * The operator-facing shape. Deliberately NOT the whole row (no template
+ * snapshot, no revokedBy). It does carry her phone number: a learner whose
+ * certificate prints "CONTINUE" or "3" can only be found by the number she
+ * writes in from, and the Users page already shows operators the same number.
+ * Enforced by this select rather than by remembering to strip fields at each
+ * call site.
  */
 const LIST_SELECT = {
   id: true,
@@ -43,8 +45,30 @@ const LIST_SELECT = {
   programmeName: true,
   issuedAt: true,
   revokedAt: true,
-  revokedReason: true
+  revokedReason: true,
+  user: { select: { phone: true } }
 } as const;
+
+/** Flattens the joined user into `learnerPhone`, the field the dashboard reads. */
+function toListRow<T extends { user: { phone: string } }>(row: T) {
+  const { user, ...rest } = row;
+  return { ...rest, learnerPhone: user.phone };
+}
+
+/**
+ * The list filter for the search box: the printed name, or her phone number in
+ * any of the ways she might give it (+234 803..., 0803..., 803 123 4567). The
+ * stored number is international without the plus, so the digits are matched
+ * without their leading zeros. Fewer than 4 digits is not a phone search, which
+ * keeps a search for a printed "3" from matching every number containing a 3.
+ */
+export function certificateSearchWhere(search: string | undefined) {
+  if (!search) return {};
+  const byName = { learnerName: { contains: search, mode: "insensitive" as const } };
+  const digits = search.replace(/\D/g, "").replace(/^0+/, "");
+  if (digits.length < 4) return byName;
+  return { OR: [byName, { user: { phone: { contains: digits } } }] };
+}
 
 const listQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
@@ -123,7 +147,7 @@ export function createCertificateAdminRouter(
     try {
       const query = listQuerySchema.parse(req.query);
       const where = {
-        ...(query.search ? { learnerName: { contains: query.search, mode: "insensitive" as const } } : {}),
+        ...certificateSearchWhere(query.search),
         ...(query.status === "revoked" ? { revokedAt: { not: null } } : {}),
         ...(query.status === "issued" ? { revokedAt: null } : {})
       };
@@ -137,7 +161,7 @@ export function createCertificateAdminRouter(
         }),
         prisma.certificate.count({ where })
       ]);
-      res.status(200).json({ items, total, page: query.page, pageSize: query.pageSize });
+      res.status(200).json({ items: items.map(toListRow), total, page: query.page, pageSize: query.pageSize });
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ message: error.issues[0]?.message ?? "Invalid request" });
@@ -155,7 +179,7 @@ export function createCertificateAdminRouter(
         res.status(404).json({ message: "Certificate not found" });
         return;
       }
-      res.status(200).json({ certificate: row, urls: certificateUrls(publicBaseUrl(), row.publicId) });
+      res.status(200).json({ certificate: toListRow(row), urls: certificateUrls(publicBaseUrl(), row.publicId) });
     } catch (error) {
       next(error);
     }
@@ -190,7 +214,7 @@ export function createCertificateAdminRouter(
         select: LIST_SELECT
       });
       logAction("rename", id, actorOf(req), { learnerName: cleaned.value });
-      res.status(200).json({ certificate: updated });
+      res.status(200).json({ certificate: toListRow(updated) });
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ message: error.issues[0]?.message ?? "Invalid request" });
@@ -218,7 +242,7 @@ export function createCertificateAdminRouter(
         select: LIST_SELECT
       });
       logAction("revoke", id, actor, { reason: body.reason });
-      res.status(200).json({ certificate: updated });
+      res.status(200).json({ certificate: toListRow(updated) });
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ message: error.issues[0]?.message ?? "Invalid request" });
@@ -242,7 +266,7 @@ export function createCertificateAdminRouter(
         select: LIST_SELECT
       });
       logAction("unrevoke", id, actorOf(req));
-      res.status(200).json({ certificate: updated });
+      res.status(200).json({ certificate: toListRow(updated) });
     } catch (error) {
       next(error);
     }

@@ -1,10 +1,10 @@
 /**
  * Client for the admin certificate endpoints.
  *
- * Note what the list does NOT carry: no phone number. The backend enforces
- * that with its Prisma select, and nothing here should be tempted to ask for
- * more - an operator needs to know whose certificate this is and whether it is
- * valid, and that is all.
+ * The list carries her phone number (as the Users page does) because a
+ * learner whose certificate prints a non-name can only be found by the number
+ * she writes in from; search matches it too. Nothing else about her is here:
+ * the backend's Prisma select is the boundary.
  */
 import { ADMIN_API_BASE_URL, fetchAdminAuthJson } from "../admin-auth";
 
@@ -13,6 +13,7 @@ export type CertificateRow = {
   publicId: string;
   userId: string;
   learnerName: string;
+  learnerPhone: string;
   programmeName: string;
   issuedAt: string;
   revokedAt: string | null;
