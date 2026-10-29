@@ -3097,3 +3097,19 @@ After deploy:
 - The 793 affected learners are only fixed when they open My Certificate;
   telling them needs a business-initiated template message (tier 250/day,
   billed) - Tar's call.
+
+## 2026-10-29 - CERT-NAME shipped
+- Commit 8aff391 (local, not pushed). Deployed: rev shetrades-backend-staging-00136-j2k,
+  100% traffic, 1Gi kept, /health 200.
+- Published ONLY the 4 new prompt keys (create + publish via the config admin
+  API; none existed before). Full seed NOT run.
+- Renamed 9 certificates that printed a phone number (the onboarding answers had
+  been pasted in one message: number + name + language + state). Kept only the
+  name, first letters capitalised: ids ad092e3d, 4702e5bf, c9414e8b, 609d5c92,
+  b2a4367d, 30165175, 2ab923db, 8ee5ade1, c7135595. Same publicId. Verified
+  /c/<id> and /c/<id>.png show the new name and no digits.
+- 2 certificates (468224a5, 3e147e89) are only a phone number; nothing to keep.
+  The new chat flow asks those learners for their name when they tap My Certificate.
+- Two renamed to a single first name (Gbolahan, Justina); a real name is no
+  longer renamable from the chat, so a fuller name needs a dashboard rename.
+- Open: CERT-NAME-2 (notify the 793), OPS-3 (seed filter).

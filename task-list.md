@@ -463,6 +463,6 @@ Gap found during 2FA planning: /auth/login had no throttling at all.
 - `[x]` UX-1: Reports page reimagined - preset cards with their own Generate buttons (wrapping grid, audience badges, personal-data note), drawer removed, history beside schedules, WAT times, readable owner.
 - `[ ]` RPT-3: the rewards_issuance_log report still takes only the latest 5,000 rewards (`take: 5000`); 12,857 today. Walk it fully like the users export.
 
-- `[~]` CERT-NAME: 793 of 10,496 certificates print a non-name ("CONTINUE", "Hi", "EXIT", "3", phone numbers). Fix coded and tested (name check at signup / confirm / issue, typed name at confirm is used, learners can correct an issued non-name from My Certificate, render cache keyed on the name). **Awaiting Tar's go-ahead to commit + deploy.** Then: publish the 4 new prompt keys only (NOT the full seed), rename the 9 phone-number certificates.
+- `[x]` CERT-NAME: 793 of 10,496 certificates printed a non-name ("CONTINUE", "Hi", "EXIT", "3", phone numbers). Fixed in 8aff391, deployed as rev 00136-j2k (29 Oct). 4 new prompt keys published (only those). 9 phone-number certificates renamed; 2 that are only a number wait for the learner to send her name via My Certificate.
 - `[ ]` CERT-NAME-2: tell the 793 affected learners to open My Certificate to correct their name (business-initiated template, tier 250/day, billed). Tar's call.
 - `[ ]` OPS-3: `seed:bot-prompts` republishes EVERY bot prompt from code defaults, wiping admin edits; add a SEED_ONLY_KEYS filter like the other seeds.
