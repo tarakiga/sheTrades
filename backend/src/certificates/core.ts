@@ -70,6 +70,58 @@ export function sanitiseLearnerName(raw: string): SanitiseResult {
   return { ok: true, value };
 }
 
+export type NameCheck =
+  | { ok: true }
+  | { ok: false; reason: "no_letters" | "reply_word" | "phone_number" | "machine_id" };
+
+/** Lowercase, punctuation stripped, whitespace collapsed: "Hi!" and " HI. " are the same reply. */
+function comparableReply(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Whether a sanitised value is plausibly a person's name, rather than
+ * something the learner sent while the bot happened to be waiting for one.
+ *
+ * sanitiseLearnerName only decides whether a value CAN be printed. This
+ * decides whether it SHOULD be: by October 2026, 793 of 10,496 certificates
+ * read "CONTINUE" (a second tap on the privacy notice button), "Hi", "EXIT",
+ * "3", "." or a phone number, because the name step accepted any reply.
+ *
+ * `replyWords` are the bot's own button labels and commands plus greetings,
+ * resolved by the caller from published config, so this stays pure and the
+ * list stays editable without a deploy. Deliberately narrow: a single name
+ * ("Aisha") and a handle with digits ("Tosadep01") pass, because rejecting a
+ * real name is worse than printing an odd one.
+ */
+export function looksLikeAName(value: string, replyWords: Iterable<string>): NameCheck {
+  // First, so a bare number is logged as what it is. Seven or more digits,
+  // allowing the spaces and dashes people type inside a phone number. A
+  // printed phone number is a privacy leak on a page anyone with the link can
+  // open, not just an odd name.
+  if (/\d{7,}/.test(value.replace(/[\s()+-]/g, ""))) return { ok: false, reason: "phone_number" };
+
+  const letters = value.match(/\p{L}/gu)?.length ?? 0;
+  if (letters < 2) return { ok: false, reason: "no_letters" };
+
+  const reply = comparableReply(value);
+  for (const word of replyWords) {
+    if (comparableReply(word) === reply) return { ok: false, reason: "reply_word" };
+  }
+
+  // One unbroken token holding a digit and a separator: "content.lesson.m3_l1_d"
+  // or "module-4", a list row id echoed back by a stale tap.
+  if (!/\s/.test(value) && /\d/.test(value) && /[._-]/.test(value)) {
+    return { ok: false, reason: "machine_id" };
+  }
+
+  return { ok: true };
+}
+
 const BASE32_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
 
 /**

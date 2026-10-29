@@ -38,6 +38,7 @@ function deps(overrides: Partial<CertificateDeps> = {}) {
     findCertificate: async () => null,
     issue: async () => ({ status: "failed", reason: "not used" }),
     resend: async () => true,
+    renameCertificate: async () => true,
     noticeVersion: () => 7,
     recordConsent: async (input) => {
       consents.push({
@@ -272,4 +273,15 @@ test("every privacy button fits the reply-button title limit", () => {
 
 test("the erase confirmation carries the reference placeholder", () => {
   assert.match(BOT_PROMPT_DEFAULTS.privacy_erase_done?.en ?? "", /\{ref\}/);
+});
+
+test("signup refuses a stray button tap or greeting as her name and asks again", async () => {
+  for (const value of ["CONTINUE", "EXIT", "Hi", "3", "."]) {
+    const s = session({ state: "awaiting_name", language: "en" });
+    const { deps: d } = deps();
+    const reply = await transition(s, value, d);
+    assert.equal(reply.state, "awaiting_name", value);
+    assert.equal(s.name, undefined, `${value} must not be saved as her name`);
+    assert.match(reply.reply, /does not look like a name/i);
+  }
 });

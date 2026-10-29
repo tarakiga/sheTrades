@@ -493,8 +493,20 @@ function createRenderCache(maxBytes: number): RenderCache {
  * security boundary, and a collision would have to be between two templates for
  * the same certificate id.
  */
-function renderCacheKey(publicId: string, template: CertificateTemplatePayload): string {
-  const fingerprint = createHash("sha256").update(JSON.stringify(template)).digest("hex").slice(0, 16);
+function renderCacheKey(
+  publicId: string,
+  template: CertificateTemplatePayload,
+  learnerName: string
+): string {
+  // The printed name is part of what is drawn, so it is part of the key: a
+  // corrected name (admin rename, or a learner fixing "CONTINUE" from the
+  // chat) must not keep serving the old artwork from this cache.
+  const fingerprint = createHash("sha256")
+    .update(JSON.stringify(template))
+    .update("\n")
+    .update(learnerName)
+    .digest("hex")
+    .slice(0, 16);
   return `${publicId}:${fingerprint}`;
 }
 
@@ -655,7 +667,7 @@ export function createCertificatePublicRouter(overrides: Partial<CertificatePubl
         return;
       }
 
-      const cacheKey = renderCacheKey(row.publicId, template);
+      const cacheKey = renderCacheKey(row.publicId, template, row.learnerName);
       const cached = renderCache.get(cacheKey);
       if (cached) {
         sendPng(res, cached);

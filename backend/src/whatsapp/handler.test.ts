@@ -684,6 +684,8 @@ function makeCertSession(): CertSession {
 function certDeps(overrides: Partial<CertificateDeps> = {}) {
   const issued: Array<{ userId: string; learnerName: string }> = [];
   const resends: string[] = [];
+  const resendVersions: Array<string | undefined> = [];
+  const renames: Array<{ userId: string; learnerName: string }> = [];
   const base: CertificateDeps = {
     lessons: () => CERT_LESSONS,
     template: () => CERT_TEMPLATE,
@@ -696,13 +698,18 @@ function certDeps(overrides: Partial<CertificateDeps> = {}) {
     },
     resend: async (input) => {
       resends.push(input.publicId);
+      resendVersions.push(input.version);
+      return true;
+    },
+    renameCertificate: async (input) => {
+      renames.push(input);
       return true;
     },
     noticeVersion: () => 1,
     recordConsent: async () => true,
     erase: async () => ({ status: "erased", requestRef: "TEST-REF1" })
   };
-  return { deps: { ...base, ...overrides }, issued, resends };
+  return { deps: { ...base, ...overrides }, issued, resends, resendVersions, renames };
 }
 
 test("main menu HIDES the certificate row until it is earned", () => {
@@ -926,4 +933,129 @@ test("neither a certificate nor eligibility answers 'not ready' rather than noth
   const result = await certificateMenuTurn(session, "en", deps);
   assert.match(result.reply, /not ready/i);
   assert.ok(result.reply.trim().length > 0);
+});
+
+// ---- Certificate names that are not names ----
+//
+// By October 2026, 793 of 10,496 issued certificates read "CONTINUE", "Hi",
+// "EXIT", "3", "." or a phone number: the signup name step took any reply,
+// and the confirm step treated any reply but "change" as yes.
+
+test("the name step refuses a button label, a number and a phone number, and STAYS", async () => {
+  for (const value of ["CONTINUE", "3", "Hi", "08131087473", "content.lesson.m3_l1_d"]) {
+    const session = makeCertSession();
+    session.state = "awaiting_certificate_name";
+    const { deps, issued } = certDeps();
+    const result = await certificateNameTurn(session, value, "en", deps);
+    assert.equal(result.state, "awaiting_certificate_name", value);
+    assert.equal(issued.length, 0, `${value} must never be printed`);
+    assert.match(result.reply, /does not look like a name/i);
+    assert.equal(session.name, "Chiamaka Obi", "a rejected reply must not overwrite her record");
+  }
+});
+
+test("a stored non-name is never offered for confirmation: the menu tap asks for her name", async () => {
+  const session = makeCertSession();
+  session.state = "main_menu";
+  session.name = "CONTINUE";
+  const { deps, issued } = certDeps();
+  const result = await certificateMenuTurn(session, "en", deps);
+
+  assert.equal(result.state, "awaiting_certificate_name");
+  assert.equal(session.state, "awaiting_certificate_name");
+  assert.doesNotMatch(result.reply, /CONTINUE/);
+  assert.equal(result.buttons, undefined, "there is nothing to say yes to");
+  assert.equal(issued.length, 0);
+
+  await certificateNameTurn(session, "Halima Musa", "en", deps);
+  assert.equal(issued[0]?.learnerName, "Halima Musa");
+});
+
+test("yes on a stored non-name (a stale confirm) asks for her name instead of printing it", async () => {
+  const session = makeCertSession();
+  session.name = "EXIT";
+  const { deps, issued } = certDeps();
+  const result = await certificateConfirmTurn(session, "Yes, use this name", "en", deps);
+  assert.equal(issued.length, 0);
+  assert.equal(result.state, "awaiting_certificate_name");
+});
+
+test("typing her name at the confirm step uses THAT name, shown back for a yes first", async () => {
+  const session = makeCertSession();
+  const { deps, issued } = certDeps();
+
+  const shown = await certificateConfirmTurn(session, "Ngozi Adaeze Eze", "en", deps);
+  assert.equal(issued.length, 0, "a typed name is confirmed before it is frozen");
+  assert.equal(shown.state, "awaiting_certificate_confirm");
+  assert.match(shown.reply, /Ngozi Adaeze Eze/);
+  assert.equal(shown.buttons?.length, 2);
+
+  await certificateConfirmTurn(session, "Yes, use this name", "en", deps);
+  assert.equal(issued[0]?.learnerName, "Ngozi Adaeze Eze");
+});
+
+test("an unclear reply at the confirm step asks again rather than issuing", async () => {
+  for (const value of ["?", "hi", "3"]) {
+    const session = makeCertSession();
+    const { deps, issued } = certDeps();
+    const result = await certificateConfirmTurn(session, value, "en", deps);
+    assert.equal(issued.length, 0, value);
+    assert.equal(result.state, "awaiting_certificate_confirm", value);
+    assert.match(result.reply, /Chiamaka Obi/);
+  }
+});
+
+test("typed yes and MENU still confirm a real stored name", async () => {
+  for (const value of ["yes", "1", "MENU"]) {
+    const session = makeCertSession();
+    const { deps, issued } = certDeps();
+    await certificateConfirmTurn(session, value, "en", deps);
+    assert.equal(issued[0]?.learnerName, "Chiamaka Obi", value);
+  }
+});
+
+test("an ISSUED certificate with a non-name is corrected in place and re-sent", async () => {
+  const session = makeCertSession();
+  session.state = "main_menu";
+  session.name = "CONTINUE";
+  const { deps, issued, renames, resends, resendVersions } = certDeps({
+    findCertificate: async () => ({ publicId: "q".repeat(32), learnerName: "CONTINUE" })
+  });
+
+  const asked = await certificateMenuTurn(session, "en", deps);
+  assert.equal(asked.state, "awaiting_certificate_name");
+  assert.match(asked.reply, /corrected copy/i);
+  assert.equal(resends.length, 0, "the wrong copy is not sent again");
+
+  const done = await certificateNameTurn(session, "Blessing Okafor", "en", deps);
+  assert.deepEqual(renames, [{ userId: "user-1", learnerName: "Blessing Okafor" }]);
+  assert.equal(issued.length, 0, "a correction is never a second certificate");
+  assert.deepEqual(resends, ["q".repeat(32)], "same certificate, same link");
+  assert.ok(resendVersions[0], "the image link must change, or WhatsApp re-sends its cached copy");
+  assert.equal(session.name, "Blessing Okafor");
+  assert.equal(done.state, "main_menu");
+});
+
+test("an issued certificate with a REAL name cannot be renamed from the chat", async () => {
+  const session = makeCertSession();
+  session.state = "awaiting_certificate_name";
+  const { deps, renames, resends } = certDeps({
+    findCertificate: async () => ({ publicId: "q".repeat(32), learnerName: "Chiamaka Obi" })
+  });
+  await certificateNameTurn(session, "Someone Else", "en", deps);
+  assert.equal(renames.length, 0);
+  assert.deepEqual(resends, ["q".repeat(32)]);
+});
+
+test("a failed correction still answers, and the certificate row stays reachable", async () => {
+  const session = makeCertSession();
+  session.state = "awaiting_certificate_name";
+  const { deps, resends } = certDeps({
+    findCertificate: async () => ({ publicId: "q".repeat(32), learnerName: "3" }),
+    renameCertificate: async () => false
+  });
+  const result = await certificateNameTurn(session, "Fatima Bello", "en", deps);
+  assert.equal(resends.length, 0, "never re-send the copy that still says 3");
+  assert.match(result.reply, /could not be sent/i);
+  assert.ok(result.list?.sections[0]?.rows.some((r) => r.id === "menu-certificate"));
 });

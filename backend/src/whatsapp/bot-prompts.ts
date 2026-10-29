@@ -290,6 +290,28 @@ export const BOT_PROMPT_DEFAULTS: Record<string, BotPromptText> = {
   certificate_not_ready: {
     en: "Your certificate is not ready yet. Finish every module and it will come to you right here."
   },
+  certificate_congrats_ask_name: {
+    // Used instead of certificate_congrats when the name on her record is not
+    // a name at all ("CONTINUE", "Hi", "3"): asking beats showing it to her.
+    en: "🎓 Congratulations! You have finished every module.\n\nSend the full name you want on your certificate, spelled exactly how it should be printed."
+  },
+  certificate_fix_name_prompt: {
+    // "My Certificate" for a learner whose ISSUED certificate carries a
+    // non-name. Her link stays the same; only the printed name changes.
+    en: "Your certificate does not show your name yet. Send your full name, spelled exactly how it should be printed, and we will send you a corrected copy."
+  },
+  name_not_a_name: {
+    // Shared by the signup name step and the certificate name step.
+    en: "That does not look like a name. Please send your full name, for example: Amina Bello."
+  },
+  name_reply_words: {
+    // NOT shown to learners. Comma-separated replies that are never a name,
+    // added to the bot's own button labels (Continue, Exit, the language
+    // names, the certificate buttons) which are picked up automatically.
+    // Matching ignores case and punctuation. Add a word here when one turns
+    // up on a certificate; no deploy needed.
+    en: "hi, hii, hy, hello, helo, hey, ok, okay, yes, no, start, menu, back, exit, continue, thanks, thank you, good morning, good afternoon, good evening, test, name, my name"
+  },
 
   // --- Privacy notice and consent -----------------------------------------
   //
@@ -429,6 +451,10 @@ export const BOT_PROMPT_TITLES: Record<string, string> = {
   certificate_menu_label: "Bot · Certificate menu label",
   certificate_menu_description: "Bot · Certificate menu description",
   certificate_not_ready: "Bot · Certificate not ready",
+  certificate_congrats_ask_name: "Bot · Certificate congratulations (asks for a name)",
+  certificate_fix_name_prompt: "Bot · Certificate name correction prompt",
+  name_not_a_name: "Bot · Reply was not a name",
+  name_reply_words: "Bot · Replies that are never a name (comma-separated, not shown to learners)",
   privacy_notice: "Bot · Privacy notice (shown before anything is collected)",
   privacy_accept_label: "Bot · Privacy notice continue button",
   privacy_decline_label: "Bot · Privacy notice exit button",

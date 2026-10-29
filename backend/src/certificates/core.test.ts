@@ -4,8 +4,46 @@ import {
   MAX_NAME_LENGTH,
   generatePublicId,
   isEligible,
+  looksLikeAName,
   sanitiseLearnerName
 } from "./core.js";
+
+// ---- looksLikeAName ----
+//
+// Every rejected value below is a real one that was printed on an issued
+// certificate in September and October 2026 (793 of 10,496).
+
+const REPLY_WORDS = ["CONTINUE", "EXIT", "MENU", "hi", "Yes, use this name"];
+
+test("real names pass, including single names and irregular casing", () => {
+  for (const name of ["Ngozi Eze", "chukwuEMEKA", "Aisha", "Ọlá Adébáyọ̀", "Mary-Jane O'Neil", "Tosadep01"]) {
+    assert.deepEqual(looksLikeAName(name, REPLY_WORDS), { ok: true }, name);
+  }
+});
+
+test("a value with fewer than two letters is not a name", () => {
+  for (const value of ["3", "1", ".", "...", "?", "F", "G6", "37"]) {
+    assert.deepEqual(looksLikeAName(value, REPLY_WORDS), { ok: false, reason: "no_letters" }, value);
+  }
+});
+
+test("a button label, menu command or greeting is not a name, whatever its case or punctuation", () => {
+  for (const value of ["CONTINUE", "Continue", "exit", "MENU", "Hi", "hi!", " HI. ", "yes, use this name"]) {
+    assert.deepEqual(looksLikeAName(value, REPLY_WORDS), { ok: false, reason: "reply_word" }, value);
+  }
+});
+
+test("a phone number is never printed, alone or next to a name", () => {
+  for (const value of ["08131087473", "Dorathy Hosea 09060668849", "07052697270justina english lagos", "Ada 0806 123 4567"]) {
+    assert.deepEqual(looksLikeAName(value, REPLY_WORDS), { ok: false, reason: "phone_number" }, value);
+  }
+});
+
+test("an internal menu id echoed back by a list tap is not a name", () => {
+  for (const value of ["content.lesson.m3_l1_d", "module-4", "Zestysam_02"]) {
+    assert.deepEqual(looksLikeAName(value, REPLY_WORDS), { ok: false, reason: "machine_id" }, value);
+  }
+});
 
 test("eligible only when every module is complete", () => {
   assert.equal(isEligible({ completedModules: 5, totalModules: 5 }), true);

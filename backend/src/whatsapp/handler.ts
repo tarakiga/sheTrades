@@ -12,6 +12,7 @@ import { WHATSAPP_LIMITS } from "./constraints.js";
 import type { CertificateTemplatePayload } from "../certificates/contracts.js";
 import {
   isEligible,
+  looksLikeAName,
   sanitiseLearnerName,
   MAX_NAME_LENGTH,
   type Completion
@@ -1256,10 +1257,27 @@ export type TurnDeps = {
   template(): CertificateTemplatePayload | null;
   templateVersion(): number;
   baseUrl(): string;
-  findCertificate(userId: string): Promise<{ publicId: string } | null>;
+  /** `learnerName` is the printed name, so a non-name can be offered a correction. */
+  findCertificate(userId: string): Promise<{ publicId: string; learnerName?: string } | null>;
   issue: typeof issueCertificate;
-  /** Re-delivers an already-issued certificate. True when it reached the chat. */
-  resend(input: { phone: string; publicId: string; caption: string; baseUrl: string }): Promise<boolean>;
+  /**
+   * Re-delivers an already-issued certificate. True when it reached the chat.
+   * `version` changes the image link after a correction: WhatsApp caches media
+   * by URL, and the same link would re-send the copy with the wrong name.
+   */
+  resend(input: {
+    phone: string;
+    publicId: string;
+    caption: string;
+    baseUrl: string;
+    version?: string;
+  }): Promise<boolean>;
+  /**
+   * Corrects the printed name on her own certificate, in place: same row, same
+   * publicId, same frozen template. Only reached when the current name is not a
+   * name at all. True when the row was updated.
+   */
+  renameCertificate(input: { userId: string; learnerName: string }): Promise<boolean>;
 
   /** Published version of the privacy notice she is being shown. */
   noticeVersion(): number;
@@ -1289,9 +1307,12 @@ export const liveCertificateDeps: CertificateDeps = {
   templateVersion: () => getRuntimeCertificateTemplateVersion(),
   baseUrl: () => process.env.PUBLIC_BASE_URL ?? "",
   findCertificate: (userId) =>
-    prisma.certificate.findUnique({ where: { userId }, select: { publicId: true } }),
+    prisma.certificate.findUnique({
+      where: { userId },
+      select: { publicId: true, learnerName: true }
+    }),
   issue: (input) => issueCertificate(input),
-  resend: async ({ phone, publicId, caption, baseUrl }) => {
+  resend: async ({ phone, publicId, caption, baseUrl, version }) => {
     try {
       // Sent from the stored publicId, never re-issued: the artwork renders
       // from the row's frozen template snapshot, so a resend still works after
@@ -1299,7 +1320,7 @@ export const liveCertificateDeps: CertificateDeps = {
       const urls = certificateUrls(baseUrl, publicId);
       const result = await sendWhatsAppOutreach(phone, {
         kind: "image",
-        link: urls.image,
+        link: version ? `${urls.image}?v=${encodeURIComponent(version)}` : urls.image,
         caption: buildCertificateCaption(caption, urls.verify)
       });
       return result.status === "sent";
@@ -1309,6 +1330,37 @@ export const liveCertificateDeps: CertificateDeps = {
         JSON.stringify({
           event: "certificate.resend.failed",
           publicId,
+          reason: error instanceof Error ? error.message : String(error)
+        })
+      );
+      return false;
+    }
+  },
+
+  renameCertificate: async ({ userId, learnerName }) => {
+    try {
+      // Only the printed name changes, exactly as the admin rename does: the
+      // publicId she may already have shared and the frozen artwork stay.
+      const row = await prisma.certificate.update({
+        where: { userId },
+        data: { learnerName },
+        select: { id: true }
+      });
+      console.log(
+        JSON.stringify({
+          event: "certificate.learner_rename",
+          certificateId: row.id,
+          userId,
+          learnerName,
+          updatedAt: new Date().toISOString()
+        })
+      );
+      return true;
+    } catch (error) {
+      console.warn(
+        JSON.stringify({
+          event: "certificate.learner_rename.failed",
+          userId,
           reason: error instanceof Error ? error.message : String(error)
         })
       );
@@ -1422,14 +1474,90 @@ function certificateConfirmButtons(lang: "en" | "pcm" | "ig"): string[] {
   ];
 }
 
-function certificateCongratsReply(session: UserSession, lang: "en" | "pcm" | "ig"): TurnReply {
+/**
+ * Replies the bot itself invites, in every language, plus the configured
+ * list of greetings — none of which is ever a name. Read from published config
+ * on every call, so relabelling a button or adding a word needs no deploy.
+ */
+function nameReplyWords(): string[] {
+  const words: string[] = [];
+  for (const lang of ["en", "pcm", "ig"] as const) {
+    for (const key of [
+      "privacy_accept_label",
+      "privacy_decline_label",
+      "certificate_confirm_yes",
+      "certificate_confirm_change",
+      "certificate_menu_label",
+      "privacy_menu_label"
+    ]) {
+      words.push(getPrompt(key, lang, ""));
+    }
+    words.push(...getPrompt("name_reply_words", lang, "").split(","));
+  }
+  for (const choice of getLanguageChoices()) words.push(choice.label, ...choice.aliases);
+  return words.map((word) => word.trim()).filter((word) => word.length > 0);
+}
+
+type LearnerNameCheck =
+  | { ok: true; value: string }
+  | { ok: false; reason: "empty" | "too_long" | "no_letters" | "reply_word" | "phone_number" | "machine_id" };
+
+/** Printable (sanitiseLearnerName) AND plausibly a name (looksLikeAName). */
+function checkLearnerName(raw: string): LearnerNameCheck {
+  const cleaned = sanitiseLearnerName(raw);
+  if (!cleaned.ok) return cleaned;
+  const plausible = looksLikeAName(cleaned.value, nameReplyWords());
+  return plausible.ok ? { ok: true, value: cleaned.value } : plausible;
+}
+
+/** The re-ask for a rejected name, worded for why it was rejected. */
+function rejectedNameReply(reason: Exclude<LearnerNameCheck, { ok: true }>["reason"], lang: "en" | "pcm" | "ig"): string {
+  if (reason === "too_long") {
+    return getPrompt(
+      "certificate_name_too_long",
+      lang,
+      "That name is too long for the certificate — {max} letters is the most it can hold. Please send a shorter version."
+    ).replace("{max}", String(MAX_NAME_LENGTH));
+  }
+  if (reason === "empty") {
+    return getPrompt("certificate_name_empty", lang, "I did not get a name there. Please send your full name.");
+  }
+  return getPrompt(
+    "name_not_a_name",
+    lang,
+    "That does not look like a name. Please send your full name, for example: Amina Bello."
+  );
+}
+
+/**
+ * The question a finished learner is asked, and the state it leaves her in.
+ *
+ * A real name on her record is shown back for a yes. Anything else ("CONTINUE",
+ * "Hi", "3") is NOT shown: confirming it is how hundreds of certificates came
+ * to print it. She is asked for her name instead.
+ */
+function certificateQuestion(session: UserSession, lang: "en" | "pcm" | "ig"): TurnReply {
+  const stored = checkLearnerName(session.name ?? "");
+  session.lastUpdatedAt = nowIso();
+  if (!stored.ok) {
+    session.state = "awaiting_certificate_name";
+    return {
+      state: session.state,
+      reply: getPrompt(
+        "certificate_congrats_ask_name",
+        lang,
+        "🎓 Congratulations! You have finished every module.\n\nSend the full name you want on your certificate, spelled exactly how it should be printed."
+      )
+    };
+  }
+  session.state = "awaiting_certificate_confirm";
   return {
-    state: "awaiting_certificate_confirm",
+    state: session.state,
     reply: getPrompt(
       "certificate_congrats",
       lang,
       "🎓 Congratulations! You have finished every module.\n\nYour certificate will show this name:\n\n{name}\n\nIs that how you want it written? Choose below."
-    ).replace("{name}", session.name ?? "Learner"),
+    ).replace("{name}", stored.value),
     buttons: certificateConfirmButtons(lang)
   };
 }
@@ -1465,49 +1593,56 @@ async function issueCertificateTurn(
   lang: "en" | "pcm" | "ig",
   deps: CertificateDeps
 ): Promise<TurnReply> {
+  // The name is checked BEFORE anything else, because a name that fails is a
+  // necessary failure whatever the template says — so sending her to fix it
+  // is never the wrong move. This is not a second eligibility or enabled
+  // gate; issuance stays gated by buildIssuePlan alone.
+  //
+  // The confirm path carries the name captured at ONBOARDING, which before
+  // October 2026 accepted any reply — "CONTINUE", "Hi", "3", a phone number —
+  // or a 200-character name, or one carrying a bidi override. She has
+  // finished the programme; printing that, or a wordless nothing, are the
+  // worst outcomes, so she is asked for her name instead.
+  const name = checkLearnerName(learnerName);
+  if (!name.ok) {
+    session.state = "awaiting_certificate_name";
+    session.lastUpdatedAt = nowIso();
+    console.warn(
+      JSON.stringify({
+        event: "certificate.stored_name.rejected",
+        userId: session.userId,
+        reason: name.reason
+      })
+    );
+    return {
+      state: session.state,
+      reply:
+        name.reason === "empty" || name.reason === "too_long"
+          ? getPrompt(
+              "certificate_name_prompt",
+              lang,
+              "No problem. Send the full name you want on your certificate, spelled exactly how it should be printed."
+            )
+          : getPrompt(
+              "certificate_congrats_ask_name",
+              lang,
+              "🎓 Congratulations! You have finished every module.\n\nSend the full name you want on your certificate, spelled exactly how it should be printed."
+            )
+    };
+  }
+
   const completion = certificateCompletion(session, deps);
   const template = deps.template();
   const plan = template
     ? buildIssuePlan({
         template,
         templateVersion: deps.templateVersion(),
-        learnerName,
+        learnerName: name.value,
         completion
       })
     : null;
 
   if (!plan) {
-    // Asked of the sanitiser directly, and BEFORE anything else, because a
-    // name it rejects is a necessary failure whatever the template says — so
-    // sending her to fix it is never the wrong move. This is not a second
-    // eligibility or enabled gate; issuance stays gated by buildIssuePlan
-    // alone.
-    const name = sanitiseLearnerName(learnerName);
-    if (!name.ok) {
-      // The confirm path carries the name captured at ONBOARDING, which never
-      // passed through this sanitiser — so a 200-character name, or one
-      // carrying a bidi override, lands here. She has finished the programme;
-      // a wordless nothing is the worst possible outcome, so fall through to
-      // the change-name prompt instead of returning silently.
-      session.state = "awaiting_certificate_name";
-      session.lastUpdatedAt = nowIso();
-      console.warn(
-        JSON.stringify({
-          event: "certificate.stored_name.rejected",
-          userId: session.userId,
-          reason: name.reason
-        })
-      );
-      return {
-        state: session.state,
-        reply: getPrompt(
-          "certificate_name_prompt",
-          lang,
-          "No problem. Send the full name you want on your certificate, spelled exactly how it should be printed."
-        )
-      };
-    }
-
     // Template unpublished or still a draft (admins preview drafts, and the
     // renderer deliberately does not enforce the flag — issuance does), or the
     // curriculum grew after she qualified. None of that is hers to fix or to
@@ -1574,48 +1709,30 @@ export async function certificateMenuTurn(
   lang: "en" | "pcm" | "ig",
   deps: CertificateDeps
 ): Promise<TurnReply> {
-  let existing: { publicId: string } | null = null;
-  try {
-    existing = await deps.findCertificate(session.userId);
-  } catch (error) {
-    console.warn(
-      JSON.stringify({
-        event: "certificate.lookup.failed",
-        userId: session.userId,
-        reason: error instanceof Error ? error.message : String(error)
-      })
-    );
-  }
+  const existing = await findOwnCertificate(session, deps);
 
   if (existing) {
-    const sent = await deps.resend({
-      phone: session.phone,
-      publicId: existing.publicId,
-      caption: getPrompt(
-        "certificate_sent",
-        lang,
-        "Here is your certificate. Well done — you earned it. The link below lets anyone check that it is real."
-      ),
-      baseUrl: deps.baseUrl()
-    });
-    session.lastUpdatedAt = nowIso();
-    const menu = buildMainMenuReply(session.name ?? "Learner", lang, true);
-    if (sent) return { state: session.state, reply: menu.reply, list: menu.list };
-    return {
-      state: session.state,
-      reply: `${getPrompt(
-        "certificate_send_failed",
-        lang,
-        "Sorry, your certificate could not be sent just now. Nothing you did is wrong — we have logged it for our team. Choose My Certificate from the menu in a few minutes and we will try again."
-      )}\n\n${menu.reply}`,
-      list: menu.list
-    };
+    // An issued certificate that prints "CONTINUE", "3" or a phone number is
+    // not re-sent as it stands: she is asked for her name and gets a corrected
+    // copy on the same link. Real names are never re-opened from the chat.
+    if (existing.learnerName !== undefined && !checkLearnerName(existing.learnerName).ok) {
+      session.state = "awaiting_certificate_name";
+      session.lastUpdatedAt = nowIso();
+      console.log(JSON.stringify({ event: "certificate.name_fix.offered", userId: session.userId }));
+      return {
+        state: session.state,
+        reply: getPrompt(
+          "certificate_fix_name_prompt",
+          lang,
+          "Your certificate does not show your name yet. Send your full name, spelled exactly how it should be printed, and we will send you a corrected copy."
+        )
+      };
+    }
+    return resendCertificateTurn(session, existing.publicId, lang, deps);
   }
 
   if (isEligible(certificateCompletion(session, deps))) {
-    session.state = "awaiting_certificate_confirm";
-    session.lastUpdatedAt = nowIso();
-    return certificateCongratsReply(session, lang);
+    return certificateQuestion(session, lang);
   }
 
   // Neither applies. Reachable if the row vanished or the lookup failed, so it
@@ -1643,16 +1760,19 @@ export async function certificateConfirmTurn(
 ): Promise<TurnReply> {
   const normalized = text.trim().toLowerCase();
   // A tapped button echoes its own title back (clipped to BUTTON_TITLE_MAX on
-  // real WhatsApp), so the configured label is matched alongside the typed
-  // shortcuts. Everything else confirms — including MENU, which costs her
-  // nothing: the name she is being shown is the one she would get anyway.
-  const changeLabel = getPrompt("certificate_confirm_change", lang, "Change the name")
-    .trim()
-    .toLowerCase();
+  // real WhatsApp), so the configured labels are matched alongside the typed
+  // shortcuts. MENU also confirms: it costs her nothing, because the name she
+  // is being shown is the one she would get anyway.
+  const matchesLabel = (key: string, fallback: string) => {
+    const label = getPrompt(key, lang, fallback).trim().toLowerCase();
+    return normalized === label || normalized === clip(label, BUTTON_TITLE_MAX).trim();
+  };
   const wantsChange =
     ["change", "no", "2", "change name"].includes(normalized) ||
-    normalized === changeLabel ||
-    normalized === clip(changeLabel, BUTTON_TITLE_MAX).trim();
+    matchesLabel("certificate_confirm_change", "Change the name");
+  const wantsYes =
+    ["yes", "y", "1", "ok", "okay", "menu", "0", "back"].includes(normalized) ||
+    matchesLabel("certificate_confirm_yes", "Yes, use this name");
 
   if (wantsChange) {
     session.state = "awaiting_certificate_name";
@@ -1667,7 +1787,104 @@ export async function certificateConfirmTurn(
     };
   }
 
-  return issueCertificateTurn(session, session.name ?? "", lang, deps);
+  if (wantsYes) return issueCertificateTurn(session, session.name ?? "", lang, deps);
+
+  // Not a button. If she typed her name — the natural answer to "is this how
+  // you want it written?" — that name is what she means. Until October 2026
+  // this branch confirmed the OLD name instead. Shown back for a yes rather
+  // than issued straight away, because a certificate is permanent and a typo
+  // here cannot be undone from the chat.
+  const typed = checkLearnerName(text);
+  if (typed.ok) session.name = typed.value;
+  // Anything else ("?", "hi", "3") asks the same question again.
+  return certificateQuestion(session, lang);
+}
+
+/** Her own certificate, or null. A failed lookup is logged and reads as none. */
+async function findOwnCertificate(
+  session: UserSession,
+  deps: CertificateDeps
+): Promise<{ publicId: string; learnerName?: string } | null> {
+  try {
+    return await deps.findCertificate(session.userId);
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        event: "certificate.lookup.failed",
+        userId: session.userId,
+        reason: error instanceof Error ? error.message : String(error)
+      })
+    );
+    return null;
+  }
+}
+
+/** Re-sends an issued certificate and lands her on the main menu. */
+async function resendCertificateTurn(
+  session: UserSession,
+  publicId: string,
+  lang: "en" | "pcm" | "ig",
+  deps: CertificateDeps,
+  version?: string
+): Promise<TurnReply> {
+  const sent = await deps.resend({
+    phone: session.phone,
+    publicId,
+    caption: getPrompt(
+      "certificate_sent",
+      lang,
+      "Here is your certificate. Well done — you earned it. The link below lets anyone check that it is real."
+    ),
+    baseUrl: deps.baseUrl(),
+    ...(version ? { version } : {})
+  });
+  session.state = "main_menu";
+  session.lastUpdatedAt = nowIso();
+  return sent ? mainMenuTurn(session, lang, deps) : certificateSendFailedTurn(session, lang, deps);
+}
+
+function certificateSendFailedTurn(
+  session: UserSession,
+  lang: "en" | "pcm" | "ig",
+  deps: CertificateDeps
+): Promise<TurnReply> {
+  return mainMenuTurn(
+    session,
+    lang,
+    deps,
+    getPrompt(
+      "certificate_send_failed",
+      lang,
+      "Sorry, your certificate could not be sent just now. Nothing you did is wrong — we have logged it for our team. Choose My Certificate from the menu in a few minutes and we will try again."
+    )
+  );
+}
+
+/**
+ * The name step when she ALREADY holds a certificate. Reached from "My
+ * Certificate" when the printed name is not a name. The row is corrected in
+ * place (same link, same artwork) and re-sent; a certificate that already
+ * prints a real name is only re-sent, never renamed from the chat.
+ */
+async function correctIssuedNameTurn(
+  session: UserSession,
+  existing: { publicId: string; learnerName?: string },
+  learnerName: string,
+  lang: "en" | "pcm" | "ig",
+  deps: CertificateDeps
+): Promise<TurnReply> {
+  if (existing.learnerName === undefined || checkLearnerName(existing.learnerName).ok) {
+    return resendCertificateTurn(session, existing.publicId, lang, deps);
+  }
+  const renamed = await deps.renameCertificate({ userId: session.userId, learnerName });
+  if (!renamed) {
+    // Never re-send the copy that still prints the wrong name.
+    session.state = "main_menu";
+    session.lastUpdatedAt = nowIso();
+    return certificateSendFailedTurn(session, lang, deps);
+  }
+  // A new image link per correction: WhatsApp caches media by URL.
+  return resendCertificateTurn(session, existing.publicId, lang, deps, Date.now().toString(36));
 }
 
 /**
@@ -1691,32 +1908,20 @@ export async function certificateNameTurn(
     return mainMenuTurn(session, lang, deps);
   }
 
-  const name = sanitiseLearnerName(safeText);
+  const name = checkLearnerName(safeText);
   if (!name.ok) {
     // STAY in this state: bouncing her to the main menu over a typo would cost
-    // her the thread she is in the middle of.
+    // her the thread she is in the middle of. Her record keeps what it had.
     session.lastUpdatedAt = nowIso();
-    return {
-      state: session.state,
-      reply:
-        name.reason === "too_long"
-          ? getPrompt(
-              "certificate_name_too_long",
-              lang,
-              "That name is too long for the certificate — {max} letters is the most it can hold. Please send a shorter version."
-            ).replace("{max}", String(MAX_NAME_LENGTH))
-          : getPrompt(
-              "certificate_name_empty",
-              lang,
-              "I did not get a name there. Please send your full name."
-            )
-    };
+    return { state: session.state, reply: rejectedNameReply(name.reason, lang) };
   }
 
   // She has just told us her real name. It belongs on her record, not only on
   // this certificate — saveSession() writes session.name to users.name at the
   // end of the turn.
   session.name = name.value;
+  const existing = await findOwnCertificate(session, deps);
+  if (existing) return correctIssuedNameTurn(session, existing, name.value, lang, deps);
   return issueCertificateTurn(session, name.value, lang, deps);
 }
 
@@ -1756,7 +1961,18 @@ export async function transition(
       };
     }
 
-    session.name = safeText;
+    // Checked, not taken as is. This question follows the privacy notice, whose
+    // CONTINUE and EXIT buttons stay tappable, so the reply here is often a
+    // second tap, a "Hi" or a stray "3" — and it ends up printed on her
+    // certificate. She is asked again; nothing is saved until it is a name.
+    const name = checkLearnerName(safeText);
+    if (!name.ok) {
+      console.log(JSON.stringify({ event: "onboarding.name.rejected", userId: session.userId, reason: name.reason }));
+      session.lastUpdatedAt = nowIso();
+      return { state: "awaiting_name", reply: rejectedNameReply(name.reason, lang) };
+    }
+
+    session.name = name.value;
     // Straight to location now. Language was chosen before the notice, because
     // she has to be able to READ the notice before she agrees to it.
     session.state = "awaiting_state";
@@ -2713,8 +2929,8 @@ async function offerCertificate(
   if (!template || !template.enabled) return null;
   if (await deps.findCertificate(session.userId)) return null;
 
-  session.state = "awaiting_certificate_confirm";
-  session.lastUpdatedAt = nowIso();
+  // Sets the state: confirm for a real stored name, ask-for-name otherwise.
+  const offer = certificateQuestion(session, session.language ?? "en");
   // saveSession() already ran for this turn, so the new state has to be
   // written again here — and the offer is only returned once that write is
   // durable, or the learner would be asked to confirm a question the next turn
@@ -2724,7 +2940,7 @@ async function offerCertificate(
   // state.
   await saveSession(session.phone, session);
 
-  return certificateCongratsReply(session, session.language ?? "en");
+  return offer;
 }
 
 /** A reply the analytics pass wants appended to the turn already computed. */

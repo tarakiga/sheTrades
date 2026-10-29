@@ -433,6 +433,22 @@ test("a changed template invalidates the cached bytes", async () => {
   assert.deepEqual(recorder.templates[1], TEMPLATE);
 });
 
+test("a corrected name invalidates the cached bytes", async () => {
+  // A rename (admin, or a learner fixing "CONTINUE" from the chat) keeps the
+  // publicId and the template. Before October 2026 the key held only those, so
+  // the old name kept being served until the instance recycled.
+  let learnerName = "CONTINUE";
+  const { app, recorder } = buildTestApp({
+    findByPublicId: async () => ({ ...ROW, learnerName })
+  });
+
+  await request(app).get(`/c/${PUBLIC_ID}.png`);
+  learnerName = "Blessing Okafor";
+  await request(app).get(`/c/${PUBLIC_ID}.png`);
+
+  assert.equal(recorder.renders, 2);
+});
+
 test("one caller cannot monopolise the render path", async () => {
   const previous = process.env.CERTIFICATE_PNG_RATE_LIMIT;
   process.env.CERTIFICATE_PNG_RATE_LIMIT = "2";

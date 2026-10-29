@@ -3007,3 +3007,93 @@ lesson.
 
 Workbook sent to Tar: shetrades-meta-billing-estimate-2026-10-03.xlsx (rate,
 free allowance and FX are input cells). Not in the repo.
+
+## 2026-10-14 - Meta billing live: first real numbers (META-1)
+
+Payment method added; the account unblocked on 8 Oct (WABA currency now USD,
+WABA/BUSINESS can_send AVAILABLE; the PHONE_NUMBER "LIMITED" flag is only
+about SIP calling, 138024/138025, not messaging). Still tier 250, display
+name still NON_EXISTS.
+
+Meta's pricing_analytics (DAILY, account time UTC+4), all SERVICE / REGULAR
+(i.e. billed) to NG, with Meta's own cost:
+8 Oct 529 / $3.54 | 9 Oct 20,942 / $140.31 | 10 Oct 17,590 / $117.85 |
+11 Oct (Sun) 7,071 / $47.38 | 12 Oct 19,979 / $133.86 | 13 Oct 13,929 / $93.32.
+- Rate confirmed from Meta's cost field: exactly USD 0.0067 per message.
+- No free allowance visible: the first 529 messages on 8 Oct were charged in
+  full, so the "1,000 free a month" from third-party guides is not showing
+  in Meta's cost data. Budget without it.
+- Run-rate (9-13 Oct): ~15,900 messages/day, ~USD 106/day, ~USD 3,200 per
+  30 days, before tax. That is ~60% above late September (~10k/day), maybe
+  learners returning after the 1-8 Oct silence; recheck in a week.
+- October bill estimate: USD 537 to date + ~17.5 days x 106 = ~USD 2,400
+  (the 1-7 Oct block saved a week).
+- Rewards still paused, no campaign running. A September-size campaign adds
+  ~USD 28,300 on top.
+Query script kept in the session scratchpad (mints a 15-min admin JWT from
+ADMIN_CONFIG_JWT_SECRET, reads the WhatsApp config, calls pricing_analytics);
+docs/ops/whatsapp-health.py covers the health + hourly part.
+
+## 2026-10-22 - Igbo translation template for the translators
+
+docs/igbo-translation-template.txt: plain-text template to hand the Igbo
+translation team. Per field (lesson title/body, quiz question/options, FAQ,
+resources, and the certificate + privacy bot prompts that are still English
+only) it gives the limit, worked out from WHATSAPP_LIMITS and the ig bot
+prompt chrome in bot-prompts.ts: title+body <= 939 (1024 - 85 chrome),
+quiz question <= 740 (worst case: retry prefix + hint), options <= 20,
+FAQ/resource title+text <= 950. If the ig quiz_instruction / quiz prompts
+are edited in config, recompute these.
+
+## 2026-10-29 - CERT-NAME: certificates printing "CONTINUE", "Hi", "3", phone numbers
+
+Reported by the team (Ngbede): a learner's certificate showed "3" instead of
+her name. Live scan of all 10,496 certificates: 793 (7.6%) carry a non-name -
+"CONTINUE" 413, "Hi" 187, "EXIT" 75, other button words/greetings ~40, no
+letters ("3", "1", ".", "?") 66, a phone number 9, a list-row id 4 ("module-4",
+"content.lesson.m3_l1_d"). 781 in September, 12 in October - still happening.
+
+Root causes:
+1. Signup name step stored ANY reply as the name. It follows the privacy
+   notice, whose CONTINUE/EXIT buttons stay tappable, so a second tap became
+   the name.
+2. sanitiseLearnerName only rejects empty / >60 chars.
+3. The certificate confirm step treated every reply except "change" as YES, so
+   a learner who typed her real name there confirmed the bad stored one.
+
+Fix (code done, tests green, NOT yet committed or deployed):
+- certificates/core.ts: looksLikeAName(value, replyWords) - needs 2+ letters,
+  no 7+ digit run (phone), not a bot reply word, not a machine id.
+- whatsapp/handler.ts: checkLearnerName = sanitise + looksLikeAName, used at
+  signup (awaiting_name re-asks), the certificate name step, before issuing,
+  and when offering (a stored non-name is never shown for confirmation; she is
+  asked for her name instead). Confirm step: yes/label/MENU confirm, change
+  asks, a TYPED NAME becomes the name and is shown back for a yes, anything
+  else re-asks.
+- Reply words come from config: the bot's own button labels in all languages
+  + language labels/aliases + new prompt `name_reply_words` (comma list,
+  admin-editable, not shown to learners).
+- Issued certificates with a non-name: "My Certificate" now asks for her name,
+  renames the row in place (same publicId, same frozen template) via new
+  TurnDeps.renameCertificate, logs certificate.learner_rename, and re-sends
+  with ?v=<stamp> on the image link (WhatsApp caches media by URL). Real names
+  are never renamable from the chat.
+- certificates/routes-public.ts: PNG render cache key now includes
+  learnerName. Before this, ANY rename (including the existing admin rename)
+  kept serving the old artwork from the in-process cache.
+- New prompts: certificate_congrats_ask_name, certificate_fix_name_prompt,
+  name_not_a_name, name_reply_words (en only; fall back for pcm/ig).
+Tests: backend 790 / 738 pass / 0 fail / 52 skipped (no POSTGRES_URL); tsc clean.
+
+After deploy:
+- Publish ONLY the 4 new prompt keys (bot.prompt.certificate_congrats_ask_name,
+  .certificate_fix_name_prompt, .name_not_a_name, .name_reply_words) so admins
+  can edit them; the in-code defaults work without it. Do NOT run
+  `npm run seed:bot-prompts` as is: it PUTs and publishes EVERY bot prompt
+  from the defaults, wiping admin edits (the client's privacy notice,
+  translations). It has no SEED_ONLY_KEYS filter.
+- 9 certificates print a phone number on a public page; rename them in the
+  dashboard (strip the number; the 2 bare numbers need the learner's name).
+- The 793 affected learners are only fixed when they open My Certificate;
+  telling them needs a business-initiated template message (tier 250/day,
+  billed) - Tar's call.
