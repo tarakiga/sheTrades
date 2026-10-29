@@ -3113,3 +3113,4 @@ After deploy:
 - Two renamed to a single first name (Gbolahan, Justina); a real name is no
   longer renamable from the chat, so a fuller name needs a dashboard rename.
 - Open: CERT-NAME-2 (notify the 793), OPS-3 (seed filter).
+- 29 Oct: Tar decided NOT to message the 793 (no paid template); they self-correct via My Certificate. CERT-NAME-2 closed.
